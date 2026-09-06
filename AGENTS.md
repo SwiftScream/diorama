@@ -1,0 +1,173 @@
+# AGENTS.md
+
+This file governs agents working anywhere in the Diorama repository.
+
+## Purpose
+
+Diorama is a clean-slate Swift record/replay library for deterministic testing
+of nondeterministic systems. It is not a continuation of the exploratory
+`swift-network-snapshot` implementation and has no compatibility obligation to
+that POC's package structure, APIs, persistence format, or tests.
+
+The repository is initially documentation-only. Do not create production code
+until an approved implementation-plan slice asks for it.
+
+## Sources of truth
+
+Read the documents relevant to a task before designing or editing code:
+
+1. `docs/design-decisions/README.md` and the accepted decision documents;
+2. `docs/design-overview.md` for their combined meaning;
+3. `docs/plans/README.md` and the active approved implementation plan;
+4. `docs/dependency-policy.md`;
+5. `docs/quality-gates-and-ci.md`.
+
+An implementation plan sequences work but does not override an accepted design
+decision. If a task conflicts with a decision or requires an unresolved product
+choice, stop that slice and surface the conflict. Do not silently choose a new
+architecture inside implementation work.
+
+## Branch and commit rules
+
+- Always work on a feature branch. Never edit or commit directly on `master` or
+  `main`.
+- At the start of every task, inspect the current branch and worktree. If the
+  current branch is `master` or `main`, create a descriptively named feature
+  branch before editing.
+- Keep one branch focused on one approved review unit unless the owner asks to
+  combine work.
+- Do not commit unless the owner explicitly asks for a commit after reviewing
+  the working tree.
+- Do not merge, rebase, force-push, or rewrite published history without
+  explicit approval.
+- Preserve changes you did not make. Work with relevant concurrent edits and
+  leave unrelated edits untouched.
+
+## Atomic implementation workflow
+
+Implementation proceeds one small plan item at a time:
+
+1. Read the plan item's prerequisites, referenced decisions, acceptance
+   criteria, and exclusions.
+2. Confirm the branch and inspect the existing implementation and tests.
+3. Implement only that item and the tests or documentation needed to prove it.
+4. Run the narrowest relevant checks, followed by the plan's required review
+   gate.
+5. Report behavior, files changed, verification results, and any residual risk.
+6. Stop for owner review. Do not begin the next plan item or create a commit
+   until explicitly instructed.
+
+A slice should establish one coherent capability or invariant. Avoid combining
+foundational APIs, several systems, broad cleanup, and repository tooling in one
+review unit merely because they are related in the overall plan.
+
+Spikes are evidence-producing tasks. Keep them isolated from production code,
+record their result, and do not turn an exploratory package into a production
+dependency without approval.
+
+## Architecture constraints
+
+- A scenario can contain heterogeneous systems and several separately keyed
+  instances of the same system.
+- Stable semantic values are independent of native runtime object graphs.
+- Record, replay, and passthrough are attachment behaviors; replay never falls
+  through to a live dependency.
+- Runtime models make lifecycle conclusions mutually exclusive. Tolerant
+  persisted forms must validate into one strict interpretation before use.
+- Timing is capability-specific. The initial scheduler maps logical delays
+  one-to-one to monotonic real time.
+- Diagnostics report infrastructure and verification facts. Diorama itself does
+  not decide whether a test passes; integrations may opt into that policy.
+- Persistence is optional at the core boundary. Persisted first-party systems
+  use deliberate, versioned `Codable` schemas and deterministic JSON.
+- `DioramaHTTP` uses Swift HTTP Types as in-memory currency while Diorama owns
+  lifecycle, body, matching, transformation, and persistence semantics.
+- Apple Foundation and FoundationNetworking are bridges for one URLSession
+  system, with advertised behavior constrained by tested capabilities.
+- Platform-specific live adapters must not leak native-only types into portable
+  stable models.
+
+Use the accepted decision documents for detail. This summary is not permission
+to simplify behavior specified there.
+
+## Swift and concurrency
+
+- Bootstrap with the latest stable Swift tools and Xcode versions selected by
+  the implementation plan and CI policy.
+- Enable complete strict concurrency checking from the beginning.
+- Prefer approachable concurrency features where they make isolation explicit
+  and remain compatible with the supported platforms.
+- Treat `Sendable`, actor isolation, cancellation, and quiescent finalization as
+  API design concerns, not warnings to suppress later.
+- Target iOS 15 or later where feasible, plus the accepted macOS and Linux CI
+  environments. Keep Apple-only integrations behind explicit availability and
+  package boundaries.
+
+Do not add `@unchecked Sendable`, unsafe isolation annotations, or broad
+availability increases merely to make a check pass. Each requires a documented,
+reviewable justification.
+
+## Dependencies
+
+No third-party package may enter production manifests or accepted implementation
+without the approval required by `docs/dependency-policy.md`.
+
+Exploration may use a package in an isolated spike. Before production adoption,
+report its exact repository, product, version rule, purpose, alternatives,
+platform impact, and license for approval. An approved package does not imply
+approval for unrelated products or future major upgrades.
+
+Do not replace a platform or standard-library facility with a dependency solely
+for convenience. Do not hand-roll a complex domain implementation when an
+approved, established dependency is the intended design choice.
+
+## Quality gates
+
+Follow `docs/quality-gates-and-ci.md` from the first implementation slice.
+Repository bootstrap must establish SwiftFormat and SwiftLint through Mint,
+strict-concurrency compilation, tests, and GitHub Actions before feature work
+depends on them.
+
+- Formatting and linting configuration are version-controlled.
+- Local and CI checks use the same canonical entry point.
+- Compiler and linter warnings fail CI unless a narrowly documented exception
+  is approved.
+- Tests cover macOS, iOS, and Linux according to package availability.
+- Coverage is collected and uploaded to Codecov without weakening test jobs.
+- Third-party GitHub Actions are pinned to full commit SHAs.
+- Dependabot maintains both Swift Package Manager and GitHub Actions
+  dependencies, including Mint-managed tool declarations where supported.
+
+Run all checks required by the active plan item. If an environment prevents a
+check, report that fact precisely rather than claiming verification.
+
+## Engineering rules
+
+- Prefer small explicit types and existing accepted extension boundaries over
+  speculative abstraction.
+- Make invalid states unrepresentable in runtime models and validate edited
+  persistence at one clear boundary.
+- Keep native values inside adapters and prepare stable values before matching,
+  diagnostics, resources, or persistence.
+- Preserve deterministic ordering and output. Never rely on dictionary order,
+  executor scheduling, locale, current time, or process identity implicitly.
+- Add tests in proportion to the behavioral and concurrency risk of the slice.
+- Do not add compatibility code for POC files or APIs unless a new accepted
+  decision explicitly requires it.
+- Avoid unrelated refactors, generated churn, placeholder public APIs, and
+  future-feature scaffolding outside the current slice.
+
+## Documentation
+
+Update documentation when a slice changes a public contract, persistence
+schema, supported capability, limitation, or implementation-plan status.
+
+Accepted design decisions are historical architectural records. Do not rewrite
+their decisions casually. A contradiction or material revision requires owner
+discussion and explicit approval, recorded as a new decision or clear
+amendment.
+
+Keep `docs/README.md`, `docs/design-overview.md`, and plan status accurate as
+artifacts are added. Only plans marked `Approved` or `In progress` are
+actionable; completed plans are traceability records. Do not restore standalone
+POC architecture documentation to this repository.
