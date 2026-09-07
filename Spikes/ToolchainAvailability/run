@@ -1,0 +1,123 @@
+#!/bin/bash
+# 003-A01 experiment only. This does not replace 003-A04's future scripts/check.
+set -euo pipefail
+
+probe_dir=$(cd "$(dirname "$0")" && pwd)
+probe_mode=${1:-apple}
+probe_output=${PROBE_OUTPUT:-"$probe_dir/.build/$probe_mode"}
+mkdir -p "$probe_output"
+probe_output=$(cd "$probe_output" && pwd)
+
+run() {
+    printf '+ '
+    printf '%q ' "$@"
+    printf '\n'
+    "$@"
+}
+
+expect_rejection() {
+    local label=$1
+    local diagnostic=$2
+    shift 2
+    if run "$@" >"$probe_output/$label.log" 2>&1; then
+        printf 'FAIL: %s unexpectedly compiled\n' "$label" >&2
+        exit 1
+    fi
+    if ! grep -Eq "$diagnostic" "$probe_output/$label.log"; then
+        cat "$probe_output/$label.log" >&2
+        printf 'FAIL: %s failed for an unexpected reason\n' "$label" >&2
+        exit 1
+    fi
+    printf 'PASS: expected rejection %s (see %s)\n' "$label" "$probe_output/$label.log"
+}
+
+base_flags=(-swift-version 6 -strict-concurrency=complete -warnings-as-errors
+    -default-isolation nonisolated -module-cache-path "$probe_output/module-cache")
+caller_feature=(-enable-upcoming-feature NonisolatedNonsendingByDefault)
+conformance_feature=(-enable-upcoming-feature InferIsolatedConformances)
+features=("${caller_feature[@]}" "${conformance_feature[@]}")
+
+case "$probe_mode" in
+    apple)
+        : "${DEVELOPER_DIR:?Set DEVELOPER_DIR to the selected Xcode Contents/Developer directory}"
+        run xcodebuild -version
+        compiler=$(xcrun --find swiftc)
+        sdk=$(xcrun --sdk macosx --show-sdk-path)
+        host_flags=(-sdk "$sdk" -target arm64-apple-macosx13.0)
+        ;;
+    linux)
+        compiler=${SWIFTC:-swiftc}
+        host_flags=(-module-name ToolchainAvailability)
+        run uname -m
+        run cat /etc/os-release
+        ;;
+    *)
+        printf 'Usage: %s [apple|linux]\n' "$0" >&2
+        exit 2
+        ;;
+esac
+
+run "$compiler" --version
+for optimization in Onone O; do
+    for source in ClockProbe ConcurrencyProbe; do
+        executable="$probe_output/$source-$optimization"
+        run "$compiler" "${base_flags[@]}" "${features[@]}" "${host_flags[@]}" \
+            -"$optimization" -parse-as-library -D CALLER_ISOLATION -D ISOLATED_CONFORMANCE \
+            "$probe_dir/$source.swift" -o "$executable"
+        run "$executable"
+    done
+done
+
+expect_rejection caller-isolation-disabled 'sending .* risks causing data races' \
+    "$compiler" "${base_flags[@]}" "${conformance_feature[@]}" "${host_flags[@]}" \
+    -emit-sil -o /dev/null -parse-as-library -D CALLER_ISOLATION "$probe_dir/ConcurrencyProbe.swift"
+expect_rejection isolated-conformance-disabled "conformance of 'MainActorSource'.*crosses into main actor-isolated code" \
+    "$compiler" "${base_flags[@]}" "${caller_feature[@]}" "${host_flags[@]}" \
+    -emit-sil -o /dev/null -parse-as-library -D ISOLATED_CONFORMANCE "$probe_dir/ConcurrencyProbe.swift"
+
+if [[ "$probe_mode" == apple ]]; then
+    for target_sdk in \
+        macosx:x86_64-apple-macosx13.0 \
+        iphoneos:arm64-apple-ios16.0 \
+        iphonesimulator:arm64-apple-ios16.0-simulator \
+        macosx:arm64-apple-ios16.0-macabi \
+        appletvos:arm64-apple-tvos16.0 \
+        watchos:arm64_32-apple-watchos9.0 \
+        xros:arm64-apple-xros1.0; do
+        sdk_name=${target_sdk%%:*}
+        target=${target_sdk#*:}
+        target_sdk_path=$(xcrun --sdk "$sdk_name" --show-sdk-path)
+        for source in ClockProbe ConcurrencyProbe; do
+            run "$compiler" "${base_flags[@]}" "${features[@]}" \
+                -sdk "$target_sdk_path" -target "$target" -emit-object -parse-as-library \
+                -D CALLER_ISOLATION -D ISOLATED_CONFORMANCE "$probe_dir/$source.swift" \
+                -o "$probe_output/$source-$target.o"
+        done
+    done
+
+    for target_sdk in macosx:arm64-apple-macosx12.0 iphoneos:arm64-apple-ios15.0; do
+        sdk_name=${target_sdk%%:*}
+        target=${target_sdk#*:}
+        target_sdk_path=$(xcrun --sdk "$sdk_name" --show-sdk-path)
+        expect_rejection "$target" "'(Clock|ContinuousClock)' is only available in" \
+            "$compiler" "${base_flags[@]}" "${features[@]}" \
+            -sdk "$target_sdk_path" -target "$target" -typecheck -parse-as-library \
+            "$probe_dir/ClockProbe.swift"
+    done
+
+    simulator_sdk=$(xcrun --sdk iphonesimulator --show-sdk-path)
+    for source in ClockProbe ConcurrencyProbe; do
+        run "$compiler" "${base_flags[@]}" "${features[@]}" \
+            -sdk "$simulator_sdk" -target arm64-apple-ios16.0-simulator -Onone \
+            -parse-as-library -D CALLER_ISOLATION -D ISOLATED_CONFORMANCE \
+            "$probe_dir/$source.swift" -o "$probe_output/$source-ios"
+    done
+    printf 'Simulator executables: %s/{ClockProbe,ConcurrencyProbe}-ios\n' "$probe_output"
+else
+    # Q5 evidence must identify the library loaded by FoundationNetworking, not
+    # infer it from the unrelated curl command's version. No package installs.
+    run dpkg-query -W '-f=${Package} ${Version}\n' libcurl4t64
+    run ldd "$probe_output/ClockProbe-Onone"
+fi
+
+printf 'PASS: %s probe gate\n' "$probe_mode"
