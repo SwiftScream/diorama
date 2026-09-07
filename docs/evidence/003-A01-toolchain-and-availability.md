@@ -2,7 +2,7 @@
 
 - Date: 2026-09-07
 - Plan: [003-A01](../plans/003-clean-slate-implementation.md#003-a01--toolchain-and-deployment-feasibility-record)
-- Status: In progress; local Apple and x86_64 Linux evidence prepared for owner review; hosted execution unverified.
+- Status: Complete; local Apple and x86_64 Linux evidence passed; hosted execution is deferred to 003-A04.
 - Authority: [Quality policy and beta amendment](../quality-gates-and-ci.md#toolchain-policy), Q2/Q5, DD14–DD16.
 - Experiment: [Spikes/ToolchainAvailability](../../Spikes/ToolchainAvailability/)
 
@@ -21,8 +21,8 @@ bootstrap requirement. The expected stable release date is not a verified pin.
 This unit adds isolated evidence, not a production package or Diorama runtime.
 There are no adopted Swift package dependencies, tool installations, CI workflows,
 or changes to the accepted runtime minima. 003-A02–003-A04 retain their own scope and
-approval boundaries. 003-A01 remains in progress because the Linux experiment and
-owner review have not completed.
+approval boundaries. The local Linux experiment and all in-scope availability
+probes passed. Hosted execution and CI enforcement are deferred to 003-A04.
 
 ## Selected tools and platform matrix
 
@@ -38,7 +38,7 @@ owner review have not completed.
 | iOS execution destination | iPhone 17, arm64, iOS 27.0 build `24A5423a` | Both probe executables ran with `simctl spawn`. |
 | Apple hosted runner | GitHub Actions `xcode-27`, arm64; explicit Xcode build `27A5252f` | Published inventory supports selection; no hosted run performed. |
 | Linux host | GitHub Actions `ubuntu-24.04`, x86_64, Ubuntu 24.04 LTS | Also verified locally in an Apple Container x86_64 guest. |
-| Linux toolchain | Official `swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a`, Ubuntu 24.04 x86_64 tarball | Official dated download verified by HTTP HEAD; not installed or executed. |
+| Linux toolchain | Official `swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a`, Ubuntu 24.04 x86_64 | Installed in the named Apple Container volume and executed successfully; Swift reported `6.4.2-dev (LLVM 15622a86b1749a9, Swift d2e983b81b18217)`. |
 | Linux libcurl baseline | Ubuntu OpenSSL-flavour `libcurl4-openssl-dev`, package `8.5.0-2ubuntu10.13` | Installed locally; FoundationNetworking resolves `libcurl.so.4`. |
 
 The Apple compiler is selected through `DEVELOPER_DIR`, not the machine's
@@ -69,9 +69,10 @@ compiler's release line, not its exact vendor build. Use the dated
 [x86_64 tarball](https://download.swift.org/swift-6.4.x-branch/ubuntu2404/swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a/swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a-ubuntu24.04.tar.gz)
 and its [detached signature](https://download.swift.org/swift-6.4.x-branch/ubuntu2404/swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a/swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a-ubuntu24.04.tar.gz.sig),
 not a floating nightly image. The tarball returned HTTP 200 and a content length
-of `1275787555` bytes on 2026-09-07. It was not downloaded; signature verification,
-archive digest recording, installation, and compiler build output remain pending
-on the Linux host. The Swift project describes snapshots as prereleases with
+of `1275787555` bytes on 2026-09-07. The local container used the same dated
+snapshot and passed both probes. Signature verification and archive digest
+recording remain follow-up reproducibility checks for 003-A04. The Swift project
+describes snapshots as prereleases with
 less release validation than official releases.
 
 [Ubuntu's package record](https://packages.ubuntu.com/noble-updates/libcurl4t64)
@@ -237,15 +238,12 @@ of `libcurl.so.4`. It also printed both probe `PASS` lines. A future Linux host
 must record the same fields and may not silently substitute a different package
 series or architecture.
 
-## Remaining gates and release update
+## Deferred gates and release update
 
-1. Verify the tarball signature/digest and review the local Linux experiment;
-   repeat its package/linkage check on the hosted Linux job when 003-A04 exists.
-2. Obtain owner review of the complete 003-A01 branch. PR creation and merge have
-   separate checkpoints; this evidence does not authorize either.
-3. In 003-A04, run the required hosted matrix, enforce the reviewed tool/runtime
+1. In 003-A04, verify the tarball signature/digest, repeat the package/linkage
+   check on the hosted Linux job, and enforce the reviewed tool/runtime
    selections, and establish the actual iOS `xcodebuild test` and coverage jobs.
-4. When stable Xcode/Swift is selected, update the exact Apple and Linux pins,
+2. When stable Xcode/Swift is selected, update the exact Apple and Linux pins,
    SDK/runtime inventory, and this exception's status in one reviewed maintenance
    change. Rerun these probes and the complete 003-A04 matrix once it exists.
 
