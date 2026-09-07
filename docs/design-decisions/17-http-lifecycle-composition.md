@@ -330,7 +330,7 @@ decision latency is not persisted; timing after the decision starts when the
 decision returns.
 
 Challenge cancellation is a recorded lifecycle decision and is distinct from
-the caller cancelling a `URLSessionTask`. Server trust, client certificates,
+the caller canceling a `URLSessionTask`. Server trust, client certificates,
 identities, and challenges without a representable HTTP response remain
 unsupported.
 
@@ -378,7 +378,7 @@ Replay constructs a fresh `NSError` or `URLError` carrying the stable supported
 semantics. It does not claim native object identity or arbitrary error-subclass
 reconstruction.
 
-A cancelled error caused by observed caller task cancellation is runtime
+A canceled error caused by observed caller task cancellation is runtime
 control and is not persisted. An independently observed dependency cancellation
 failure may be recorded. Diorama misses, ambiguity, capability failures, and
 expired executions use a separate infrastructure error domain.

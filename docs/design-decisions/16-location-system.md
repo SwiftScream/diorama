@@ -176,7 +176,7 @@ source information records `simulatedBySoftware` and `producedByAccessory`.
 ## Coordinate representation
 
 Each named attachment has one horizontal WGS84 origin. Every recorded
-coordinate is stored as an east/north displacement in metres from that common
+coordinate is stored as an east/north displacement in meters from that common
 origin rather than as a displacement from the preceding location.
 
 Common-origin displacement makes route relocation a one-origin edit, prevents
@@ -496,7 +496,7 @@ This decision does not determine:
    Preserve reproducible Apple types but deliver `DioramaLocation` so floor and
    ellipsoidal altitude remain faithful.
 4. **Coordinate representation: Resolved.** Each attachment has a WGS84 origin
-   and common-origin east/north metre offsets.
+   and common-origin east/north meter offsets.
 5. **Stable payload: Resolved.** Preserve reconstructible measurements, floor,
    ellipsoidal altitude, timestamp, and source flags while normalizing invalid
    sentinels to absence.

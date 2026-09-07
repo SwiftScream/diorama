@@ -199,6 +199,11 @@ check, report that fact precisely rather than claiming verification.
 Update documentation when a slice changes a public contract, persistence
 schema, supported capability, limitation, or implementation-plan status.
 
+Use US English spelling in documentation, comments, diagnostics, identifiers,
+and other code tokens. Preserve external names, quoted source text, protocol
+and package names, and domain terms whose spelling is fixed by an external
+standard.
+
 Keep implementation progress in the owning implementation plan. Do not add
 unit-status updates to the repository `README.md`, `docs/README.md`,
 `docs/design-overview.md`, or `docs/plans/README.md`; those documents are stable

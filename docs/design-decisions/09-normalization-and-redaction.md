@@ -277,7 +277,7 @@ Recommended initial posture:
   sanitizers, substitutions, or removal for bodies that need them. Diorama does
   not claim that an unchanged body is free of sensitive data.
 - Location observations are recorded with replayable fidelity by default.
-  Decision 16 expresses horizontal observations as east/north metre offsets
+  Decision 16 expresses horizontal observations as east/north meter offsets
   from a persisted WGS84 origin. An explicit origin override or setup default
   relocates the route without rewriting every observation. Without either, the
   persisted origin reveals the recorded location.
@@ -367,7 +367,7 @@ hide any ambiguity it creates.
 
 ### Location route
 
-A location attachment records one WGS84 coordinate origin and east/north metre
+A location attachment records one WGS84 coordinate origin and east/north meter
 offsets. Orthometric and ellipsoidal altitudes have independent optional
 origins. An explicit persisted override wins over a setup-configured default,
 which wins over the fresh observation. Setup defaults are applied before the

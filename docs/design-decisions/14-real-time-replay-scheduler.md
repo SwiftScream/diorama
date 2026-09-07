@@ -114,7 +114,7 @@ recording run.
 
 One execution-owned deadline engine maintains pending scheduled items and one
 active wait for the earliest deadline. Registering an earlier item wakes and
-replaces that wait. Cancelling the earliest item likewise causes the engine to
+replaces that wait. Canceling the earliest item likewise causes the engine to
 select the next pending deadline.
 
 When the timer wakes, the engine atomically claims all currently due items in
@@ -160,13 +160,13 @@ A system registers:
 - stable ordering information supplied by its attachment context.
 
 Registration returns an execution-owned cancellation handle. A scheduled item
-has mutually exclusive pending, claimed-for-delivery, delivered, and cancelled
+has mutually exclusive pending, claimed-for-delivery, delivered, and canceled
 states. Cancellation is idempotent and races atomically with claiming, so
 exactly one wins. Delivery and continuation resumption never occur while the
 scheduler's state isolation is held.
 
-System adapters translate cancellation to their native contract. A cancelled
-clock sleep throws `CancellationError`; a cancelled replay URLSession task
+System adapters translate cancellation to their native contract. A canceled
+clock sleep throws `CancellationError`; a canceled replay URLSession task
 stops future replay callbacks. Caller cancellation remains runtime control and
 is not added to the stable recording.
 
@@ -263,7 +263,7 @@ execution finalization:
 3. allow already claimed deliveries to complete without accepting follow-up
    scheduling;
 4. wait until no Diorama-owned delivery callback is executing;
-5. detach live record-mode observation without cancelling consumer-owned live
+5. detach live record-mode observation without canceling consumer-owned live
    operations;
 6. freeze lifecycle progress and verification results.
 

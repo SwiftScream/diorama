@@ -41,9 +41,9 @@ private enum ClockProbe {
         sleeper.cancel()
         do {
             try await sleeper.value
-            preconditionFailure("Cancelled clock sleep completed successfully")
+            preconditionFailure("Canceled clock sleep completed successfully")
         } catch is CancellationError {
-            // A cancelled native sleep has the required failure channel.
+            // A canceled native sleep has the required failure channel.
         }
 
         // Foundation primitives needed by DD15/DD16; this is not a stable codec.
