@@ -51,6 +51,12 @@ lifecycle composition.
   posture, formatting and linting through Mint, GitHub Actions, platform tests,
   strict concurrency, Codecov, action pinning, and Dependabot.
 
+## Implementation evidence
+
+- [Toolchain and deployment availability](evidence/003-A01-toolchain-and-availability.md)
+  records 003-A01's exact beta toolchain and platform selections, isolated probes,
+  observed results, and remaining environment verification gaps.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its
