@@ -76,7 +76,7 @@ hooks, scheduled replay work, and other resources that must be deactivated. It
 does not imply ownership of a consumer-supplied live dependency. A live native
 operation may own a minimal forwarding continuation after it starts; at the
 recording horizon that continuation must detach from the execution and its
-recording state rather than being cancelled merely to release the lease.
+recording state rather than being canceled merely to release the lease.
 
 ### Recording horizon
 
@@ -224,7 +224,7 @@ evaluation helpers and optional test integrations interpret it. The API should
 make accidental result dismissal visible through normal Swift unused-result
 diagnostics rather than marking it `@discardableResult`.
 
-A caller task being cancelled while awaiting finalization must not abandon a
+A caller task being canceled while awaiting finalization must not abandon a
 half-cleaned adapter or half-staged publication. Once started, the execution
 owns the finalization operation to completion. Cancellation can stop the caller
 waiting, but a later call can await the same result.
@@ -276,7 +276,7 @@ let result = try await Diorama.withExecution(definition) { execution in
 ```
 
 This is illustrative rather than a final API. The helper must always run
-finalization after its body returns, throws, or is cancelled. It should expose
+finalization after its body returns, throws, or is canceled. It should expose
 the body outcome and finalization result without letting one silently mask the
 other.
 
@@ -326,7 +326,7 @@ A scoped helper does know whether its body returned or threw. The recommended
 default is:
 
 - finalize and allow requested publication after a successful body;
-- finalize but suppress publication after a thrown or cancelled body;
+- finalize but suppress publication after a thrown or canceled body;
 - preserve the body error and return or attach the complete finalization result.
 
 This avoids replacing a useful baseline with behavior captured during an
@@ -349,7 +349,7 @@ invalidated; the Diorama wrapper and interception registration are removed.
 
 An HTTP request receives an authentication challenge that application code
 never answers. Finalization stamps the horizon and stops observation without
-cancelling the live task. The interaction freezes with its recorded phases and
+canceling the live task. The interaction freezes with its recorded phases and
 an `openAtRecordingHorizon` conclusion. A healthy scenario can publish that
 valid open interaction.
 
@@ -454,7 +454,7 @@ This proposal does not determine:
    event may still be forwarded where required by the adapter, but cannot
    mutate the finished scenario.
 5. **Body failure: Resolved.** A scoped helper completes finalization but
-   suppresses publication by default when its body throws or is cancelled. It
+   suppresses publication by default when its body throws or is canceled. It
    preserves the body failure, exposes the finalization report, and leaves the
    previous published scenario intact. An explicit fixture-generation policy
    may publish a healthy candidate despite body failure. Explicitly managed

@@ -119,7 +119,7 @@ All positive compilation uses these explicit flags:
 [ClockProbe.swift](../../Spikes/ToolchainAvailability/ClockProbe.swift) proves
 an ordinary forwarding `Clock` conformance, `Duration` arithmetic, and sendability
 of the clock, instant, duration, and `Date`. It checks a 20 ms monotonic sleep
-does not finish before its deadline, and that an immediately cancelled 60-second
+does not finish before its deadline, and that an immediately canceled 60-second
 sleep throws `CancellationError`. It imposes no upper elapsed-time bound or task
 ordering assumption. A fixed `Date` round-trips through Foundation's ISO 8601
 formatter at millisecond precision with an explicit `+11:00` timezone. This is

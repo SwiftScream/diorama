@@ -299,7 +299,7 @@ proof before broader implementation depends on them:
   and Linux, then on an iOS simulator.
 - Expand the URLSession conformance matrix per platform before advertising
   redirect, authentication, failure, delegate, and lifecycle capabilities.
-- Prove adapter quiescence without cancelling consumer-owned live work or
+- Prove adapter quiescence without canceling consumer-owned live work or
   permitting replay callbacks after finalization.
 - Select a Swift tools version and compatible Swift HTTP Types release, then
   establish the supported Linux Swift/libcurl CI matrix.
