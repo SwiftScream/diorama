@@ -81,14 +81,16 @@ Implementation proceeds one small plan item at a time:
    behavior and its proving tests together.
 5. Run the narrowest relevant checks, followed by the plan's required review
    gate.
-6. Present the complete feature-branch diff against its base branch, including
-   any uncommitted changes, for owner review. Report behavior, files changed,
-   the actual commit breakdown, verification results, and any residual risk.
+6. After verification passes, mark the unit complete in its owning plan and
+   evidence, then present the complete feature-branch diff against its base
+   branch, including any uncommitted changes, for owner review. Report behavior,
+   files changed, the actual commit breakdown, verification results, and any
+   residual risk.
 7. Stop for owner review; address feedback within the unit and rerun checks.
 8. Once the owner approves PR creation, push the feature branch and create the
-   PR. Include unit/plan status and relevant documentation updates so merging
-   produces the correct state on the base branch; do not mark undelivered work
-   complete. Obtain the required CI evidence through the PR.
+   PR. Include the completed unit/plan status and relevant documentation updates
+   so merging produces the correct state on the base branch. Obtain the required
+   CI evidence through the PR.
 9. Merge only with passing required CI and a separate explicit owner request.
    Do not begin the next plan item until explicitly instructed.
 

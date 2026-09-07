@@ -55,9 +55,10 @@ creation order and are never reused. Renaming a plan does not change its number.
 An implementation plan also identifies atomic tasks, prerequisites, acceptance
 criteria, verification, explicit exclusions, and a review checkpoint. Agents
 summarize the selected unit and wait for owner confirmation before implementing
-it. After implementation, they present the complete branch diff against its
-base, including any uncommitted changes and the actual commit breakdown, and
-stop for owner review. Later documented tasks never authorize continuation.
+it. After verification, they mark the unit complete in its owning plan and
+present the complete branch diff against its base, including any uncommitted
+changes and the actual commit breakdown, then stop for owner review. Later
+documented tasks never authorize continuation.
 
 Review units should be split into smaller atomic commits when possible and
 useful; the actual boundaries may be chosen during implementation. Once the
