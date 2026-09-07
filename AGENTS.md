@@ -43,6 +43,13 @@ architecture inside implementation work.
 - When a behavior change needs preparatory refactoring, prefer an initial
   commit that preserves behavior, followed by a commit that implements the
   behavior change on top of it.
+- Use the commit-message convention documented in `CONTRIBUTING.md`. For a
+  plan unit, use `003-A01: docs(evidence): record local toolchain feasibility`;
+  for work outside a plan, omit the prefix. Use an imperative subject, an
+  approved type (`feat`, `fix`, `ref`, `docs`, `test`, `ci`, `style`, or
+  `chore`), and a path-oriented scope when useful. Keep the body in present
+  tense. Aim for a subject of 72 characters or fewer, but preserve clarity
+  when a slightly longer subject is needed.
 - After the owner confirms the review unit's scope, create atomic commits and
   amend, rebase, or otherwise rewrite its feature-branch history as useful,
   including published history. Separate approval for each commit or rewrite is
