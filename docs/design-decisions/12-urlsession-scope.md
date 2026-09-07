@@ -449,11 +449,12 @@ their FoundationNetworking bridge passes an equivalent suite.
 
 ## Required interception spike
 
-Before production code is divided into implementation tasks, a narrow spike
-must test the proposed `URLProtocol` boundary on current macOS and Linux
-runtimes, followed by an iOS simulator run for the Apple mobile target. It
-should use a local deterministic protocol or server and answer only these
-questions on every platform that will advertise the corresponding capability:
+A narrow spike must test the proposed `URLProtocol` boundary on current macOS
+and Linux runtimes, followed by an iOS simulator run for the Apple mobile target.
+The planning-order clarification below governs when production work may depend
+on its results. The spike should use a local deterministic protocol or server
+and answer only these questions on every platform that will advertise the
+corresponding capability:
 
 1. Are all supported data-task creation forms intercepted before cache or live
    network access?
@@ -473,6 +474,21 @@ production architecture. If redirects or authentication cannot be reproduced
 faithfully through `URLProtocol`, decision 12 must be reopened to narrow the
 surface or adopt a more explicit integration. The implementation must not
 quietly collapse those phases as the POC does.
+
+### Planning-order clarification — 2026-09-06
+
+The owner approved the following sequencing clarification while reviewing
+Q1 in [Plan 003](../plans/003-clean-slate-implementation.md):
+
+The implementation plan may describe provisional production tasks before the
+interception spikes run. Before production work depends on the proposed
+`URLProtocol` boundary, the spike results must be reviewed and the affected
+task breakdown confirmed or revised. Evidence that contradicts the accepted
+behavior requires reopening the affected decision.
+
+This replaces the original requirement to run the spike before dividing
+production code into implementation tasks. The supported URLSession surface,
+required evidence, and prohibition on silently dropping behavior are unchanged.
 
 ## Worked examples
 

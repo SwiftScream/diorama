@@ -1,10 +1,18 @@
 # Design decision index
 
+- Status: Accepted
+- Consolidated design approved by owner: 2026-09-07
+
 This index tracks decisions produced through the completed
 [design decision process](../plans/001-design-decision-process.md) and
 [follow-up process](../plans/002-follow-up-design-decisions.md). No decision is
 accepted without explicit owner approval. Each decision may contain smaller
 review questions resolved during its discussion.
+
+The owner reaffirmed approval of all seventeen decisions and their recorded
+amendments on 2026-09-07, together with the consolidated
+[design overview](../design-overview.md). Individual decision dates remain
+historical records; no architectural contract changes with this status update.
 
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |

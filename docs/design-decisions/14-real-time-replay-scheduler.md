@@ -1,7 +1,7 @@
 # Decision 14: Initial real-time replay scheduler
 
 - Status: Accepted
-- Last updated: 2026-09-05
+- Last updated: 2026-09-06
 - Depends on: [Decision 1: Common abstraction](01-common-abstraction.md),
   [Decision 2: Shared and system-specific semantics](02-shared-vs-system-semantics.md),
   [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
@@ -48,6 +48,12 @@ behavior whose elapsed time is observable during replay.
 Idle is transient and does not imply that application tasks have finished.
 Quiescence is used only for system and execution shutdown; it is not a claim
 that all Swift tasks in the process are suspended.
+
+Owner-approved clarification, 2026-09-06: the callback guarantee concerns
+Diorama-owned scheduled delivery and observation. A new call to an escaped
+dependency may still produce a diagnostic sink notification under
+[Decision 10's post-finish reporting contract](10-lifecycle-and-ownership.md#post-finish-reporting-lifetime--2026-09-06).
+That notification does not reopen admission or restart the scheduler.
 
 ## Initial playback policy
 

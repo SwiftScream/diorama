@@ -15,8 +15,11 @@ starts from a documentation-only baseline so that the production architecture
 is built deliberately rather than inherited from the earlier network snapshot
 proof of concept.
 
-The next repository artifact is a clean-slate implementation plan divided into
-small, independently reviewable changes.
+The owner approved the [design](docs/design-overview.md) and
+[implementation plan](docs/plans/003-clean-slate-implementation.md) on 2026-09-07.
+The plan divides implementation into small, independently reviewable changes;
+each unit requires owner scope confirmation before work begins. Implementation
+has not started.
 
 ## Initial scope
 
@@ -52,14 +55,18 @@ platform CI, strict concurrency, and coverage expectations are defined by
 
 ## Development
 
-All work takes place on feature branches. Changes are implemented as small
-atomic slices, reviewed before commit, and merged only after explicit approval.
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the shared workflow and
-[AGENTS.md](AGENTS.md) for agent-specific operating rules.
+All work takes place on feature branches. The owner confirms each atomic slice's
+scope before implementation; feature-branch commits and history rewrites,
+including published history, are permitted within that scope. The complete
+branch diff is reviewed before approval to push and create a PR. Merging
+requires passing required CI and a separate explicit owner request.
+See [AGENTS.md](AGENTS.md) for repository operating rules and the
+[implementation plan](docs/plans/003-clean-slate-implementation.md) for the
+review units and workflow.
 
-The initial platform objective is macOS, iOS 15 and later, and Linux. Individual
-systems may have narrower live-recording availability while retaining portable
-stable models and replay behavior.
+The initial platform objective is macOS 13 and later, iOS 16 and later, and Linux.
+Individual systems may have narrower live-recording availability while retaining
+portable stable models and replay behavior.
 
 ## License
 

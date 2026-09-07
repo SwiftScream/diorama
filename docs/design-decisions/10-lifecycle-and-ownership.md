@@ -1,7 +1,7 @@
 # Decision 10: Lifecycle and ownership
 
 - Status: Accepted
-- Last updated: 2026-09-05
+- Last updated: 2026-09-06
 - Depends on: [Decision 1: Common abstraction](01-common-abstraction.md),
   [Decision 2: Shared and system-specific semantics](02-shared-vs-system-semantics.md),
   [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
@@ -172,7 +172,8 @@ The conceptual sequence is:
    horizon, then deactivate adapter leases in reverse activation order.
 4. Freeze capability accumulators, giving every open recording the explicit
    `openAtRecordingHorizon` conclusion.
-5. Collect system verification contributions and finalize the execution ledger.
+5. Collect system verification contributions. Diagnostic collection remains
+   open through the remaining finalization stages, until the result is frozen.
 6. For recording tracks, associate baseline groups, preserve authored
    overrides, construct the complete candidate, and validate its health.
 7. If publication was requested and the candidate is healthy, encode, stage,
@@ -185,7 +186,8 @@ The conceptual sequence is:
 
 Diagnostic sinks remain active through finalization so encoding, publication,
 and cleanup problems can be reported promptly. The immutable result is the
-authoritative aggregate.
+authoritative aggregate through its freeze boundary; the owner-approved
+post-finish clarification below governs diagnostics produced later.
 
 Finalization must not wait indefinitely for a consumer-owned native operation
 to conclude: an interaction that remains open is a representable recording, not
@@ -226,6 +228,36 @@ A caller task being cancelled while awaiting finalization must not abandon a
 half-cleaned adapter or half-staged publication. Once started, the execution
 owns the finalization operation to completion. Cancellation can stop the caller
 waiting, but a later call can await the same result.
+
+### Post-finish reporting lifetime — 2026-09-06
+
+The owner approved this clarification while resolving
+[Plan 003, Q3](../plans/003-clean-slate-implementation.md#q3--diagnostics-after-an-immutable-final-result-resolved-by-owner-2026-09-06).
+[Decision 5](05-consumption-and-verification.md#post-finish-diagnostic-retention--2026-09-06)
+defines the immutable report boundary and separately inspectable post-finish
+diagnostic log.
+
+An escaped dependency may retain the small diagnostic reporter and the frozen
+state required for its specified post-finish behavior. Diorama must not keep
+sessions, live sources, scheduling machinery, or recordings alive merely to
+report later misuse. Consumers may also retain the reporter directly for
+inspection without retaining the execution. Its lifetime ends when its
+remaining owners release it; no global registry keeps it alive.
+
+Finalization still closes admission, quiesces owned delivery, and releases
+execution-owned resources. New misuse of an escaped dependency records a safe
+diagnostic and notifies the configured sink without restarting the execution,
+mutating the frozen result, or scheduling replay callbacks. This notification
+is a response to a new call, not delayed delivery from the finished execution;
+the quiescence guarantees in this decision and Decision 14 apply to the latter.
+It does not permit a stopped adapter's late native callbacks to resume
+observation or replay delivery.
+
+The reporter does not keep a test context valid. Opt-in testing integrations
+must honor that context's lifetime even when the reporter and escaped handles
+outlive it. Exact synchronization and ownership types remain reviewable
+implementation choices; the retained log must remain observable without
+keeping the completed execution's machinery alive.
 
 ## Ergonomic lifecycle APIs
 

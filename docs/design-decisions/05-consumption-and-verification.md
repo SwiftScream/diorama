@@ -1,7 +1,7 @@
 # Decision 5: Consumption and verification
 
 - Status: Accepted
-- Last updated: 2026-09-05
+- Last updated: 2026-09-06
 - Depends on: [Decision 1: Common abstraction](01-common-abstraction.md),
   [Decision 2: Shared and system-specific semantics](02-shared-vs-system-semantics.md),
   [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
@@ -285,6 +285,34 @@ Immediate notification remains separate from continuation behavior. Recording
 a test issue does not produce the value required by a nonthrowing clock
 observation, for example. The system-specific deterministic continuation policy
 still applies after the sink is notified.
+
+### Post-finish diagnostic retention — 2026-09-06
+
+The owner approved this clarification while resolving
+[Plan 003, Q3](../plans/003-clean-slate-implementation.md#q3--diagnostics-after-an-immutable-final-result-resolved-by-owner-2026-09-06).
+It extends diagnostic observability beyond the bounded execution without
+changing a completed verification report or deciding a test outcome.
+
+`finish()` returns an immutable finalization result. Repeated calls return the
+same result, even if an escaped dependency has since diagnosed new misuse.
+Diagnostics produced after that result is frozen enter a separately inspectable
+post-finish log owned by a small retained diagnostic reporter. They do not
+reopen the execution ledger or become additions to the returned report.
+
+The reporter records each safe diagnostic before notifying the configured sink.
+Consumers can retain and inspect it independently of the execution, including
+when no sink is installed. Concurrent reporting and inspection must be safe;
+the final-result freeze must route a racing diagnostic to the execution ledger
+or post-finish log without losing or recording the fact twice. Existing safe
+context, ordering, and preparation requirements apply to both destinations.
+Concrete reporter and inspection API names remain implementation choices.
+
+Testing integrations must respect the captured test context's lifetime.
+Retaining a diagnostic does not retroactively change a completed test, and a
+sink's inability to report into that context does not discard the retained fact.
+System-specific deterministic continuation behavior is unchanged. Reporter
+ownership and its separation from quiescent delivery are specified by
+[Decision 10](10-lifecycle-and-ownership.md#post-finish-reporting-lifetime--2026-09-06).
 
 ## Modes and execution scope
 

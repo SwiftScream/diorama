@@ -1,7 +1,7 @@
 # Quality gates and CI policy
 
 - Status: Accepted
-- Last updated: 2026-09-05
+- Last updated: 2026-09-06
 - Reference project: [SwiftScream/URITemplate](https://github.com/SwiftScream/URITemplate)
 
 ## Purpose
@@ -127,9 +127,30 @@ Experimental compiler diagnostics such as requiring explicit public
 unsafe package target flags unless the selected stable toolchain and package
 distribution behavior make that appropriate.
 
-Swift toolchain support and Apple deployment support are separate promises. A
-package compiled with the current Swift toolchain can still declare iOS 15 as
-its minimum runtime target.
+Swift toolchain support and Apple deployment support are separate promises.
+The package uses the selected current stable toolchain while declaring the
+minimum runtime versions below; newer compilers do not make unavailable runtime
+clock APIs usable on older operating systems.
+
+### Apple deployment minima — owner-approved amendment, 2026-09-06
+
+The owner approved moving the initial iOS minimum from 15 to 16, together with
+the equivalent Apple platform versions, to support the `ContinuousClock` and
+Swift `Clock` contracts in Decisions 14 and 15 without a substitute clock.
+
+| Platform | Minimum deployment version | Initial support |
+| --- | --- | --- |
+| iOS / iPadOS | 16.0 | Required iOS Simulator build and test job. |
+| macOS | 13.0 | Required native build and test job. |
+| Mac Catalyst | 16.0 | Availability floor only; not newly advertised or tested. |
+| tvOS | 16.0 | Availability floor for separately approved future support. |
+| watchOS | 9.0 | Availability floor only; Decision 12 still excludes URLSession interception here. |
+| visionOS | 1.0 | Availability floor for separately approved future support. |
+
+The deployment change does not add required platform jobs or expand any
+adapter's tested capability profile. Linux remains required under its explicitly
+selected Swift/toolchain/runtime matrix. Bootstrap must verify these minima
+with the chosen stable toolchain and document any narrower API availability.
 
 ## Platform matrix
 
@@ -142,13 +163,13 @@ Every pull request and protected-branch push should run these required jobs:
 | iOS | Build and run applicable tests in an iOS simulator using the selected stable Xcode. |
 | Linux | Build and test all applicable products with the matching stable Swift release. |
 
-The iOS package deployment target should initially be iOS 15. CI should compile
+The iOS package deployment target should initially be iOS 16. CI should compile
 the package with that deployment target so unavailable API use is rejected.
 The executable test run may use the current simulator runtime supplied with the
-selected Xcode; current hosted runners may not provide an iOS 15 simulator.
+selected Xcode; current hosted runners may not provide an iOS 16 simulator.
 This proves compile-time availability and current-runtime behavior, but not
-runtime behavior on an actual iOS 15 installation. A platform-specific feature
-whose behavior may differ on iOS 15 requires separate targeted evidence.
+runtime behavior on an actual iOS 16 installation. A platform-specific feature
+whose behavior may differ on iOS 16 requires separate targeted evidence.
 
 The iOS job must use `xcodebuild` or an equivalent Xcode test mechanism against
 an iOS Simulator destination. A macOS `swift test` job is not evidence that
@@ -265,8 +286,10 @@ Diorama runtime architecture.
 2. **Toolchains, concurrency, and platforms: Resolved.** Use pinned
    latest-stable Swift and Xcode versions, Swift 6 language mode with complete
    strict concurrency checking, `NonisolatedNonsendingByDefault` and
-   `InferIsolatedConformances`, nonisolated library defaults, an iOS 15
-   deployment target, and required macOS, iOS Simulator, and Linux jobs.
+   `InferIsolatedConformances`, nonisolated library defaults, iOS 16 and macOS 13
+   deployment targets (amended 2026-09-06), and required macOS, iOS Simulator,
+   and Linux jobs. Equivalent floors for other Apple platforms do not advertise
+   additional support.
 3. **Local commands: Resolved.** Provide version-controlled `format`, `lint`,
    `test`, and aggregate non-mutating `check` entry points as the canonical
    interface used by engineers, agents, and CI. Missing Mint installations

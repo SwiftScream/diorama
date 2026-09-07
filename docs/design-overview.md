@@ -1,8 +1,9 @@
 # Design overview
 
-- Status: Current
+- Status: Accepted
 - Created: 2026-09-05
-- Last reviewed: 2026-09-06
+- Approved by owner: 2026-09-07
+- Last reviewed: 2026-09-07
 - Scope: Decisions 1 through 17
 - Derived from: [Accepted design decisions](design-decisions/README.md)
 
@@ -13,6 +14,10 @@ architecture.
 
 ## Review result
 
+The owner approved the consolidated design and implementation plan on
+2026-09-07. The individual decisions retain their accepted status and historical
+dates; this approval does not replace their detailed contracts or evidence gates.
+
 The seventeen accepted decisions describe one coherent architecture. No direct
 contradiction requires an accepted decision to be reopened before plan
 synthesis.
@@ -22,6 +27,21 @@ location, consumer-extension, and HTTP-composition prerequisites. Decisions 13
 through 17 have now resolved them. The synthesis gate for a clean-slate
 implementation plan is therefore satisfied, while the required platform and
 URLProtocol spikes remain evidence-producing implementation tasks.
+
+The [approved implementation plan](plans/003-clean-slate-implementation.md) records
+the review units and remaining evidence-dependent implementation gates.
+Decision 12's owner-approved
+[planning-order clarification](design-decisions/12-urlsession-scope.md#planning-order-clarification--2026-09-06)
+permits provisional production task planning before URLProtocol spikes run;
+their results must be reviewed and the affected breakdown confirmed or revised
+before production work depends on that boundary. The owner-approved
+2026-09-06 [deployment-policy amendment](quality-gates-and-ci.md#apple-deployment-minima--owner-approved-amendment-2026-09-06)
+sets iOS 16 and macOS 13 minima for the accepted Swift clock APIs, with equivalent
+floors for other Apple platforms without expanding advertised adapter support.
+Decisions 5 and 10 now resolve post-finish diagnostics through a separately
+retained reporter without changing the immutable final report, as reconciled
+below. The plan's separate approval does not bypass its per-unit scope
+confirmation, review checkpoints, or remaining evidence gates.
 
 The accepted decisions remain the source of truth. The interpretations below
 prevent apparent tensions from being resolved differently during plan
@@ -110,6 +130,21 @@ problem is a Diorama infrastructure failure. It is recorded immediately and is
 also returned through the native operation's failure channel where one exists.
 That does not mean the core fails the enclosing test. Testing integrations and
 explicit report evaluators decide which diagnostics become test issues.
+
+### Immutable final reports and later diagnostics
+
+`finish()` freezes one result; repeated calls return it unchanged. New misuse
+of an escaped dependency enters a separately inspectable diagnostic log before
+sink notification, even without an installed sink. Its small reporter can
+outlive the execution without retaining sessions, live sources, recordings, or
+scheduling machinery; escaped handles also retain only their required frozen
+state. There is no global registry. New diagnostic notification does not restart
+replay or weaken quiescent shutdown. Test integrations must respect their test
+context's lifetime, not promise to change an already completed test. The
+owner-approved amendments in
+[Decision 5](design-decisions/05-consumption-and-verification.md#post-finish-diagnostic-retention--2026-09-06)
+and [Decision 10](design-decisions/10-lifecycle-and-ownership.md#post-finish-reporting-lifetime--2026-09-06)
+define this boundary.
 
 ### Strict semantic values and tolerant files
 

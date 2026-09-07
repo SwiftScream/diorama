@@ -36,10 +36,20 @@ architecture inside implementation work.
   branch before editing.
 - Keep one branch focused on one approved review unit unless the owner asks to
   combine work.
-- Do not commit unless the owner explicitly asks for a commit after reviewing
-  the working tree.
-- Do not merge, rebase, force-push, or rewrite published history without
-  explicit approval.
+- After the owner confirms the review unit's scope, create atomic commits and
+  amend, rebase, or otherwise rewrite its feature-branch history as useful,
+  including published history. Separate approval for each commit or rewrite is
+  not required. Explicit instructions to leave work uncommitted and dependency
+  approval stops still apply.
+- Feature-branch permissions never authorize rewriting `master` or `main`.
+- Owner approval to create a PR authorizes pushing that feature branch and
+  subsequent updates for the same review unit, including rewritten history.
+  Before that approval, do not push or create a PR unless separately authorized.
+  Use `--force-with-lease` when updating rewritten published history; inspect the
+  remote state and preserve concurrent work rather than overwriting it blindly.
+- Merge only after required CI passes for the revision being merged and the
+  owner separately and explicitly requests the merge. PR approval, passing CI,
+  and merge approval do not authorize starting the next review unit.
 - Preserve changes you did not make. Work with relevant concurrent edits and
   leave unrelated edits untouched.
 
@@ -50,12 +60,23 @@ Implementation proceeds one small plan item at a time:
 1. Read the plan item's prerequisites, referenced decisions, acceptance
    criteria, and exclusions.
 2. Confirm the branch and inspect the existing implementation and tests.
-3. Implement only that item and the tests or documentation needed to prove it.
-4. Run the narrowest relevant checks, followed by the plan's required review
+3. Summarize the intended work and pause until the owner explicitly confirms
+   the scope before implementation.
+4. Implement only that item and the tests or documentation needed to prove it.
+   Split it into smaller atomic commits when possible and useful, keeping
+   behavior and its proving tests together.
+5. Run the narrowest relevant checks, followed by the plan's required review
    gate.
-5. Report behavior, files changed, verification results, and any residual risk.
-6. Stop for owner review. Do not begin the next plan item or create a commit
-   until explicitly instructed.
+6. Present the complete feature-branch diff against its base branch, including
+   any uncommitted changes, for owner review. Report behavior, files changed,
+   the actual commit breakdown, verification results, and any residual risk.
+7. Stop for owner review; address feedback within the unit and rerun checks.
+8. Once the owner approves PR creation, push the feature branch and create the
+   PR. Include unit/plan status and relevant documentation updates so merging
+   produces the correct state on the base branch; do not mark undelivered work
+   complete. Obtain the required CI evidence through the PR.
+9. Merge only with passing required CI and a separate explicit owner request.
+   Do not begin the next plan item until explicitly instructed.
 
 A slice should establish one coherent capability or invariant. Avoid combining
 foundational APIs, several systems, broad cleanup, and repository tooling in one
@@ -99,9 +120,10 @@ to simplify behavior specified there.
   and remain compatible with the supported platforms.
 - Treat `Sendable`, actor isolation, cancellation, and quiescent finalization as
   API design concerns, not warnings to suppress later.
-- Target iOS 15 or later where feasible, plus the accepted macOS and Linux CI
-  environments. Keep Apple-only integrations behind explicit availability and
-  package boundaries.
+- Target iOS 16 and macOS 13 or later, plus the accepted Linux CI environment.
+  Use the equivalent Apple deployment floors in `docs/quality-gates-and-ci.md`
+  for any separately approved platforms. Keep Apple-only integrations behind
+  explicit availability and package boundaries.
 
 Do not add `@unchecked Sendable`, unsafe isolation annotations, or broad
 availability increases merely to make a check pass. Each requires a documented,
