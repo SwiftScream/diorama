@@ -1,7 +1,7 @@
 # Dependency approval policy
 
 - Status: Accepted
-- Last updated: 2026-09-05
+- Last updated: 2026-09-07
 
 ## Rule
 
@@ -82,6 +82,27 @@ An implementation task that proposes a new dependency must stop after any
 non-committing spike, present the adoption record for approval, and wait. It
 must not hide the dependency in generated files, build plugins, example
 packages, test utilities, or vendored source.
+
+## Approved development-tool records
+
+The owner approved the following 003-A02 records on 2026-09-07. They are
+development tools only and do not enter library targets or `Package.swift`.
+003-A04 may add their reviewed declarations, configuration, and workflows after
+003-A03. The supporting analysis, including exact source revisions, transitive
+graphs, platform constraints, alternatives, and planned GitHub Actions pins, is in
+[003-A02 quality-tool adoption evidence](evidence/003-A02-quality-tool-adoptions.md).
+
+| Tool | Canonical source and product | Initial pin and approved update range | Purpose and ownership |
+| --- | --- | --- | --- |
+| Mint | `yonaskolb/Mint`; `mint` executable only | Exact bootstrap release `0.18.0` (`7bc67a0b925b949c8becc327bc08f56eeadc0051`); later releases require ordinary reviewed maintenance. | Resolves and runs exact development-tool executables from `Mintfile`; used only by local quality commands and CI bootstrap. |
+| SwiftFormat | `nicklockwood/SwiftFormat`; `swiftformat` executable only | Initial Mintfile pin `0.63.0` (`0256422f1a5e967c68dc923f1905c0a155dca188`); approved range `>= 0.63.0, < 0.64.0`. | Applies repository formatting locally and checks formatting without mutation in local/CI quality gates. |
+| SwiftLint | `realm/SwiftLint`; `swiftlint` executable only | Initial Mintfile pin `0.65.1` (`488642e6fc30e5ffc2b5eb24707bf1c7801f3f19`); approved range `>= 0.65.1, < 0.66.0`. | Runs strict style, documentation, and correctness checks in local/CI quality gates. |
+
+Each proposed source is MIT licensed and actively maintained as of the evidence
+date. Mint itself is deliberately exact-pinned because `Mintfile` records tools
+Mint installs, not Mint's own bootstrap release. The Mintfile remains the
+source of truth for the formatter and linter; the weekly `mint outdated`
+report required by the quality policy identifies available updates for review.
 
 ## Enforcement
 
