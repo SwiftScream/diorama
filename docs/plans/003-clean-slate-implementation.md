@@ -149,11 +149,14 @@ Do not add speculative public protocols, dependencies, or future-feature switche
 Every unit below has its own stopping point.
 Phases group related outcomes; they do not authorize a batch of work or combine branches.
 
-1. Confirm that the plan and selected unit are authorized, its prerequisites are reviewed, and its gates are resolved.
+1. Start each unit by stating its full identifier, recommended Codex model and reasoning effort, and a brief reason, using its recommendation below as the starting point.
+   Preliminary read-only inspection may refine the recommendation against current prerequisites, evidence, and available models.
+   Wait for explicit owner confirmation of the model and reasoning effort before implementation or running the unit's experiments.
+   Include the intended scope in the same request where possible so one confirmation covers both; an earlier instruction to select or commence a unit is not confirmation of an as-yet unstated recommendation.
+2. Confirm that the plan and selected unit are authorized, its prerequisites are reviewed, and its gates are resolved.
    Inspect branch and worktree; use one feature branch for that review unit and preserve unrelated changes.
-2. Provide a summary of the work that will be undertaken and pause for feedback from the owner.
-   Do not continue until the owner has explicitly confirmed.
-   This is a final chance for the owner to adjust the plan before the work proceeds.
+   If scope was not included in step 1's confirmation, summarize the intended work and wait for explicit owner confirmation before proceeding.
+   The owner may adjust either scope or model settings at this checkpoint; do not repeat a confirmation already given for the same scope and settings.
 3. Implement only its bounded outcome and needed tests/documentation.
    Expected paths below are proposed ownership, not instructions to create empty targets or future public APIs.
    Add targets when the first real capability needs them.
@@ -176,6 +179,38 @@ Phases group related outcomes; they do not authorize a batch of work or combine 
    Do not convert a draft or partial milestone into an approved or complete one.
 9. Merge the PR only after required CI passes for the revision being merged and the owner separately and explicitly requests the merge.
 10. Do not begin another review unit without explicit owner instruction; PR creation, passing CI, and merge approval do not authorize continuation.
+
+### Codex model and reasoning guide
+
+Reviewed on 2026-09-07 for all 76 remaining units, 003-A02 through 003-J04.
+The recommendations are engineering estimates based on each unit's scope, prerequisites, verification burden, and cost of a missed invariant; they are not benchmark results or measured token budgets.
+They deliberately allow some extra capability and reasoning depth, especially for public API foundations, concurrency, persistence atomicity, and native platform uncertainty.
+003-A01 is already complete and receives no retrospective recommendation.
+
+The [official model guide](https://learn.chatgpt.com/docs/models#choosing-astra-sol-terra-and-luna) distinguishes Astra for the hardest end-to-end work, Sol for complex work, Terra for everyday work, and Luna for clear, repeatable tasks.
+Its [reasoning guide](https://learn.chatgpt.com/docs/models#pick-a-reasoning-effort) describes medium as a balance and high/extra high for difficult work.
+The per-unit assignments below are this repository's judgment, not OpenAI recommendations for Diorama.
+
+| Model | Identifier | Use in this plan |
+| --- | --- | --- |
+| GPT-5.6 Terra | `gpt-5.6-terra` | Bounded setup, adoption records, established replay patterns, and coverage-policy evidence. |
+| GPT-5.6 Sol | `gpt-5.6-sol` | Most implementation units with defined contracts but meaningful schema, isolation, or integration work. |
+| GPT-6 Astra | `gpt-6-astra` | Difficult state machines, shutdown proofs, numerical contracts, and work combining several sensitive boundaries. |
+
+Each unit names one model and one effort for the complete unit, including its proving tests and self-review.
+`medium`, `high`, and `xhigh` are the effort identifiers; `xhigh` means Extra High in the picker.
+Luna is useful for mechanical follow-up edits, but is not the recommended primary model for these units given their cross-platform and review obligations.
+Max and Ultra are not baseline recommendations: these are deliberately bounded units, and greater effort or delegation is not automatically better value.
+
+Use these recommendations as starting settings, not permanent model pins or promises of availability.
+At each unit's initial checkpoint, verify that the selected client offers the named model/effort, explain any proposed substitution, and let the owner select the settings; do not silently change models or claim to have changed the active session's settings.
+Reassess later estimates when earlier evidence changes the work, especially after 003-D05 and 003-G02.
+If implementation exposes a materially harder problem or repeated inconclusive attempts, explain the gap and propose a revised model/effort for confirmation before continuing that work.
+Model selection never resolves an architectural conflict or bypasses a dependency approval gate.
+
+For token value, keep the relevant decisions, scope, and focused failure evidence in context and avoid repeating successful checks without a new reason.
+Consider total effort including retries, not just per-token price; no fixed savings or token counts are assumed here.
+Use completed units to calibrate later recommendations with the owner while retaining the conservative margin.
 
 ### Verification gates
 
@@ -241,6 +276,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-A02 — Quality-tool adoption records
 
+- Recommended model: GPT-5.6 Terra; reasoning: `high`. Tool adoption and pin review span several sources and platform constraints, but add no runtime architecture.
 - Prerequisites: 003-A01; dependency and quality policies.
 - Scope: Propose exact Mint, SwiftFormat, and SwiftLint adoptions and review the URITemplate configuration baseline and planned GitHub Actions sources/pins.
 - Expected files/modules: Adoption entries in `docs/dependency-policy.md` and toolchain/tooling evidence; no Mintfile or production manifest dependency yet.
@@ -251,6 +287,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-A03 — Minimal package skeleton
 
+- Recommended model: GPT-5.6 Terra; reasoning: `medium`. A minimal manifest and test target follow the already recorded toolchain and deployment selections.
 - Prerequisites: 003-A01 and resolved deployment selections; quality policy.
 - Scope: Establish only the package and minimal test target needed by bootstrap.
 - Expected files/modules: `Package.swift`, minimal `Sources/DioramaCore/` and `Tests/DioramaCoreTests/`, relevant `.gitignore` and toolchain documentation.
@@ -263,6 +300,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-A04 — Canonical quality and CI bootstrap
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Coordinate SwiftPM, Xcode, Linux, coverage, and intentional failure checks through one reproducible quality gate.
 - Prerequisites: 003-A02 adoption approval, 003-A03, quality policy, Q5 configuration.
 - Scope: Deliver the complete policy bootstrap as one review unit, permitting smaller reviewed commits internally.
   Establish formatting, lint, tests, debug/release strict builds, platform CI, coverage, and update automation.
@@ -280,6 +318,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B01 — Typed scenario definitions and track identity
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. The first public generic identity and configuration boundary must support heterogeneous non-Codable systems without speculative APIs.
 - Prerequisites: 003-A04; DD01–DD04, DD10, DD13.
 - Scope: Define immutable scenario configuration, ordered attachment/track identity, default/whole-system modes, and typed in-memory sequential content.
 - Expected files/modules: `DioramaCore` definition, identity, mode, and track value files; focused tests and public API documentation.
@@ -291,6 +330,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B02 — Prepared admission, safe diagnostics, and health
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Prepared admission, reentrant sinks, secret exclusion, and reporter ownership establish several interacting invariants.
 - Prerequisites: 003-B01; DD05–DD06, DD09–DD10; resolved Q3 reporting contract.
 - Scope: Establish safe structured diagnostics, retention-before-sink delivery, a separately retained reporter, prepared admission, and recording-health facts.
 - Expected files/modules: `DioramaCore` diagnostics/reporter, preparation boundary, and health types; consumer transform and failing-sink tests.
@@ -303,6 +343,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B03 — Execution activation and sequential lease lifetime
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Activation rollback and escaped-lease resource release define the execution ownership foundation.
 - Prerequisites: 003-B01–003-B02; DD10, DD13; resolved Q2/Q3 contracts.
 - Scope: Start fresh in-memory executions, prepare before activation, activate in attachment order, roll back in reverse order, and close sequential leases.
 - Expected files/modules: `DioramaCore` execution, system registration and lease lifecycle files; controlled test adapters.
@@ -315,6 +356,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B04 — Atomic public sequential record and replay operations
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Atomic claims and reservation-before-preparation require explicit synchronization and deterministic race tests.
 - Prerequisites: 003-B03; DD04–DD06, DD13.
 - Scope: Add ordered append and single-use next-record claims through typed public leases, with reservation before potentially slow preparation.
 - Expected files/modules: `DioramaCore` sequential track operations and ledger; concurrent operation tests.
@@ -326,6 +368,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B05 — Consumer-module extension proof
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Public-only consumer proof may expose foundational API gaps that require narrow, carefully reviewed corrections.
 - Prerequisites: 003-B04; DD02, DD13.
 - Scope: Implement a test-only synchronous system from a distinct module using only public registration, mode, typed track, diagnostics, and lifetime APIs.
 - Expected files/modules: Separate consumer test-support target and conformance tests; minimal core corrections only if demonstrated by this proof.
@@ -336,6 +379,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B06 — Random live recording and passthrough
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Serialize live source access with recording while preserving reference semantics and independent attachments.
 - Prerequisites: 003-B05; DD13, DD06, DD09.
 - Scope: Add the first-party reference-semantic RandomNumberGenerator using only the public extension boundary and an injected live source.
 - Expected files/modules: `DioramaRandom`, its target/tests, documented injection example; only demonstrated core fixes.
@@ -348,6 +392,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B07 — Random replay and deterministic failure
 
+- Recommended model: GPT-5.6 Terra; reasoning: `high`. Replay follows established public claims; source isolation and concurrent exhaustion still need careful proving tests.
 - Prerequisites: 003-B06; DD05, DD13.
 - Scope: Consume recorded raw values and implement exhaustion/lifecycle policy.
 - Expected files/modules: `DioramaRandom` replay path and mode tests.
@@ -359,6 +404,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B08 — Concurrent finalization and report evaluation
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Canceled waiters, one shared finish result, reporter lifetime, and racing diagnostics require a complete shutdown argument.
 - Prerequisites: 003-B07; DD05, DD10, DD13; resolved Q3 contract.
 - Scope: Complete sequential execution finalization, immutable usage/health/ cleanup reports, deterministic rendering, and explicit evaluation helpers.
 - Expected files/modules: `DioramaCore` finalization/report/evaluation files; core and random lifecycle tests.
@@ -372,6 +418,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B09 — Scoped execution convenience
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Scoped cancellation must preserve both body and finalization outcomes without accidentally changing publication intent.
 - Prerequisites: 003-B08; DD10.
 - Scope: Wrap explicit execution in an async scope preserving body and finish outcomes, with publication intent carried to later repository integration.
 - Expected files/modules: `DioramaCore` scoped helper, cancellation/error tests, public lifecycle examples.
@@ -383,6 +430,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B10 — First production coverage baseline
 
+- Recommended model: GPT-5.6 Terra; reasoning: `medium`. Evaluate actual coverage reports and exclusions against an established policy without inventing thresholds.
 - Prerequisites: 003-B08–003-B09 and 003-A04 platform uploads; quality policy, Q5.
 - Scope: Confirm exact project tolerance and patch coverage settings from the first meaningful core/random baseline, retaining every platform upload.
 - Expected files/modules: `.codecov.yml`, coverage-policy evidence and concise quality documentation update.
@@ -395,6 +443,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C01 — Persistent-system registration and version dispatch
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Typed heterogeneous dispatch and optional persistence registration shape a lasting public extension boundary.
 - Prerequisites: 003-B08; DD07–DD09.
 - Scope: Add the optional Codable registration boundary, stable system type identity, positive integer envelope/payload versions, and supported readers.
 - Expected files/modules: `DioramaPersistence` registry/codec boundary and tests; minimal explicit core connection for optional persistence.
@@ -407,6 +456,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C02 — Deterministic version-one JSON and random schema
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Deterministic cross-platform JSON, full UInt64 precision, and strict schema rejection need independent fixture evidence.
 - Prerequisites: 003-C01, 003-B07; DD08–DD09, DD13.
 - Scope: Encode/decode the envelope and random payload deliberately; validate strict first-party keys and prepare loaded values before admission.
 - Expected files/modules: `DioramaPersistence` JSON codec, random persistence registration, canonical/rejection fixtures and schema documentation.
@@ -418,6 +468,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C03 — Single-document atomic file repository
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Atomic file replacement, failure preservation, and readers racing writers require platform-aware storage reasoning.
 - Prerequisites: 003-C02; DD07–DD08.
 - Scope: Implement repository location/load and staged atomic replacement for the first resource-free scenario; keep encoding separate from storage.
 - Expected files/modules: `DioramaPersistence` file repository and storage boundary; temporary-directory integration tests and evidence.
@@ -430,6 +481,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C04 — Baseline loading before activation
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. The load-outcome and effective-mode matrix must prevent any live activation on unusable replay input.
 - Prerequisites: 003-C03, 003-B03; DD07–DD10.
 - Scope: Connect optional repository loading, preparation, and full validation to startup; retain exact load outcome and apply effective-mode policy.
 - Expected files/modules: Core startup/persistence orchestration, repository tests with activation/source counters.
@@ -441,6 +493,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C05 — Complete candidate replacement and final publication
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Combine mixed-mode candidate preservation, publication health, and exactly-once finalization without partial writes.
 - Prerequisites: 003-C04, 003-B08–003-B09; DD07, DD10, DD13.
 - Scope: Build and publish one finalized candidate; replace random record-mode tracks and preserve valid replay/passthrough/ignored/unattached baseline data.
 - Expected files/modules: Core candidate/finalization orchestration and persistence integration tests, random file workflow examples.
@@ -453,6 +506,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C06 — Publication failures and actionable reports
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Fault injection must distinguish committed publication from cleanup failures while retaining safe earlier diagnostics.
 - Prerequisites: 003-C05; DD05–DD10.
 - Scope: Complete report dispositions and stage-specific fault handling using injected storage, preparation, grouping, validation, and cleanup failures.
 - Expected files/modules: Core/persistence reports and renderers; fault-injection tests and safe report goldens.
@@ -464,6 +518,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C07 — Persisted consumer-system and random conformance
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Public-only persistence and random integration prove the first complete vertical path across all platforms.
 - Prerequisites: 003-C06, 003-B05–003-B07; DD13, DD07–DD08.
 - Scope: Prove optional persistent registration from another module and complete random record-to-file-to-new-replay execution through public APIs only.
 - Expected files/modules: Consumer conformance target, random/persistence integration fixtures and minimal documented registration example.
@@ -481,6 +536,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-D01 — Bodyless GET interception and routing spike
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Establish controlled native interception and route isolation experiments across Apple Foundation and FoundationNetworking.
 - Prerequisites: 003-C07, 003-A01; DD12, DD17, Q1.
 - Scope: Prove per-session interception and routing for a bodyless GET, first on macOS and Linux, then an iOS simulator, using a controlled protocol/server.
 - Expected files/modules: `Spikes/URLSessionInterception/` executable tests and `docs/evidence/urlsession-interception.md` with exact Swift/libcurl/runtime data.
@@ -491,6 +547,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-D02 — Task rejection and response-presentation spike
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Unknown native rejection points and delegate surfaces can undermine the no-live-replay guarantee.
 - Prerequisites: 003-D01; DD12 response/task/delegate sections, DD17.
 - Scope: Determine reliable rejection points and data-task interception across URL/URLRequest, completion, delegate, async, and task-delegate forms.
 - Expected files/modules: Isolated interception tests and findings matrix.
@@ -501,6 +558,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-D03 — Redirect correlation spike
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Correlation across protocol instances, redirect decisions, and cross-origin preparation needs exploratory platform reasoning.
 - Prerequisites: 003-D02; DD12/DD17 redirect contracts.
 - Scope: Prove one operation retains its lifecycle across URLProtocol instances and automatic or delegate-directed redirect decisions.
 - Expected files/modules: Isolated redirect server/protocol fixtures and findings.
@@ -511,6 +569,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-D04 — Basic and Digest challenge spike
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Native Basic/Digest challenge behavior, repeated continuations, and safe credentials require careful cross-bridge experiments.
 - Prerequisites: 003-D02; DD12/DD17 authentication and credential contracts.
 - Scope: Prove task-level 401/407 challenge presentation, native sender/decision bridging, and repeated continuations with safe credential metadata.
 - Expected files/modules: Isolated deterministic challenge fixtures and findings.
@@ -521,6 +580,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-D05 — Native quiescence and consolidated feasibility gate
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Prove native quiescence and forwarding-tail ownership, then reconcile all spike results with the production boundary.
 - Prerequisites: 003-D01–003-D04; DD10, DD12, DD14, DD17.
 - Scope: Prove shutdown/cancellation/routing ownership and consolidate all six spike questions into a reviewed per-platform capability matrix.
 - Expected files/modules: Isolated lifecycle tests; consolidated findings with links to executable cases and any proposed decision amendment.
@@ -534,6 +594,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E01 — Execution logical-time and capture service
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Public logical-time capture must preserve observation order, checked arithmetic, and isolation without exposing host instants.
 - Prerequisites: 003-C07, 003-A01; DD03, DD06, DD14; Q2 resolved.
 - Scope: Establish one execution origin at completed startup and a narrow public system service for logical Duration and monotonic capture tokens.
 - Expected files/modules: `DioramaCore` time service, internal clock injection, availability and origin tests.
@@ -545,6 +606,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E02 — One-to-one deadline engine and deterministic handoff
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Earliest-wait replacement, due-batch claims, and non-reentrant deterministic handoff are tightly coupled scheduler rules.
 - Prerequisites: 003-E01; DD14.
 - Scope: Add one active earliest-deadline wait, earlier insertion replacement, due-batch claiming and delivery outside scheduler isolation.
 - Expected files/modules: Core deadline engine and internally injected-clock ordering tests; minimal scheduling lease API.
@@ -556,6 +618,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E03 — Cancellation, acknowledgements, and scheduler quiescence
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Atomic cancellation versus claim and in-flight acknowledgements must prove no delivery after finalization.
 - Prerequisites: 003-E02, 003-B08; DD10, DD14.
 - Scope: Complete scheduled-item pending/claimed/delivered/canceled state and execution shutdown, including in-flight delivery acknowledgement.
 - Expected files/modules: Core scheduler handles/shutdown and race tests.
@@ -567,6 +630,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E04 — Strict grouped lifecycle accumulation
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Reusable typed accumulators must enforce one horizon conclusion and reject late or conflicting observations.
 - Prerequisites: 003-E01, 003-B04, 003-B08; DD03, DD06, DD10.
 - Scope: Introduce reusable typed interaction/subscription accumulators with correlated phases and a single explicit immutable horizon conclusion.
 - Expected files/modules: Core behavior helpers and lifecycle validation tests.
@@ -578,6 +642,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E05 — System selectors and atomic grouped claims
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Pure system selectors, atomic whole-group claims, and distinct failure diagnostics extend the established claim boundary.
 - Prerequisites: 003-E04, 003-B04, 003-B08; DD04–DD05.
 - Scope: Extend atomic claim coordination to deterministic system-selected whole groups, with exact-input and sequential helpers where applicable.
 - Expected files/modules: Core selection/claim helpers, usage report extensions, consumer selector conformance tests.
@@ -590,6 +655,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E06 — Sequential stream delivery over grouped claims
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Subscription anchors, open groups, and cancellation races compose already proved scheduler and lifecycle services.
 - Prerequisites: 003-E03–003-E05; DD03–DD05, DD14.
 - Scope: Provide reusable subscription selection and ordered scheduled delivery for values, nonterminal errors, completion/failure, and open groups.
 - Expected files/modules: Core stream behavior helper and controlled consumer stream tests with scheduler instrumentation.
@@ -601,6 +667,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E07 — Conditional interaction delivery
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Reachability, decision-relative anchors, overdue delivery, and open continuations interact across several state machines.
 - Prerequisites: 003-E03–003-E05; DD03–DD04, DD14, DD17 timing refinement.
 - Scope: Deliver phases only when their deadlines and system-defined lifecycle prerequisites permit, registering only reachable continuations.
 - Expected files/modules: Core interaction scheduling helpers and synthetic decision-bearing consumer tests.
@@ -612,6 +679,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E08 — External scheduling and mixed-mode conformance
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. External actor-aware scheduling and mixed-mode conformance must distinguish handoff order from task execution order.
 - Prerequisites: 003-E06–003-E07; DD02, DD06, DD10, DD14.
 - Scope: Prove scheduling, cancellation, acknowledgement, and capability helpers work from an ordinary external consumer module and across platforms.
 - Expected files/modules: Consumer conformance target and core integration tests; scheduling/ownership documentation.
@@ -624,6 +692,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-F01 — Shared millisecond duration and ISO 8601 codecs
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Strict scalar grammars, independent rounding, numeric offsets, and overflow need precise portable codec tests.
 - Prerequisites: 003-C02; DD08, DD15; 003-A01 selected platform matrix.
 - Scope: Implement strict locale-independent signed ms/seconds grammar, canonical scalar writing, numeric-offset origins, rounding and checked maths.
 - Expected files/modules: Shared stable-scalar/codec files at the lowest useful non-HTTP boundary; golden/rejection fixtures and format documentation.
@@ -634,6 +703,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-F02 — Empty and nonempty wall recordings
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Empty/nonempty wall schemas and cumulative signed deltas require one validated interpretation and strict rejection fixtures.
 - Prerequisites: 003-F01, 003-C01–003-C02; DD03, DD08, DD15.
 - Scope: Add strict empty/nonempty wall data, origin and successive signed observations, cumulative validation and deliberate version-one persistence.
 - Expected files/modules: `DioramaClock` stable model/schema, fixtures and builders.
@@ -646,6 +716,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-F03 — Wall-source recording and passthrough
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Serialized wall capture combines timezone selection, independent rounding, and safe live-value forwarding.
 - Prerequisites: 003-F02, 003-B04; DD06, DD09, DD15.
 - Scope: Vend the synchronous nonthrowing Date wall facet with an injected Sendable source, serialized capture, and startup-selected encoding timezone.
 - Expected files/modules: Clock wall source/live attachment and tests.
@@ -658,6 +729,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-F04 — Sequential wall replay and exhaustion
 
+- Recommended model: GPT-5.6 Terra; reasoning: `high`. Sequential replay reuses established claims and codecs, with explicit last-value continuation and closed-handle tests.
 - Prerequisites: 003-F03, 003-B08; DD05, DD15.
 - Scope: Replay effective origin plus accumulated deltas and report unused reads.
 - Expected files/modules: Clock replay/finalization paths and conformance tests.
@@ -669,6 +741,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-F05 — Clock override normalization and re-record merge
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Positional override survival and fresh-observation merge rules must preserve the baseline and public extension boundary.
 - Prerequisites: 003-F04, 003-C05; DD03, DD07, DD09, DD15.
 - Scope: Add deliberate origin/later-delta overrides and clock-specific merge through the public candidate preparation/finalization extension boundary.
 - Expected files/modules: Clock override codec/merge, necessary public merge hook, baseline-to-candidate fixtures and transient report tests.
@@ -680,6 +753,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-F06 — Logical Swift Clock facet and closed-handle behavior
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Swift Clock conformance combines cancellation, transferred logical instants, frozen horizons, and scheduler lifetime.
 - Prerequisites: 003-F04, 003-E08; DD14–DD15.
 - Scope: Add Sendable/Hashable/Comparable logical instants and Clock conformance using public scheduler services, including sleep cancellation and closure.
 - Expected files/modules: Clock monotonic facet/instant and lifecycle tests.
@@ -693,6 +767,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-F07 — Clock platform and complete-system conformance
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Full clock acceptance combines portable codecs, persistence, mixed timed systems, and quiescence evidence.
 - Prerequisites: 003-F05–003-F06; DD15.
 - Scope: Complete persisted/mixed-mode/portable clock evidence and user examples.
 - Expected files/modules: Clock conformance fixtures and public-only consumer tests, clock capability and override documentation.
@@ -705,6 +780,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-G01 — Portable location, access, and failure values
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Portable location and bounded error values need deliberate range, omission, and unknown-value contracts.
 - Prerequisites: 003-F01, 003-B02; DD06, DD09, DD16, Q4.
 - Scope: Define stable location measurements, access state, source information, and bounded property-list-like failure values independent of Core Location.
 - Expected files/modules: `DioramaLocation` domain values, validation tests and supported-field/error-value documentation.
@@ -717,6 +793,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-G02 — WGS84 mapping and numerical contract evidence
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. An evidence-backed WGS84 mapping and inverse must bound numerical error and singularities before schema adoption.
 - Prerequisites: 003-G01; DD16 coordinate/scalar sections, dependency policy, Q4.
 - Scope: Evaluate the common-origin east/north mapping, inverse, WGS84 constants, valid regional envelope and singularities against independent reference data.
 - Expected files/modules: `Spikes/LocationCoordinates/` and `docs/evidence/location-coordinate-codec.md`; proposed stable mapping contract.
@@ -728,6 +805,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-G03 — Location version-one codec and strict recording model
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Implement an approved geographic contract alongside independent measurement/delivery origins and exact scalar encoding.
 - Prerequisites: 003-G02 approved mapping, 003-C02, 003-F01; DD03, DD08, DD16.
 - Scope: Implement coordinate/time encoding and grouped update/access payloads, including optional cached location and independent vertical origins.
 - Expected files/modules: Location codec and strict recordings; geographic, numeric, time, failure and schema fixtures.
@@ -740,6 +818,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-G04 — Portable sequential update replay
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. AsyncSequence updates, cached state, open sessions, and iterator cancellation require a coherent portable lifecycle.
 - Prerequisites: 003-G03, 003-E06; DD04–DD05, DD16.
 - Scope: Add AsyncSequence-first update events, ordered batches/nonterminal failures, one active update session, and non-consuming current location.
 - Expected files/modules: Location portable service/update state machine and tests.
@@ -753,6 +832,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-G05 — Access state notifications and authorization barriers
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Authorization barriers and state-before-callback ordering interact with mismatches, scheduling, and shutdown.
 - Prerequisites: 003-G04, 003-E03; DD16 access/request contracts.
 - Scope: Implement initial/current access state, separate state sequence, automatic notifications, and ordered when-in-use/always request barriers.
 - Expected files/modules: Location access state machine and timed barrier tests.
@@ -765,6 +845,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-G06 — Location origin policy and re-record replacement
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Origin precedence and surviving-session overrides must preserve fresh derivation while excluding raw sensitive values.
 - Prerequisites: 003-G03–003-G05, 003-F05, 003-C05; DD09, DD16.
 - Scope: Add preparation and merge for coordinate/measurement origins while replacing other location behavior wholesale on re-record.
 - Expected files/modules: Location origin policy/merge, privacy and file fixtures.
@@ -778,6 +859,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-G07 — Main-actor delegate facade over portable replay
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. A narrow MainActor facade must preserve weak-delegate ownership and exact frozen/inert post-finish behavior.
 - Prerequisites: 003-G04–003-G05; DD16 consumer and escaped-handle contracts.
 - Scope: Add the narrow Diorama-owned Apple facade and weak delegate with portable locations, reproducible Apple access/configuration types and local replay state.
 - Expected files/modules: `DioramaCoreLocation` facade/delegate target, controlled main-actor replay tests and migration example.
@@ -791,6 +873,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-G08 — Private Core Location capture and live forwarding
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Native callback conversion and live forwarding need field-fidelity evidence, safe preparation, and clear manager ownership.
 - Prerequisites: 003-G06–003-G07, 003-B02, 003-E01; DD06, DD09, DD16.
 - Scope: Add an owned private MainActor CLLocationManager bridge for record and passthrough, reserving ordering/time and copying values at native callbacks.
 - Expected files/modules: Core Location native bridge/converters and controlled adapter-boundary tests; documented native field availability.
@@ -802,6 +885,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-G09 — Location shutdown and cross-platform acceptance
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Manager/proxy/sequence cleanup must prove quiescence across batches, barriers, late events, and platform boundaries.
 - Prerequisites: 003-G08; DD10, DD14, DD16.
 - Scope: Complete private-manager/proxy/sequence cleanup and broader portable, Apple, multi-attachment and re-record conformance.
 - Expected files/modules: Location/Core Location integration tests, capability documentation, Apple controlled callback harness and portable replay fixtures.
@@ -818,6 +902,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H01 — Swift HTTP Types adoption record
 
+- Recommended model: GPT-5.6 Terra; reasoning: `high`. Review two package products, exact compatibility, and the dependency graph against an existing adoption policy.
 - Prerequisites: 003-A01, 003-C07, 003-D05 reviewed under resolved Q1; DD11, dependency policy.
 - Scope: Evaluate a compatible stable release and propose explicit adoption of HTTPTypes for DioramaHTTP and HTTPTypesFoundation for DioramaURLSession.
 - Expected files/modules: `docs/dependency-policy.md` adoption record and narrow isolated compatibility evidence if needed; no production dependency yet.
@@ -828,6 +913,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H02 — Shared message heads, fields, and body values
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Own the HTTP schema while preserving repeated fields and absent/empty/unavailable body distinctions.
 - Prerequisites: 003-H01 adoption approval, 003-C02; DD08, DD11, DD17.
 - Scope: Add HTTPTypes in-memory heads, ordered repeated fields, stable body cases and deliberate Diorama-owned message codecs/builders.
 - Expected files/modules: `DioramaHTTP` message/body/field types, codecs and goldens; approved Package.swift additions and public documentation.
@@ -840,6 +926,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H03 — Typed HTTP preparation and credential defaults
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Credential defaults and consumer transforms must preserve valid replay substitutes and exclude secrets at every boundary.
 - Prerequisites: 003-H02, 003-B02; DD09, DD11, DD17.
 - Scope: Implement immutable setup preparation for inputs/outputs/errors, with structural canonicalization, credential redaction, normalization and validation.
 - Expected files/modules: HTTP typed policy/transform and safe-diff helpers; credential, malformed-field and consumer-transform tests.
@@ -851,6 +938,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H04 — Standard HTTP matcher and safe differences
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Prepared projections and safe differences need precise header-order, exact-body, and resource-equivalence semantics.
 - Prerequisites: 003-H03, 003-E05; DD04, DD09, DD11.
 - Scope: Match prepared method, scheme/authority, path/query, exact logical body, and prepared fields with the accepted configurable exclusion defaults.
 - Expected files/modules: HTTP matcher/projection/diff files and matching tests.
@@ -863,6 +951,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H05 — Strict response/body/failed/open lifecycle
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Recursive attempt/body results and tolerant persistence must validate to one strict lifecycle without duplicate content.
 - Prerequisites: 003-H02, 003-E04, 003-F01; DD03, DD11, DD17.
 - Scope: Add one root request and mutually exclusive attempt/body results, with response-owned head/content, partial prefixes and completion-only trailers.
 - Expected files/modules: HTTP recursive lifecycle foundation, validation/builders and owned codecs; synthetic typed failure supplement for focused tests.
@@ -876,6 +965,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H06 — Weighted body allocation and local timing
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Proportional byte allocation, zero weights, integer rounding, and cumulative delays need checked arithmetic and independent examples.
 - Prerequisites: 003-H05; DD14, DD17, 003-F01.
 - Scope: Implement successive nonnegative delays and byte-weight profiles with checked cumulative arithmetic and deterministic proportional allocation.
 - Expected files/modules: HTTP body profile/timing validation and fixture tests.
@@ -888,6 +978,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H07 — Atomic resources with the first resource-backed consumer
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Atomic document/resource generations must survive concurrent readers, replacement failures, and cleanup on every platform.
 - Prerequisites: 003-H02–003-H03, 003-H05–003-H06, 003-C03–003-C06; DD07–DD09, DD17.
 - Scope: Extend repository publication to one logical document/resource set, using the first real HTTP body references; fix portable resource naming/layout.
 - Expected files/modules: Persistence resource resolver/staging/publication, HTTP resource integration, fixtures and failure-injection evidence.
@@ -900,6 +991,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H08 — Exact JSON resources and derived Content-Length
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Exact JSON bytes and provable Content-Length derivation require careful HTTP exception handling without mutation.
 - Prerequisites: 003-H07, 003-H06; DD11, DD17.
 - Scope: Select exact .json resources for valid UTF-8 application/json or +json bodies and implement the explicit body-byte-count field form when provable.
 - Expected files/modules: HTTP body persistence selection/derived fields, fixtures preserving JSON byte spelling and body-edit integration tests.
@@ -912,6 +1004,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H09 — Stable URLSession failure supplements
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Bounded native error extraction and reconstruction must preserve useful identity while omitting unsafe object graphs.
 - Prerequisites: 003-H05, 003-B02, 003-D02/003-D05 evidence; DD12, DD17, Q4.
 - Scope: Define URLSession-owned failure values, bounded safe userInfo allowlist, native extraction/materialization helpers and deliberate codec.
 - Expected files/modules: URLSession stable failure/conversion files and tests; no interception implementation yet.
@@ -924,6 +1017,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H10 — Response-owned redirect branches
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Typed redirect branches and inherited requests must retain single ownership through recursive schema validation.
 - Prerequisites: 003-H05–003-H06, 003-H09, 003-D03 reviewed; DD17.
 - Scope: Add typed proposed/followed/modified/refused/open redirect structure, request derivation and its codec/validation.
 - Expected files/modules: HTTP redirect composition and URLSession supplements; recursive structural fixtures/builders.
@@ -934,6 +1028,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H11 — Response-owned authentication branches
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Authentication continuations combine safe credential shape, response ownership, and strict recursive branch validation.
 - Prerequisites: 003-H10, 003-D04 reviewed; DD09, DD12, DD17.
 - Scope: Add typed Basic/Digest challenge metadata and recursive continuations attached to the owning 401/407 head, with prepared credential shape.
 - Expected files/modules: Shared authentication node composition, URLSession challenge supplements/codecs, redaction and tree fixtures.
@@ -945,6 +1040,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H12 — Optional response-disposition supplement
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Optional disposition nodes have bounded scope but must preserve one conclusion and decision-relative timing.
 - Prerequisites: 003-H05, 003-H09, 003-D02 reviewed; DD12, DD17.
 - Scope: Add response-head allow/cancel/open decision supplements and validation.
 - Expected files/modules: URLSession stable disposition composition/codec tests.
@@ -956,6 +1052,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H13 — Full lifecycle validation, registration, and capability derivation
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Whole-tree validation and capability derivation integrate all schema families before any playback or claim is allowed.
 - Prerequisites: 003-H08–003-H12, 003-E05/003-E07, 003-C01; DD08, DD11–DD12, DD17.
 - Scope: Integrate one URLSession persistent system payload using shared HTTP codecs and typed supplements; derive required capabilities from the whole tree.
 - Expected files/modules: HTTP/URLSession validators, registration/builders, capability checker and complete schema fixtures/documentation.
@@ -968,6 +1065,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H14 — HTTP timing-override correspondence and re-recording
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Re-record correspondence must preserve overrides only along compatible structures and refuse ambiguous reassignment.
 - Prerequisites: 003-H13, 003-H04, 003-F05, 003-C05; DD03–DD04, DD09, DD17.
 - Scope: Match fresh prepared interactions to baseline groups and preserve delay overrides only at compatible structural paths and decision branches.
 - Expected files/modules: HTTP merge service and baseline/candidate fixtures; safe transient override report coverage.
@@ -989,6 +1087,7 @@ Narrowing the milestone requires an approved decision amendment.
 
 ### 003-I01 — Instrumented session and bodyless GET vertical path
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. The first native vertical path combines routing, live forwarding, replay isolation, rejection, and basic shutdown.
 - Prerequisites: 003-D05 evidence review, 003-H13–003-H14, 003-E08; DD10, DD12, DD17, resolved Q1.
 - Scope: Implement configuration-first adapter-owned sessions and private forwarding machinery, routing leases, rejection boundary, and minimal supported GET record/replay/passthrough from stable scenario to native result.
 - Expected files/modules: `DioramaURLSession` setup/routing/protocol and Apple/ FoundationNetworking bridge files, GET fixtures and capability documentation.
@@ -1001,6 +1100,7 @@ Narrowing the milestone requires an approved decision amendment.
 
 ### 003-I02 — In-memory bodies and aggregate data-task presentations
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Extend the proved adapter to body and aggregate presentations while retaining exact bytes and source isolation.
 - Prerequisites: 003-I01, 003-H08; DD11–DD12, DD17.
 - Scope: Extend supported requests to absent/in-memory bodies and complete responses through URL/URLRequest completion and async conveniences.
 - Expected files/modules: URLSession extraction/materialization/data-task paths; aggregate and HTTPTypesFoundation convenience conformance tests.
@@ -1014,6 +1114,7 @@ Narrowing the milestone requires an approved decision amendment.
 
 ### 003-I03 — Native failure record/replay
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Integrate native failure timing and partial bodies without conflating dependency errors, caller cancellation, and infrastructure facts.
 - Prerequisites: 003-I02, 003-H09; DD06, DD12, DD17.
 - Scope: Connect native error observation/reconstruction to attempt and partial body failures with timing and safe warning/health rules.
 - Expected files/modules: URLSession failure paths and controlled error fixtures.
@@ -1025,6 +1126,7 @@ Narrowing the milestone requires an approved decision amendment.
 
 ### 003-I04 — Segmented delegate delivery and response disposition
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Delegate disposition and segmented delivery introduce native handoff races and cancellation across presentation styles.
 - Prerequisites: 003-I03, 003-H06/003-H12, 003-D02 evidence; DD12, DD17.
 - Scope: Connect observed response/body segment timing and native data-delegate allow/cancel/open decisions to the shared lifecycle and scheduler.
 - Expected files/modules: URLSession delegate proxy/delivery paths and conformance tests across delegate, completion and async presentation.
@@ -1036,6 +1138,7 @@ Narrowing the milestone requires an approved decision amendment.
 
 ### 003-I05 — Native redirects and recursive request derivation
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Production redirects combine recursive decisions, successive protocol instances, route continuity, and offline guarantees.
 - Prerequisites: 003-I04, 003-H10, 003-D03 evidence; DD12, DD17.
 - Scope: Wire redirect observation, client decisions, continuation selection and same-group correlation across successive URLProtocol instances.
 - Expected files/modules: URLSession redirect bridge/proxy and conformance suite.
@@ -1047,6 +1150,7 @@ Narrowing the milestone requires an approved decision amendment.
 
 ### 003-I06 — Native HTTP Basic authentication
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Native challenge senders, safe credential decisions, repeated attempts, and shutdown must agree with the recorded tree.
 - Prerequisites: 003-I05, 003-H11, 003-D04 evidence; DD12, DD17.
 - Scope: Bridge task-level Basic challenges, prepared credential decisions and recursive continuations through native challenge APIs.
 - Expected files/modules: URLSession challenge sender/proxy and Basic fixtures.
@@ -1058,6 +1162,7 @@ Narrowing the milestone requires an approved decision amendment.
 
 ### 003-I07 — Native HTTP Digest authentication
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Digest extends the Basic path but needs strong scrutiny of volatile fields, retry behavior, and Linux capability evidence.
 - Prerequisites: 003-I06, 003-D04 Digest evidence; DD12, DD17.
 - Scope: Extend the native challenge path to Digest while preserving the same shared lifecycle, safe metadata and continuation contracts.
 - Expected files/modules: URLSession Digest capability and conformance fixtures; minimal shared challenge-path corrections justified by actual behavior.
@@ -1068,6 +1173,7 @@ Narrowing the milestone requires an approved decision amendment.
 
 ### 003-I08 — Full open-horizon and native ownership conformance
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Prove production shutdown at every native phase while live forwarding tails continue without retaining or mutating the scenario.
 - Prerequisites: 003-I07; DD03, DD05, DD10, DD12, DD14, DD17.
 - Scope: Broaden the lifecycle protection present since 003-I01 across every native phase and open state, with failure/cancellation/re-record integration.
 - Expected files/modules: URLSession ownership/race conformance tests and documented forwarding-tail topology; focused fixes only as evidence requires.
@@ -1080,6 +1186,7 @@ Narrowing the milestone requires an approved decision amendment.
 
 ### 003-I09 — Complete URLSession capability and cross-bridge matrix
 
+- Recommended model: GPT-6 Astra; reasoning: `high`. Reconcile the complete cross-bridge capability matrix and fixture portability without hiding unsupported required surfaces.
 - Prerequisites: 003-I08, 003-H13–003-H14; DD11–DD12, DD17.
 - Scope: Close the supported API/profile matrix, validate structural capabilities at setup, and exercise fixtures recorded on each bridge through the other.
 - Expected files/modules: URLSession shared conformance fixtures, platform CI selection and evidence, supported-capability and rejection documentation.
@@ -1095,6 +1202,7 @@ Narrowing the milestone requires an approved decision amendment.
 
 ### 003-J01 — Opt-in XCTest integration
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Opt-in XCTest reporting must honor context lifetime, concurrent diagnostics, and explicit core finalization.
 - Prerequisites: 003-B08–003-B09, 003-C06; DD05, DD10, resolved Q3, quality policy.
 - Scope: Provide a separate, explicit XCTest diagnostic/evaluation convenience using supported lifecycle APIs and captured setup source locations.
 - Expected files/modules: `DioramaXCTest`, integration tests and usage example; target availability separated from core.
@@ -1107,6 +1215,7 @@ Narrowing the milestone requires an approved decision amendment.
 
 ### 003-J02 — Opt-in Swift Testing integration
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Swift Testing task context and issue delivery need framework-specific feasibility evidence and retained-reporter lifetime tests.
 - Prerequisites: 003-J01's reviewed common integration policy, 003-B09, 003-C06; DD05, DD10.
 - Scope: Add a separate Swift Testing diagnostic/evaluation convenience using the selected toolchain's supported test context and lifecycle facilities.
 - Expected files/modules: `DioramaTesting`, integration tests and example; framework-independent shared helpers only where actual duplication warrants it.
@@ -1118,6 +1227,7 @@ Narrowing the milestone requires an approved decision amendment.
 
 ### 003-J03 — Combined-system acceptance suite
 
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Combined-system acceptance exercises timing, health, persistence, and shutdown invariants across the full public surface.
 - Prerequisites: 003-C07, 003-E08, 003-F07, 003-G09, 003-I09, 003-J01–003-J02.
 - Scope: Prove accepted cross-system invariants in small real consumer examples, without adding new features or a general stress/benchmark framework.
 - Expected files/modules: Public-only acceptance test target/fixtures and complete CI capability/coverage evidence.
@@ -1130,6 +1240,7 @@ Narrowing the milestone requires an approved decision amendment.
 
 ### 003-J04 — User documentation and initial delivery review
 
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Audit documentation and compiled examples against all delivered contracts, capabilities, and unresolved limitations.
 - Prerequisites: 003-J03 and every required unit's acceptance evidence.
 - Scope: Complete public setup, authoring, extension, lifecycle, schema, supported-platform, dependency and internal development documentation; review delivery.
 - Expected files/modules: `README.md`, `docs/README.md`, `docs/design-overview.md`, public API docs/examples, schema/capability references, plan/index status.
