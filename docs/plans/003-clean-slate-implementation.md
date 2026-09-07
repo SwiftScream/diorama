@@ -9,7 +9,7 @@
 The owner explicitly approved this plan on 2026-09-07, alongside the consolidated design.
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
-003-A01 is in progress; later units have not started.
+003-A01 is complete; later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -229,7 +229,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-A01 — Toolchain and deployment feasibility record
 
-- Status: In progress; owner confirmed scope and the installed beta toolchain on 2026-09-07.
+- Status: Complete; owner confirmed scope and the installed beta toolchain on 2026-09-07.
 - Prerequisites: Plan authorization; quality policy, DD14–DD16, Q2/Q5.
 - Scope: Identify exact toolchains and platform matrix under the owner-approved 2026-09-07 beta bootstrap exception; verify clock availability at the newly approved deployment minima from Q2.
 - Expected files/modules: `docs/evidence/003-A01-toolchain-and-availability.md`; isolated availability probes under `Spikes/ToolchainAvailability/`.
