@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_directory=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+repository_root=$(cd "$script_directory/.." && pwd)
+
+run() {
+    printf '+ '
+    printf '%q ' "$@"
+    printf '\n'
+    "$@"
+}
+
+require_mint() {
+    if ! command -v mint >/dev/null 2>&1; then
+        printf '%s\n' \
+            'Mint 0.18.0 is required. Install it from https://github.com/yonaskolb/Mint/releases/tag/0.18.0, then run mint bootstrap.' \
+            >&2
+        return 127
+    fi
+
+    local installed_version
+    installed_version=$(mint version | sed -n 's/^Version: //p')
+    if [[ "$installed_version" != '0.18.0' ]]; then
+        printf 'Mint 0.18.0 is required; found %s.\n' "$installed_version" >&2
+        return 1
+    fi
+}

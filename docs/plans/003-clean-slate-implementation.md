@@ -9,7 +9,7 @@
 The owner explicitly approved this plan on 2026-09-07, alongside the consolidated design.
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
-003-A01 through 003-A03 are complete; later units have not started.
+003-A01 through 003-A03 are complete. 003-A04 is in progress; later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -302,6 +302,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-A04 — Canonical quality and CI bootstrap
 
+- Status: In progress; owner confirmed scope and GPT-5.6 Sol at `high` reasoning on 2026-09-07.
 - Recommended model: GPT-5.6 Sol; reasoning: `high`. Coordinate SwiftPM, Xcode, Linux, coverage, and intentional failure checks through one reproducible quality gate.
 - Prerequisites: 003-A02 adoption approval, 003-A03, quality policy, Q5 configuration.
 - Scope: Deliver the complete policy bootstrap as one review unit, permitting smaller reviewed commits internally.

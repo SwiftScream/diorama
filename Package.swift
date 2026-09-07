@@ -17,19 +17,15 @@ let package = Package(
     products: [
         .library(
             name: "DioramaCore",
-            targets: ["DioramaCore"]
-        ),
+            targets: ["DioramaCore"]),
     ],
     targets: [
         .target(
             name: "DioramaCore",
-            swiftSettings: strictConcurrencySettings
-        ),
+            swiftSettings: strictConcurrencySettings),
         .testTarget(
             name: "DioramaCoreTests",
             dependencies: ["DioramaCore"],
-            swiftSettings: strictConcurrencySettings
-        ),
+            swiftSettings: strictConcurrencySettings),
     ],
-    swiftLanguageModes: [.v6]
-)
+    swiftLanguageModes: [.v6])

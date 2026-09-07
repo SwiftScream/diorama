@@ -1,0 +1,7 @@
+--swift-version 6.4
+--language-mode 6
+--exclude .build,.swiftpm
+
+# Retain the reviewed baseline's compact closing delimiters and range operators.
+--closing-paren same-line
+--no-space-operators ..<,...

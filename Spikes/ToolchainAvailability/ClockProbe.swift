@@ -1,24 +1,29 @@
 import Foundation
 
 #if os(Linux)
-import FoundationNetworking
+    import FoundationNetworking
 #endif
 
-// An isolated standard-library conformance probe, not Diorama's logical clock.
+/// An isolated standard-library conformance probe, not Diorama's logical clock.
 private struct ForwardingClock: Clock {
     typealias Instant = ContinuousClock.Instant
 
     private let base = ContinuousClock()
 
-    var now: Instant { base.now }
-    var minimumResolution: Duration { base.minimumResolution }
+    var now: Instant {
+        base.now
+    }
+
+    var minimumResolution: Duration {
+        base.minimumResolution
+    }
 
     func sleep(until deadline: Instant, tolerance: Duration?) async throws {
         try await base.sleep(until: deadline, tolerance: tolerance)
     }
 }
 
-private func requireSendable<T: Sendable>(_: T) {}
+private func requireSendable(_: some Sendable) {}
 
 @main
 private enum ClockProbe {
@@ -58,9 +63,9 @@ private enum ClockProbe {
         precondition(formatter.date(from: encoded) == instant)
 
         #if os(Linux)
-        // Load FoundationNetworking for the Linux linkage inventory without I/O.
-        let request = URLRequest(url: URL(string: "https://example.invalid")!)
-        precondition(request.url?.host == "example.invalid")
+            // Load FoundationNetworking for the Linux linkage inventory without I/O.
+            let request = URLRequest(url: URL(string: "https://example.invalid")!)
+            precondition(request.url?.host == "example.invalid")
         #endif
         print("PASS: Clock conformance, Duration, Sendable, deadline, cancellation, Date/ISO8601/TimeZone")
     }

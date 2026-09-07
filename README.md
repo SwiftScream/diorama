@@ -8,19 +8,6 @@ a complex environment. A scenario may contain several independently named
 systems, including multiple instances of the same system, and consumers may add
 their own systems alongside the first-party implementations.
 
-## Status
-
-Diorama is currently design-complete but not yet implemented. The repository
-starts from a documentation-only baseline so that the production architecture
-is built deliberately rather than inherited from the earlier network snapshot
-proof of concept.
-
-The owner approved the [design](docs/design-overview.md) and
-[implementation plan](docs/plans/003-clean-slate-implementation.md) on 2026-09-07.
-The plan divides implementation into small, independently reviewable changes;
-each unit requires owner scope confirmation before work begins. Implementation
-has not started.
-
 ## Initial scope
 
 The accepted design covers:
@@ -54,6 +41,20 @@ platform CI, strict concurrency, and coverage expectations are defined by
 [the quality gates and CI policy](docs/quality-gates-and-ci.md).
 
 ## Development
+
+Development currently uses Xcode 27.0 beta 6 and its Swift 6.4 toolchain under
+the recorded bootstrap exception. Install
+[Mint 0.18.0](https://github.com/yonaskolb/Mint/releases/tag/0.18.0), then install
+the repository's exact SwiftFormat and SwiftLint versions:
+
+```sh
+mint bootstrap
+```
+
+Use `scripts/format` to apply formatting, `scripts/lint` for non-mutating format
+and lint checks, `scripts/test` for debug tests and a release build, and
+`scripts/check` for the complete non-mutating local gate. A missing or different
+Mint version produces installation guidance instead of downloading code.
 
 All work takes place on feature branches. The owner confirms each atomic slice's
 scope before implementation; feature-branch commits and history rewrites,

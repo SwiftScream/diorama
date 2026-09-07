@@ -1,0 +1,19 @@
+disabled_rules:
+  # SwiftFormat's redundantNilInit rule owns this transformation.
+  - implicit_optional_initialization
+
+opt_in_rules:
+  - missing_docs
+
+excluded:
+  - .build
+  - .swiftpm
+
+trailing_comma:
+  mandatory_comma: true
+
+vertical_whitespace:
+  max_empty_lines: 2
+
+nesting:
+  type_level: 2
