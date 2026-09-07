@@ -54,7 +54,11 @@ mint bootstrap
 Use `scripts/format` to apply formatting, `scripts/lint` for non-mutating format
 and lint checks, `scripts/test` for debug tests and a release build, and
 `scripts/check` for the complete non-mutating local gate. A missing or different
-Mint version produces installation guidance instead of downloading code.
+Mint version fails without downloading code; a missing executable also prints
+the exact version and installation URL.
+Use `scripts/coverage swiftpm macos` for local SwiftPM coverage or
+`scripts/coverage ios` for the pinned iOS Simulator build, test, and coverage
+run. Coverage artifacts stay under the ignored `.build` directory.
 
 All work takes place on feature branches. The owner confirms each atomic slice's
 scope before implementation; feature-branch commits and history rewrites,
