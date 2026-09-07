@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/_common"
+
+require_output() {
+    local description=$1
+    local expected=$2
+    shift 2
+
+    local actual
+    actual=$("$@")
+    printf '%s\n' "$actual"
+    if [[ "$actual" != *"$expected"* ]]; then
+        printf '%s mismatch: expected output containing %s.\n' \
+            "$description" "$expected" >&2
+        return 1
+    fi
+}
+
+require_output Xcode 'Build version 27A5252f' xcodebuild -version
+require_output Swift \
+    'Apple Swift version 6.4 (swiftlang-6.4.0.33.1 clang-2100.3.33.1)' \
+    xcrun swift --version
+require_output 'macOS SDK' '26A5419a' xcrun --sdk macosx --show-sdk-build-version
+require_output 'iOS SDK' '24A5422a' xcrun --sdk iphoneos --show-sdk-build-version
+require_output 'iOS Simulator SDK' '24A5422a' \
+    xcrun --sdk iphonesimulator --show-sdk-build-version
+require_output 'iOS Simulator runtime' '24A5423a' \
+    xcrun simctl list runtimes

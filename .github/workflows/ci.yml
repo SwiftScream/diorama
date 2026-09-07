@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: macos-15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Mint tools
+        uses: irgaly/setup-mint@8566ee44b3a79d20642d1924db21c8ab0402859f # v1
+        with:
+          mint-directory: .
+          mint-executable-directory: /usr/local/bin
+          bootstrap: true
+          bootstrap-link: true
+          use-cache: true
+          cache-prefix: macos-15
+          clean: true
+      - name: Check formatting and linting
+        run: scripts/lint
+
+  macos:
+    name: macOS
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27_beta_6.app/Contents/Developer
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify Apple toolchain
+        run: scripts/verify-apple-toolchain
+      - name: Restore SwiftPM build artifacts
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: swiftpm-${{ runner.os }}-${{ runner.arch }}-xcode-27-beta-6-${{ hashFiles('Package.swift') }}
+      - name: Test and collect coverage
+        run: scripts/coverage swiftpm macos
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          disable_search: true
+          fail_ci_if_error: true
+          files: .build/coverage/macos.json
+          flags: macos
+          name: macos
+          plugins: noop
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  ios:
+    name: iOS
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27_beta_6.app/Contents/Developer
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify Apple toolchain
+        run: scripts/verify-apple-toolchain
+      - name: Build, test, and collect coverage
+        run: scripts/coverage ios
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          fail_ci_if_error: true
+          flags: ios
+          name: ios
+          plugins: xcode
+          swift_project: Diorama
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  linux:
+    name: Linux
+    runs-on: ubuntu-24.04
+    container:
+      # nightly-6.4.x-noble containing the selected 2026-09-04 snapshot
+      image: >-
+        swiftlang/swift@sha256:15ae709b1d8eb1f8691b300f5721499d007e944694f2c0e9929a55580c9bf1a5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify Linux toolchain and runtime
+        run: |
+          swift --version | tee /tmp/swift-version
+          grep --fixed-strings 'Swift version 6.4.2-dev (LLVM 15622a86b1749a9, Swift d2e983b81b18217)' /tmp/swift-version
+          grep --fixed-strings 'Target: x86_64-unknown-linux-gnu' /tmp/swift-version
+          test "$(dpkg --print-architecture)" = amd64
+          curl_version=$(dpkg-query -W '-f=${Version}' libcurl4-openssl-dev)
+          printf 'libcurl4-openssl-dev %s\n' "$curl_version"
+          dpkg --compare-versions "$curl_version" ge 8.5.0-2ubuntu10.13
+          dpkg --compare-versions "$curl_version" lt 8.5.0-2ubuntu11
+          Spikes/ToolchainAvailability/run linux
+      - name: Restore SwiftPM build artifacts
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: swiftpm-${{ runner.os }}-${{ runner.arch }}-swift-6.4-snapshot-2026-09-04-a-${{ hashFiles('Package.swift') }}
+      - name: Test and collect coverage
+        run: scripts/coverage swiftpm linux
+      - name: Install Codecov upload dependency
+        run: |
+          apt-get update
+          apt-get install --yes curl
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          disable_search: true
+          fail_ci_if_error: true
+          files: .build/coverage/linux.json
+          flags: linux
+          name: linux
+          plugins: noop
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

@@ -1,0 +1,33 @@
+name: Mint updates
+
+on:
+  schedule:
+    - cron: '23 18 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mint-updates
+  cancel-in-progress: true
+
+jobs:
+  outdated:
+    name: Report outdated Mint tools
+    runs-on: macos-15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Mint
+        uses: irgaly/setup-mint@8566ee44b3a79d20642d1924db21c8ab0402859f # v1
+        with:
+          mint-directory: .
+          mint-executable-directory: /usr/local/bin
+          bootstrap: false
+          bootstrap-link: false
+          use-cache: true
+          cache-prefix: macos-15-outdated
+          clean: false
+      - name: Report outdated tools
+        run: mint outdated

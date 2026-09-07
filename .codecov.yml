@@ -1,0 +1,30 @@
+codecov:
+  require_ci_to_pass: true
+  notify:
+    after_n_builds: 3
+    wait_for_ci: true
+
+coverage:
+  round: nearest
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1
+        base: auto
+    patch:
+      default:
+        target: auto
+        base: auto
+
+flags:
+  macos:
+    carryforward: false
+  ios:
+    carryforward: false
+  linux:
+    carryforward: false
+
+ignore:
+  - Tests/**
+  - Spikes/**

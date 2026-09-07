@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/_common"
+cd "$repository_root"
+
+usage() {
+    printf '%s\n' 'usage: scripts/coverage swiftpm <macos|linux>' \
+        '       scripts/coverage ios' >&2
+    return 64
+}
+
+case ${1:-} in
+    swiftpm)
+        case ${2:-} in
+            macos | linux)
+                coverage_flag=$2
+                ;;
+            *)
+                usage
+                ;;
+        esac
+
+        run "$script_directory/test" --enable-code-coverage
+        coverage_source=$(swift test --show-codecov-path)
+        if [[ ! -f "$coverage_source" ]]; then
+            printf 'SwiftPM did not produce coverage at %s.\n' "$coverage_source" >&2
+            exit 1
+        fi
+
+        run mkdir -p .build/coverage
+        run cp "$coverage_source" ".build/coverage/$coverage_flag.json"
+        ;;
+    ios)
+        result_bundle=.build/ios-tests.xcresult
+        if [[ -e "$result_bundle" ]]; then
+            run rm -rf "$result_bundle"
+        fi
+
+        destination='platform=iOS Simulator,name=iPhone 17,OS=27.0'
+        common_settings=(
+            -scheme Diorama
+            -destination "$destination"
+            IPHONEOS_DEPLOYMENT_TARGET=16.0
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
+        )
+
+        run xcodebuild build "${common_settings[@]}" -configuration Release
+        run xcodebuild test "${common_settings[@]}" \
+            -enableCodeCoverage YES \
+            -resultBundlePath "$result_bundle"
+        run xcrun xccov view --report "$result_bundle"
+        ;;
+    *)
+        usage
+        ;;
+esac
