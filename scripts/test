@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/_common"
+cd "$repository_root"
+run swift test -Xswiftc -warnings-as-errors "$@"
+run swift build -c release -Xswiftc -warnings-as-errors

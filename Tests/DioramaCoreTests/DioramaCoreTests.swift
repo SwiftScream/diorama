@@ -1,6 +1,5 @@
+@testable import DioramaCore
 import Testing
 
-@testable import DioramaCore
-
 @Test
-func coreTargetBuilds() {}
+func `core target builds`() {}
