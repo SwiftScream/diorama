@@ -9,7 +9,7 @@
 The owner explicitly approved this plan on 2026-09-07, alongside the consolidated design.
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
-003-A01 is complete; later units have not started.
+003-A01 and 003-A02 are complete; later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -276,10 +276,11 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-A02 — Quality-tool adoption records
 
+- Status: Complete; owner confirmed scope and GPT-5.6 Terra at `high` reasoning, then approved the tool and action records, on 2026-09-07.
 - Recommended model: GPT-5.6 Terra; reasoning: `high`. Tool adoption and pin review span several sources and platform constraints, but add no runtime architecture.
 - Prerequisites: 003-A01; dependency and quality policies.
 - Scope: Propose exact Mint, SwiftFormat, and SwiftLint adoptions and review the URITemplate configuration baseline and planned GitHub Actions sources/pins.
-- Expected files/modules: Adoption entries in `docs/dependency-policy.md` and toolchain/tooling evidence; no Mintfile or production manifest dependency yet.
+- Expected files/modules: Adoption entries in `docs/dependency-policy.md` and [003-A02 tooling evidence](../evidence/003-A02-quality-tool-adoptions.md); no Mintfile or production manifest dependency yet.
 - Public behavior: No runtime change; explicit reproducible tool approval unit.
 - Tests/verification: V-doc; exact repository, identity, products/executable, version/major rule, purpose, alternatives, direct/transitive graph, license, maintenance, toolchain/platform impact, and reviewed action SHAs.
 - Exclusions: Speculative algorithms packages, DocC grandfathering, silent tool installation, approval inferred from “approved candidate.”

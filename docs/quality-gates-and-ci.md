@@ -242,8 +242,10 @@ GitHub Actions workflows should:
 - use dependency automation or deliberate maintenance changes to update those
   pins;
 - cancel superseded runs for the same pull request;
-- cache Mint builds and SwiftPM artifacts only where cache invalidation includes
-  their manifests, selected toolchain, and platform;
+- cache Mint through the approved `setup-mint` action using its reviewed
+  Mint-version, `Mintfile`, platform, and architecture inputs; cache Diorama
+  SwiftPM artifacts separately only where invalidation includes their relevant
+  manifests, selected toolchain, platform, and architecture;
 - keep format/lint, platform tests, and coverage failures independently visible.
 
 GitHub Actions are executable supply-chain inputs even though they are not
