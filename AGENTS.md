@@ -36,6 +36,13 @@ architecture inside implementation work.
   branch before editing.
 - Keep one branch focused on one approved review unit unless the owner asks to
   combine work.
+- Keep commits tightly atomic: each commit should contain one coherent
+  reviewable change and the tests or evidence that prove it. Split
+  repository-process, documentation-policy, tooling, and feature changes into
+  separate commits when they do not directly serve the same review unit.
+- When a behavior change needs preparatory refactoring, prefer an initial
+  commit that preserves behavior, followed by a commit that implements the
+  behavior change on top of it.
 - After the owner confirms the review unit's scope, create atomic commits and
   amend, rebase, or otherwise rewrite its feature-branch history as useful,
   including published history. Separate approval for each commit or rewrite is
@@ -183,6 +190,14 @@ check, report that fact precisely rather than claiming verification.
 
 Update documentation when a slice changes a public contract, persistence
 schema, supported capability, limitation, or implementation-plan status.
+
+Keep implementation progress in the owning implementation plan. Do not add
+unit-status updates to the repository `README.md`, `docs/README.md`,
+`docs/design-overview.md`, or `docs/plans/README.md`; those documents are stable
+orientation and architecture indexes. When a slice produces an evidence
+document, name it with its plan and unit prefix, such as
+`docs/evidence/003-A01-toolchain-and-availability.md`, and update links from
+the owning plan and documentation indexes as needed.
 
 Accepted design decisions are historical architectural records. Do not rewrite
 their decisions casually. A contradiction or material revision requires owner
