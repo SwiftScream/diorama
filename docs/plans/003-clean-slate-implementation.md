@@ -9,7 +9,7 @@
 The owner explicitly approved this plan on 2026-09-07, alongside the consolidated design.
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
-003-A01 and 003-A02 are complete; later units have not started.
+003-A01 through 003-A03 are complete; later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -288,10 +288,11 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-A03 — Minimal package skeleton
 
+- Status: Complete; owner confirmed scope and GPT-5.6 Terra at `medium` reasoning on 2026-09-07.
 - Recommended model: GPT-5.6 Terra; reasoning: `medium`. A minimal manifest and test target follow the already recorded toolchain and deployment selections.
 - Prerequisites: 003-A01 and resolved deployment selections; quality policy.
 - Scope: Establish only the package and minimal test target needed by bootstrap.
-- Expected files/modules: `Package.swift`, minimal `Sources/DioramaCore/` and `Tests/DioramaCoreTests/`, relevant `.gitignore` and toolchain documentation.
+- Expected files/modules: `Package.swift`, minimal `Sources/DioramaCore/` and `Tests/DioramaCoreTests/`, relevant `.gitignore`, and [003-A03 package evidence](../evidence/003-A03-package-skeleton.md).
 - Public behavior: No placeholder public API or runtime architecture.
 - Tests/verification: Minimal build/test on selected hosts, Swift 6 complete concurrency and iOS deployment compile check; V-doc.
   Record pending 003-A04 gates.

@@ -56,9 +56,10 @@ lifecycle composition.
 - [Toolchain and deployment availability](evidence/003-A01-toolchain-and-availability.md)
   records 003-A01's exact beta toolchain and platform selections, isolated probes,
   observed results, and remaining environment verification gaps.
-- [Quality-tool adoption proposal](evidence/003-A02-quality-tool-adoptions.md)
-  records the pending Mint, SwiftFormat, SwiftLint, and GitHub Actions adoption
-  review for 003-A02.
+- [Quality-tool adoption record](evidence/003-A02-quality-tool-adoptions.md)
+  records the Mint, SwiftFormat, SwiftLint, and GitHub Actions adoption review.
+- [Package skeleton evidence](evidence/003-A03-package-skeleton.md) records the
+  minimal package boundary, local build/test results, and deferred bootstrap gates.
 
 ## Historical boundary
 
