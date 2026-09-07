@@ -65,15 +65,23 @@ or coverage jobs.
 
 The [official Ubuntu 24.04 download index](https://www.swift.org/install/linux/ubuntu/24_04/)
 publishes the selected Swift 6.4 release-branch snapshot. This matches the Apple
-compiler's release line, not its exact vendor build. Use the dated
+compiler's release line, not its exact vendor build. For a direct installation,
+use the dated
 [x86_64 tarball](https://download.swift.org/swift-6.4.x-branch/ubuntu2404/swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a/swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a-ubuntu24.04.tar.gz)
 and its [detached signature](https://download.swift.org/swift-6.4.x-branch/ubuntu2404/swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a/swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a-ubuntu24.04.tar.gz.sig),
-not a floating nightly image. The tarball returned HTTP 200 and a content length
-of `1275787555` bytes on 2026-09-07. The local container used the same dated
-snapshot and passed both probes. Signature verification and archive digest
-recording remain follow-up reproducibility checks for 003-A04. The Swift project
-describes snapshots as prereleases with
-less release validation than official releases.
+or an official image fixed by immutable digest; do not use a floating nightly
+tag. The tarball returned HTTP 200 and a content length
+of `1275787555` bytes on 2026-09-07. On 2026-09-08, 003-A04 computed SHA-256
+`ef337a2640c4517f72a350afdc161e1bb2fd4d368734e9e28b1f6addab80d4d9` from
+that retained archive and verified its detached signature from Swift Automatic
+Signing Key #4, fingerprint
+`E813 C892 820A 6FA1 3755 B268 F167 DF1A CF9C E069`. The local container used
+the same dated snapshot and passed both probes. 003-A04 later selected Swift's
+[official Ubuntu 24.04 image](https://www.swift.org/install/linux/docker/) at manifest digest
+`sha256:15ae709b1d8eb1f8691b300f5721499d007e944694f2c0e9929a55580c9bf1a5`;
+it reports the same compiler revisions and approved libcurl package. The Swift
+project describes snapshots as prereleases with less release validation than
+official releases.
 
 [Ubuntu's package record](https://packages.ubuntu.com/noble-updates/libcurl4t64)
 identifies the Ubuntu 24.04 `libcurl4t64` runtime baseline as upstream 8.5.0;
@@ -240,9 +248,9 @@ series or architecture.
 
 ## Deferred gates and release update
 
-1. In 003-A04, verify the tarball signature/digest, repeat the package/linkage
-   check on the hosted Linux job, and enforce the reviewed tool/runtime
-   selections, and establish the actual iOS `xcodebuild test` and coverage jobs.
+1. In 003-A04, repeat the package/linkage check on the hosted Linux job, enforce
+   the reviewed tool/runtime selections, and establish the actual iOS
+   `xcodebuild test` and coverage jobs.
 2. When stable Xcode/Swift is selected, update the exact Apple and Linux pins,
    SDK/runtime inventory, and this exception's status in one reviewed maintenance
    change. Rerun these probes and the complete 003-A04 matrix once it exists.

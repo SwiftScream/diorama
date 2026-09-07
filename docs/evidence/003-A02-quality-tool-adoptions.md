@@ -125,17 +125,25 @@ platform, architecture, selected toolchain, and relevant manifests.
 | [actions/checkout](https://github.com/actions/checkout) | `3d3c42e5aac5ba805825da76410c181273ba90b1` (`v7.0.1`) | Check out Diorama for every job. | MIT |
 | [actions/cache](https://github.com/actions/cache) | `55cc8345863c7cc4c66a329aec7e433d2d1c52a9` (`v6.1.0`) | Cache Diorama SwiftPM artifacts after a complete cache-key design exists. | MIT |
 | [irgaly/setup-mint](https://github.com/irgaly/setup-mint) | `8566ee44b3a79d20642d1924db21c8ab0402859f` (`v1`) | Install the exact Mint version recorded in `Mintfile`, bootstrap declared tools, and cache Mint on macOS and Linux. | Apache-2.0 |
-| [codecov/codecov-action](https://github.com/codecov/codecov-action) | `e53489f4d376d79066609109e7a95a29eb3740b1` (`v7.0.0`) | Upload required macOS, iOS, and Linux coverage with separate flags; fail uploads. | MIT |
+| [codecov/codecov-action](https://github.com/codecov/codecov-action) | `fb8b3582c8e4def4969c97caa2f19720cb33a72f` (`v7.0.0`) | Upload required macOS, iOS, and Linux coverage with separate flags; fail uploads. | MIT |
 
-The Codecov v7 pin requires the runner environment to support its Node 24
-runtime; 003-A04 must verify that against the selected hosted runner rather
-than assume it from a floating label. OIDC or tokenless upload remains
-preferred when the SwiftScream organization supports it; otherwise its token
-is a GitHub secret and never appears in workflow source or fork logs.
+The Codecov v7 pin includes a GitHub Script v8 step that requires the runner
+environment to support Node 24; 003-A04 must verify that against the selected
+hosted runner rather than assume it from a floating label. OIDC or tokenless
+upload remains preferred when the SwiftScream organization supports it;
+otherwise its token is a GitHub secret and never appears in workflow source or
+fork logs.
 
 URITemplate's current floating tags are evidence of its workflow shape only;
 they are not copied. Its CodeQL and DocC workflows are outside the accepted
 003-A04 scope.
+
+The originally recorded Codecov value
+`e53489f4d376d79066609109e7a95a29eb3740b1` is the signed annotated-tag object,
+not a commit. Before executable use, 003-A04 peeled the approved `v7.0.0` tag to
+its underlying immutable commit
+`fb8b3582c8e4def4969c97caa2f19720cb33a72f`. This correction preserves the
+approved source and release while satisfying the full commit-SHA policy.
 
 `irgaly/setup-mint` is Apache-2.0 licensed; GitHub's missing SPDX metadata was
 insufficient evidence to classify it as unlicensed. Its `v1` tag resolves to
@@ -145,9 +153,10 @@ its Mint-installed-tool cache also includes the `Mintfile` hash.
 
 The owner has selected `setup-mint` as the Mint bootstrap and cache owner.
 Mint is a build tool, so its cache need not include Diorama's selected product
-toolchain. 003-A04 must record Mint `0.18.0` explicitly in `Mintfile`; without
-it, the action documents a fallback to mutable `mint@master`. It must set an
-explicit installation directory rather than depend on the default
+toolchain. 003-A04 must record `yonaskolb/mint@0.18.0` with that lowercase
+repository spelling in `Mintfile`; without the exact form recognized by the
+action, it falls back to mutable `mint@master`. It must set an explicit
+installation directory rather than depend on the default
 `/usr/local/bin`, and decide whether the default cleanup and `--link` behavior
 are needed. The action uses Node 24, so 003-A04 must verify that runtime on the
 selected hosted runner.

@@ -60,6 +60,9 @@ lifecycle composition.
   records the Mint, SwiftFormat, SwiftLint, and GitHub Actions adoption review.
 - [Package skeleton evidence](evidence/003-A03-package-skeleton.md) records the
   minimal package boundary, local build/test results, and deferred bootstrap gates.
+- [Quality and CI bootstrap evidence](evidence/003-A04-quality-and-ci-bootstrap.md)
+  records the canonical local gate, platform workflows, coverage, and update
+  automation.
 
 ## Historical boundary
 
