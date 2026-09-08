@@ -5,7 +5,7 @@ clean-slate Diorama implementation. It intentionally excludes standalone
 documentation for the earlier `swift-network-snapshot` proof of concept.
 
 The owner approved the consolidated design and implementation plan on
-2026-09-07. Implementation has not started.
+2026-09-07. Implementation is in progress under Plan 003.
 
 ## Reading order
 
@@ -28,7 +28,7 @@ does not replace their detailed contracts.
 - [Plan 002](plans/002-follow-up-design-decisions.md) records the delivery
   policies and Decisions 13 through 17 that closed the synthesis prerequisites.
 - [Plan 003](plans/003-clean-slate-implementation.md) defines atomic implementation
-  units and records remaining gates; its status is Approved as of 2026-09-07.
+  units and records remaining gates; its status is In progress.
 - [Plan index](plans/README.md) distinguishes actionable plans from completed
   traceability records.
 - [Design decisions](design-decisions/README.md) is the authoritative status and
@@ -63,6 +63,9 @@ lifecycle composition.
 - [Quality and CI bootstrap evidence](evidence/003-A04-quality-and-ci-bootstrap.md)
   records the canonical local gate, platform workflows, coverage, and update
   automation.
+- [Typed scenario definition evidence](evidence/003-B01-typed-scenario-definitions.md)
+  records the first public core boundary, its validation behavior, and
+  cross-platform verification.
 
 ## Historical boundary
 

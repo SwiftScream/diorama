@@ -9,7 +9,7 @@
 The owner explicitly approved this plan on 2026-09-07, alongside the consolidated design.
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
-003-A01 through 003-A04 are complete. Later units have not started.
+003-A01 through 003-A04 and 003-B01 are complete. Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -321,10 +321,11 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B01 — Typed scenario definitions and track identity
 
+- Status: Complete; owner confirmed scope and GPT-5.6 Sol at `high` reasoning on 2026-09-08.
 - Recommended model: GPT-5.6 Sol; reasoning: `high`. The first public generic identity and configuration boundary must support heterogeneous non-Codable systems without speculative APIs.
 - Prerequisites: 003-A04; DD01–DD04, DD10, DD13.
 - Scope: Define immutable scenario configuration, ordered attachment/track identity, default/whole-system modes, and typed in-memory sequential content.
-- Expected files/modules: `DioramaCore` definition, identity, mode, and track value files; focused tests and public API documentation.
+- Expected files/modules: `DioramaCore` definition, identity, mode, and track value files; focused tests, public API documentation, and [003-B01 evidence](../evidence/003-B01-typed-scenario-definitions.md).
 - Public behavior: Heterogeneous record types and repeated system instances coexist under unique keys; stable system type, attachment, track, and record identity are distinct.
   Stable values need not be Codable.
 - Tests/verification: V-code; duplicate/incompatible identity rejection, deterministic order, effective modes, empty valid content, non-Codable types.
