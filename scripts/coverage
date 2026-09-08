@@ -41,7 +41,7 @@ case ${1:-} in
         common_settings=(
             -scheme Diorama
             -destination "$destination"
-            IPHONEOS_DEPLOYMENT_TARGET=16.0
+            IPHONEOS_DEPLOYMENT_TARGET=18.0
             SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
         )
 

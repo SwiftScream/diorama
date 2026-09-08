@@ -69,7 +69,7 @@ See [AGENTS.md](AGENTS.md) for repository operating rules and the
 [implementation plan](docs/plans/003-clean-slate-implementation.md) for the
 review units and workflow.
 
-The initial platform objective is macOS 13 and later, iOS 16 and later, and Linux.
+The initial platform objective is macOS 15 and later, iOS 18 and later, and Linux.
 Individual systems may have narrower live-recording availability while retaining
 portable stable models and replay behavior.
 

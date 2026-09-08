@@ -96,11 +96,19 @@ The installed Apple SDK's `_Concurrency.swiftinterface` marks both APIs as avail
 The upstream [Clock](https://github.com/swiftlang/swift/blob/main/stdlib/public/Concurrency/Clock.swift) and [ContinuousClock](https://github.com/swiftlang/swift/blob/main/stdlib/public/Concurrency/ContinuousClock.swift) declarations also carry standard-library availability requirements.
 
 The owner approved raising the minimum to iOS 16 and the equivalent Apple platform releases.
-The delivery policy now sets iOS/iPadOS 16 and macOS 13; equivalent availability floors are tvOS 16, watchOS 9, Mac Catalyst 16, and visionOS 1 if those platforms are separately supported.
+That resolution sets iOS/iPadOS 16 and macOS 13; equivalent availability floors are tvOS 16, watchOS 9, Mac Catalyst 16, and visionOS 1 if those platforms are separately supported.
 This does not expand the initial macOS/iOS/Linux support matrix or override DD12's watchOS exclusion.
 003-A01 must verify these minima with the selected toolchain, including the
 owner-approved beta bootstrap exception recorded on 2026-09-07.
 No substitute clock or further availability increase is authorized by this resolution.
+
+**Later owner-approved amendment — 2026-09-09:** As a prerequisite to 003-B02,
+the owner explicitly raised the supported floors to iOS/iPadOS 18 and macOS 15
+to permit direct use of `Synchronization.Mutex` across Apple and Linux.
+The [current deployment policy](../quality-gates-and-ci.md#apple-deployment-minima--owner-approved-amendment-2026-09-09)
+supersedes the earlier floors; [prerequisite evidence](../evidence/003-B02-deployment-minimums.md)
+records this change separately from the B02 implementation. Completed A01
+evidence remains historical; subsequent units use the new deployment floors.
 
 ### Q3 — Diagnostics after an immutable final result (resolved by owner, 2026-09-06)
 
@@ -604,7 +612,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Expected files/modules: `DioramaCore` time service, internal clock injection, availability and origin tests.
 - Public behavior: All attachments share one ContinuousClock origin/rate; random remains untimed.
   Runtime instants never become stable snapshot values.
-- Tests/verification: V-code; startup-origin boundary, monotonicity, checked arithmetic, independent executions, observation-before-conversion timing, concurrent/mixed-mode reads, iOS 16/macOS 13 API availability.
+- Tests/verification: V-code; startup-origin boundary, monotonicity, checked arithmetic, independent executions, observation-before-conversion timing, concurrent/mixed-mode reads, iOS 18/macOS 15 API availability.
 - Exclusions: Deadline queue, public host instants, time controls, persistence of absolute capture chronology, generic timestamp fields on every record.
 - Checkpoint: R; review public time-service scope and isolation.
 

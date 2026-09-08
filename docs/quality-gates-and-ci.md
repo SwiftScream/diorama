@@ -1,7 +1,7 @@
 # Quality gates and CI policy
 
 - Status: Accepted
-- Last updated: 2026-09-07
+- Last updated: 2026-09-09
 - Reference project: [SwiftScream/URITemplate](https://github.com/SwiftScream/URITemplate)
 
 ## Purpose
@@ -150,6 +150,8 @@ clock APIs usable on older operating systems.
 The owner approved moving the initial iOS minimum from 15 to 16, together with
 the equivalent Apple platform versions, to support the `ContinuousClock` and
 Swift `Clock` contracts in Decisions 14 and 15 without a substitute clock.
+The table below records that historical approval; the 2026-09-09 amendment
+supersedes its deployment floors.
 
 | Platform | Minimum deployment version | Initial support |
 | --- | --- | --- |
@@ -165,6 +167,29 @@ adapter's tested capability profile. Linux remains required under its explicitly
 selected Swift/toolchain/runtime matrix. Bootstrap must verify these minima
 with the chosen stable toolchain and document any narrower API availability.
 
+### Apple deployment minima — owner-approved amendment, 2026-09-09
+
+The owner approved raising the supported deployment floors to macOS 15 and
+iOS/iPadOS 18 as a prerequisite to 003-B02. This makes `Synchronization.Mutex`
+available throughout the supported Apple range and allows the same standard
+library primitive on Apple and Linux without a platform-specific lock wrapper.
+The selected Swift/Xcode versions and required platform matrix do not change.
+
+| Platform | Minimum deployment version | Support |
+| --- | --- | --- |
+| iOS / iPadOS | 18.0 | Required iOS Simulator build and test job. |
+| macOS | 15.0 | Required native build and test job. |
+| Mac Catalyst | 18.0 | Equivalent Mutex availability floor for separately approved future support. |
+| tvOS | 18.0 | Equivalent Mutex availability floor for separately approved future support. |
+| watchOS | 11.0 | Equivalent Mutex availability floor only; Decision 12's URLSession exclusion remains. |
+| visionOS | 2.0 | Equivalent Mutex availability floor for separately approved future support. |
+
+Only macOS, iOS, and Linux are supported. Equivalent floors do not authorize
+additional platforms. Earlier evidence and the isolated 003-A01 clock probes
+retain their original targets as historical feasibility records. Current
+package builds and the canonical iOS coverage command use the new floors.
+See [003-B02 deployment evidence](evidence/003-B02-deployment-minimums.md).
+
 ## Platform matrix
 
 Every pull request and protected-branch push should run these required jobs:
@@ -176,13 +201,13 @@ Every pull request and protected-branch push should run these required jobs:
 | iOS | Build and run applicable tests in an iOS simulator using the selected stable Xcode. |
 | Linux | Build and test all applicable products with the matching stable Swift release. |
 
-The iOS package deployment target should initially be iOS 16. CI should compile
+The iOS package deployment target is iOS 18. CI should compile
 the package with that deployment target so unavailable API use is rejected.
 The executable test run may use the current simulator runtime supplied with the
-selected Xcode; current hosted runners may not provide an iOS 16 simulator.
+selected Xcode; current hosted runners may not provide an iOS 18 simulator.
 This proves compile-time availability and current-runtime behavior, but not
-runtime behavior on an actual iOS 16 installation. A platform-specific feature
-whose behavior may differ on iOS 16 requires separate targeted evidence.
+runtime behavior on an actual iOS 18 installation. A platform-specific feature
+whose behavior may differ on iOS 18 requires separate targeted evidence.
 
 The iOS job must use `xcodebuild` or an equivalent Xcode test mechanism against
 an iOS Simulator destination. A macOS `swift test` job is not evidence that
@@ -301,8 +326,8 @@ Diorama runtime architecture.
 2. **Toolchains, concurrency, and platforms: Resolved.** Use pinned
    latest-stable Swift and Xcode versions, Swift 6 language mode with complete
    strict concurrency checking, `NonisolatedNonsendingByDefault` and
-   `InferIsolatedConformances`, nonisolated library defaults, iOS 16 and macOS 13
-   deployment targets (amended 2026-09-06), and required macOS, iOS Simulator,
+   `InferIsolatedConformances`, nonisolated library defaults, iOS 18 and macOS 15
+   deployment targets (amended 2026-09-09), and required macOS, iOS Simulator,
    and Linux jobs. Equivalent floors for other Apple platforms do not advertise
    additional support.
 3. **Local commands: Resolved.** Provide version-controlled `format`, `lint`,
