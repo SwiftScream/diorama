@@ -32,11 +32,11 @@ struct ScenarioDefinitionTests {
         let first = try ScenarioAttachment(id: firstID).adding(
             SequentialTrack(
                 id: firstTrackID,
-                values: [NonCodableValue(value: 21)]))
+                values: preparedValues([NonCodableValue(value: 21)])))
         let second = try ScenarioAttachment(id: secondID).adding(
-            SequentialTrack(id: secondTrackID, values: [UInt64(34)]))
+            SequentialTrack(id: secondTrackID, values: preparedValues([UInt64(34)])))
         let text = try ScenarioAttachment(id: textID).adding(
-            SequentialTrack(id: textTrackID, values: ["hello"]))
+            SequentialTrack(id: textTrackID, values: preparedValues(["hello"])))
 
         let definition = try ScenarioDefinition(
             id: ScenarioID(rawValue: "heterogeneous"),
@@ -71,8 +71,8 @@ struct ScenarioDefinitionTests {
             key: TrackKey(rawValue: "labels"))
 
         let attachment = try ScenarioAttachment(id: attachmentID)
-            .adding(SequentialTrack(id: numbersID, values: [NonCodableValue(value: 1)]))
-            .adding(SequentialTrack(id: labelsID, values: ["first"]))
+            .adding(SequentialTrack(id: numbersID, values: preparedValues([NonCodableValue(value: 1)])))
+            .adding(SequentialTrack(id: labelsID, values: preparedValues(["first"])))
 
         #expect(attachment.trackIDs == [numbersID, labelsID])
         #expect(
@@ -84,7 +84,7 @@ struct ScenarioDefinitionTests {
     }
 
     @Test
-    func `assigns stable record identities in deterministic order`() {
+    func `assigns stable record identities in deterministic order`() throws {
         let attachmentID = AttachmentID(
             systemTypeID: SystemTypeID(rawValue: "example"),
             key: AttachmentKey(rawValue: "primary"))
@@ -92,7 +92,7 @@ struct ScenarioDefinitionTests {
             attachmentID: attachmentID,
             key: TrackKey(rawValue: "events"))
 
-        let track = SequentialTrack(id: trackID, values: ["first", "second", "third"])
+        let track = try SequentialTrack(id: trackID, values: preparedValues(["first", "second", "third"]))
 
         #expect(track.records.map(\.value) == ["first", "second", "third"])
         #expect(track.records.map(\.identity.trackID) == [trackID, trackID, trackID])
@@ -205,7 +205,7 @@ struct ScenarioDefinitionTests {
             expected: expectedID)
         #expect(throws: expectedError) {
             _ = try ScenarioAttachment(id: expectedID).adding(
-                SequentialTrack(id: trackID, values: [1]))
+                SequentialTrack(id: trackID, values: preparedValues([1])))
         }
         #expect(throws: expectedError) {
             _ = try ScenarioAttachment(id: expectedID).track(trackID, as: Int.self)
@@ -220,14 +220,14 @@ struct ScenarioDefinitionTests {
         let trackID = TrackID(
             attachmentID: attachmentID,
             key: TrackKey(rawValue: "values"))
-        let track = SequentialTrack(id: trackID, values: [1])
+        let track = try SequentialTrack(id: trackID, values: preparedValues([1]))
         let attachment = try ScenarioAttachment(id: attachmentID).adding(track)
 
         #expect(throws: ScenarioDefinitionError.duplicateTrack(trackID)) {
             _ = try attachment.adding(track)
         }
         #expect(throws: ScenarioDefinitionError.incompatibleTrackRecordType(trackID)) {
-            _ = try attachment.adding(SequentialTrack(id: trackID, values: ["one"]))
+            _ = try attachment.adding(SequentialTrack(id: trackID, values: preparedValues(["one"])))
         }
         #expect(throws: ScenarioDefinitionError.incompatibleTrackRecordType(trackID)) {
             _ = try attachment.track(trackID, as: String.self)
