@@ -3,7 +3,7 @@
 - Status: Accepted
 - Created: 2026-09-05
 - Approved by owner: 2026-09-07
-- Last reviewed: 2026-09-07
+- Last reviewed: 2026-09-09
 - Scope: Decisions 1 through 17
 - Derived from: [Accepted design decisions](design-decisions/README.md)
 
@@ -35,9 +35,10 @@ Decision 12's owner-approved
 permits provisional production task planning before URLProtocol spikes run;
 their results must be reviewed and the affected breakdown confirmed or revised
 before production work depends on that boundary. The owner-approved
-2026-09-06 [deployment-policy amendment](quality-gates-and-ci.md#apple-deployment-minima--owner-approved-amendment-2026-09-06)
-sets iOS 16 and macOS 13 minima for the accepted Swift clock APIs, with equivalent
-floors for other Apple platforms without expanding advertised adapter support.
+2026-09-09 [deployment-policy amendment](quality-gates-and-ci.md#apple-deployment-minima--owner-approved-amendment-2026-09-09)
+sets iOS 18 and macOS 15 minima so the core can use `Synchronization.Mutex`
+directly on Apple and Linux. It supersedes the 2026-09-06 clock-driven floors
+without expanding advertised platform or adapter support.
 Decisions 5 and 10 now resolve post-finish diagnostics through a separately
 retained reporter without changing the immutable final report, as reconciled
 below. The plan's separate approval does not bypass its per-unit scope

@@ -137,7 +137,7 @@ to simplify behavior specified there.
   and remain compatible with the supported platforms.
 - Treat `Sendable`, actor isolation, cancellation, and quiescent finalization as
   API design concerns, not warnings to suppress later.
-- Target iOS 16 and macOS 13 or later, plus the accepted Linux CI environment.
+- Target iOS 18 and macOS 15 or later, plus the accepted Linux CI environment.
   Use the equivalent Apple deployment floors in `docs/quality-gates-and-ci.md`
   for any separately approved platforms. Keep Apple-only integrations behind
   explicit availability and package boundaries.

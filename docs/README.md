@@ -66,6 +66,9 @@ lifecycle composition.
 - [Typed scenario definition evidence](evidence/003-B01-typed-scenario-definitions.md)
   records the first public core boundary, its validation behavior, and
   cross-platform verification.
+- [Deployment-minimum evidence](evidence/003-B02-deployment-minimums.md)
+  records the owner-approved macOS 15/iOS 18 floors needed for a shared
+  standard-library mutex implementation.
 
 ## Historical boundary
 
