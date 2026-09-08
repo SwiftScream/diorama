@@ -69,6 +69,9 @@ lifecycle composition.
 - [Deployment-minimum evidence](evidence/003-B02-deployment-minimums.md)
   records the owner-approved macOS 15/iOS 18 floors needed for a shared
   standard-library mutex implementation.
+- [Prepared admission and diagnostic evidence](evidence/003-B02-prepared-admission-and-diagnostics.md)
+  records typed preparation, safe reporting, callback isolation, recording
+  health, and reporter ownership.
 
 ## Historical boundary
 

@@ -24,15 +24,16 @@ public struct SequentialTrack<Value: Sendable>: Sendable {
     ///
     /// - Parameters:
     ///   - id: The stable track identity.
-    ///   - values: Stable values in their deterministic track order.
-    public init(id: TrackID, values: [Value] = []) {
+    ///   - values: Values produced by a system's preparation policy, in their
+    ///     deterministic track order. Raw capture-local values cannot be added.
+    public init(id: TrackID, values: [PreparedValue<Value>] = []) {
         self.id = id
         records = values.enumerated().map { offset, value in
             SequentialRecord(
                 identity: RecordIdentity(
                     trackID: id,
                     sequence: UInt64(offset)),
-                value: value)
+                value: value.value)
         }
     }
 }
