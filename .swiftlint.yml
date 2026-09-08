@@ -1,6 +1,8 @@
 disabled_rules:
   # SwiftFormat's redundantNilInit rule owns this transformation.
   - implicit_optional_initialization
+  # SwiftFormat owns brace spacing and multiline declaration brace placement.
+  - opening_brace
 
 opt_in_rules:
   - missing_docs
