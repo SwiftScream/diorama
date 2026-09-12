@@ -2,7 +2,8 @@
 
 - Date: 2026-09-09
 - Plan: [003-B02](../plans/003-clean-slate-implementation.md#003-b02--prepared-admission-safe-diagnostics-and-health)
-- Status: Complete locally; owner review and hosted V-code evidence pending before integration.
+- Status: Complete; owner accepted the review unit on 2026-09-12. Hosted
+  V-code evidence remains pending before integration.
 - Authority: [DD05](../design-decisions/05-consumption-and-verification.md),
   [DD06](../design-decisions/06-runtime-to-snapshot-conversion.md),
   [DD09](../design-decisions/09-normalization-and-redaction.md),
