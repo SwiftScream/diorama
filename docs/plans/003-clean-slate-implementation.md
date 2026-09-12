@@ -10,7 +10,7 @@ The owner explicitly approved this plan on 2026-09-07, alongside the consolidate
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
 003-A01 through 003-A04 and 003-B02 are complete.
-Later units have not started.
+003-B03 is complete. Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -357,10 +357,11 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B03 — Execution activation and sequential lease lifetime
 
+- Status: Complete; owner confirmed scope and GPT-6 Astra at `high` reasoning on 2026-09-10, then accepted the review unit on 2026-09-12. The owner explicitly authorized stacked development atop B02 before B02 integration.
 - Recommended model: GPT-6 Astra; reasoning: `high`. Activation rollback and escaped-lease resource release define the execution ownership foundation.
 - Prerequisites: 003-B01–003-B02; DD10, DD13; resolved Q2/Q3 contracts.
 - Scope: Start fresh in-memory executions, prepare before activation, activate in attachment order, roll back in reverse order, and close sequential leases.
-- Expected files/modules: `DioramaCore` execution, system registration and lease lifecycle files; controlled test adapters.
+- Expected files/modules: `DioramaCore` execution, system registration and lease lifecycle files; controlled test adapters; [003-B03 evidence](../evidence/003-B03-execution-and-lease-lifetime.md).
 - Public behavior: No partial execution escapes; two starts share no mutable state.
   Basic explicit asynchronous finish closes admission and returns a retained result without relying on deinit.
   Escaped leases keep only reporting context and required frozen state after closure, not execution machinery.

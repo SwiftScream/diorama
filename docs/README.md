@@ -72,6 +72,9 @@ lifecycle composition.
 - [Prepared admission and diagnostic evidence](evidence/003-B02-prepared-admission-and-diagnostics.md)
   records typed preparation, safe reporting, callback isolation, recording
   health, and reporter ownership.
+- [Execution and lease-lifetime evidence](evidence/003-B03-execution-and-lease-lifetime.md)
+  records ordered startup, rollback, explicit finish, and escaped-handle
+  ownership for sequential systems.
 
 ## Historical boundary
 
