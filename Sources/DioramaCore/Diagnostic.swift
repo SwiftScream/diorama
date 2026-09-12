@@ -65,6 +65,8 @@ public enum DiagnosticIssue: Equatable, Sendable {
     case preparationFailed(PreparationStage)
     /// A sink threw while receiving an already retained diagnostic.
     case sinkFailed
+    /// An execution, startup, or lease-lifetime fact.
+    case lifecycle(ScenarioLifecycleIssue)
     /// A system-defined infrastructure or verification fact.
     case system(DiagnosticLabel)
 }
@@ -153,10 +155,16 @@ public struct ScenarioStartupFailure: Error, Equatable, Sendable {
     /// The startup attempt's retained diagnostic evidence.
     public let report: DiagnosticReport
 
+    /// Rollback outcomes for successfully activated attachments, in setup order.
+    public let cleanup: [AttachmentCleanup]
+
     /// Creates a startup failure from an immutable diagnostic snapshot.
     ///
-    /// - Parameter report: The evidence collected during the failed attempt.
-    public init(report: DiagnosticReport) {
+    /// - Parameters:
+    ///   - report: The evidence collected during the failed attempt.
+    ///   - cleanup: Rollback outcomes; empty when no attachment activated.
+    public init(report: DiagnosticReport, cleanup: [AttachmentCleanup] = []) {
         self.report = report
+        self.cleanup = cleanup
     }
 }
