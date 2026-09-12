@@ -72,4 +72,7 @@ updates for that unit, including rewritten history. Follow
 boundaries. Merge requires passing required CI for the revision being merged
 and a separate explicit owner request; starting another unit requires its own
 explicit instruction. Status changes belong in the PR that delivers them so
-the base branch is accurate after merge.
+the base branch is accurate after merge. Write plan and evidence status in its
+final merge-ready form without transient notes that hosted checks are pending.
+Assume required PR checks pass when preparing those documents, then address any
+failure before merge.

@@ -89,8 +89,10 @@ Implementation proceeds one small plan item at a time:
 7. Stop for owner review; address feedback within the unit and rerun checks.
 8. Once the owner approves PR creation, push the feature branch and create the
    PR. Include the completed unit/plan status and relevant documentation updates
-   so merging produces the correct state on the base branch. Obtain the required
-   CI evidence through the PR.
+   in their final merge-ready state so merging produces the correct state on the
+   base branch. Do not describe hosted checks as pending in those documents;
+   assume the required PR checks pass, then address any failure before merge.
+   Obtain the required CI evidence through the PR.
 9. Merge only with passing required CI and a separate explicit owner request.
    Do not begin the next plan item until explicitly instructed.
 
