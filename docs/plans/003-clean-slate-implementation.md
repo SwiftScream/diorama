@@ -9,8 +9,8 @@
 The owner explicitly approved this plan on 2026-09-07, alongside the consolidated design.
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
-003-A01 through 003-A04 and 003-B01 are complete. 003-B02 is complete locally;
-owner review and hosted V-code evidence are pending before integration.
+003-A01 through 003-A04 and 003-B02 are complete. Hosted V-code evidence for
+003-B02 remains pending before integration.
 Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
@@ -344,7 +344,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B02 — Prepared admission, safe diagnostics, and health
 
-- Status: Complete locally; owner confirmed scope and GPT-6 Astra at `high` reasoning on 2026-09-09. Owner review and hosted V-code evidence remain pending before integration.
+- Status: Complete; owner confirmed scope and GPT-6 Astra at `high` reasoning on 2026-09-09, then accepted the review unit on 2026-09-12. Hosted V-code evidence remains pending before integration.
 - Recommended model: GPT-6 Astra; reasoning: `high`. Prepared admission, reentrant sinks, secret exclusion, and reporter ownership establish several interacting invariants.
 - Prerequisites: 003-B01; DD05–DD06, DD09–DD10; resolved Q3 reporting contract.
 - Scope: Establish safe structured diagnostics, retention-before-sink delivery, a separately retained reporter, prepared admission, and recording-health facts.
