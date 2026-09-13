@@ -10,9 +10,8 @@ The owner explicitly approved this plan on 2026-09-07, alongside the consolidate
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
 003-A01 through 003-A04 and 003-B02 are complete.
-003-B03 and 003-B04 are complete. 003-B05 implementation and initial owner
-review are complete; final pull request review remains. Later units have not
-started.
+003-B03 through 003-B05 are complete. 003-B06 implementation is complete and
+awaiting owner review. Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -403,6 +402,9 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B06 — Random live recording and passthrough
 
+- Status: Complete; owner confirmed scope and GPT-5.6 Sol at `high` reasoning
+  on 2026-09-13 and explicitly authorized stacked development atop B05 while
+  B04 remains under review. Final owner review is pending.
 - Recommended model: GPT-5.6 Sol; reasoning: `high`. Serialize live source access with recording while preserving reference semantics and independent attachments.
 - Prerequisites: 003-B05; DD13, DD06, DD09.
 - Scope: Add the first-party reference-semantic RandomNumberGenerator using only the public extension boundary and an injected live source.

@@ -18,10 +18,17 @@ let package = Package(
         .library(
             name: "DioramaCore",
             targets: ["DioramaCore"]),
+        .library(
+            name: "DioramaRandom",
+            targets: ["DioramaRandom"]),
     ],
     targets: [
         .target(
             name: "DioramaCore",
+            swiftSettings: strictConcurrencySettings),
+        .target(
+            name: "DioramaRandom",
+            dependencies: ["DioramaCore"],
             swiftSettings: strictConcurrencySettings),
         .target(
             name: "DioramaConsumerTestSupport",
@@ -31,6 +38,10 @@ let package = Package(
         .testTarget(
             name: "DioramaCoreTests",
             dependencies: ["DioramaCore"],
+            swiftSettings: strictConcurrencySettings),
+        .testTarget(
+            name: "DioramaRandomTests",
+            dependencies: ["DioramaCore", "DioramaRandom"],
             swiftSettings: strictConcurrencySettings),
         .testTarget(
             name: "DioramaConsumerTests",

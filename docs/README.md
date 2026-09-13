@@ -81,6 +81,9 @@ lifecycle composition.
 - [Consumer-module extension evidence](evidence/003-B05-consumer-module-extension-proof.md)
   records the external-module, public-only proof for a consumer-defined
   synchronous sequential system.
+- [Random recording and passthrough evidence](evidence/003-B06-random-recording-and-passthrough.md)
+  records the first-party random system's serialized live-source behavior,
+  reference and attachment ownership, and cross-platform verification.
 
 ## Historical boundary
 
