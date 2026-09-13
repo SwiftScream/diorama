@@ -39,13 +39,18 @@ export_lcov() {
         llvm_cov=(xcrun llvm-cov)
     fi
 
+    coverage_objects=()
+    for test_binary in "${test_binaries[@]}"; do
+        coverage_objects+=(--object "$test_binary")
+    done
+
     run mkdir -p .build/coverage
     printf '+ '
     printf '%q ' "${llvm_cov[@]}" export -format=lcov -instr-profile "$profile_data" \
-        "${test_binaries[@]}" -sources "$repository_root/Sources" '|' sed
+        "${coverage_objects[@]}" -sources "$repository_root/Sources" '|' sed
     printf '\n'
     "${llvm_cov[@]}" export -format=lcov -instr-profile "$profile_data" \
-        "${test_binaries[@]}" -sources "$repository_root/Sources" \
+        "${coverage_objects[@]}" -sources "$repository_root/Sources" \
         | sed "s#^SF:${repository_root}/#SF:#" \
         > ".build/coverage/$coverage_flag.lcov"
 }

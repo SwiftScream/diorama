@@ -15,6 +15,7 @@ coverage:
     patch:
       default:
         target: auto
+        threshold: 10
         base: auto
 
 flags:

@@ -276,6 +276,11 @@ Coverage is a review signal and regression gate, not a target to maximize with
 assertion-free tests. Exact initial thresholds should be confirmed when the
 first production targets and baseline exist.
 
+Until 003-B10 confirms that baseline, patch coverage has a temporary
+10-percentage-point tolerance. The patch check remains required and reports
+every uncovered changed line; 003-B10 must replace this temporary setting with
+the owner-confirmed project and patch thresholds.
+
 For a public repository, Codecov OIDC or tokenless upload is preferable when
 the SwiftScream organization configuration supports it. Otherwise the token is
 stored only as a GitHub Actions secret. It never appears in repository files or

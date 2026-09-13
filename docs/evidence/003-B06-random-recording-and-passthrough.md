@@ -66,7 +66,8 @@ distribution, timing value, persistence schema, or cryptographic claim.
 - `swift test -c release -Xswiftc -warnings-as-errors` passes all 57 tests under
   optimization.
 - `scripts/coverage swiftpm macos` passes all 57 tests and its release build and
-  writes `.build/coverage/macos.json`.
+  writes `.build/coverage/macos.lcov` containing every discovered test
+  executable's source mappings, including `DioramaRandom`.
 - `scripts/coverage ios` passes the release build and all 57 tests (74
   invocations including parameterized cases) on the selected iPhone 17 / iOS
   27.0 simulator with the iOS 18 deployment-floor setting. The result bundle
