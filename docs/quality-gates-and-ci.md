@@ -251,10 +251,18 @@ adapter code is visible:
 - `ios` for iOS simulator tests;
 - `linux` for Linux unit and FoundationNetworking integration tests.
 
-The implementation should use SwiftPM's supported coverage output discovery or
-an encapsulated script rather than hard-code a test-bundle architecture path.
-The iOS job may require Xcode result-bundle conversion and should hide that
-mechanism behind the same repository coverage script.
+The implementation should use supported coverage output discovery or an
+encapsulated script rather than hard-code a test-bundle architecture path.
+LLVM's native JSON export is not Codecov's custom JSON format, so every
+platform job should convert its native coverage data to repository-relative
+LCOV before upload. The same coverage script should own SwiftPM profile,
+Xcode-derived-data, and test-bundle discovery; every upload should consume one
+explicit LCOV artifact through the same Codecov-action configuration.
+
+The selected Linux SwiftPM build system splits Swift Testing coverage mappings
+between `*-test-runner` executables and matching `*Tests.so` modules. Coverage
+discovery must include both, alongside the `.xctest` executable layout used by
+Apple builds.
 
 The initial `.codecov.yml` can follow URITemplate's posture:
 

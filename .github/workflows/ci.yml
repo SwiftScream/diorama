@@ -50,7 +50,7 @@ jobs:
         with:
           disable_search: true
           fail_ci_if_error: true
-          files: .build/coverage/macos.json
+          files: .build/coverage/macos.lcov
           flags: macos
           name: macos
           plugins: noop
@@ -72,11 +72,12 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
+          disable_search: true
           fail_ci_if_error: true
+          files: .build/coverage/ios.lcov
           flags: ios
           name: ios
-          plugins: xcode
-          swift_project: Diorama
+          plugins: noop
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -115,7 +116,7 @@ jobs:
         with:
           disable_search: true
           fail_ci_if_error: true
-          files: .build/coverage/linux.json
+          files: .build/coverage/linux.lcov
           flags: linux
           name: linux
           plugins: noop

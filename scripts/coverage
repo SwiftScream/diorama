@@ -10,6 +10,46 @@ usage() {
     return 64
 }
 
+discover_test_binaries() {
+    local products_directory=$1
+
+    test_binaries=()
+    while IFS= read -r -d '' test_binary; do
+        test_binaries+=("$test_binary")
+    done < <(find "$products_directory" -type f \( -name '*.xctest' -o -path '*.xctest/*' -o -name '*-test-runner' -o -name '*Tests.so' \) -perm -111 -print0)
+
+    if [[ ${#test_binaries[@]} -eq 0 ]]; then
+        printf 'No test binaries were produced under %s.\n' "$products_directory" >&2
+        exit 1
+    fi
+}
+
+export_lcov() {
+    local coverage_flag=$1
+    local profile_data=$2
+
+    if [[ ! -f "$profile_data" ]]; then
+        printf 'Coverage data was not produced at %s.\n' "$profile_data" >&2
+        exit 1
+    fi
+
+    if [[ "$coverage_flag" == linux ]]; then
+        llvm_cov=(llvm-cov)
+    else
+        llvm_cov=(xcrun llvm-cov)
+    fi
+
+    run mkdir -p .build/coverage
+    printf '+ '
+    printf '%q ' "${llvm_cov[@]}" export -format=lcov -instr-profile "$profile_data" \
+        "${test_binaries[@]}" -sources "$repository_root/Sources" '|' sed
+    printf '\n'
+    "${llvm_cov[@]}" export -format=lcov -instr-profile "$profile_data" \
+        "${test_binaries[@]}" -sources "$repository_root/Sources" \
+        | sed "s#^SF:${repository_root}/#SF:#" \
+        > ".build/coverage/$coverage_flag.lcov"
+}
+
 case ${1:-} in
     swiftpm)
         case ${2:-} in
@@ -28,13 +68,20 @@ case ${1:-} in
             exit 1
         fi
 
-        run mkdir -p .build/coverage
-        run cp "$coverage_source" ".build/coverage/$coverage_flag.json"
+        coverage_directory=$(dirname "$coverage_source")
+        profile_data="$coverage_directory/default.profdata"
+        products_directory=$(dirname "$coverage_directory")
+        discover_test_binaries "$products_directory"
+        export_lcov "$coverage_flag" "$profile_data"
         ;;
     ios)
         result_bundle=.build/ios-tests.xcresult
+        derived_data=.build/ios-derived-data
         if [[ -e "$result_bundle" ]]; then
             run rm -rf "$result_bundle"
+        fi
+        if [[ -e "$derived_data" ]]; then
+            run rm -rf "$derived_data"
         fi
 
         destination='platform=iOS Simulator,name=iPhone 17,OS=27.0'
@@ -45,11 +92,20 @@ case ${1:-} in
             SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
         )
 
-        run xcodebuild build "${common_settings[@]}" -configuration Release
+        run xcodebuild build "${common_settings[@]}" \
+            -derivedDataPath "$derived_data" \
+            -configuration Release
         run xcodebuild test "${common_settings[@]}" \
+            -derivedDataPath "$derived_data" \
             -enableCodeCoverage YES \
             -resultBundlePath "$result_bundle"
-        run xcrun xccov view --report "$result_bundle"
+        profile_data=$(find "$derived_data/Build/ProfileData" -type f -name Coverage.profdata -print -quit)
+        if [[ -z "$profile_data" ]]; then
+            printf 'Xcode did not produce a Coverage.profdata file.\n' >&2
+            exit 1
+        fi
+        discover_test_binaries "$derived_data/Build/Products"
+        export_lcov ios "$profile_data"
         ;;
     *)
         usage

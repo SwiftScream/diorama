@@ -53,10 +53,11 @@ libcurl development package.
 
 ## Coverage and updates
 
-`scripts/coverage` discovers SwiftPM's supported Codecov JSON path instead of
-assuming an architecture-specific build directory. The iOS mode creates an
-Xcode result bundle and verifies that `xccov` can read its coverage; the Codecov
-action's Xcode plugin performs upload conversion from Derived Data.
+`scripts/coverage` discovers native coverage profiles and test binaries instead
+of assuming an architecture-specific bundle path. It converts SwiftPM and
+Xcode-derived-data coverage to repository-relative LCOV before upload. Each
+platform provides an explicit `.build/coverage/<platform>.lcov` artifact to
+the same Codecov action configuration.
 
 Each platform uploads independently with the `macos`, `ios`, or `linux` flag.
 Uploads set `fail_ci_if_error: true`, and Codecov waits for all three reports
@@ -77,10 +78,12 @@ where stated, the digest-pinned Linux image:
 - `scripts/check`: SwiftFormat reports no drift; SwiftLint reports no
   violations; the Swift Testing test passes; debug and release compile with
   warnings as errors.
-- `scripts/coverage swiftpm macos`: the test and release gate passes and copies
-  SwiftPM's discovered JSON report to `.build/coverage/macos.json`.
-- `scripts/coverage ios`: the iOS 16 release compile and iOS 27 simulator test
-  pass; `xccov` reads the resulting bundle and reports the test source.
+- `scripts/coverage swiftpm macos`: the test and release gate passes and
+  exports SwiftPM coverage as repository-relative LCOV at
+  `.build/coverage/macos.lcov`.
+- `scripts/coverage ios`: the iOS 18 release compile and iOS 27 simulator test
+  pass; Xcode-derived coverage exports as repository-relative LCOV at
+  `.build/coverage/ios.lcov`.
 - `scripts/verify-apple-toolchain`: all recorded Apple toolchain, SDK, and
   runtime values match.
 - Apple Container runs the digest-pinned Linux image as x86_64 and reports the
