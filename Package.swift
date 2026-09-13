@@ -23,9 +23,18 @@ let package = Package(
         .target(
             name: "DioramaCore",
             swiftSettings: strictConcurrencySettings),
+        .target(
+            name: "DioramaConsumerTestSupport",
+            dependencies: ["DioramaCore"],
+            path: "Tests/DioramaConsumerTestSupport",
+            swiftSettings: strictConcurrencySettings),
         .testTarget(
             name: "DioramaCoreTests",
             dependencies: ["DioramaCore"],
+            swiftSettings: strictConcurrencySettings),
+        .testTarget(
+            name: "DioramaConsumerTests",
+            dependencies: ["DioramaCore", "DioramaConsumerTestSupport"],
             swiftSettings: strictConcurrencySettings),
     ],
     swiftLanguageModes: [.v6])
