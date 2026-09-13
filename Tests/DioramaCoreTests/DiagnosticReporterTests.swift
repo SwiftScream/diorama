@@ -1,5 +1,6 @@
 @testable import DioramaCore
 import Dispatch
+import Foundation
 import Synchronization
 import Testing
 
@@ -172,10 +173,11 @@ struct DiagnosticReporterTests {
             #expect(release.wait(timeout: .now() + 5) == .success)
             throw SinkError(onDescription: { inspections.withLock { $0 += 1 } })
         })
-        DispatchQueue.global().async {
+        let callbackThread = Thread {
             reporter.record(Diagnostic(issue: .system(DiagnosticLabel("blocked"))))
             completed.signal()
         }
+        callbackThread.start()
         #expect(entered.wait(timeout: .now() + 5) == .success)
         #expect(reporter.report.diagnostics.count == 1)
         let frozen = reporter.freeze()
