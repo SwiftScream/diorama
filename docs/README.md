@@ -78,6 +78,9 @@ lifecycle composition.
 - [Atomic sequential-operation evidence](evidence/003-B04-atomic-sequential-operations.md)
   records reservation-ordered appends, atomic single-use replay claims, and
   mode-safe operation diagnostics.
+- [Consumer-module extension evidence](evidence/003-B05-consumer-module-extension-proof.md)
+  records the external-module, public-only proof for a consumer-defined
+  synchronous sequential system.
 
 ## Historical boundary
 
