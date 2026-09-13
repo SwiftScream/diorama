@@ -268,9 +268,7 @@ GitHub Actions workflows should:
   pins;
 - cancel superseded runs for the same pull request;
 - cache Mint through the approved `setup-mint` action using its reviewed
-  Mint-version, `Mintfile`, platform, and architecture inputs; cache Diorama
-  SwiftPM artifacts separately only where invalidation includes their relevant
-  manifests, selected toolchain, platform, and architecture;
+  Mint-version, `Mintfile`, platform, and architecture inputs;
 - keep format/lint, platform tests, and coverage failures independently visible.
 
 GitHub Actions are executable supply-chain inputs even though they are not
@@ -341,8 +339,7 @@ Diorama runtime architecture.
    tokenless upload where the organization supports it.
 5. **Workflow integrity: Resolved.** Use least-privilege permissions, pin
    third-party actions to reviewed full commit SHAs with readable release
-   comments, let Dependabot propose pin updates, cancel superseded runs, and
-   key caches by their complete platform, toolchain, and manifest inputs.
+   comments, let Dependabot propose pin updates, and cancel superseded runs.
 6. **Dependency automation: Resolved.** Dependabot checks SwiftPM and GitHub
    Actions weekly. A weekly and manually dispatchable `mint outdated` workflow
    reports Mint updates, which maintainers apply through reviewed pull requests.

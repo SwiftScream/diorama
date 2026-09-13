@@ -20,9 +20,9 @@ exits 127 with the exact version and installation URL.
 The CI workflow exposes independent `Quality`, `macOS`, `iOS`, and `Linux` jobs.
 It grants read-only repository permissions, cancels superseded revisions, and
 uses only reviewed actions pinned to commit SHAs with release comments.
-`irgaly/setup-mint` installs and caches Mint and its tools; `actions/cache` is
-used separately only for Diorama's `.build` artifacts with platform,
-architecture, toolchain, and manifest identity in each key.
+`irgaly/setup-mint` installs and caches Mint and its tools. Diorama's platform
+jobs intentionally build from a fresh workspace rather than caching `.build`,
+which keeps compiled and coverage artifacts out of the CI cache boundary.
 
 The Quality and Mint-update jobs run on `macos-15`. Mint is a repository tool,
 so it does not need to build with Diorama's selected Swift version. This also
