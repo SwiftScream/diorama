@@ -67,8 +67,18 @@ public enum DiagnosticIssue: Equatable, Sendable {
     case sinkFailed
     /// An execution, startup, or lease-lifetime fact.
     case lifecycle(ScenarioLifecycleIssue)
+    /// An invalid or unavailable typed sequential-track operation.
+    case sequential(SequentialOperationIssue)
     /// A system-defined infrastructure or verification fact.
     case system(DiagnosticLabel)
+}
+
+/// Safe facts produced by typed sequential-track operations.
+public enum SequentialOperationIssue: Equatable, Sendable {
+    /// The operation requires a different whole-attachment mode.
+    case wrongMode(expected: ScenarioMode, actual: ScenarioMode)
+    /// No unclaimed record exists at the requested position.
+    case replayExhausted(availableCount: UInt64)
 }
 
 /// The effect of one infrastructure fact on recording completeness.

@@ -75,6 +75,9 @@ lifecycle composition.
 - [Execution and lease-lifetime evidence](evidence/003-B03-execution-and-lease-lifetime.md)
   records ordered startup, rollback, explicit finish, and escaped-handle
   ownership for sequential systems.
+- [Atomic sequential-operation evidence](evidence/003-B04-atomic-sequential-operations.md)
+  records reservation-ordered appends, atomic single-use replay claims, and
+  mode-safe operation diagnostics.
 
 ## Historical boundary
 
