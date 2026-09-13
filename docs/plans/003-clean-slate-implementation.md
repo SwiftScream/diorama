@@ -10,7 +10,7 @@ The owner explicitly approved this plan on 2026-09-07, alongside the consolidate
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
 003-A01 through 003-A04 and 003-B02 are complete.
-003-B03 is complete. Later units have not started.
+003-B03 and 003-B04 are complete. Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -371,6 +371,9 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B04 — Atomic public sequential record and replay operations
 
+- Status: Complete; owner confirmed scope and commencement from `master` on
+  2026-09-12 following the GPT-5.6 Sol at `high` reasoning recommendation, then
+  accepted the review unit on 2026-09-13.
 - Recommended model: GPT-5.6 Sol; reasoning: `high`. Atomic claims and reservation-before-preparation require explicit synchronization and deterministic race tests.
 - Prerequisites: 003-B03; DD04–DD06, DD13.
 - Scope: Add ordered append and single-use next-record claims through typed public leases, with reservation before potentially slow preparation.
