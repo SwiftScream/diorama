@@ -64,6 +64,22 @@ commands so local success and CI success do not represent different policies.
 The scripts should fail on the first failed stage and print the failing command
 clearly.
 
+Use Apple Container, not Docker, to reproduce the pinned Linux job locally.
+From the repository root, run the exact digest, architecture, and resource
+limits selected by CI, mount the working tree read-only, and copy only the
+package inputs into the container's writable working directory:
+
+```bash
+container run --rm --arch x86_64 --cpus 2 --memory 4G \
+  --mount type=bind,source="$PWD",target=/source,readonly \
+  --workdir /work \
+  swiftlang/swift@sha256:15ae709b1d8eb1f8691b300f5721499d007e944694f2c0e9929a55580c9bf1a5 \
+  bash -lc 'mkdir -p /work && cp -R /source/Package.swift /source/Sources /source/Tests /source/scripts /work/ && scripts/coverage swiftpm linux'
+```
+
+This command makes a local Linux result meaningful for the hosted job while
+leaving the working tree untouched.
+
 Mint bootstrap must be explicit. A missing Mint executable should produce a
 short installation instruction rather than silently downloading executable
 code during every local check.
