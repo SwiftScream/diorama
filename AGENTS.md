@@ -142,8 +142,7 @@ to simplify behavior specified there.
 ## Swift and concurrency
 
 - Bootstrap with the latest stable Swift tools and Xcode versions selected by
-  the implementation plan and CI policy, subject to the owner-approved
-  2026-09-07 beta bootstrap exception in `docs/quality-gates-and-ci.md`.
+  the implementation plan and CI policy.
 - Enable complete strict concurrency checking from the beginning.
 - Prefer approachable concurrency features where they make isolation explicit
   and remain compatible with the supported platforms.

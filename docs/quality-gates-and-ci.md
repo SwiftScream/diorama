@@ -86,22 +86,12 @@ code during every local check.
 
 ## Toolchain policy
 
-Diorama should use the latest stable Swift and Xcode releases selected when the
-clean implementation is bootstrapped. "Latest" means the newest stable release,
-not a beta or nightly toolchain.
-
-**Owner-approved bootstrap exception — 2026-09-07:** The owner explicitly
-authorized targeting the Xcode and Swift beta currently installed on the
-development machine. 003-A01 selects Xcode 27.0 beta 6, build `27A5252f`, and its
-Apple Swift 6.4 compiler (`swiftlang-6.4.0.33.1`, `clang-2100.3.33.1`). The
-matching Linux release-line snapshot and exact platform selections are recorded
-in [003-A01's evidence](evidence/003-A01-toolchain-and-availability.md). This amendment takes
-precedence over stable-only wording in this policy, `AGENTS.md`, and 003-A01; it is
-not permission to track floating beta or nightly versions. Moving to the stable
-release is a deliberate pin update with renewed availability probes and the
-complete platform matrix once 003-A04 establishes it. Release timing is not an
-assumption of the implementation. Deployment minima and all quality gates
-continue to apply.
+Diorama uses the latest stable Xcode and Apple Swift releases selected when the
+clean implementation is bootstrapped. The Apple selection is Xcode 27.0, build
+`27A266a`, with Apple Swift 6.4 (`swiftlang-6.4.0.34.1`,
+`clang-2100.3.34.1`). The separately pinned Linux Swift 6.4 development snapshot
+and the complete platform selections are recorded in
+[003-A01's evidence](evidence/003-A01-toolchain-and-availability.md).
 
 The selected versions should be explicit in CI configuration and recorded in
 the repository. Floating runner labels alone are insufficient because their
@@ -109,11 +99,10 @@ default Xcode and Swift versions can change without a source revision. Version
 updates should be small, deliberate maintenance changes that run the complete
 matrix.
 
-The initial package should use Swift 6 language mode and the latest stable
-Swift tools version selected at bootstrap. The macOS and Linux jobs should use
-the same Swift release where practical. A future non-blocking compatibility job
-may exercise an upcoming toolchain, but beta compatibility is not an initial
-merge requirement.
+The initial package should use Swift 6 language mode and Swift tools version
+6.4. The macOS and Linux jobs should use the same Swift release where practical.
+A future non-blocking compatibility job
+may exercise another toolchain, but it is not an initial merge requirement.
 
 ## Concurrency checking
 

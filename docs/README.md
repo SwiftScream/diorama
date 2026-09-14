@@ -54,7 +54,7 @@ lifecycle composition.
 ## Implementation evidence
 
 - [Toolchain and deployment availability](evidence/003-A01-toolchain-and-availability.md)
-  records 003-A01's exact beta toolchain and platform selections, isolated probes,
+  records 003-A01's exact toolchain and platform selections, isolated probes,
   observed results, and remaining environment verification gaps.
 - [Quality-tool adoption record](evidence/003-A02-quality-tool-adoptions.md)
   records the Mint, SwiftFormat, SwiftLint, and GitHub Actions adoption review.
