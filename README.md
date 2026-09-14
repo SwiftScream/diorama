@@ -42,8 +42,7 @@ platform CI, strict concurrency, and coverage expectations are defined by
 
 ## Development
 
-Development currently uses Xcode 27.0 beta 6 and its Swift 6.4 toolchain under
-the recorded bootstrap exception. Install
+Development uses Xcode 27.0 and its Swift 6.4 toolchain. Install
 [Mint 0.18.0](https://github.com/yonaskolb/Mint/releases/tag/0.18.0), then install
 the repository's exact SwiftFormat and SwiftLint versions:
 
