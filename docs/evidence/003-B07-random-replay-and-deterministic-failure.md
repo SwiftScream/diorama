@@ -39,11 +39,12 @@ neither evaluated nor retained by replay activation.
 - Calls after `finish()` use the established distinct closed-lease lifecycle
   diagnostic and return zero. Replay remains offline; record and passthrough
   also remain offline after their live sources have been released.
-- Consumers retrieve the standard-library protocol existential rather than a
-  public Diorama implementation type. Because `next()` is a mutating protocol
-  requirement, a directly invoked existential is bound with `var`; concurrent
-  callers copy the existential into task-local variables while sharing the
-  reference-backed attachment cursor.
+- Consumers retrieve the standard-library protocol existential through B07A's
+  typed random system instance rather than naming a public Diorama
+  implementation type or supplying a metatype. Because `next()` is a mutating
+  protocol requirement, a directly invoked existential is bound with `var`;
+  concurrent callers copy the existential into task-local variables while
+  sharing the reference-backed attachment cursor.
 - Remaining replay values are not eagerly consumed. B08 owns final immutable
   usage and unused-value reporting, rather than adding a random-specific
   finalization path in this replay unit.
@@ -77,7 +78,6 @@ was added.
 
 ## Review handoff
 
-The proposed implementation commit contains the replay path and its proving
-tests. This evidence and the Plan 003 status update form a separate
-documentation commit. Required hosted Quality, macOS, iOS, Linux, and Codecov
-checks pass for the merge revision.
+The implementation commit contains the replay path, its proving tests, this
+evidence, and the Plan 003 status update. Required hosted Quality, macOS, iOS,
+Linux, and Codecov checks pass for the merge revision.

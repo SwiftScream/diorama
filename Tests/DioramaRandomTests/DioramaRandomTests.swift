@@ -9,11 +9,11 @@ struct DioramaRandomTests {
     func `record returns a known source sequence through shared references`() async throws {
         let key = AttachmentKey(rawValue: "record")
         let probe = SourceProbe(sequences: [[7, 11, 13]])
-        let registration = DioramaRandomSystem.registration(for: key) {
+        let instance = try DioramaRandomSystem.instance(for: key) {
             probe.makeSource()
         }
-        let execution = try start(mode: .record, key: key, registrations: [registration])
-        var generator = try execution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
+        let execution = try start(mode: .record, instance: instance)
+        var generator = try execution.dependency(instance)
         var alias = generator
 
         #expect(generator.next() == 7)
@@ -29,14 +29,15 @@ struct DioramaRandomTests {
         let key = AttachmentKey(rawValue: "passthrough")
         let probe = SourceProbe(sequences: [[21, 22]])
         let attachment = try attachment(key: key, values: [1, 2, 3])
+        let instance = try DioramaRandomSystem.instance(for: key) { probe.makeSource() }
         let definition = try ScenarioDefinition(
             id: ScenarioID(rawValue: "random-passthrough"),
             defaultMode: .passthrough,
             attachments: [attachment])
         let execution = try ScenarioExecution.start(
             definition: definition,
-            systems: [DioramaRandomSystem.registration(for: key) { probe.makeSource() }])
-        var generator = try execution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
+            systems: [AnyScenarioSystem(instance)])
+        var generator = try execution.dependency(instance)
 
         #expect(generator.next() == 21)
         #expect(generator.next() == 22)
@@ -50,21 +51,23 @@ struct DioramaRandomTests {
         let second = AttachmentKey(rawValue: "second")
         let firstProbe = SourceProbe(sequences: [[1, 2]])
         let secondProbe = SourceProbe(sequences: [[10, 20]])
+        let firstInstance = try DioramaRandomSystem.instance(for: first) { firstProbe.makeSource() }
+        let secondInstance = try DioramaRandomSystem.instance(for: second) { secondProbe.makeSource() }
         let definition = try ScenarioDefinition(
             id: ScenarioID(rawValue: "random-independent"),
             defaultMode: .record,
             attachments: [
-                DioramaRandomSystem.attachment(for: first),
-                DioramaRandomSystem.attachment(for: second),
+                firstInstance.attachment,
+                secondInstance.attachment,
             ])
         let execution = try ScenarioExecution.start(
             definition: definition,
             systems: [
-                DioramaRandomSystem.registration(for: second) { secondProbe.makeSource() },
-                DioramaRandomSystem.registration(for: first) { firstProbe.makeSource() },
+                AnyScenarioSystem(secondInstance),
+                AnyScenarioSystem(firstInstance),
             ])
-        var firstGenerator = try execution.dependency(for: first, as: (any RandomNumberGenerator & Sendable).self)
-        var secondGenerator = try execution.dependency(for: second, as: (any RandomNumberGenerator & Sendable).self)
+        var firstGenerator = try execution.dependency(firstInstance)
+        var secondGenerator = try execution.dependency(secondInstance.dependencyKey)
 
         #expect(secondGenerator.next() == 10)
         #expect(firstGenerator.next() == 1)
@@ -79,25 +82,25 @@ struct DioramaRandomTests {
     func `source factory creates fresh state for every execution`() async throws {
         let key = AttachmentKey(rawValue: "fresh")
         let probe = SourceProbe(sequences: [[31], [41]])
-        let registration = DioramaRandomSystem.registration(for: key) {
+        let instance = try DioramaRandomSystem.instance(for: key) {
             probe.makeSource()
         }
         let definition = try ScenarioDefinition(
             id: ScenarioID(rawValue: "random-fresh"),
             defaultMode: .record,
-            attachments: [DioramaRandomSystem.attachment(for: key)])
+            attachments: [instance.attachment])
 
         let firstExecution = try ScenarioExecution.start(
             definition: definition,
-            systems: [registration])
-        var first = try firstExecution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
+            systems: [AnyScenarioSystem(instance)])
+        var first = try firstExecution.dependency(instance)
         #expect(first.next() == 31)
         _ = await firstExecution.finish()
 
         let secondExecution = try ScenarioExecution.start(
             definition: definition,
-            systems: [registration])
-        var second = try secondExecution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
+            systems: [AnyScenarioSystem(instance)])
+        var second = try secondExecution.dependency(instance.dependencyKey)
         #expect(second.next() == 41)
         _ = await secondExecution.finish()
 
@@ -110,11 +113,9 @@ struct DioramaRandomTests {
         let key = AttachmentKey(rawValue: "concurrent")
         let values = Array(0..<UInt64(100))
         let probe = SourceProbe(sequences: [values], operationDelay: 0.001)
-        let execution = try start(
-            mode: .record,
-            key: key,
-            registrations: [DioramaRandomSystem.registration(for: key) { probe.makeSource() }])
-        let generator = try execution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
+        let instance = try DioramaRandomSystem.instance(for: key) { probe.makeSource() }
+        let execution = try start(mode: .record, instance: instance)
+        let generator = try execution.dependency(instance)
         let observed = await withTaskGroup(of: UInt64.self, returning: [UInt64].self) { group in
             for _ in values {
                 group.addTask {
@@ -139,11 +140,9 @@ struct DioramaRandomTests {
     func `finish releases the source and closes an escaped generator`() async throws {
         let key = AttachmentKey(rawValue: "closed")
         let probe = SourceProbe(sequences: [[51, 52]])
-        let execution = try start(
-            mode: .record,
-            key: key,
-            registrations: [DioramaRandomSystem.registration(for: key) { probe.makeSource() }])
-        var generator = try execution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
+        let instance = try DioramaRandomSystem.instance(for: key) { probe.makeSource() }
+        let execution = try start(mode: .record, instance: instance)
+        var generator = try execution.dependency(instance)
 
         #expect(generator.next() == 51)
         let result = await execution.finish()
@@ -159,11 +158,9 @@ struct DioramaRandomTests {
     @Test
     func `default source registration activates in passthrough`() async throws {
         let key = AttachmentKey(rawValue: "default")
-        let execution = try start(
-            mode: .passthrough,
-            key: key,
-            registrations: [DioramaRandomSystem.registration(for: key)])
-        var generator = try execution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
+        let instance = try DioramaRandomSystem.instance(for: key)
+        let execution = try start(mode: .passthrough, instance: instance)
+        var generator = try execution.dependency(instance)
 
         _ = generator.next()
         #expect(await execution.finish().report.diagnostics.isEmpty)
@@ -171,14 +168,13 @@ struct DioramaRandomTests {
 
     private func start(
         mode: ScenarioMode,
-        key: AttachmentKey,
-        registrations: [ScenarioSystem]) throws -> ScenarioExecution
+        instance: ScenarioSystem<any RandomNumberGenerator & Sendable>) throws -> ScenarioExecution
     {
         let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "random-" + key.rawValue),
+            id: ScenarioID(rawValue: "random-" + instance.attachment.id.key.rawValue),
             defaultMode: mode,
-            attachments: [DioramaRandomSystem.attachment(for: key)])
-        return try ScenarioExecution.start(definition: definition, systems: registrations)
+            attachments: [instance.attachment])
+        return try ScenarioExecution.start(definition: definition, systems: [AnyScenarioSystem(instance)])
     }
 
     private func attachment(key: AttachmentKey, values: [UInt64]) throws -> ScenarioAttachment {

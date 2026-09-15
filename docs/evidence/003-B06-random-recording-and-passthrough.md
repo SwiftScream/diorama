@@ -20,10 +20,11 @@ production `DioramaCore` source changed.
 The activated dependency is a reference-semantic generator exposed as
 `any RandomNumberGenerator & Sendable`; its concrete live implementation is
 private. `DioramaRandomSystem` exposes stable system, attachment, and track
-identities; an empty attachment helper; a registration using
-`SystemRandomNumberGenerator`; and a registration accepting a `@Sendable`
-factory for an injected `RandomNumberGenerator & Sendable`. The compiled API
-documentation includes the intended injection form.
+identities. B07A replaces the original separate attachment and registration
+helpers with one immutable typed instance factory, defaulting to
+`SystemRandomNumberGenerator` or accepting a `@Sendable` factory for an injected
+`RandomNumberGenerator & Sendable`. The compiled API documentation includes the
+intended injection form.
 
 ## Live-source and lifecycle behavior
 

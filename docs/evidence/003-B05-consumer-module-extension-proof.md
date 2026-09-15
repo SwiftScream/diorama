@@ -32,7 +32,7 @@ to production `DioramaCore` source.
   `ScenarioAttachment`, `SequentialTrack`, and `ValuePreparation`.
 - `ScenarioSystem` preparation obtains the effective mode and a typed lease
   through `SystemPreparationContext`. `PreparedSystem` activation publishes a
-  fresh `ConsumerSequentialDependency`, and `SystemActivation` supplies its
+  fresh `ConsumerSequentialDependency`, and `ActivatedSystem` supplies its
   synchronous cleanup obligation.
 - In record mode, one dependency call delegates live capture and stable
   preparation to `SequentialTrackLease.append`. In replay mode it returns the
@@ -99,3 +99,12 @@ persistence, automatic unused-record accounting, arbitrary replacement
 behavior engines, or a broader system protocol. B06 may now build Random's live
 recording and passthrough behavior through the same proved public boundary; it
 is not started by completion of B05.
+
+## Later B07A API refinement
+
+The external consumer proof now constructs a public
+`ScenarioSystem<ConsumerSequentialDependency>`. One value derives its
+attachment and typed dependency key from the same complete attachment identity;
+`AnyScenarioSystem(system)` explicitly erases it for heterogeneous startup.
+Consumer tests retrieve the dependency by either the typed system or its key
+without a caller-supplied metatype.

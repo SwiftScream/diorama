@@ -10,8 +10,9 @@ The owner explicitly approved this plan on 2026-09-07, alongside the consolidate
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
 003-A01 through 003-A04 and 003-B02 are complete.
-003-B03 through 003-B07 are complete. The owner confirmed 003-B07A's inserted
-scope on 2026-09-16; its implementation and later units have not started.
+003-B03 through 003-B07A are complete. The owner approved 003-B07A and
+authorized pull request creation on 2026-09-16.
+Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -436,37 +437,42 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 - Exclusions: Looping, last-value reuse, manual rewind, deterministic assignment of values to uncoordinated racing tasks.
 - Checkpoint: R; review the first complete in-memory random behavior.
 
-### 003-B07A — Typed dependency keys and system instances
+### 003-B07A — Typed dependency keys and systems
 
-- Status: Approved; owner confirmed the inserted unit's detailed design and
-  scope on 2026-09-16. Implementation has not started.
+- Status: Complete; owner confirmed the inserted unit's detailed design and
+  scope on 2026-09-16, explicitly authorized commencement, approved the
+  completed implementation, and authorized pull request creation. Required
+  hosted checks pass for the merge revision.
 - Recommended model: GPT-5.6 Sol; reasoning: `high`. Bind heterogeneous runtime
   type erasure to one public generic contract without conflating immutable
-  attachment content, reusable registration configuration, or execution state.
+  attachment content, reusable system configuration, or execution state.
 - Prerequisites: 003-B07; DD01–DD02, DD10, DD13.
 - Scope: Add a reusable `DependencyKey<Dependency: Sendable>` and a generic
-  `ScenarioSystemInstance<Dependency>` that derives its attachment,
-  registration, and dependency key from one complete attachment identity.
-  Bind public system registration to the key's dependency type and look up by
-  exact `AttachmentID`. Add lookup by either dependency key or system instance.
+  `ScenarioSystem<Dependency>` that derives its attachment and dependency key
+  from one complete attachment identity and owns its typed preparation closure.
+  Add public `AnyScenarioSystem` erasure for heterogeneous startup, bind system
+  preparation to the key's dependency type, and look up by exact
+  `AttachmentID`. Add lookup by either dependency key or typed system.
   Migrate the first-party random and external consumer systems to immutable
-  instance factories and remove the superseded untyped construction and lookup
-  APIs immediately.
-- Expected files/modules: `DioramaCore` dependency identity, registration, and
+  typed-system factories and remove the superseded untyped construction and
+  lookup APIs immediately.
+- Expected files/modules: `DioramaCore` dependency identity, system erasure, and
   execution lookup APIs; `DioramaRandom` instance factory; consumer extension
   proof, tests, API documentation, and updates to affected B03/B05–B07 evidence.
-- Public behavior: A configured system instance contains no execution state and
-  is reusable across starts. Its immutable attachment, fresh-state registration,
+- Public behavior: A configured typed system contains no execution state and is
+  reusable across starts. Its immutable attachment, fresh-state preparation,
   and typed dependency key cannot disagree about attachment identity or
-  dependency type. Random exposes private live/replay implementations only as
+  dependency type. `AnyScenarioSystem(system)` provides explicit type erasure
+  when heterogeneous systems are passed to startup. Random exposes private
+  live/replay implementations only as
   `any RandomNumberGenerator & Sendable`; consumers use
-  `execution.dependency(randomInstance)` without naming or casting an
-  implementation type. Heterogeneous `[ScenarioSystem]` startup remains
-  available through each instance's registration.
-- Tests/verification: V-code; first-party and external-module instance
+  `execution.dependency(randomSystem)` without naming or casting an
+  implementation type. Heterogeneous `[AnyScenarioSystem]` startup remains
+  available without exposing an untyped preparation initializer.
+- Tests/verification: V-code; first-party and external-module system
   construction, concrete and protocol-composition dependency types,
-  heterogeneous registrations, several instances of one system, exact
-  attachment lookup, forged wrong-type key failure, reusable instances with
+  heterogeneous systems, several keyed systems of one type, exact
+  attachment lookup, forged wrong-type key failure, reusable systems with
   fresh execution state, closed lookup, random reference/cursor behavior, and
   strict-concurrency compilation on all current gates.
 - Exclusions: `ScenarioSetup` or result-builder convenience, combining loaded
@@ -475,8 +481,8 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
   behavior, and removing heterogeneous runtime type erasure.
 - Checkpoint: R; review the complete public setup/lookup diff and external
   extension proof before concurrent finalization work begins. A later
-  convenience unit may assemble definitions and registrations after persistence
-  startup semantics are known.
+  convenience unit may assemble definitions and erased systems after
+  persistence startup semantics are known.
 
 ### 003-B08 — Concurrent finalization and report evaluation
 
@@ -572,33 +578,33 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 - Status: Planned; owner requested this inserted unit on 2026-09-16. Detailed
   design, scope confirmation, and implementation have not started.
 - Recommended model: GPT-6 Astra; reasoning: `high`. A concise setup surface
-  must compose heterogeneous typed system instances with repository loading
+  must compose heterogeneous typed systems with repository loading
   without merging stable scenario content, runtime factories, or execution
   state.
 - Prerequisites: 003-C04, 003-B07A, 003-B09; DD02, DD07–DD10.
 - Scope: Design and implement a runtime-only `ScenarioSetup` convenience after
   the baseline-loading contract is proven. Support a programmatic path that
-  assembles a definition and registrations from heterogeneous
-  `ScenarioSystemInstance` values, and a loaded-definition path where the
-  repository result remains authoritative while instances contribute matching
-  registrations and typed dependency keys. Provide concise start and scoped-run
+  assembles a definition and erased startup systems from heterogeneous
+  `ScenarioSystem` values, and a loaded-definition path where the repository
+  result remains authoritative while systems contribute matching preparation
+  and typed dependency keys. Provide concise start and scoped-run
   entry points using the established lifecycle behavior.
-- Expected files/modules: `DioramaCore` setup surface and heterogeneous instance
+- Expected files/modules: `DioramaCore` setup surface and heterogeneous system
   erasure/builder support as demonstrated necessary; random and external
   consumer usage tests, persistence startup integration tests, API examples,
   and an evidence document.
-- Public behavior: A system instance is declared once and can contribute its
-  immutable attachment, reusable registration, and typed lookup contract. A
+- Public behavior: A typed system is declared once and can contribute its
+  immutable attachment, reusable preparation, and typed lookup contract. A
   setup can start fresh independent executions without retaining dependencies
   or execution state. Programmatic setup rejects duplicate or inconsistent
-  instances before activation. Loaded setup validates that every definition
-  attachment has its exact registration and never replaces loaded stable
-  content with an instance's convenience attachment. Startup, rollback,
+  systems before activation. Loaded setup validates that every definition
+  attachment has its exact runtime system and never replaces loaded stable
+  content with a system's convenience attachment. Startup, rollback,
   finalization, body outcomes, diagnostics, and publication intent retain their
   existing meanings.
 - Tests/verification: V-code; heterogeneous first-party and consumer systems,
-  several instances of one system, programmatic and loaded definitions, absent,
-  duplicate, extra, and incompatible registrations, unusable repository input
+  several keyed systems of one type, programmatic and loaded definitions,
+  absent, duplicate, extra, and incompatible runtime systems, unusable repository input
   with zero activation, lazy fresh source factories across repeated starts,
   typed dependency retrieval, scoped success/error/cancellation, and parity
   with the lower-level definition/start APIs on every current gate.

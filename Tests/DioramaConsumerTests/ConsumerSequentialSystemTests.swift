@@ -6,19 +6,22 @@ struct ConsumerSequentialSystemTests {
     @Test
     func `consumer module records and replays non codable values`() async throws {
         let key = AttachmentKey(rawValue: "primary")
-        let record = try start(mode: .record, key: key)
-        let recorder = try record.dependency(for: key, as: ConsumerSequentialDependency.self)
+        let (record, recordInstance) = try start(mode: .record, key: key)
+        #expect(recordInstance.attachment.id == ConsumerSequentialSystem.attachmentID(for: key))
+        #expect(AnyScenarioSystem(recordInstance).attachmentID == recordInstance.attachment.id)
+        #expect(recordInstance.dependencyKey.attachmentID == recordInstance.attachment.id)
+        let recorder = try record.dependency(recordInstance)
 
         #expect(recorder.mode == .record)
         #expect(try recorder.next(capturing: { ConsumerStableValue(11) }) == ConsumerStableValue(11))
         #expect(try recorder.next(capturing: { ConsumerStableValue(12) }) == ConsumerStableValue(12))
         #expect(await record.finish().report.diagnostics.isEmpty)
 
-        let replay = try start(
+        let (replay, replayInstance) = try start(
             mode: .replay,
             key: key,
             values: [ConsumerStableValue(11), ConsumerStableValue(12)])
-        let player = try replay.dependency(for: key, as: ConsumerSequentialDependency.self)
+        let player = try replay.dependency(replayInstance.dependencyKey)
         var liveCallCount = 0
 
         #expect(try player.next(capturing: {
@@ -36,11 +39,11 @@ struct ConsumerSequentialSystemTests {
     @Test
     func `consumer module passthrough stays live and leaves content untouched`() async throws {
         let key = AttachmentKey(rawValue: "live")
-        let execution = try start(
+        let (execution, instance) = try start(
             mode: .passthrough,
             key: key,
             values: [ConsumerStableValue(1), ConsumerStableValue(2)])
-        let dependency = try execution.dependency(for: key, as: ConsumerSequentialDependency.self)
+        let dependency = try execution.dependency(instance)
         var liveCallCount = 0
 
         #expect(try dependency.next(capturing: {
@@ -59,31 +62,29 @@ struct ConsumerSequentialSystemTests {
     func `named consumer attachments keep independent modes and cursors`() async throws {
         let first = AttachmentKey(rawValue: "first")
         let second = AttachmentKey(rawValue: "second")
+        let firstInstance = try ConsumerSequentialSystem.instance(
+            key: first,
+            values: [ConsumerStableValue(1), ConsumerStableValue(2)],
+            modeOverride: .replay)
+        let secondInstance = try ConsumerSequentialSystem.instance(
+            key: second,
+            values: [ConsumerStableValue(10), ConsumerStableValue(20)],
+            modeOverride: .replay)
         let definition = try ScenarioDefinition(
             id: ScenarioID(rawValue: "consumer-independent"),
             defaultMode: .record,
             attachments: [
-                ConsumerSequentialSystem.attachment(
-                    key: first,
-                    values: [ConsumerStableValue(1), ConsumerStableValue(2)],
-                    modeOverride: .replay),
-                ConsumerSequentialSystem.attachment(
-                    key: second,
-                    values: [ConsumerStableValue(10), ConsumerStableValue(20)],
-                    modeOverride: .replay),
+                firstInstance.attachment,
+                secondInstance.attachment,
             ])
         let execution = try ScenarioExecution.start(
             definition: definition,
             systems: [
-                ConsumerSequentialSystem.registration(for: second),
-                ConsumerSequentialSystem.registration(for: first),
+                AnyScenarioSystem(secondInstance),
+                AnyScenarioSystem(firstInstance),
             ])
-        let firstDependency = try execution.dependency(
-            for: first,
-            as: ConsumerSequentialDependency.self)
-        let secondDependency = try execution.dependency(
-            for: second,
-            as: ConsumerSequentialDependency.self)
+        let firstDependency = try execution.dependency(firstInstance)
+        let secondDependency = try execution.dependency(secondInstance.dependencyKey)
 
         #expect(firstDependency.mode == .replay)
         #expect(secondDependency.mode == .replay)
@@ -97,11 +98,11 @@ struct ConsumerSequentialSystemTests {
     @Test
     func `consumer diagnostics participate in finalization and closure`() async throws {
         let key = AttachmentKey(rawValue: "verification")
-        let execution = try start(
+        let (execution, instance) = try start(
             mode: .replay,
             key: key,
             values: [ConsumerStableValue(31), ConsumerStableValue(32)])
-        let dependency = try execution.dependency(for: key, as: ConsumerSequentialDependency.self)
+        let dependency = try execution.dependency(instance)
 
         #expect(try dependency.next(capturing: { ConsumerStableValue(99) }).number == 31)
         #expect(dependency.reportUnusedRecord())
@@ -136,14 +137,17 @@ struct ConsumerSequentialSystemTests {
     private func start(
         mode: ScenarioMode,
         key: AttachmentKey,
-        values: [ConsumerStableValue] = []) throws -> ScenarioExecution
+        values: [ConsumerStableValue] = []) throws
+        -> (ScenarioExecution, ScenarioSystem<ConsumerSequentialDependency>)
     {
+        let instance = try ConsumerSequentialSystem.instance(key: key, values: values)
         let definition = try ScenarioDefinition(
             id: ScenarioID(rawValue: "consumer-" + key.rawValue),
             defaultMode: mode,
-            attachments: [ConsumerSequentialSystem.attachment(key: key, values: values)])
-        return try ScenarioExecution.start(
+            attachments: [instance.attachment])
+        let execution = try ScenarioExecution.start(
             definition: definition,
-            systems: [ConsumerSequentialSystem.registration(for: key)])
+            systems: [AnyScenarioSystem(instance)])
+        return (execution, instance)
     }
 }

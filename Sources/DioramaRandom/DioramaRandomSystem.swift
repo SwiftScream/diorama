@@ -152,7 +152,7 @@ public enum DioramaRandomSystem {
         TrackID(attachmentID: attachmentID(for: key), key: valuesTrackKey)
     }
 
-    /// Creates an empty in-memory declaration for one random attachment.
+    /// Creates one reusable random system.
     ///
     /// Recording forms a new `UInt64` sequence, replay consumes existing values,
     /// and passthrough ignores content. Persistence arrives in phase C.
@@ -160,31 +160,16 @@ public enum DioramaRandomSystem {
     /// - Parameters:
     ///   - key: The caller-selected random-domain key.
     ///   - modeOverride: An optional mode for this whole attachment.
-    /// - Returns: A random attachment containing one typed values track.
+    /// - Returns: Typed immutable setup using `SystemRandomNumberGenerator`.
     /// - Throws: Public scenario-definition evidence.
-    public static func attachment(
+    public static func instance(
         for key: AttachmentKey,
-        modeOverride: ScenarioMode? = nil) throws -> ScenarioAttachment
+        modeOverride: ScenarioMode? = nil) throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
     {
-        try ScenarioAttachment(
-            id: attachmentID(for: key),
-            modeOverride: modeOverride).adding(
-            SequentialTrack<UInt64>(id: trackID(for: key)))
+        try instance(for: key, modeOverride: modeOverride) { SystemRandomNumberGenerator() }
     }
 
-    /// Registers a random attachment using a fresh system source per execution.
-    ///
-    /// The activated dependency is exposed as
-    /// `any RandomNumberGenerator & Sendable`. Bind the returned existential to
-    /// a variable before calling its mutating `next()` requirement.
-    ///
-    /// - Parameter key: The caller-selected random-domain key.
-    /// - Returns: A registration defaulting to `SystemRandomNumberGenerator`.
-    public static func registration(for key: AttachmentKey) -> ScenarioSystem {
-        registration(for: key) { SystemRandomNumberGenerator() }
-    }
-
-    /// Registers a random attachment with an injected source factory.
+    /// Creates one reusable random system with an injected source factory.
     ///
     /// The factory runs only during successful record or passthrough activation,
     /// once per execution; replay never initializes it. It must create
@@ -192,30 +177,44 @@ public enum DioramaRandomSystem {
     /// concurrency-safe source. For example:
     ///
     /// ```swift
-    /// let registration = DioramaRandomSystem.registration(for: randomKey) {
+    /// let random = try DioramaRandomSystem.instance(for: randomKey) {
     ///     KnownRandomNumberGenerator(values: [7, 11, 13])
     /// }
+    /// let definition = try ScenarioDefinition(
+    ///     id: scenarioID,
+    ///     defaultMode: .record,
+    ///     attachments: [random.attachment])
+    /// let execution = try ScenarioExecution.start(
+    ///     definition: definition,
+    ///     systems: [AnyScenarioSystem(random)])
+    /// var generator = try execution.dependency(random)
     /// ```
     ///
     /// - Parameters:
     ///   - key: The caller-selected random-domain key.
+    ///   - modeOverride: An optional mode for this whole attachment.
     ///   - sourceFactory: Creates the live source after all systems prepare.
-    /// - Returns: A public core registration for this random attachment.
-    public static func registration(
+    /// - Returns: Typed immutable attachment, preparation, and lookup setup.
+    /// - Throws: Public scenario-definition evidence.
+    public static func instance(
         for key: AttachmentKey,
-        sourceFactory: @escaping @Sendable () -> some RandomNumberGenerator & Sendable) -> ScenarioSystem
-
+        modeOverride: ScenarioMode? = nil,
+        sourceFactory: @escaping @Sendable () -> some RandomNumberGenerator & Sendable)
+        throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
     {
-        let attachmentID = attachmentID(for: key)
         let trackID = trackID(for: key)
-        return ScenarioSystem(attachmentID: attachmentID) { context in
+        let attachment = try ScenarioAttachment(
+            id: attachmentID(for: key),
+            modeOverride: modeOverride).adding(
+            SequentialTrack<UInt64>(id: trackID))
+        return ScenarioSystem(attachment: attachment) { context in
             let preparation = ValuePreparation<UInt64>()
             let lease = try context.lease(for: trackID, preparation: preparation)
             let mode: LiveRandomMode
             switch context.mode {
             case .replay:
                 return PreparedSystem {
-                    SystemActivation(
+                    ActivatedSystem(
                         dependency: ReplayRandomNumberGenerator(lease: lease) as any RandomNumberGenerator & Sendable,
                         deactivate: {})
                 }
@@ -226,7 +225,7 @@ public enum DioramaRandomSystem {
             }
             return PreparedSystem {
                 let source: any LiveRandomSource = TypedLiveRandomSource(sourceFactory())
-                return SystemActivation(
+                return ActivatedSystem(
                     dependency: LiveRandomNumberGenerator(
                         mode: mode,
                         lease: lease,

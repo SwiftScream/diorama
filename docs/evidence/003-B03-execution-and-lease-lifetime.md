@@ -35,7 +35,7 @@ of those prerequisite changes.
   Passthrough checks identity but does not inspect or transform record values.
   This unit retains prepared baseline content; it does not append or claim it.
 - `PreparedSystem` separates preparation from installation. Its activation
-  returns a `SystemActivation` containing a sendable dependency and a synchronous
+  returns an `ActivatedSystem` containing a sendable dependency and a synchronous
   cleanup callback, sufficient for the sequential proving system.
 - `ScenarioExecution.start` validates registrations before callbacks, prepares
   every system before any activation, and publishes an execution only after all
@@ -135,7 +135,7 @@ lookup, modes, failure at each preparation/activation position, continued revers
 cleanup, safe error handling, required track preparation, closed-context rejection,
 reentrant callbacks, concurrent/canceled finish callers, immutable results, and
 post-finish reporting with and without a sink. Release probes prove content,
-source, recipe, execution, and reporter lifetime, including release-time
+source, prepared system, execution, and reporter lifetime, including release-time
 diagnostics before both normal and failed-start result freeze.
 
 The required hosted Quality, macOS, iOS, Linux, and Codecov evidence remains
@@ -149,3 +149,11 @@ consumer-support module proof. Random, persistence, logical-time scheduling,
 native adapters, asynchronous adapter quiescence, full usage/evaluation reports,
 and scoped execution helpers remain in their owning units. No later unit is
 started by completion of B03.
+
+## Later B07A API refinement
+
+B07A replaces B03's public raw `ScenarioSystem` initializer and
+`dependency(for:as:)` lookup with typed `ScenarioSystem<Dependency>`, explicit
+`AnyScenarioSystem` erasure, `DependencyKey<Dependency>`, and exact-`AttachmentID` lookup. The startup,
+activation, rollback, finish, and lease-lifetime behavior established here is
+unchanged.

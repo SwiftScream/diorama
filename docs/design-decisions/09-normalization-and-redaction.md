@@ -181,8 +181,8 @@ can expose path rules when they own a real parser; opaque bytes remain opaque.
 
 Transformation configuration belongs to consumer setup code, which is expected
 to be versioned alongside the scenario files. The persisted scenario contains
-the resulting prepared values, not a duplicate recipe, serialized closure, or
-required transformation-profile identifier.
+the resulting prepared values, not duplicated preparation instructions, a
+serialized closure, or a required transformation-profile identifier.
 
 Replay and re-recording apply the currently configured system policy. A policy
 change that alters prepared values should normally be committed with the

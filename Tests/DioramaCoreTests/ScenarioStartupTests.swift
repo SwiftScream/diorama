@@ -13,7 +13,7 @@ struct ScenarioStartupTests {
             "prepare-a", "prepare-b", "prepare-c", "activate-a", "activate-b", "activate-c",
         ])
         let dependency = try execution.dependency(
-            for: AttachmentKey(rawValue: "a"), as: SequentialTrackLease<Int>.self)
+            ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self))
         #expect(dependency === journal.leases.withLock { $0[0] })
         #expect(!dependency.isClosed)
         let result = await execution.finish()
@@ -80,7 +80,7 @@ struct ScenarioStartupTests {
         let system = ExecutionFixtures.system("a", journal: journal)
         let other = ExecutionFixtures.system("other", journal: journal)
         let systems = switch kind {
-        case "missing": [ScenarioSystem]()
+        case "missing": [AnyScenarioSystem]()
         case "duplicate": [system, system]
         case "extra": [system, other]
         default: [other]
@@ -100,14 +100,14 @@ struct ScenarioStartupTests {
     func `unprepared tracks cannot slip through a successful system callback`() throws {
         let activations = Mutex(0)
         let definition = try ExecutionFixtures.definition(["a"])
-        let system = ScenarioSystem(attachmentID: ExecutionFixtures.attachment("a")) { _ in
+        let instance = ScenarioSystem(attachment: definition.attachments[0]) { _ in
             PreparedSystem {
                 activations.withLock { $0 += 1 }
-                return SystemActivation(dependency: 0, deactivate: {})
+                return ActivatedSystem(dependency: 0, deactivate: {})
             }
         }
         do {
-            _ = try ScenarioExecution.start(definition: definition, systems: [system])
+            _ = try ScenarioExecution.start(definition: definition, systems: [AnyScenarioSystem(instance)])
             Issue.record("Unprepared tracks must reject startup")
         } catch {
             #expect(error.report.diagnostics.map(\.diagnostic.issue) == [
@@ -121,17 +121,19 @@ struct ScenarioStartupTests {
     func `startup applies current track policy except in passthrough`(mode: ScenarioMode) async throws {
         let calls = Mutex<[Int]>([])
         let definitions = try ExecutionFixtures.definition(["a"], mode: mode)
-        let system = ScenarioSystem(attachmentID: ExecutionFixtures.attachment("a")) { context in
+        let instance = ScenarioSystem(attachment: definitions.attachments[0]) { context in
             let lease = try context.lease(
                 for: ExecutionFixtures.track("a"),
                 preparation: ValuePreparation<Int>(validate: { value in
                     calls.withLock { $0.append(value) }
                     throw ExecutionFixtures.SecretError(journal: ExecutionFixtures.Journal())
                 }))
-            return PreparedSystem { SystemActivation(dependency: lease, deactivate: {}) }
+            return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
         do {
-            let execution = try ScenarioExecution.start(definition: definitions, systems: [system])
+            let execution = try ScenarioExecution.start(
+                definition: definitions,
+                systems: [AnyScenarioSystem(instance)])
             #expect(mode == .passthrough)
             #expect(calls.withLock { $0.isEmpty })
             let result = await execution.finish()

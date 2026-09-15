@@ -194,9 +194,9 @@ struct SequentialTrackOperationTests {
                 ExecutionFixtures.system("first", journal: journal),
             ])
         let firstLease = try execution.dependency(
-            for: first.key, as: SequentialTrackLease<Int>.self)
+            DependencyKey<SequentialTrackLease<Int>>(attachmentID: first))
         let secondLease = try execution.dependency(
-            for: second.key, as: SequentialTrackLease<Int>.self)
+            DependencyKey<SequentialTrackLease<Int>>(attachmentID: second))
 
         #expect(try secondLease.claimNext().value == 10)
         #expect(try firstLease.claimNext().value == 1)
@@ -218,12 +218,15 @@ struct SequentialTrackOperationTests {
             id: ScenarioID(rawValue: "sequential-operations"),
             defaultMode: mode,
             attachments: [attachment])
-        let system = ScenarioSystem(attachmentID: attachmentID) { context in
+        let instance = ScenarioSystem(attachment: attachment) { context in
             let lease = try context.lease(for: trackID, preparation: ValuePreparation<Int>())
-            return PreparedSystem { SystemActivation(dependency: lease, deactivate: {}) }
+            return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(definition: definition, systems: [system], sink: sink)
-        let lease = try execution.dependency(for: attachmentID.key, as: SequentialTrackLease<Int>.self)
+        let execution = try ScenarioExecution.start(
+            definition: definition,
+            systems: [AnyScenarioSystem(instance)],
+            sink: sink)
+        let lease = try execution.dependency(instance)
         return (execution, lease)
     }
 

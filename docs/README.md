@@ -87,6 +87,9 @@ lifecycle composition.
 - [Random replay and deterministic-failure evidence](evidence/003-B07-random-replay-and-deterministic-failure.md)
   records offline raw-value claims, deterministic exhaustion, lifecycle
   continuation, and source-isolation verification.
+- [Typed dependency-key evidence](evidence/003-B07A-typed-dependency-keys.md)
+  records typed system construction and erasure, exact attachment lookup, public
+  consumer extensibility, and migration of the random setup contract.
 
 ## Historical boundary
 

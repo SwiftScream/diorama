@@ -10,8 +10,9 @@ struct ScenarioExecutionTests {
         let systems = [ExecutionFixtures.system("a", journal: journal)]
         let first = try ScenarioExecution.start(definition: definition, systems: systems)
         let second = try ScenarioExecution.start(definition: definition, systems: systems)
-        let firstLease = try first.dependency(for: AttachmentKey(rawValue: "a"), as: SequentialTrackLease<Int>.self)
-        let secondLease = try second.dependency(for: AttachmentKey(rawValue: "a"), as: SequentialTrackLease<Int>.self)
+        let key = ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self)
+        let firstLease = try first.dependency(key)
+        let secondLease = try second.dependency(key)
         #expect(firstLease !== secondLease)
         #expect(first.reporter !== second.reporter)
         #expect(firstLease.report(.system(DiagnosticLabel("first-only"))))
@@ -32,25 +33,40 @@ struct ScenarioExecutionTests {
         let definition = try ScenarioDefinition(
             id: ScenarioID(rawValue: "heterogeneous"), defaultMode: .record,
             attachments: [ScenarioAttachment(id: first), ScenarioAttachment(id: second, modeOverride: .passthrough)])
-        let execution = try ScenarioExecution.start(definition: definition, systems: [
-            ScenarioSystem(attachmentID: first) { context in
-                #expect(context.mode == .record)
-                return PreparedSystem { SystemActivation(dependency: 42, deactivate: {}) }
-            },
-            ScenarioSystem(attachmentID: second) { context in
-                #expect(context.mode == .passthrough)
-                return PreparedSystem { SystemActivation(dependency: "text", deactivate: {}) }
-            },
-        ])
-        #expect(try execution.dependency(for: first.key, as: Int.self) == 42)
-        #expect(try execution.dependency(for: second.key, as: String.self) == "text")
-        #expect(throws: DependencyAccessFailure.self) { try execution.dependency(for: first.key, as: String.self) }
+        let firstInstance = ScenarioSystem(attachment: ScenarioAttachment(id: first)) { context in
+            #expect(context.mode == .record)
+            return PreparedSystem { ActivatedSystem(dependency: 42, deactivate: {}) }
+        }
+        let secondInstance = ScenarioSystem(attachment: ScenarioAttachment(id: second)) { context in
+            #expect(context.mode == .passthrough)
+            return PreparedSystem { ActivatedSystem(dependency: "text", deactivate: {}) }
+        }
+        let execution = try ScenarioExecution.start(
+            definition: definition,
+            systems: [AnyScenarioSystem(firstInstance), AnyScenarioSystem(secondInstance)])
+        #expect(try execution.dependency(firstInstance) == 42)
+        #expect(try execution.dependency(secondInstance.dependencyKey) == "text")
+        let wrongType = DependencyKey<String>(attachmentID: first)
+        #expect(throws: DependencyAccessFailure.self) { try execution.dependency(wrongType) }
+        let wrongSystem = DependencyKey<Int>(attachmentID: AttachmentID(
+            systemTypeID: second.systemTypeID,
+            key: first.key))
+        #expect(throws: DependencyAccessFailure.self) { try execution.dependency(wrongSystem) }
+        let missing = DependencyKey<Int>(
+            attachmentID: ExecutionFixtures.attachment("missing"))
         #expect(throws: DependencyAccessFailure.self) {
-            try execution.dependency(for: AttachmentKey(rawValue: "missing"), as: Int.self)
+            try execution.dependency(missing)
         }
         let result = await execution.finish()
         #expect(result.report.diagnostics.map(\.diagnostic.issue) == [
-            .lifecycle(.invalidDependencyRequest), .lifecycle(.invalidDependencyRequest),
+            .lifecycle(.invalidDependencyRequest),
+            .lifecycle(.invalidDependencyRequest),
+            .lifecycle(.invalidDependencyRequest),
+        ])
+        #expect(result.report.diagnostics.map(\.diagnostic.context) == [
+            .attachment(first),
+            .attachment(missing.attachmentID),
+            .attachment(wrongSystem.attachmentID),
         ])
     }
 
@@ -62,12 +78,13 @@ struct ScenarioExecutionTests {
         let execution = try ScenarioExecution.start(
             definition: ExecutionFixtures.definition(["a"]),
             systems: [ExecutionFixtures.system("a", journal: journal)], sink: hasSink ? sink : nil)
-        let lease = try execution.dependency(for: AttachmentKey(rawValue: "a"), as: SequentialTrackLease<Int>.self)
+        let key = ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self)
+        let lease = try execution.dependency(key)
         #expect(lease.report(.system(DiagnosticLabel("before"))))
         let result = await execution.finish()
         #expect(!lease.report(.system(DiagnosticLabel("discarded")), recordingImpact: .invalidatesCandidate))
         #expect(throws: DependencyAccessFailure.self) {
-            try execution.dependency(for: AttachmentKey(rawValue: "a"), as: SequentialTrackLease<Int>.self)
+            try execution.dependency(key)
         }
         #expect(await execution.finish() == result)
         #expect(execution.reporter.report == result.report)
@@ -121,21 +138,24 @@ struct ScenarioExecutionTests {
         let executionReference = Mutex<ScenarioExecution?>(nil)
         defer { executionReference.withLock { $0 = nil } }
         let definition = try ExecutionFixtures.definition(["a"])
-        let system = ScenarioSystem(attachmentID: ExecutionFixtures.attachment("a")) { context in
+        let instance = ScenarioSystem(
+            attachment: ScenarioAttachment(id: ExecutionFixtures.attachment("a")))
+        { context in
             let lease = try context.lease(for: ExecutionFixtures.track("a"), preparation: ValuePreparation<Int>())
             return PreparedSystem {
-                SystemActivation(dependency: lease) {
+                ActivatedSystem(dependency: lease) {
                     #expect(lease.isClosed)
                     #expect(!lease.report(.system(DiagnosticLabel("cleanup-use"))))
                     let execution = try #require(executionReference.withLock { $0 })
                     #expect(throws: DependencyAccessFailure.self) {
-                        try execution.dependency(for: AttachmentKey(rawValue: "a"), as: SequentialTrackLease<Int>.self)
+                        try execution.dependency(ExecutionFixtures.dependencyKey(
+                            "a", as: SequentialTrackLease<Int>.self))
                     }
                 }
             }
         }
         let execution = try ScenarioExecution.start(
-            definition: definition, systems: [system], sink: DiagnosticSink { _ in
+            definition: definition, systems: [AnyScenarioSystem(instance)], sink: DiagnosticSink { _ in
                 let execution = try #require(executionReference.withLock { $0 })
                 #expect(!execution.reporter.report.diagnostics.isEmpty)
             })

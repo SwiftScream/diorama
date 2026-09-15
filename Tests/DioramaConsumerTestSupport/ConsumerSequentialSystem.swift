@@ -112,40 +112,32 @@ public enum ConsumerSequentialSystem {
         TrackID(attachmentID: attachmentID(for: key), key: TrackKey(rawValue: "values"))
     }
 
-    /// Creates immutable in-memory content for one named consumer attachment.
+    /// Creates one reusable instance for a named consumer attachment.
     ///
     /// - Parameters:
     ///   - key: The caller-selected instance key.
     ///   - values: Prepared baseline values; the type intentionally is not
     ///     `Codable`.
     ///   - modeOverride: An optional whole-attachment mode override.
-    /// - Returns: A typed attachment declaration using only public APIs.
+    /// - Returns: Typed immutable attachment, preparation, and lookup setup.
     /// - Throws: Public definition or preparation evidence.
-    public static func attachment(
+    public static func instance(
         key: AttachmentKey,
         values: [ConsumerStableValue] = [],
-        modeOverride: ScenarioMode? = nil) throws -> ScenarioAttachment
+        modeOverride: ScenarioMode? = nil) throws -> ScenarioSystem<ConsumerSequentialDependency>
     {
         let track = try SequentialTrack(
             id: trackID(for: key),
             values: prepared(values))
-        return try ScenarioAttachment(
+        let attachment = try ScenarioAttachment(
             id: attachmentID(for: key),
             modeOverride: modeOverride).adding(track)
-    }
-
-    /// Registers a fresh synchronous dependency for one named attachment.
-    ///
-    /// - Parameter key: The caller-selected instance key.
-    /// - Returns: A public core registration with fresh per-execution state.
-    public static func registration(for key: AttachmentKey) -> ScenarioSystem {
-        let attachmentID = attachmentID(for: key)
         let trackID = trackID(for: key)
-        return ScenarioSystem(attachmentID: attachmentID) { context in
+        return ScenarioSystem(attachment: attachment) { context in
             let preparation = ValuePreparation<ConsumerStableValue>()
             let lease = try context.lease(for: trackID, preparation: preparation)
             return PreparedSystem {
-                SystemActivation(
+                ActivatedSystem(
                     dependency: ConsumerSequentialDependency(
                         lease: lease,
                         preparation: preparation),

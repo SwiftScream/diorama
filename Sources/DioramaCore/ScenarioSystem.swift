@@ -1,24 +1,25 @@
-/// A prepared system's activation recipe, private to one startup attempt.
+/// A prepared system, private to one startup attempt.
 ///
 /// Preparation must not install adapters or expose usable dependencies. The
-/// recipe runs only after every attachment and declared track is prepared.
+/// activation closure runs only after every attachment and declared track is
+/// prepared.
 public struct PreparedSystem<Dependency: Sendable>: Sendable {
-    let activate: @Sendable () throws -> SystemActivation<Dependency>
+    let activate: @Sendable () throws -> ActivatedSystem<Dependency>
 
-    /// Creates an activation recipe for one fresh execution.
+    /// Creates a prepared system for one fresh execution.
     ///
     /// - Parameter activate: Installs the sequential adapter and returns its
     ///   dependency and cleanup callback. If this callback throws, it must
     ///   unwind its own partial installation; only returned activations can
     ///   participate in execution-owned rollback. Do not publish dependencies
     ///   from the callback; retrieve them from the successfully started run.
-    public init(activate: @escaping @Sendable () throws -> SystemActivation<Dependency>) {
+    public init(activate: @escaping @Sendable () throws -> ActivatedSystem<Dependency>) {
         self.activate = activate
     }
 }
 
 /// An installed sequential adapter and its execution-owned cleanup obligation.
-public struct SystemActivation<Dependency: Sendable>: Sendable {
+public struct ActivatedSystem<Dependency: Sendable>: Sendable {
     let dependency: Dependency
     let deactivate: @Sendable () throws -> Void
 
@@ -37,36 +38,64 @@ public struct SystemActivation<Dependency: Sendable>: Sendable {
     }
 }
 
-/// A reusable registration for one named, sequential system attachment.
+/// One immutable attachment and its reusable typed runtime preparation.
 ///
-/// Registrations are supplied to startup separately from immutable track data.
-/// Each preparation call must create fresh per-run state. A registration may
-/// retain a consumer source factory; it must not share execution state between
-/// starts. Heterogeneous dependency types can coexist in one registration list.
-public struct ScenarioSystem: Sendable {
+/// A system is setup configuration, not execution state. It can start several
+/// independent executions; each preparation call must create fresh per-run
+/// state. Use ``AnyScenarioSystem`` to combine systems with heterogeneous
+/// dependency types at startup.
+public struct ScenarioSystem<Dependency: Sendable>: Sendable {
+    /// The immutable stable content contributed to a programmatic definition.
+    public let attachment: ScenarioAttachment
+
+    /// The typed key used to retrieve this system's activated dependency.
+    public let dependencyKey: DependencyKey<Dependency>
+
+    let prepare: @Sendable (SystemPreparationContext) throws -> PreparedSystem<Dependency>
+
+    /// Creates one reusable typed system.
+    ///
+    /// The attachment and dependency key always derive from the attachment's
+    /// complete identity. Preparation runs independently for every execution
+    /// startup. The context closes when this synchronous callback returns or
+    /// throws; do not launch work that continues using it afterward.
+    ///
+    /// - Parameters:
+    ///   - attachment: Immutable stable attachment content.
+    ///   - prepare: Creates a fresh prepared system for each execution.
+    public init(
+        attachment: ScenarioAttachment,
+        prepare: @escaping @Sendable (SystemPreparationContext) throws -> PreparedSystem<Dependency>)
+    {
+        self.attachment = attachment
+        dependencyKey = DependencyKey(attachmentID: attachment.id)
+        self.prepare = prepare
+    }
+}
+
+/// A type-erased runtime registration for one scenario system.
+///
+/// Erasure retains the attachment identity and preparation behavior, but not
+/// the typed system's immutable attachment content. Heterogeneous erased
+/// systems can coexist in one startup list.
+public struct AnyScenarioSystem: Sendable {
     /// The exact system type and key declared by the scenario definition.
     public let attachmentID: AttachmentID
 
-    let prepare: @Sendable (SystemPreparationContext) throws -> PreparedActivation
+    let prepare: @Sendable (SystemPreparationContext) throws -> AnyPreparedSystem
 
-    /// Registers a typed preparation callback for one attachment.
+    /// Erases a typed system for heterogeneous execution startup.
     ///
-    /// - Parameters:
-    ///   - attachmentID: The declaration to activate, regardless of list order.
-    ///   - prepare: Requests every declared track through the context, selecting
-    ///     its immutable preparation policy, then returns an activation recipe.
-    ///     The context closes when this synchronous callback returns or throws.
-    ///     Do not launch work that continues using it after the callback.
-    public init(
-        attachmentID: AttachmentID,
-        prepare: @escaping @Sendable (SystemPreparationContext) throws -> PreparedSystem<some Sendable>)
-    {
+    /// - Parameter system: The typed reusable system to erase.
+    public init(_ system: ScenarioSystem<some Sendable>) {
+        let attachmentID = system.attachment.id
+        let prepare = system.prepare
         self.attachmentID = attachmentID
         self.prepare = { context in
             let prepared = try prepare(context)
-            return PreparedActivation {
+            return AnyPreparedSystem {
                 let activation = try prepared.activate()
-                return ActivatedSystem(
+                return AnyActivatedSystem(
                     attachmentID: attachmentID,
                     dependency: activation.dependency,
                     deactivate: activation.deactivate)
@@ -75,11 +104,11 @@ public struct ScenarioSystem: Sendable {
     }
 }
 
-struct PreparedActivation: Sendable {
-    let activate: @Sendable () throws -> ActivatedSystem
+struct AnyPreparedSystem: Sendable {
+    let activate: @Sendable () throws -> AnyActivatedSystem
 }
 
-struct ActivatedSystem: Sendable {
+struct AnyActivatedSystem: Sendable {
     let attachmentID: AttachmentID
     let dependency: any Sendable
     let deactivate: @Sendable () throws -> Void

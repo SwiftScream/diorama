@@ -13,13 +13,14 @@ struct ExecutionOwnershipTests {
         let observations = Observations()
         var execution: ScenarioExecution? = try makeOwnedExecution(observations)
         weak let weakExecution = execution
-        var lease: SequentialTrackLease<ExecutionFixtures.Probe>? = try execution?.dependency(
-            for: AttachmentKey(rawValue: "a"), as: SequentialTrackLease<ExecutionFixtures.Probe>.self)
+        let key = ExecutionFixtures.dependencyKey(
+            "a", as: SequentialTrackLease<ExecutionFixtures.Probe>.self)
+        var lease: SequentialTrackLease<ExecutionFixtures.Probe>? = try execution?.dependency(key)
         var reporter: DiagnosticReporter? = execution?.reporter
         weak let weakReporter = reporter
-        #expect(observations.releases.withLock { $0 } == ["recipe"])
+        #expect(observations.releases.withLock { $0 } == ["prepared system"])
         let result = try #require(await execution?.finish())
-        #expect(observations.releases.withLock { $0.sorted() } == ["content", "recipe", "source"])
+        #expect(observations.releases.withLock { $0.sorted() } == ["content", "prepared system", "source"])
         #expect(lease?.isClosed == true)
         execution = nil
         #expect(weakExecution == nil)
@@ -62,24 +63,26 @@ struct ExecutionOwnershipTests {
         let definition = try ScenarioDefinition(
             id: ScenarioID(rawValue: "release-diagnostics"), defaultMode: .passthrough,
             attachments: [ScenarioAttachment(id: first), ScenarioAttachment(id: second)])
-        let system = ScenarioSystem(attachmentID: first) { context in
+        let instance = ScenarioSystem(attachment: ScenarioAttachment(id: first)) { context in
             PreparedSystem {
                 let source = ExecutionFixtures.Probe {
                     context.reporter.record(Diagnostic(issue: .system(DiagnosticLabel("resource-released"))))
                 }
-                return SystemActivation(dependency: 0) { withExtendedLifetime(source) {} }
+                return ActivatedSystem(dependency: 0) { withExtendedLifetime(source) {} }
             }
         }
-        let other = ScenarioSystem(attachmentID: second) { _ in
+        let otherInstance = ScenarioSystem(attachment: ScenarioAttachment(id: second)) { _ in
             PreparedSystem {
                 if failStartup {
                     throw ExecutionFixtures.SecretError(journal: ExecutionFixtures.Journal())
                 }
-                return SystemActivation(dependency: 0, deactivate: {})
+                return ActivatedSystem(dependency: 0, deactivate: {})
             }
         }
         do {
-            let execution = try ScenarioExecution.start(definition: definition, systems: [system, other])
+            let execution = try ScenarioExecution.start(
+                definition: definition,
+                systems: [AnyScenarioSystem(instance), AnyScenarioSystem(otherInstance)])
             #expect(!failStartup)
             let result = await execution.finish()
             #expect(result.report.diagnostics.map(\.diagnostic.issue) == [
@@ -104,12 +107,14 @@ struct ExecutionOwnershipTests {
         let execution: ScenarioExecution
         do {
             let retainedSource = try #require(source)
-            let system = ScenarioSystem(attachmentID: ExecutionFixtures.attachment("a")) { _ in
+            let instance = ScenarioSystem(attachment: definition.attachments[0]) { _ in
                 PreparedSystem {
-                    SystemActivation(dependency: 0) { withExtendedLifetime(retainedSource) {} }
+                    ActivatedSystem(dependency: 0) { withExtendedLifetime(retainedSource) {} }
                 }
             }
-            execution = try ScenarioExecution.start(definition: definition, systems: [system])
+            execution = try ScenarioExecution.start(
+                definition: definition,
+                systems: [AnyScenarioSystem(instance)])
         }
         let result = await execution.finish()
         #expect(result.cleanup.map(\.disposition) == [.completed])
@@ -122,7 +127,7 @@ struct ExecutionOwnershipTests {
     func `preparation context rejects repeated incompatible missing and escaped requests`() async throws {
         let contexts = Mutex<SystemPreparationContext?>(nil)
         let definition = try ExecutionFixtures.definition(["a"])
-        let system = ScenarioSystem(attachmentID: ExecutionFixtures.attachment("a")) { context in
+        let instance = ScenarioSystem(attachment: definition.attachments[0]) { context in
             contexts.withLock { $0 = context }
             #expect(throws: PreparationFailure.self) {
                 try context.lease(for: ExecutionFixtures.track("a"), preparation: ValuePreparation<String>())
@@ -134,9 +139,11 @@ struct ExecutionOwnershipTests {
             #expect(throws: PreparationFailure.self) {
                 try context.lease(for: ExecutionFixtures.track("a"), preparation: ValuePreparation<Int>())
             }
-            return PreparedSystem { SystemActivation(dependency: lease, deactivate: {}) }
+            return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(definition: definition, systems: [system])
+        let execution = try ScenarioExecution.start(
+            definition: definition,
+            systems: [AnyScenarioSystem(instance)])
         let context = try #require(contexts.withLock { $0 })
         #expect(throws: PreparationFailure.self) {
             try context.lease(for: ExecutionFixtures.track("a"), preparation: ValuePreparation<Int>())
@@ -158,21 +165,25 @@ struct ExecutionOwnershipTests {
             let definition = try ScenarioDefinition(
                 id: ScenarioID(rawValue: "rollback"), defaultMode: .replay,
                 attachments: [attachment, ScenarioAttachment(id: ExecutionFixtures.attachment("b"))])
-            let first = ScenarioSystem(attachmentID: attachment.id) { context in
+            let first = ScenarioSystem(attachment: attachment) { context in
                 observations.context.withLock { $0 = context }
                 let lease = try context.lease(
                     for: ExecutionFixtures.track("a"), preparation: ValuePreparation<ExecutionFixtures.Probe>())
                 leases.withLock { $0.append(lease) }
                 return PreparedSystem {
                     let source = ExecutionFixtures.Probe { observations.releases.withLock { $0.append("source") } }
-                    return SystemActivation(dependency: lease) { withExtendedLifetime(source) {} }
+                    return ActivatedSystem(dependency: lease) { withExtendedLifetime(source) {} }
                 }
             }
-            let second = ScenarioSystem(attachmentID: ExecutionFixtures.attachment("b")) { _ in
+            let second = ScenarioSystem(
+                attachment: ScenarioAttachment(id: ExecutionFixtures.attachment("b")))
+            { _ in
                 PreparedSystem<Int> { throw ExecutionFixtures.SecretError(journal: ExecutionFixtures.Journal()) }
             }
             do {
-                _ = try ScenarioExecution.start(definition: definition, systems: [first, second])
+                _ = try ScenarioExecution.start(
+                    definition: definition,
+                    systems: [AnyScenarioSystem(first), AnyScenarioSystem(second)])
                 Issue.record("The second activation must fail")
                 return
             } catch { failure = error }
@@ -191,17 +202,21 @@ struct ExecutionOwnershipTests {
             SequentialTrack(id: ExecutionFixtures.track("a"), values: preparedValues([content])))
         let definition = try ScenarioDefinition(
             id: ScenarioID(rawValue: "owned"), defaultMode: .replay, attachments: [attachment])
-        let system = ScenarioSystem(attachmentID: attachment.id) { context in
+        let instance = ScenarioSystem(attachment: attachment) { context in
             observations.context.withLock { $0 = context }
             let lease = try context.lease(
                 for: ExecutionFixtures.track("a"), preparation: ValuePreparation<ExecutionFixtures.Probe>())
-            let recipe = ExecutionFixtures.Probe { observations.releases.withLock { $0.append("recipe") } }
+            let preparedSystemLifetime = ExecutionFixtures.Probe {
+                observations.releases.withLock { $0.append("prepared system") }
+            }
             return PreparedSystem {
-                withExtendedLifetime(recipe) {}
+                withExtendedLifetime(preparedSystemLifetime) {}
                 let source = ExecutionFixtures.Probe { observations.releases.withLock { $0.append("source") } }
-                return SystemActivation(dependency: lease) { withExtendedLifetime(source) {} }
+                return ActivatedSystem(dependency: lease) { withExtendedLifetime(source) {} }
             }
         }
-        return try ScenarioExecution.start(definition: definition, systems: [system])
+        return try ScenarioExecution.start(
+            definition: definition,
+            systems: [AnyScenarioSystem(instance)])
     }
 }

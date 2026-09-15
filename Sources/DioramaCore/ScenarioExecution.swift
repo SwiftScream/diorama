@@ -9,7 +9,7 @@ import Synchronization
 /// lifecycle substitute. Returned dependencies must honor their lease closure.
 public final class ScenarioExecution: Sendable {
     private struct ResourceContents: Sendable {
-        var systems: [ActivatedSystem] = []
+        var systems: [AnyActivatedSystem] = []
         var leases: [any AnySequentialLease] = []
     }
 
@@ -20,13 +20,13 @@ public final class ScenarioExecution: Sendable {
     private final class Resources: Sendable {
         private let contents: Mutex<ResourceContents>
 
-        init(systems: [ActivatedSystem], leases: [any AnySequentialLease]) {
+        init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease]) {
             contents = Mutex(ResourceContents(systems: systems, leases: leases))
         }
 
-        func dependency<Dependency: Sendable>(for key: AttachmentKey, as _: Dependency.Type) -> Dependency? {
+        func dependency<Dependency: Sendable>(for key: DependencyKey<Dependency>) -> Dependency? {
             contents.withLock { contents in
-                contents.systems.first(where: { $0.attachmentID.key == key })?.dependency as? Dependency
+                contents.systems.first(where: { $0.attachmentID == key.attachmentID })?.dependency as? Dependency
             }
         }
 
@@ -62,7 +62,7 @@ public final class ScenarioExecution: Sendable {
     private let state: Mutex<State>
     private let admission: ExecutionAdmission
 
-    private init(systems: [ActivatedSystem], leases: [any AnySequentialLease],
+    private init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease],
                  reporter: DiagnosticReporter, admission: ExecutionAdmission)
     {
         self.reporter = reporter
@@ -85,7 +85,7 @@ public final class ScenarioExecution: Sendable {
     /// - Throws: A structured startup failure including rollback outcomes.
     public static func start(
         definition: ScenarioDefinition,
-        systems: [ScenarioSystem],
+        systems: [AnyScenarioSystem],
         sink: DiagnosticSink? = nil) throws(ScenarioStartupFailure) -> ScenarioExecution
     {
         let reporter = DiagnosticReporter(definition: definition, sink: sink)
@@ -97,19 +97,19 @@ public final class ScenarioExecution: Sendable {
         do {
             return try activate(definition: definition, systems: systems, reporter: reporter, admission: admission)
         } catch {
-            // Startup recipes and activation resources have left their scope;
+            // Prepared systems and activation resources have left their scope;
             // release-time facts therefore precede this immutable boundary too.
             throw ScenarioStartupFailure(report: reporter.freeze(), cleanup: error.cleanup)
         }
     }
 
     private static func activate(
-        definition: ScenarioDefinition, systems: [ScenarioSystem], reporter: DiagnosticReporter,
+        definition: ScenarioDefinition, systems: [AnyScenarioSystem], reporter: DiagnosticReporter,
         admission: ExecutionAdmission) throws(StartupRollback) -> ScenarioExecution
     {
-        var prepared: [PreparedActivation] = []
+        var prepared: [AnyPreparedSystem] = []
         var leases: [any AnySequentialLease] = []
-        var activated: [ActivatedSystem] = []
+        var activated: [AnyActivatedSystem] = []
         for attachment in definition.attachments {
             // Exact one-to-one registration was validated before any callbacks.
             guard let system = systems.first(where: { $0.attachmentID == attachment.id }) else {
@@ -120,7 +120,7 @@ public final class ScenarioExecution: Sendable {
                 mode: attachment.modeOverride ?? definition.defaultMode,
                 reporter: reporter, admission: admission)
             do {
-                let recipe = try system.prepare(context)
+                let preparedSystem = try system.prepare(context)
                 let completion = context.end()
                 leases += completion.leases
                 guard completion.missing.isEmpty else {
@@ -129,7 +129,7 @@ public final class ScenarioExecution: Sendable {
                     }
                     throw ScenarioLifecycleIssue.preparationFailed
                 }
-                prepared.append(recipe)
+                prepared.append(preparedSystem)
             } catch {
                 leases += context.end().leases
                 reporter.record(Diagnostic(issue: .lifecycle(.preparationFailed), context: .attachment(attachment.id)))
@@ -138,9 +138,9 @@ public final class ScenarioExecution: Sendable {
             }
         }
 
-        for (attachment, recipe) in zip(definition.attachments, prepared) {
+        for (attachment, preparedSystem) in zip(definition.attachments, prepared) {
             do {
-                try activated.append(recipe.activate())
+                try activated.append(preparedSystem.activate())
             } catch {
                 reporter.record(Diagnostic(issue: .lifecycle(.activationFailed), context: .attachment(attachment.id)))
                 admission.close()
@@ -155,28 +155,40 @@ public final class ScenarioExecution: Sendable {
     /// Retaining a returned handle does not extend its lease lifetime. A lookup
     /// racing finish may return a handle that has already closed by first use.
     ///
-    /// - Parameters:
-    ///   - key: The configured system instance's key.
-    ///   - as: The concrete dependency type supplied by its activation.
+    /// - Parameter key: The configured system's typed dependency key.
     /// - Returns: The same activated dependency for repeated lookups in this run.
     /// - Throws: Safe, already-reported closed, missing, or incompatible lookup evidence.
     public func dependency<Dependency: Sendable>(
-        for key: AttachmentKey,
-        as _: Dependency.Type) throws(DependencyAccessFailure) -> Dependency
+        _ key: DependencyKey<Dependency>) throws(DependencyAccessFailure) -> Dependency
     {
         let lookup: Result<Dependency, ScenarioLifecycleIssue> = state.withLock { state in
             guard case let .running(resources) = state else { return .failure(.executionClosed) }
-            guard let dependency = resources.dependency(for: key, as: Dependency.self)
+            guard let dependency = resources.dependency(for: key)
             else { return .failure(.invalidDependencyRequest) }
             return .success(dependency)
         }
         switch lookup {
         case let .success(dependency): return dependency
         case let .failure(issue):
-            let diagnostic = Diagnostic(issue: .lifecycle(issue))
+            let diagnostic = Diagnostic(issue: .lifecycle(issue), context: .attachment(key.attachmentID))
             reporter.record(diagnostic)
             throw DependencyAccessFailure(diagnostic: diagnostic)
         }
+    }
+
+    /// Retrieves the dependency activated for a configured system.
+    ///
+    /// This is equivalent to looking up ``ScenarioSystem/dependencyKey``.
+    /// The system contributes no execution state and may be reused across
+    /// independent starts.
+    ///
+    /// - Parameter system: The typed system configuration used at startup.
+    /// - Returns: The activated dependency for this execution.
+    /// - Throws: Safe, already-reported closed, missing, or incompatible lookup evidence.
+    public func dependency<Dependency: Sendable>(
+        _ system: ScenarioSystem<Dependency>) throws(DependencyAccessFailure) -> Dependency
+    {
+        try dependency(system.dependencyKey)
     }
 
     /// Closes admission and awaits one execution-owned cleanup operation.
@@ -211,13 +223,13 @@ public final class ScenarioExecution: Sendable {
         return result
     }
 
-    private static func validRegistrations(_ systems: [ScenarioSystem], definition: ScenarioDefinition) -> Bool {
+    private static func validRegistrations(_ systems: [AnyScenarioSystem], definition: ScenarioDefinition) -> Bool {
         let ids = systems.map(\.attachmentID)
         return Set(ids).count == ids.count && Set(ids) == Set(definition.attachments.map(\.id))
     }
 
     private static func rollback(
-        _ systems: [ActivatedSystem], leases: [any AnySequentialLease],
+        _ systems: [AnyActivatedSystem], leases: [any AnySequentialLease],
         reporter: DiagnosticReporter) -> StartupRollback
     {
         for lease in leases {
@@ -227,7 +239,9 @@ public final class ScenarioExecution: Sendable {
         return StartupRollback(cleanup: cleanup)
     }
 
-    private static func cleanUp(_ systems: [ActivatedSystem], reporter: DiagnosticReporter) -> [AttachmentCleanup] {
+    private static func cleanUp(
+        _ systems: [AnyActivatedSystem], reporter: DiagnosticReporter) -> [AttachmentCleanup]
+    {
         var outcomes: [AttachmentCleanup] = []
         for system in systems.reversed() {
             let disposition: AttachmentCleanup.Disposition

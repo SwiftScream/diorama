@@ -30,9 +30,9 @@ enum ExecutionFixtures {
         journal: Journal,
         failPreparation: Bool = false,
         failActivation: Bool = false,
-        failCleanup: Bool = false) -> ScenarioSystem
+        failCleanup: Bool = false) -> AnyScenarioSystem
     {
-        ScenarioSystem(attachmentID: attachment(key)) { context in
+        AnyScenarioSystem(ScenarioSystem(attachment: ScenarioAttachment(id: attachment(key))) { context in
             journal.events.withLock { $0.append("prepare-" + key) }
             let lease = try context.lease(for: track(key), preparation: ValuePreparation<Int>())
             journal.leases.withLock { $0.append(lease) }
@@ -44,14 +44,21 @@ enum ExecutionFixtures {
                 if failActivation {
                     throw SecretError(journal: journal)
                 }
-                return SystemActivation(dependency: lease) {
+                return ActivatedSystem(dependency: lease) {
                     journal.events.withLock { $0.append("cleanup-" + key) }
                     if failCleanup {
                         throw SecretError(journal: journal)
                     }
                 }
             }
-        }
+        })
+    }
+
+    static func dependencyKey<Dependency: Sendable>(
+        _ key: String,
+        as _: Dependency.Type = Dependency.self) -> DependencyKey<Dependency>
+    {
+        DependencyKey(attachmentID: attachment(key))
     }
 
     struct SecretError: Error, CustomStringConvertible {
