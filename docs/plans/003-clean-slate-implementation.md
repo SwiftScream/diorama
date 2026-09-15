@@ -10,7 +10,8 @@ The owner explicitly approved this plan on 2026-09-07, alongside the consolidate
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
 003-A01 through 003-A04 and 003-B02 are complete.
-003-B03 through 003-B07 are complete. Later units have not started.
+003-B03 through 003-B07 are complete. The owner confirmed 003-B07A's inserted
+scope on 2026-09-16; its implementation and later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -28,12 +29,15 @@ Read [AGENTS.md](../../AGENTS.md), every decision referenced by the active unit,
 All seventeen accepted decisions, both completed plans, and every other document under `docs` were considered when drafting this plan.
 Decision references use DD01–DD17.
 Review-unit IDs use phase letters A through J and local numbers, including 003-D01–003-D05 for interception evidence.
+An uppercase suffix identifies an owner-approved inserted unit that follows its
+unsuffixed unit without renumbering established references; 003-B07A is the
+first such insertion.
 Older proposal examples and explicit deferrals must be read with their later accepted clarifications.
 
 | Source                                                                                       | Required interpretation and principal units                                                                                                                                                                                                                                          |
 | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [DD01: Common abstraction](../design-decisions/01-common-abstraction.md)                     | Independently ordered typed tracks in a heterogeneous scenario; repeated system instances have separate attachment keys. 003-B01–003-B05, 003-E04–003-E08, 003-J03.                                                                                                                                      |
-| [DD02: Ownership layers](../design-decisions/02-shared-vs-system-semantics.md)               | Whole-attachment mode overrides; public system services; domain and adapter boundaries. 003-B01–003-B07, 003-E08, 003-H02–003-H04, 003-I01.                                                                                                                                                                  |
+| [DD01: Common abstraction](../design-decisions/01-common-abstraction.md)                     | Independently ordered typed tracks in a heterogeneous scenario; repeated system instances have separate attachment keys. 003-B01–003-B05, 003-B07A, 003-E04–003-E08, 003-J03.                                                                                                                            |
+| [DD02: Ownership layers](../design-decisions/02-shared-vs-system-semantics.md)               | Whole-attachment mode overrides; public system services; domain and adapter boundaries. 003-B01–003-B07A, 003-E08, 003-H02–003-H04, 003-I01.                                                                                                                                                                |
 | [DD03: Recorded behaviors](../design-decisions/03-recorded-behaviors.md)                     | Mutually exclusive grouped conclusions, explicit open horizons, capability-specific timing, observed/override normalization. 003-E04–003-E07, 003-F01–003-F05, 003-G03–003-G06, 003-H05–003-H14.                                                                                                                     |
 | [DD04: Selection](../design-decisions/04-replay-selection.md)                                | Stable inputs, deterministic system selectors, FIFO among equivalent candidates, explicit ambiguity and no live replay fallback. 003-B04, 003-E05, 003-H04, 003-H14, 003-I01–003-I09.                                                                                                                        |
 | [DD05: Consumption and verification](../design-decisions/05-consumption-and-verification.md) | Whole groups claimed once at selection; usage differs from completion; retention precedes sink; immutable reports have no test outcome; later diagnostics remain separately inspectable. 003-B02, 003-B04, 003-B08, 003-E05–003-E06, 003-J01–003-J03. DD15 supersedes the old example of persisted clock sleeps. |
@@ -41,10 +45,10 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [DD07: Persistence](../design-decisions/07-persistence-boundary.md)                          | Optional at the core; load once; replace whole healthy candidates; preserve untouched baseline tracks; logical atomicity and last writer wins. 003-C01–003-C07, 003-H07.                                                                                                                         |
 | [DD08: Schema compatibility](../design-decisions/08-schema-compatibility.md)                 | Independent positive envelope/system versions, explicit registration, strict first-party fields, deterministic JSON, no POC importer. 003-C01–003-C04, 003-F02, 003-G03, 003-H02–003-H13.                                                                                                                    |
 | [DD09: Preparation](../design-decisions/09-normalization-and-redaction.md)                   | Structural canonicalization, redaction, normalization, validation before admission, including decoded input and resources. Immutable setup policy; match projection is separate. 003-B02, 003-C02, 003-G06, 003-H03–003-H04, 003-H07–003-H08.                                                                    |
-| [DD10: Lifecycle](../design-decisions/10-lifecycle-and-ownership.md)                         | Immutable definitions, fresh executions, ordered activation and reverse rollback, explicit idempotent finish, body outcome plus final report, quiescence, lightweight post-finish reporter independent of execution resources. 003-B02–003-B03, 003-B08–003-B09, 003-C04–003-C06, 003-E03, 003-G09, 003-I08.             |
+| [DD10: Lifecycle](../design-decisions/10-lifecycle-and-ownership.md)                         | Immutable definitions, fresh executions, ordered activation and reverse rollback, explicit idempotent finish, body outcome plus final report, quiescence, lightweight post-finish reporter independent of execution resources. 003-B02–003-B03, 003-B07A–003-B09, 003-C04–003-C06, 003-E03, 003-G09, 003-I08.          |
 | [DD11: HTTP domain](../design-decisions/11-http-model-strategy.md)                           | HTTP Types currency only in optional HTTP products; Diorama owns fields, bodies, policies, schema; native semantics remain in adapters. 003-H01–003-H14.                                                                                                                                     |
 | [DD12: URLSession](../design-decisions/12-urlsession-scope.md)                               | Per-session interception, supported HTTP(S) data tasks, early rejection in all modes, redirects and Basic/Digest, tested platform profiles. 003-D01–003-D05, 003-I01–003-I09; ordering gate Q1 applies.                                                                                              |
-| [DD13: Random](../design-decisions/13-random-proving-system.md)                              | Reference-semantic generator, ordered raw UInt64, no timestamps, injected live source, zero after diagnosed exhaustion, public-only implementation. 003-B01–003-B08, 003-C07.                                                                                                                    |
+| [DD13: Random](../design-decisions/13-random-proving-system.md)                              | Reference-semantic generator, ordered raw UInt64, no timestamps, injected live source, zero after diagnosed exhaustion, public-only implementation. 003-B01–003-B08 including 003-B07A, 003-C07.                                                                                                 |
 | [DD14: Scheduler](../design-decisions/14-real-time-replay-scheduler.md)                      | One execution-owned ContinuousClock, one-to-one delays, deterministic handoff, no registration reentrancy, atomic cancel/claim, delivery acknowledgement. 003-E01–003-E08; availability gate Q2 applies.                                                                                     |
 | [DD15: Clock](../design-decisions/15-clock-system.md)                                        | Millisecond wall origins and signed successive deltas; positional overrides; empty wall payload; nonpersisted monotonic Clock. 003-F01–003-F07.                                                                                                                                              |
 | [DD16: Location](../design-decisions/16-location-system.md)                                  | Portable async replay, origin-relative WGS84 measurements, separate delivery time, access barriers, nonterminal failures, narrow Apple facade. 003-G01–003-G09.                                                                                                                              |
@@ -244,7 +248,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | Phase | Review units | Milestone                                                                    |
 | ----- | ------------ | ---------------------------------------------------------------------------- |
 | A     | 003-A01–003-A04      | Toolchain/approval evidence, minimal package, complete quality bootstrap.    |
-| B     | 003-B01–003-B10      | Public sequential core and an in-memory random system.                       |
+| B     | 003-B01–003-B10 plus 003-B07A | Public sequential core and an in-memory random system.                |
 | C     | 003-C01–003-C07      | Persisted random and consumer-defined systems; first complete vertical path. |
 | D     | 003-D01–003-D05      | Isolated URLProtocol evidence and reviewed native capability boundaries.     |
 | E     | 003-E01–003-E08      | Shared real-time scheduler and reusable grouped behavior services.           |
@@ -432,10 +436,52 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 - Exclusions: Looping, last-value reuse, manual rewind, deterministic assignment of values to uncoordinated racing tasks.
 - Checkpoint: R; review the first complete in-memory random behavior.
 
+### 003-B07A — Typed dependency keys and system instances
+
+- Status: Approved; owner confirmed the inserted unit's detailed design and
+  scope on 2026-09-16. Implementation has not started.
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Bind heterogeneous runtime
+  type erasure to one public generic contract without conflating immutable
+  attachment content, reusable registration configuration, or execution state.
+- Prerequisites: 003-B07; DD01–DD02, DD10, DD13.
+- Scope: Add a reusable `DependencyKey<Dependency: Sendable>` and a generic
+  `ScenarioSystemInstance<Dependency>` that derives its attachment,
+  registration, and dependency key from one complete attachment identity.
+  Bind public system registration to the key's dependency type and look up by
+  exact `AttachmentID`. Add lookup by either dependency key or system instance.
+  Migrate the first-party random and external consumer systems to immutable
+  instance factories and remove the superseded untyped construction and lookup
+  APIs immediately.
+- Expected files/modules: `DioramaCore` dependency identity, registration, and
+  execution lookup APIs; `DioramaRandom` instance factory; consumer extension
+  proof, tests, API documentation, and updates to affected B03/B05–B07 evidence.
+- Public behavior: A configured system instance contains no execution state and
+  is reusable across starts. Its immutable attachment, fresh-state registration,
+  and typed dependency key cannot disagree about attachment identity or
+  dependency type. Random exposes private live/replay implementations only as
+  `any RandomNumberGenerator & Sendable`; consumers use
+  `execution.dependency(randomInstance)` without naming or casting an
+  implementation type. Heterogeneous `[ScenarioSystem]` startup remains
+  available through each instance's registration.
+- Tests/verification: V-code; first-party and external-module instance
+  construction, concrete and protocol-composition dependency types,
+  heterogeneous registrations, several instances of one system, exact
+  attachment lookup, forged wrong-type key failure, reusable instances with
+  fresh execution state, closed lookup, random reference/cursor behavior, and
+  strict-concurrency compilation on all current gates.
+- Exclusions: `ScenarioSetup` or result-builder convenience, combining loaded
+  persistence with runtime setup, retaining compatibility overloads, defining
+  future HTTP/location dependency protocols, changing lifecycle or random
+  behavior, and removing heterogeneous runtime type erasure.
+- Checkpoint: R; review the complete public setup/lookup diff and external
+  extension proof before concurrent finalization work begins. A later
+  convenience unit may assemble definitions and registrations after persistence
+  startup semantics are known.
+
 ### 003-B08 — Concurrent finalization and report evaluation
 
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Canceled waiters, one shared finish result, reporter lifetime, and racing diagnostics require a complete shutdown argument.
-- Prerequisites: 003-B07; DD05, DD10, DD13; resolved Q3 contract.
+- Prerequisites: 003-B07A; DD05, DD10, DD13; resolved Q3 contract.
 - Scope: Complete sequential execution finalization, immutable usage/health/ cleanup reports, deterministic rendering, and explicit evaluation helpers.
 - Expected files/modules: `DioramaCore` finalization/report/evaluation files; core and random lifecycle tests.
 - Public behavior: Concurrent finish requests share one eventual result; waiter cancellation does not abandon cleanup.
