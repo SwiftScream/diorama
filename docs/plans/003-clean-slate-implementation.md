@@ -37,15 +37,15 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | Source                                                                                       | Required interpretation and principal units                                                                                                                                                                                                                                          |
 | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [DD01: Common abstraction](../design-decisions/01-common-abstraction.md)                     | Independently ordered typed tracks in a heterogeneous scenario; repeated system instances have separate attachment keys. 003-B01–003-B05, 003-B07A, 003-E04–003-E08, 003-J03.                                                                                                                            |
-| [DD02: Ownership layers](../design-decisions/02-shared-vs-system-semantics.md)               | Whole-attachment mode overrides; public system services; domain and adapter boundaries. 003-B01–003-B07A, 003-E08, 003-H02–003-H04, 003-I01.                                                                                                                                                                |
+| [DD02: Ownership layers](../design-decisions/02-shared-vs-system-semantics.md)               | Whole-attachment mode overrides; public system services; domain and adapter boundaries. 003-B01–003-B07A, 003-C04A, 003-E08, 003-H02–003-H04, 003-I01.                                                                                                                                                      |
 | [DD03: Recorded behaviors](../design-decisions/03-recorded-behaviors.md)                     | Mutually exclusive grouped conclusions, explicit open horizons, capability-specific timing, observed/override normalization. 003-E04–003-E07, 003-F01–003-F05, 003-G03–003-G06, 003-H05–003-H14.                                                                                                                     |
 | [DD04: Selection](../design-decisions/04-replay-selection.md)                                | Stable inputs, deterministic system selectors, FIFO among equivalent candidates, explicit ambiguity and no live replay fallback. 003-B04, 003-E05, 003-H04, 003-H14, 003-I01–003-I09.                                                                                                                        |
 | [DD05: Consumption and verification](../design-decisions/05-consumption-and-verification.md) | Whole groups claimed once at selection; usage differs from completion; retention precedes sink; immutable reports have no test outcome; later diagnostics remain separately inspectable. 003-B02, 003-B04, 003-B08, 003-E05–003-E06, 003-J01–003-J03. DD15 supersedes the old example of persisted clock sleeps. |
 | [DD06: Stable conversion](../design-decisions/06-runtime-to-snapshot-conversion.md)          | Reserve order and needed time at observation; detach native values in their valid isolation; preserve live results on late conversion failure and refuse unhealthy publication. 003-B02–003-B04, 003-C06, 003-G08, 003-I01–003-I08.                                                                          |
-| [DD07: Persistence](../design-decisions/07-persistence-boundary.md)                          | Optional at the core; load once; replace whole healthy candidates; preserve untouched baseline tracks; logical atomicity and last writer wins. 003-C01–003-C07, 003-H07.                                                                                                                         |
-| [DD08: Schema compatibility](../design-decisions/08-schema-compatibility.md)                 | Independent positive envelope/system versions, explicit registration, strict first-party fields, deterministic JSON, no POC importer. 003-C01–003-C04, 003-F02, 003-G03, 003-H02–003-H13.                                                                                                                    |
+| [DD07: Persistence](../design-decisions/07-persistence-boundary.md)                          | Optional at the core; load once; replace whole healthy candidates; preserve untouched baseline tracks; logical atomicity and last writer wins. 003-C01–003-C07 including 003-C04A, 003-H07.                                                                                                              |
+| [DD08: Schema compatibility](../design-decisions/08-schema-compatibility.md)                 | Independent positive envelope/system versions, explicit registration, strict first-party fields, deterministic JSON, no POC importer. 003-C01–003-C04A, 003-F02, 003-G03, 003-H02–003-H13.                                                                                                                   |
 | [DD09: Preparation](../design-decisions/09-normalization-and-redaction.md)                   | Structural canonicalization, redaction, normalization, validation before admission, including decoded input and resources. Immutable setup policy; match projection is separate. 003-B02, 003-C02, 003-G06, 003-H03–003-H04, 003-H07–003-H08.                                                                    |
-| [DD10: Lifecycle](../design-decisions/10-lifecycle-and-ownership.md)                         | Immutable definitions, fresh executions, ordered activation and reverse rollback, explicit idempotent finish, body outcome plus final report, quiescence, lightweight post-finish reporter independent of execution resources. 003-B02–003-B03, 003-B07A–003-B09, 003-C04–003-C06, 003-E03, 003-G09, 003-I08.          |
+| [DD10: Lifecycle](../design-decisions/10-lifecycle-and-ownership.md)                         | Immutable definitions, fresh executions, ordered activation and reverse rollback, explicit idempotent finish, body outcome plus final report, quiescence, lightweight post-finish reporter independent of execution resources. 003-B02–003-B03, 003-B07A–003-B09, 003-C04–003-C06 including 003-C04A, 003-E03, 003-G09, 003-I08. |
 | [DD11: HTTP domain](../design-decisions/11-http-model-strategy.md)                           | HTTP Types currency only in optional HTTP products; Diorama owns fields, bodies, policies, schema; native semantics remain in adapters. 003-H01–003-H14.                                                                                                                                     |
 | [DD12: URLSession](../design-decisions/12-urlsession-scope.md)                               | Per-session interception, supported HTTP(S) data tasks, early rejection in all modes, redirects and Basic/Digest, tested platform profiles. 003-D01–003-D05, 003-I01–003-I09; ordering gate Q1 applies.                                                                                              |
 | [DD13: Random](../design-decisions/13-random-proving-system.md)                              | Reference-semantic generator, ordered raw UInt64, no timestamps, injected live source, zero after diagnosed exhaustion, public-only implementation. 003-B01–003-B08 including 003-B07A, 003-C07.                                                                                                 |
@@ -53,7 +53,7 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [DD15: Clock](../design-decisions/15-clock-system.md)                                        | Millisecond wall origins and signed successive deltas; positional overrides; empty wall payload; nonpersisted monotonic Clock. 003-F01–003-F07.                                                                                                                                              |
 | [DD16: Location](../design-decisions/16-location-system.md)                                  | Portable async replay, origin-relative WGS84 measurements, separate delivery time, access barriers, nonterminal failures, narrow Apple facade. 003-G01–003-G09.                                                                                                                              |
 | [DD17: HTTP composition](../design-decisions/17-http-lifecycle-composition.md)               | One recursive tree, embedded typed supplements, exact bodies once, weighted delivery, conditional derived length, local delays and timing-only override merge. 003-H05–003-H14, 003-I01–003-I09.                                                                                                     |
-| [Overview](../design-overview.md)                                                            | Ignoring an attachment changes verification only: it never bypasses persistent registration, preparation, or schema validation. 003-C01–003-C06, 003-J03.                                                                                                                                        |
+| [Overview](../design-overview.md)                                                            | Ignoring an attachment changes verification only: it never bypasses persistent registration, preparation, or schema validation. 003-C01–003-C06 including 003-C04A, 003-J03.                                                                                                                         |
 | [Dependency policy](../dependency-policy.md)                                                 | Candidate status is not adoption approval. Tools and HTTP products need exact reviewed adoption records before use. 003-A02, 003-H01, and any later demonstrated need.                                                                                                                       |
 | [Quality policy](../quality-gates-and-ci.md)                                                 | One complete tooling/CI bootstrap review unit, warning-free strict concurrency, all applicable platforms, required Codecov uploads. 003-A01–003-A04, 003-B10, every subsequent code unit.                                                                                                        |
 
@@ -249,7 +249,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | ----- | ------------ | ---------------------------------------------------------------------------- |
 | A     | 003-A01–003-A04      | Toolchain/approval evidence, minimal package, complete quality bootstrap.    |
 | B     | 003-B01–003-B10 plus 003-B07A | Public sequential core and an in-memory random system.                |
-| C     | 003-C01–003-C07      | Persisted random and consumer-defined systems; first complete vertical path. |
+| C     | 003-C01–003-C07 plus 003-C04A | Persisted random and consumer-defined systems; first complete vertical path. |
 | D     | 003-D01–003-D05      | Isolated URLProtocol evidence and reviewed native capability boundaries.     |
 | E     | 003-E01–003-E08      | Shared real-time scheduler and reusable grouped behavior services.           |
 | F     | 003-F01–003-F07      | Complete portable clock system.                                              |
@@ -567,10 +567,55 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 - Exclusions: Treating invalid as empty, partial replay, live fallback, publication at startup, diagnosing mere unused data as a test failure.
 - Checkpoint: R; review the full load-outcome/effective-mode table.
 
+### 003-C04A — Unified scenario setup convenience
+
+- Status: Planned; owner requested this inserted unit on 2026-09-16. Detailed
+  design, scope confirmation, and implementation have not started.
+- Recommended model: GPT-6 Astra; reasoning: `high`. A concise setup surface
+  must compose heterogeneous typed system instances with repository loading
+  without merging stable scenario content, runtime factories, or execution
+  state.
+- Prerequisites: 003-C04, 003-B07A, 003-B09; DD02, DD07–DD10.
+- Scope: Design and implement a runtime-only `ScenarioSetup` convenience after
+  the baseline-loading contract is proven. Support a programmatic path that
+  assembles a definition and registrations from heterogeneous
+  `ScenarioSystemInstance` values, and a loaded-definition path where the
+  repository result remains authoritative while instances contribute matching
+  registrations and typed dependency keys. Provide concise start and scoped-run
+  entry points using the established lifecycle behavior.
+- Expected files/modules: `DioramaCore` setup surface and heterogeneous instance
+  erasure/builder support as demonstrated necessary; random and external
+  consumer usage tests, persistence startup integration tests, API examples,
+  and an evidence document.
+- Public behavior: A system instance is declared once and can contribute its
+  immutable attachment, reusable registration, and typed lookup contract. A
+  setup can start fresh independent executions without retaining dependencies
+  or execution state. Programmatic setup rejects duplicate or inconsistent
+  instances before activation. Loaded setup validates that every definition
+  attachment has its exact registration and never replaces loaded stable
+  content with an instance's convenience attachment. Startup, rollback,
+  finalization, body outcomes, diagnostics, and publication intent retain their
+  existing meanings.
+- Tests/verification: V-code; heterogeneous first-party and consumer systems,
+  several instances of one system, programmatic and loaded definitions, absent,
+  duplicate, extra, and incompatible registrations, unusable repository input
+  with zero activation, lazy fresh source factories across repeated starts,
+  typed dependency retrieval, scoped success/error/cancellation, and parity
+  with the lower-level definition/start APIs on every current gate.
+- Exclusions: Storing runtime factories or dependency handles in persisted
+  definitions, treating missing/invalid loaded data as an empty programmatic
+  scenario, caching one execution or its dependencies, hiding required
+  finalization, replacing the lower-level APIs, and adding a result builder or
+  DSL beyond what concrete ergonomics evidence justifies.
+- Checkpoint: R; first review the exact C04 startup and repository-loading API,
+  then confirm the smallest convenience shape and examples before
+  implementation. Stop if convenience would weaken validation, offline replay,
+  or lifecycle ownership.
+
 ### 003-C05 — Complete candidate replacement and final publication
 
 - Recommended model: GPT-6 Astra; reasoning: `high`. Combine mixed-mode candidate preservation, publication health, and exactly-once finalization without partial writes.
-- Prerequisites: 003-C04, 003-B08–003-B09; DD07, DD10, DD13.
+- Prerequisites: 003-C04A, 003-B08–003-B09; DD07, DD10, DD13.
 - Scope: Build and publish one finalized candidate; replace random record-mode tracks and preserve valid replay/passthrough/ignored/unattached baseline data.
 - Expected files/modules: Core candidate/finalization orchestration and persistence integration tests, random file workflow examples.
 - Public behavior: No replay/consumption writes; publication occurs only at finish when requested and healthy.
