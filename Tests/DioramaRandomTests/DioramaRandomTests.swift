@@ -13,8 +13,8 @@ struct DioramaRandomTests {
             probe.makeSource()
         }
         let execution = try start(mode: .record, key: key, registrations: [registration])
-        let generator = try execution.dependency(for: key, as: DioramaRandomNumberGenerator.self)
-        let alias = generator
+        var generator = try execution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
+        var alias = generator
 
         #expect(generator.next() == 7)
         #expect(alias.next() == 11)
@@ -36,7 +36,7 @@ struct DioramaRandomTests {
         let execution = try ScenarioExecution.start(
             definition: definition,
             systems: [DioramaRandomSystem.registration(for: key) { probe.makeSource() }])
-        let generator = try execution.dependency(for: key, as: DioramaRandomNumberGenerator.self)
+        var generator = try execution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
 
         #expect(generator.next() == 21)
         #expect(generator.next() == 22)
@@ -63,8 +63,8 @@ struct DioramaRandomTests {
                 DioramaRandomSystem.registration(for: second) { secondProbe.makeSource() },
                 DioramaRandomSystem.registration(for: first) { firstProbe.makeSource() },
             ])
-        let firstGenerator = try execution.dependency(for: first, as: DioramaRandomNumberGenerator.self)
-        let secondGenerator = try execution.dependency(for: second, as: DioramaRandomNumberGenerator.self)
+        var firstGenerator = try execution.dependency(for: first, as: (any RandomNumberGenerator & Sendable).self)
+        var secondGenerator = try execution.dependency(for: second, as: (any RandomNumberGenerator & Sendable).self)
 
         #expect(secondGenerator.next() == 10)
         #expect(firstGenerator.next() == 1)
@@ -90,14 +90,14 @@ struct DioramaRandomTests {
         let firstExecution = try ScenarioExecution.start(
             definition: definition,
             systems: [registration])
-        let first = try firstExecution.dependency(for: key, as: DioramaRandomNumberGenerator.self)
+        var first = try firstExecution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
         #expect(first.next() == 31)
         _ = await firstExecution.finish()
 
         let secondExecution = try ScenarioExecution.start(
             definition: definition,
             systems: [registration])
-        let second = try secondExecution.dependency(for: key, as: DioramaRandomNumberGenerator.self)
+        var second = try secondExecution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
         #expect(second.next() == 41)
         _ = await secondExecution.finish()
 
@@ -114,10 +114,13 @@ struct DioramaRandomTests {
             mode: .record,
             key: key,
             registrations: [DioramaRandomSystem.registration(for: key) { probe.makeSource() }])
-        let generator = try execution.dependency(for: key, as: DioramaRandomNumberGenerator.self)
+        let generator = try execution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
         let observed = await withTaskGroup(of: UInt64.self, returning: [UInt64].self) { group in
             for _ in values {
-                group.addTask { generator.next() }
+                group.addTask {
+                    var generator = generator
+                    return generator.next()
+                }
             }
             var results: [UInt64] = []
             for await value in group {
@@ -140,7 +143,7 @@ struct DioramaRandomTests {
             mode: .record,
             key: key,
             registrations: [DioramaRandomSystem.registration(for: key) { probe.makeSource() }])
-        let generator = try execution.dependency(for: key, as: DioramaRandomNumberGenerator.self)
+        var generator = try execution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
 
         #expect(generator.next() == 51)
         let result = await execution.finish()
@@ -154,36 +157,13 @@ struct DioramaRandomTests {
     }
 
     @Test
-    func `replay rejects setup without constructing a live source`() throws {
-        let key = AttachmentKey(rawValue: "replay")
-        let probe = SourceProbe(sequences: [[61]])
-        let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "random-replay-unavailable"),
-            defaultMode: .replay,
-            attachments: [DioramaRandomSystem.attachment(for: key)])
-
-        do {
-            _ = try ScenarioExecution.start(
-                definition: definition,
-                systems: [DioramaRandomSystem.registration(for: key) { probe.makeSource() }])
-            Issue.record("Random replay unexpectedly activated before B07")
-        } catch {
-            #expect(probe.creationCount == 0)
-            #expect(error.report.diagnostics.map(\.diagnostic.issue) == [
-                .system(DiagnosticLabel("random-replay-unavailable-before-b07")),
-                .lifecycle(.preparationFailed),
-            ])
-        }
-    }
-
-    @Test
     func `default source registration activates in passthrough`() async throws {
         let key = AttachmentKey(rawValue: "default")
         let execution = try start(
             mode: .passthrough,
             key: key,
             registrations: [DioramaRandomSystem.registration(for: key)])
-        let generator = try execution.dependency(for: key, as: DioramaRandomNumberGenerator.self)
+        var generator = try execution.dependency(for: key, as: (any RandomNumberGenerator & Sendable).self)
 
         _ = generator.next()
         #expect(await execution.finish().report.diagnostics.isEmpty)

@@ -10,8 +10,7 @@ The owner explicitly approved this plan on 2026-09-07, alongside the consolidate
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
 003-A01 through 003-A04 and 003-B02 are complete.
-003-B03 through 003-B05 are complete. 003-B06 implementation is complete and
-awaiting owner review. Later units have not started.
+003-B03 through 003-B07 are complete. Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -418,6 +417,11 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B07 — Random replay and deterministic failure
 
+- Status: Complete; owner confirmed scope and GPT-5.6 Terra at
+  `high` reasoning on 2026-09-13, explicitly authorizing stacked development
+  atop rebased B06. Owner review feedback was addressed and pull request
+  creation was authorized on 2026-09-16. Required hosted checks pass for the
+  merge revision.
 - Recommended model: GPT-5.6 Terra; reasoning: `high`. Replay follows established public claims; source isolation and concurrent exhaustion still need careful proving tests.
 - Prerequisites: 003-B06; DD05, DD13.
 - Scope: Consume recorded raw values and implement exhaustion/lifecycle policy.

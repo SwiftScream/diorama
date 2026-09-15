@@ -17,10 +17,11 @@ ordinary dependency on `DioramaCore`. It implements live recording and
 passthrough entirely through the public extension boundary proved by B05. No
 production `DioramaCore` source changed.
 
-`DioramaRandomNumberGenerator` is a public, reference-semantic,
-`Sendable` `RandomNumberGenerator`. `DioramaRandomSystem` exposes stable system,
-attachment, and track identities; an empty attachment helper; a registration
-using `SystemRandomNumberGenerator`; and a registration accepting a `@Sendable`
+The activated dependency is a reference-semantic generator exposed as
+`any RandomNumberGenerator & Sendable`; its concrete live implementation is
+private. `DioramaRandomSystem` exposes stable system, attachment, and track
+identities; an empty attachment helper; a registration using
+`SystemRandomNumberGenerator`; and a registration accepting a `@Sendable`
 factory for an injected `RandomNumberGenerator & Sendable`. The compiled API
 documentation includes the intended injection form.
 

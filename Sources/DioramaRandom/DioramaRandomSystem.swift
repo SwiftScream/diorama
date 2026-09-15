@@ -7,6 +7,11 @@ private enum SourceOperationResult: Sendable {
     case unavailable
 }
 
+private enum LiveRandomMode: Sendable {
+    case record
+    case passthrough
+}
+
 private protocol LiveRandomSource: Sendable {
     func nextRecording(
         lease: SequentialTrackLease<UInt64>,
@@ -72,45 +77,32 @@ private final class TypedLiveRandomSource<Source: RandomNumberGenerator & Sendab
     }
 }
 
-/// A reference-semantic random generator owned by one scenario attachment.
-///
-/// References to the same instance share one serialized live source and record
-/// order. Separate attachments and separate executions receive fresh generator
-/// state. B06 supports record and passthrough modes; replay is added by B07.
-public final class DioramaRandomNumberGenerator: RandomNumberGenerator, Sendable {
+private final class LiveRandomNumberGenerator: RandomNumberGenerator, Sendable {
     private static let closedOperation = DiagnosticLabel("random-operation-after-close")
 
+    private let mode: LiveRandomMode
     private let lease: SequentialTrackLease<UInt64>
     private let preparation: ValuePreparation<UInt64>
     private let source: any LiveRandomSource
 
-    fileprivate init(
+    init(
+        mode: LiveRandomMode,
         lease: SequentialTrackLease<UInt64>,
         preparation: ValuePreparation<UInt64>,
         source: any LiveRandomSource)
     {
+        self.mode = mode
         self.lease = lease
         self.preparation = preparation
         self.source = source
     }
 
-    /// Returns the next live random value according to the attachment mode.
-    ///
-    /// Record mode serializes source access with stable admission and returns
-    /// the live value even if a late recording failure makes the candidate
-    /// unhealthy. Passthrough uses the source without touching track content.
-    /// A call after finalization reports a lifecycle fact and returns zero
-    /// without consulting the released source.
-    ///
-    /// - Returns: The next live value, or zero after diagnosed closure.
-    public func next() -> UInt64 {
-        let result = switch lease.mode {
+    func next() -> UInt64 {
+        let result: SourceOperationResult = switch mode {
         case .record:
             source.nextRecording(lease: lease, preparation: preparation)
         case .passthrough:
             source.nextPassthrough(lease: lease)
-        case .replay:
-            preconditionFailure("Replay activation is unavailable before B07")
         }
 
         switch result {
@@ -125,13 +117,24 @@ public final class DioramaRandomNumberGenerator: RandomNumberGenerator, Sendable
     }
 }
 
+private final class ReplayRandomNumberGenerator: RandomNumberGenerator, Sendable {
+    private let lease: SequentialTrackLease<UInt64>
+
+    init(lease: SequentialTrackLease<UInt64>) {
+        self.lease = lease
+    }
+
+    func next() -> UInt64 {
+        (try? lease.claimNext().value) ?? 0
+    }
+}
+
 /// Setup helpers for Diorama's first-party random system.
 public enum DioramaRandomSystem {
     /// The stable identity of the first-party random system.
     public static let systemTypeID = SystemTypeID(rawValue: "diorama.random")
 
     private static let valuesTrackKey = TrackKey(rawValue: "values")
-    private static let replayUnavailable = DiagnosticLabel("random-replay-unavailable-before-b07")
 
     /// Creates the stable identity for one named random attachment.
     ///
@@ -151,8 +154,8 @@ public enum DioramaRandomSystem {
 
     /// Creates an empty in-memory declaration for one random attachment.
     ///
-    /// Recording forms a new `UInt64` sequence and passthrough ignores content.
-    /// B07 adds replay content consumption; persistence arrives in phase C.
+    /// Recording forms a new `UInt64` sequence, replay consumes existing values,
+    /// and passthrough ignores content. Persistence arrives in phase C.
     ///
     /// - Parameters:
     ///   - key: The caller-selected random-domain key.
@@ -171,6 +174,10 @@ public enum DioramaRandomSystem {
 
     /// Registers a random attachment using a fresh system source per execution.
     ///
+    /// The activated dependency is exposed as
+    /// `any RandomNumberGenerator & Sendable`. Bind the returned existential to
+    /// a variable before calling its mutating `next()` requirement.
+    ///
     /// - Parameter key: The caller-selected random-domain key.
     /// - Returns: A registration defaulting to `SystemRandomNumberGenerator`.
     public static func registration(for key: AttachmentKey) -> ScenarioSystem {
@@ -180,8 +187,9 @@ public enum DioramaRandomSystem {
     /// Registers a random attachment with an injected source factory.
     ///
     /// The factory runs only during successful record or passthrough activation,
-    /// once per execution. It must create independent state unless the consumer
-    /// deliberately chooses to share a concurrency-safe source. For example:
+    /// once per execution; replay never initializes it. It must create
+    /// independent state unless the consumer deliberately chooses to share a
+    /// concurrency-safe source. For example:
     ///
     /// ```swift
     /// let registration = DioramaRandomSystem.registration(for: randomKey) {
@@ -201,25 +209,31 @@ public enum DioramaRandomSystem {
         let attachmentID = attachmentID(for: key)
         let trackID = trackID(for: key)
         return ScenarioSystem(attachmentID: attachmentID) { context in
-            guard context.mode != .replay else {
-                context.reporter.record(Diagnostic(
-                    issue: .system(replayUnavailable),
-                    context: .attachment(attachmentID)))
-                throw ReplayUnavailable()
-            }
             let preparation = ValuePreparation<UInt64>()
             let lease = try context.lease(for: trackID, preparation: preparation)
+            let mode: LiveRandomMode
+            switch context.mode {
+            case .replay:
+                return PreparedSystem {
+                    SystemActivation(
+                        dependency: ReplayRandomNumberGenerator(lease: lease) as any RandomNumberGenerator & Sendable,
+                        deactivate: {})
+                }
+            case .record:
+                mode = .record
+            case .passthrough:
+                mode = .passthrough
+            }
             return PreparedSystem {
                 let source: any LiveRandomSource = TypedLiveRandomSource(sourceFactory())
                 return SystemActivation(
-                    dependency: DioramaRandomNumberGenerator(
+                    dependency: LiveRandomNumberGenerator(
+                        mode: mode,
                         lease: lease,
                         preparation: preparation,
-                        source: source),
+                        source: source) as any RandomNumberGenerator & Sendable,
                     deactivate: { source.close() })
             }
         }
     }
-
-    private struct ReplayUnavailable: Error {}
 }

@@ -84,6 +84,9 @@ lifecycle composition.
 - [Random recording and passthrough evidence](evidence/003-B06-random-recording-and-passthrough.md)
   records the first-party random system's serialized live-source behavior,
   reference and attachment ownership, and cross-platform verification.
+- [Random replay and deterministic-failure evidence](evidence/003-B07-random-replay-and-deterministic-failure.md)
+  records offline raw-value claims, deterministic exhaustion, lifecycle
+  continuation, and source-isolation verification.
 
 ## Historical boundary
 
