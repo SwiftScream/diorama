@@ -264,7 +264,7 @@ between `*-test-runner` executables and matching `*Tests.so` modules. Coverage
 discovery must include both, alongside the `.xctest` executable layout used by
 Apple builds.
 
-The initial `.codecov.yml` can follow URITemplate's posture:
+The initial `.codecov.yml` follows URITemplate's posture:
 
 - exclude test fixtures and generated code from product coverage;
 - use the previous commit as the project baseline;
@@ -273,13 +273,13 @@ The initial `.codecov.yml` can follow URITemplate's posture:
 - require every expected platform upload before finalizing the combined status.
 
 Coverage is a review signal and regression gate, not a target to maximize with
-assertion-free tests. Exact initial thresholds should be confirmed when the
-first production targets and baseline exist.
-
-Until 003-B10 confirms that baseline, patch coverage has a temporary
-10-percentage-point tolerance. The patch check remains required and reports
-every uncovered changed line; 003-B10 must replace this temporary setting with
-the owner-confirmed project and patch thresholds.
+assertion-free tests. 003-B10 establishes the first meaningful core/random
+baseline: 1,491 of 1,525 source lines (97.77%) on macOS and iOS. The required
+Linux CI upload remains the authoritative third platform result.
+Project coverage remains relative to the previous commit (`target: auto`) with
+a 1-percentage-point tolerance. Patch coverage has an explicit 90% target and
+no tolerance. These values were owner-confirmed on 2026-09-16. Every uncovered
+changed line remains visible in the patch report.
 
 For a public repository, Codecov OIDC or tokenless upload is preferable when
 the SwiftScream organization configuration supports it. Otherwise the token is

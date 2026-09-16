@@ -96,6 +96,9 @@ lifecycle composition.
 - [Scoped execution convenience evidence](evidence/003-B09-scoped-execution-convenience.md)
   records typed variadic dependency injection, both-outcome finalization,
   cancellation, actor isolation, and compiler-regression verification.
+- [First production coverage baseline](evidence/003-B10-first-production-coverage-baseline.md)
+  records the owner-confirmed baseline-relative project tolerance, patch target,
+  platform evidence, and retained upload requirements.
 
 ## Historical boundary
 
