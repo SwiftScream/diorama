@@ -14,7 +14,8 @@ The owner explicitly approved this plan on 2026-09-07, alongside the consolidate
 authorized pull request creation on 2026-09-16.
 003-B08's implementation and local platform verification are complete. The
 owner accepted the review unit and authorized pull request creation on
-2026-09-16. Later units have not started.
+2026-09-16. 003-B09's implementation and local platform verification are
+complete and awaiting owner review. Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -510,14 +511,20 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B09 — Scoped execution convenience
 
-- Recommended model: GPT-5.6 Sol; reasoning: `high`. Scoped cancellation must preserve both body and finalization outcomes without accidentally changing publication intent.
+- Status: Implementation and macOS/iOS local verification complete on
+  2026-09-16; the post-amendment pinned Linux result remains unverified. The
+  owner confirmed the preferred variadic API and retained erased-system
+  overload.
+- Evidence: [Scoped execution convenience](../evidence/003-B09-scoped-execution-convenience.md).
+- Recommended model: GPT-5.6 Sol; reasoning: `high`. Scoped cancellation must preserve both body and finalization outcomes without changing the definition's publication policy.
 - Prerequisites: 003-B08; DD10.
-- Scope: Wrap explicit execution in an async scope preserving body and finish outcomes, with publication intent carried to later repository integration.
+- Scope: Wrap explicit execution in an async scope preserving body and finish outcomes without changing the definition's later publication policy.
 - Expected files/modules: `DioramaCore` scoped helper, cancellation/error tests, public lifecycle examples.
-- Public behavior: Always finalize on return, throw, or cancellation; suppress requested publication by default after body failure, with the explicit accepted opt-in policy.
-  Neither outcome silently masks the other.
-- Tests/verification: V-code; body success/error/cancellation, failing cleanup, canceled waiter, explicit versus scoped intent, source/result diagnostics.
-- Exclusions: Test-framework hooks, inferring test failure from a sink, durable writes before 003-C05, new publication modes beyond DD10.
+- Public behavior: Always finalize on return, throw, or cancellation. Preserve
+  both outcomes without silently masking either; the body outcome does not
+  change the definition's later publication policy.
+- Tests/verification: V-code; body success/error/cancellation, failing cleanup, canceled waiter, source/result diagnostics.
+- Exclusions: Test-framework hooks, inferring test failure from a sink, durable writes before 003-C05, and publication decisions beyond DD10's candidate-health rule.
 - Checkpoint: R; review ergonomic API and both-outcome error presentation.
 
 ### 003-B10 — First production coverage baseline
@@ -610,7 +617,7 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
   systems before activation. Loaded setup validates that every definition
   attachment has its exact runtime system and never replaces loaded stable
   content with a system's convenience attachment. Startup, rollback,
-  finalization, body outcomes, diagnostics, and publication intent retain their
+  finalization, body outcomes, diagnostics, and publication-health rules retain their
   existing meanings.
 - Tests/verification: V-code; heterogeneous first-party and consumer systems,
   several keyed systems of one type, programmatic and loaded definitions,
@@ -635,9 +642,10 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 - Scope: Build and publish one finalized candidate; replace random record-mode tracks and preserve valid replay/passthrough/ignored/unattached baseline data.
 - Expected files/modules: Core candidate/finalization orchestration and persistence integration tests, random file workflow examples.
 - Public behavior: No replay/consumption writes; publication occurs only at finish when requested and healthy.
-  Scoped body failure suppresses it by default; explicit finish follows configured intent.
+  Scoped body success, failure, and cancellation follow the same definition
+  policy; body outcome is not a candidate-health signal.
   Record replaces, not appends.
-- Tests/verification: V-code; mixed attachments, record-only rebuild, whole candidate health, preserved tracks, repeated finish publishes once, body success/throw/cancellation and explicit allow-after-failure policy.
+- Tests/verification: V-code; mixed attachments, record-only rebuild, whole candidate health, preserved tracks, repeated finish publishes once, and body success/throw/cancellation following the same candidate-health rule.
 - Exclusions: HTTP/clock/location override merge before those systems define it, partial healthy-track publication, recovery draft files, incremental flush.
 - Checkpoint: R; review end-to-end load/run/finalize/publication ownership.
 
@@ -1344,7 +1352,7 @@ Narrowing the milestone requires an approved decision amendment.
 - Scope: Provide a separate, explicit XCTest diagnostic/evaluation convenience using supported lifecycle APIs and captured setup source locations.
 - Expected files/modules: `DioramaXCTest`, integration tests and usage example; target availability separated from core.
 - Public behavior: Consumers select categories and install reporting themselves; core never calls XCTest.
-  Lifecycle completion still awaits explicit/scoped finish; reporting a test issue does not replace a nonthrowing continuation or imply a thrown body for publication policy.
+  Lifecycle completion still awaits explicit/scoped finish; reporting a test issue does not replace a nonthrowing continuation or affect candidate health.
   Reporting honors the captured test context's lifetime; retained diagnostics cannot retroactively change a test.
 - Tests/verification: V-code with controlled expected-issue capture; concurrent diagnostics, source location, setup/runtime/publication issues, final report evaluation, context expiry with later diagnostics still retained, no implicit installation, platform availability and no core imports.
 - Exclusions: Trap as recommended default, undocumented framework teardown hooks, automatic failure policies, adding a third-party testing dependency.

@@ -1,7 +1,7 @@
 # Decision 10: Lifecycle and ownership
 
 - Status: Accepted
-- Last updated: 2026-09-06
+- Last updated: 2026-09-16
 - Depends on: [Decision 1: Common abstraction](01-common-abstraction.md),
   [Decision 2: Shared and system-specific semantics](02-shared-vs-system-semantics.md),
   [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
@@ -316,24 +316,28 @@ retroactively undo that publication. Reverse activation order gives nested
 integrations a predictable unwinding order; reports retain deterministic
 attachment order rather than incidental task completion order.
 
-## Body failure and publication
+## Body outcome and publication
 
-The core `finish()` operation does not know whether the surrounding test passed
-or failed. If explicitly called, it applies the definition's requested
-publication policy to any healthy candidate.
+### Owner-approved amendment — 2026-09-16
 
-A scoped helper does know whether its body returned or threw. The recommended
-default is:
+Publication does not depend on whether a scoped body returns, throws, or is
+canceled. The scoped helper always preserves that body outcome alongside the
+complete finalization result, but it does not add a publication-control
+parameter or alter the definition's publication policy.
 
-- finalize and allow requested publication after a successful body;
-- finalize but suppress publication after a thrown or canceled body;
-- preserve the body error and return or attach the complete finalization result.
+At finalization, a configured repository may publish only a complete, healthy
+candidate. Candidate health is determined by Diorama's structured recording,
+conversion, normalization, validation, encoding, and staging rules—not by the
+application body's outcome or by test-framework policy. This permits a
+fixture-generation workflow to retain a valid candidate from a failed or
+canceled body. Version control is the recovery mechanism for an undesired
+fixture update.
 
-This avoids replacing a useful baseline with behavior captured during an
-aborted test run. A deliberate option can allow publication after body failure
-for diagnostic or fixture-generation workflows. Merely recording a test issue
-through a diagnostic sink is not equivalent to the body throwing, so publication
-health continues to follow Diorama's structured candidate-health rules.
+Not every Diorama diagnostic prevents publication. A failure that makes the
+candidate untrustworthy, such as inability to establish a recording horizon or
+validate the candidate, does. A cleanup failure found after a valid atomic
+publication remains reportable but cannot undo that publication. No durable
+write occurs until the persistence slice.
 
 ## Worked examples
 
@@ -412,8 +416,8 @@ Costs:
   harness.
 - Adapters need real activation, quiescence, and deactivation behavior.
 - A final result can still be ignored despite compiler warnings.
-- Suppressing publication after a scoped body failure requires the helper to
-  preserve two outcomes coherently.
+- Scoped helpers preserve the body outcome and finalization result coherently
+  without treating the body as a candidate-health signal.
 - Consumer code that lets an execution escape without finishing cannot be made
   fully correct by `deinit`.
 
@@ -453,13 +457,10 @@ This proposal does not determine:
    does not wait for or cancel consumer-owned native operations. A later native
    event may still be forwarded where required by the adapter, but cannot
    mutate the finished scenario.
-5. **Body failure: Resolved.** A scoped helper completes finalization but
-   suppresses publication by default when its body throws or is canceled. It
-   preserves the body failure, exposes the finalization report, and leaves the
-   previous published scenario intact. An explicit fixture-generation policy
-   may publish a healthy candidate despite body failure. Explicitly managed
-   executions follow their configured publication policy because `finish()`
-   cannot infer the surrounding test outcome.
+5. **Body outcome and publication: Resolved.** A scoped helper completes
+   finalization and preserves the body outcome without changing the definition's
+   publication policy. Any configured publication depends on a complete,
+   healthy candidate, not on whether the body returned, threw, or was canceled.
 
 These resolved points constitute the accepted answer to decision 10.
 
@@ -487,6 +488,6 @@ decision to be reopened.
 - Structured startup and finalization diagnostics remain subject to decision
   9's preparation and safe-rendering boundary and decision 5's framework-neutral
   reporting rules.
-- Suppressing scoped publication after body failure is compatible with decision
-  7's atomic replacement rule; it selects `not requested` for that run and
-  preserves the previous publication.
+- Body outcomes remain distinct from candidate health: a failed or canceled
+  body does not prevent decision 7's atomic replacement of a healthy candidate,
+  while an unhealthy candidate always preserves the previous publication.
