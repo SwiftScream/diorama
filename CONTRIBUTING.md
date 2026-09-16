@@ -37,3 +37,15 @@ Merge commits, reverts, and automated dependency updates may use the form
 required by their tool. Describe breaking changes in the body. Commitlint can
 enforce the structural parts of this convention when CI is established;
 imperative mood and clear present-tense prose remain review expectations.
+
+## Review fixups
+
+When review feedback belongs in an existing commit, record the update with
+`git commit --fixup=<target>` and place that fixup immediately after its target
+commit. Restack later commits above it when necessary. This keeps the review
+change independently inspectable while preserving its intended final home.
+
+Leave the fixup commit unsquashed until the owner explicitly approves the
+update and confirms that squashing may proceed. Then autosquash it into the
+target commit and restack any dependent branches. General permission to rewrite
+a feature branch does not replace this review checkpoint.

@@ -181,13 +181,14 @@ Phases group related outcomes; they do not authorize a batch of work or combine 
    Each proposed commit should explain one coherent change and retain a usable, verifiable baseline; avoid separating a behavior from the tests that prove it.
 5. Once the unit's scope is confirmed, create atomic commits and amend, rebase, or otherwise rewrite its feature-branch history as useful, including published history, without per-commit approval.
    Explicit instructions to leave work uncommitted and dependency approval stops still apply.
+   Review feedback intended for an existing commit is first recorded as an adjacent `fixup!` commit and left unsquashed for isolated owner review. Autosquash only after the owner explicitly approves the update and confirms that squashing may proceed, then restack dependent commits and branches.
    Never edit or commit directly on, or rewrite the history of, `master` or `main`; preserve unrelated and concurrent work.
    Pushing rewritten history follows the authorization boundary in step 8.
 6. Run focused verification, then the applicable review gate below.
    Present the complete feature-branch diff against its base branch, including any uncommitted changes, rather than only the working-tree diff.
    The review request must describe behavior, files, the actual commit breakdown (and any remaining proposed commits), evidence, limitations, dependency changes, and unresolved design questions.
 7. Stop for owner review.
-   Address feedback and rerun verification checks.
+   Address feedback in adjacent `fixup!` commits and rerun verification checks. Present each fixup in isolation and wait for explicit owner approval before squashing it into its target.
 8. After the owner approves PR creation, push the feature branch and create a GitHub Pull Request.
    This approval authorizes the initial push and subsequent branch updates for the same review unit, including rewritten published history; before approval, remote changes require separate authorization.
    Use `--force-with-lease` for rewritten history, inspecting remote state and preserving concurrent work before pushing.

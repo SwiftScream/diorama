@@ -55,6 +55,14 @@ architecture inside implementation work.
   including published history. Separate approval for each commit or rewrite is
   not required. Explicit instructions to leave work uncommitted and dependency
   approval stops still apply.
+- Review feedback intended for an existing commit is an exception to immediate
+  squashing. Create each coherent review update as a `fixup!` commit directly
+  after its target commit, restacking descendant commits as needed so the
+  feedback can be reviewed in isolation. Leave the fixup unsquashed until the
+  owner explicitly approves the update and confirms that it may be squashed.
+  After that confirmation, autosquash it into the target and restack dependent
+  branches. Do not treat general feature-branch rewrite permission as approval
+  to skip this review checkpoint.
 - Feature-branch permissions never authorize rewriting `master` or `main`.
 - Owner approval to create a PR authorizes pushing that feature branch and
   subsequent updates for the same review unit, including rewritten history.
@@ -86,7 +94,9 @@ Implementation proceeds one small plan item at a time:
    branch, including any uncommitted changes, for owner review. Report behavior,
    files changed, the actual commit breakdown, verification results, and any
    residual risk.
-7. Stop for owner review; address feedback within the unit and rerun checks.
+7. Stop for owner review. Address feedback within the unit using adjacent
+   `fixup!` commits, rerun checks, and present each fixup for isolated review.
+   Do not squash it until the owner explicitly confirms approval to proceed.
 8. Once the owner approves PR creation, push the feature branch and create the
    PR. Include the completed unit/plan status and relevant documentation updates
    in their final merge-ready state so merging produces the correct state on the

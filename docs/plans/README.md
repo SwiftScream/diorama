@@ -65,6 +65,11 @@ useful; the actual boundaries may be chosen during implementation. Once the
 unit's scope is confirmed, feature-branch commits and history rewrites,
 including published history, need no per-commit approval. Explicit
 leave-uncommitted instructions and dependency approval stops still apply.
+Review feedback destined for an existing commit is kept as an adjacent
+`fixup!` commit so the owner can review that update in isolation. It is
+autosquashed only after the owner explicitly approves the update and confirms
+that squashing may proceed; descendant commits and branches are restacked as
+needed around that checkpoint.
 
 Owner approval to create a PR authorizes pushing its feature branch and later
 updates for that unit, including rewritten history. Follow
