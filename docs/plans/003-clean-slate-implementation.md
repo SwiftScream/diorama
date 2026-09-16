@@ -17,7 +17,8 @@ owner accepted the review unit and authorized pull request creation on
 2026-09-16. 003-B09's implementation and local platform verification are
 complete and awaiting owner review. 003-B10's owner-confirmed coverage
 baseline and local platform verification are complete; owner review is the next
-checkpoint. Later units have not started.
+checkpoint. 003-B11's implementation and local platform verification are
+complete; owner review is the next checkpoint. Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -255,7 +256,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | Phase | Review units | Milestone                                                                    |
 | ----- | ------------ | ---------------------------------------------------------------------------- |
 | A     | 003-A01–003-A04      | Toolchain/approval evidence, minimal package, complete quality bootstrap.    |
-| B     | 003-B01–003-B10 plus 003-B07A | Public sequential core and an in-memory random system.                |
+| B     | 003-B01–003-B11 plus 003-B07A | Public sequential core, an in-memory random system, and a compiled usage example. |
 | C     | 003-C01–003-C07 plus 003-C04A | Persisted random and consumer-defined systems; first complete vertical path. |
 | D     | 003-D01–003-D05      | Isolated URLProtocol evidence and reviewed native capability boundaries.     |
 | E     | 003-E01–003-E08      | Shared real-time scheduler and reusable grouped behavior services.           |
@@ -544,6 +545,39 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 - Tests/verification: V-doc and actual macOS/iOS/Linux coverage status evidence; review exclusions, previous-commit baseline, patch report, incomplete uploads.
 - Exclusions: Invented coverage targets, disabling failing tests/uploads, generated assertions to inflate coverage.
 - Checkpoint: R; stop for threshold confirmation before wider feature coverage.
+
+### 003-B11 — In-memory random usage example
+
+- Status: Complete locally; the owner confirmed the separate examples-package
+  scope and GPT-5.6 Terra at `medium` reasoning on 2026-09-16. Owner review is
+  the next checkpoint.
+- Evidence: [In-memory random usage example](../evidence/003-B11-random-usage-example.md).
+- Recommended model: GPT-5.6 Terra; reasoning: `medium`. A compiled public-only
+  example must make the current lifecycle and in-memory replay boundary clear
+  while retaining the library package's product boundary.
+- Prerequisites: 003-B05, 003-B07–003-B10; DD10, DD13, quality policy.
+- Scope: Add a separate `Examples` package with a relative path dependency on
+  Diorama. Its executable uses only `DioramaCore` and `DioramaRandom` public
+  products to show a scoped recording run and a separately authored in-memory
+  replay run. Compile it through the canonical macOS/Linux quality paths.
+- Expected files/modules: `Examples/Package.swift`,
+  `Examples/Sources/DioramaRandomUsage`, canonical build checks, concise README
+  guidance, and B11 evidence.
+- Public behavior: The example demonstrates named random setup, explicit
+  record/replay modes, typed scoped finalization, and the fact that replay
+  consumes supplied stable in-memory values. Diorama itself remains a
+  library-only package; the example does not claim record-to-replay transfer or
+  persistence before Phase C.
+- Tests/verification: V-code and V-doc; compile/run the examples package
+  through macOS/Linux canonical quality paths and verify that it imports only
+  the public core and random products. The main iOS package path remains a
+  library compile/test check.
+- Exclusions: An executable target or product in Diorama's main package,
+  dependencies beyond the relative Diorama package, persistence, test-framework
+  integration, sample-only runtime APIs, or a claim that this is final delivery
+  documentation.
+- Checkpoint: R; review the public API clarity and packaging boundary before
+  Phase C.
 
 ## Phase C — Optional persistence and the first complete vertical path
 

@@ -99,6 +99,9 @@ lifecycle composition.
 - [First production coverage baseline](evidence/003-B10-first-production-coverage-baseline.md)
   records the owner-confirmed baseline-relative project tolerance, patch target,
   platform evidence, and retained upload requirements.
+- [In-memory random usage example](evidence/003-B11-random-usage-example.md)
+  records the public-only executable example, its explicit replay-baseline
+  boundary, and compilation evidence.
 
 ## Historical boundary
 
