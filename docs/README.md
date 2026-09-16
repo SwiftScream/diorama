@@ -102,6 +102,9 @@ lifecycle composition.
 - [In-memory random usage example](evidence/003-B11-random-usage-example.md)
   records the public-only executable example, its explicit replay-baseline
   boundary, and compilation evidence.
+- [Persistent-system registration evidence](evidence/003-C01-persistence-registration.md)
+  records the optional format-neutral `Codable` dispatch boundary, explicit
+  schema-version readers, registration validation, and platform evidence.
 
 ## Historical boundary
 

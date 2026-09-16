@@ -21,6 +21,9 @@ let package = Package(
         .library(
             name: "DioramaRandom",
             targets: ["DioramaRandom"]),
+        .library(
+            name: "DioramaPersistence",
+            targets: ["DioramaPersistence"]),
     ],
     targets: [
         .target(
@@ -28,6 +31,10 @@ let package = Package(
             swiftSettings: strictConcurrencySettings),
         .target(
             name: "DioramaRandom",
+            dependencies: ["DioramaCore"],
+            swiftSettings: strictConcurrencySettings),
+        .target(
+            name: "DioramaPersistence",
             dependencies: ["DioramaCore"],
             swiftSettings: strictConcurrencySettings),
         .target(
@@ -42,6 +49,10 @@ let package = Package(
         .testTarget(
             name: "DioramaRandomTests",
             dependencies: ["DioramaCore", "DioramaRandom"],
+            swiftSettings: strictConcurrencySettings),
+        .testTarget(
+            name: "DioramaPersistenceTests",
+            dependencies: ["DioramaCore", "DioramaPersistence"],
             swiftSettings: strictConcurrencySettings),
         .testTarget(
             name: "DioramaConsumerTests",

@@ -1,7 +1,7 @@
 # Decision 8: Schema compatibility
 
 - Status: Accepted
-- Last updated: 2026-09-05
+- Last updated: 2026-09-18
 - Depends on: [Decision 1: Common abstraction](01-common-abstraction.md),
   [Decision 2: Shared and system-specific semantics](02-shared-vs-system-semantics.md),
   [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
@@ -114,10 +114,11 @@ name or module layout must not silently change persisted identity.
 
 ## Version semantics
 
-Schema versions should be positive integers, not semantic-version strings. A
-version names one understood persisted shape and meaning; compatibility is
-defined by explicit readers rather than inferred from major, minor, and patch
-components.
+Schema versions are non-negative integers represented as `UInt32`, not
+semantic-version strings. Version zero is valid. A version names one understood
+persisted shape and meaning; compatibility is defined by explicit readers
+rather than inferred from major, minor, and patch components. This range was
+amended with owner approval during 003-C01 review on 2026-09-18.
 
 An owner increments its schema version when a canonical persisted change is not
 understood with the same meaning by all readers of the previous version. This

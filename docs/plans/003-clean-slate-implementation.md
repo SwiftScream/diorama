@@ -18,7 +18,9 @@ owner accepted the review unit and authorized pull request creation on
 complete and awaiting owner review. 003-B10's owner-confirmed coverage
 baseline and local platform verification are complete; owner review is the next
 checkpoint. 003-B11's implementation and local platform verification are
-complete; owner review is the next checkpoint. Later units have not started.
+complete; owner review is the next checkpoint. 003-C01's implementation and
+local platform verification are complete; owner review is the next checkpoint.
+Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -50,7 +52,7 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [DD05: Consumption and verification](../design-decisions/05-consumption-and-verification.md) | Whole groups claimed once at selection; usage differs from completion; retention precedes sink; immutable reports have no test outcome; later diagnostics remain separately inspectable; unmatched loaded attachments are diagnosed then discarded. 003-B02, 003-B04, 003-B08, 003-C04, 003-E05–003-E06, 003-J01–003-J03. DD15 supersedes the old example of persisted clock sleeps. |
 | [DD06: Stable conversion](../design-decisions/06-runtime-to-snapshot-conversion.md)          | Reserve order and needed time at observation; detach native values in their valid isolation; preserve live results on late conversion failure and refuse unhealthy publication. 003-B02–003-B04, 003-C06, 003-G08, 003-I01–003-I08.                                                                          |
 | [DD07: Persistence](../design-decisions/07-persistence-boundary.md)                          | Optional at the core; load once; replace whole healthy candidates; preserve configured untouched baseline tracks while discarding diagnosed unmatched attachments; logical atomicity and last writer wins. 003-C01–003-C07 including 003-C04A, 003-H07.                                                                                                              |
-| [DD08: Schema compatibility](../design-decisions/08-schema-compatibility.md)                 | Independent positive envelope/system versions, explicit registration, strict first-party fields, deterministic JSON, no POC importer. 003-C01–003-C04A, 003-F02, 003-G03, 003-H02–003-H13.                                                                                                                   |
+| [DD08: Schema compatibility](../design-decisions/08-schema-compatibility.md)                 | Independent non-negative `UInt32` envelope/system versions, explicit registration, strict first-party fields, deterministic JSON, no POC importer. 003-C01–003-C04A, 003-F02, 003-G03, 003-H02–003-H13.                                                                                                       |
 | [DD09: Preparation](../design-decisions/09-normalization-and-redaction.md)                   | Structural canonicalization, redaction, normalization, validation before admission, including decoded input and resources. Immutable setup policy; match projection is separate. 003-B02, 003-C02, 003-G06, 003-H03–003-H04, 003-H07–003-H08.                                                                    |
 | [DD10: Lifecycle](../design-decisions/10-lifecycle-and-ownership.md)                         | Immutable definitions, fresh executions, ordered activation and reverse rollback, explicit idempotent finish, body outcome plus final report, quiescence, lightweight post-finish reporter independent of execution resources. 003-B02–003-B03, 003-B07A–003-B09, 003-C04–003-C06 including 003-C04A, 003-E03, 003-G09, 003-I08. |
 | [DD11: HTTP domain](../design-decisions/11-http-model-strategy.md)                           | HTTP Types currency only in optional HTTP products; Diorama owns fields, bodies, policies, schema; native semantics remain in adapters. 003-H01–003-H14.                                                                                                                                     |
@@ -583,9 +585,13 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C01 — Persistent-system registration and version dispatch
 
+- Status: Complete locally; the owner confirmed scope and GPT-5.6 Sol at
+  `high` reasoning and explicitly authorized commencement on 2026-09-16.
+  Owner review is the next checkpoint.
+- Evidence: [Persistent-system registration and version dispatch](../evidence/003-C01-persistence-registration.md).
 - Recommended model: GPT-5.6 Sol; reasoning: `high`. Typed heterogeneous dispatch and optional persistence registration shape a lasting public extension boundary.
 - Prerequisites: 003-B08; DD07–DD09.
-- Scope: Add the optional Codable registration boundary, stable system type identity, positive integer envelope/payload versions, and supported readers.
+- Scope: Add the optional Codable registration boundary, stable system type identity, non-negative `UInt32` envelope/payload versions, and supported readers.
 - Expected files/modules: `DioramaPersistence` registry/codec boundary and tests; minimal explicit core connection for optional persistence.
 - Public behavior: In-memory non-Codable systems still work.
   Publication requires registration for every included track; ignored payloads are not exempt. Loading still requires registration and validation for unmatched attachments before C04 diagnoses and discards them.
