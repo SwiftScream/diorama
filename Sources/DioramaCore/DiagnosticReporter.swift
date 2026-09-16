@@ -52,7 +52,8 @@ public final class DiagnosticReporter: Sendable {
     ///   - sink: Optional immediate notification after each retained fact.
     public init(definition: ScenarioDefinition, sink: DiagnosticSink? = nil) {
         scenarioID = definition.id
-        ordering = DiagnosticOrdering(attachments: definition.attachments)
+        ordering = DiagnosticOrdering(
+            attachments: definition.attachments, unattachedTracks: definition.unattachedTracks)
         self.sink = sink
     }
 

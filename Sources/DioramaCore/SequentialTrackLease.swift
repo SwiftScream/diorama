@@ -14,21 +14,43 @@ final class ExecutionAdmission: Sendable {
 
 protocol AnySequentialLease: Sendable {
     var id: TrackID { get }
-    func close()
+    @discardableResult
+    func close() -> SequentialTrackUsage
 }
 
 /// A reference-semantic, execution-owned lifetime for one typed track.
 ///
 /// References share one lifetime within a run; different starts get fresh
-/// leases. After closure, only identity, mode, and reporting context remain.
+/// leases. Closed leases retain only frozen usage, identity, mode, and reporting context.
 /// Record-mode observations form a new ordered working sequence; replay claims
 /// the immutable prepared baseline. Passthrough retains neither content set.
 public final class SequentialTrackLease<Value: Sendable>: Sendable {
+    private enum RecordingSlot: Sendable {
+        case preparing
+        case failed
+        case admitted(SequentialRecord<Value>)
+
+        var record: SequentialRecord<Value>? {
+            if case let .admitted(record) = self {
+                record
+            } else {
+                nil
+            }
+        }
+    }
+
+    private struct ClosedContents {
+        let usage: SequentialTrackUsage
+        let records: [SequentialRecord<Value>]
+        let incomplete: [RecordIdentity]
+    }
+
     private struct State: Sendable {
         var baseline: [SequentialRecord<Value>]
-        var recording: [SequentialRecord<Value>?] = []
+        var recording: [RecordingSlot] = []
         var nextReplayPosition = 0
         var closed = false
+        var finalUsage: SequentialTrackUsage?
     }
 
     /// The stable identity of this track.
@@ -90,7 +112,7 @@ public final class SequentialTrackLease<Value: Sendable>: Sendable {
                 }
                 let index = state.recording.endIndex
                 let identity = RecordIdentity(trackID: id, sequence: UInt64(index))
-                state.recording.append(nil)
+                state.recording.append(.preparing)
                 return .success((index, identity))
             }
         let reservation: (index: Int, identity: RecordIdentity)
@@ -112,14 +134,15 @@ public final class SequentialTrackLease<Value: Sendable>: Sendable {
                 fieldPath: fieldPath,
                 rule: rule)
         } catch {
+            markRecordingFailed(at: reservation.index)
             throw SequentialOperationFailure(diagnostic: error.diagnostic)
         }
 
         let admitted = state.withLock { state in
             guard !admission.isClosed, !state.closed else { return false }
-            state.recording[reservation.index] = SequentialRecord(
+            state.recording[reservation.index] = .admitted(SequentialRecord(
                 identity: reservation.identity,
-                value: prepared.value)
+                value: prepared.value))
             return true
         }
         guard admitted else {
@@ -192,7 +215,15 @@ public final class SequentialTrackLease<Value: Sendable>: Sendable {
     }
 
     func recordedRecords() -> [SequentialRecord<Value>] {
-        state.withLock { $0.recording.compactMap(\.self) }
+        state.withLock { $0.recording.compactMap(\.record) }
+    }
+
+    private func markRecordingFailed(at index: Int) {
+        state.withLock { state in
+            if !state.closed {
+                state.recording[index] = .failed
+            }
+        }
     }
 
     private func closedFailure(_ state: State) -> SequentialOperationFailure? {
@@ -219,17 +250,49 @@ public final class SequentialTrackLease<Value: Sendable>: Sendable {
 }
 
 extension SequentialTrackLease: AnySequentialLease {
-    func close() {
+    @discardableResult
+    func close() -> SequentialTrackUsage {
         // Release stable values outside the lock: their destruction may run
         // consumer code. The closed lease never retains the detached content.
-        let detached = state.withLock { state in
+        let detached = state.withLock { state -> ClosedContents in
+            if let usage = state.finalUsage {
+                return ClosedContents(usage: usage, records: [], incomplete: [])
+            }
             state.closed = true
-            let records = state.baseline + state.recording.compactMap(\.self)
+            let incomplete = state.recording.indices.filter {
+                if case .preparing = state.recording[$0] {
+                    true
+                } else {
+                    false
+                }
+            }.map {
+                RecordIdentity(trackID: id, sequence: UInt64($0))
+            }
+            let admitted = state.recording.compactMap(\.record)
+            let activity: SequentialTrackUsage.Activity
+            switch mode {
+            case .record:
+                activity = .record(recordedCount: UInt64(admitted.count),
+                                   incompleteCount: UInt64(state.recording.count - admitted.count))
+            case .replay:
+                let used = min(state.nextReplayPosition, state.baseline.count)
+                activity = .replay(usedCount: UInt64(used), unusedCount: UInt64(state.baseline.count - used))
+            case .passthrough:
+                activity = .passthrough
+            }
+            let usage = SequentialTrackUsage(id: id, activity: activity)
+            state.finalUsage = usage
+            let records = state.baseline + admitted
             state.baseline = []
             state.recording = []
-            return records
+            return ClosedContents(usage: usage, records: records, incomplete: incomplete)
+        }
+        for identity in detached.incomplete {
+            reporter.record(Diagnostic(issue: .verification(.recordingNotAdmitted), context: .record(identity),
+                                       recordingImpact: .invalidatesCandidate))
         }
         withExtendedLifetime(detached) {}
+        return detached.usage
     }
 }
 

@@ -19,9 +19,11 @@ public final class ScenarioExecution: Sendable {
 
     private final class Resources: Sendable {
         private let contents: Mutex<ResourceContents>
+        private let usage: ExecutionUsage
 
-        init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease]) {
+        init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease], usage: ExecutionUsage) {
             contents = Mutex(ResourceContents(systems: systems, leases: leases))
+            self.usage = usage
         }
 
         func dependency<Dependency: Sendable>(for key: DependencyKey<Dependency>) -> Dependency? {
@@ -31,22 +33,20 @@ public final class ScenarioExecution: Sendable {
         }
 
         func finish(reporter: DiagnosticReporter) -> ScenarioFinalizationResult {
-            let cleanup = release(reporter: reporter)
-            return ScenarioFinalizationResult(report: reporter.freeze(), cleanup: cleanup)
+            let final = release(reporter: reporter)
+            return ScenarioFinalizationResult(report: reporter.freeze(), cleanup: final.cleanup, usage: final.usage)
         }
 
-        private func release(reporter: DiagnosticReporter) -> [AttachmentCleanup] {
+        private func release(reporter: DiagnosticReporter) -> (cleanup: [AttachmentCleanup], usage: [AttachmentUsage]) {
             let detached = contents.withLock { contents in
                 let detached = contents
                 contents = ResourceContents()
                 return detached
             }
-            for lease in detached.leases {
-                lease.close()
-            }
+            let tracks = detached.leases.map { $0.close() }
             // This scope drops dependencies and cleanup captures before freeze.
             // Their destruction, like callbacks, occurs outside all locks.
-            return ScenarioExecution.cleanUp(detached.systems, reporter: reporter)
+            return (ScenarioExecution.cleanUp(detached.systems, reporter: reporter), usage.snapshot(tracks))
         }
     }
 
@@ -63,11 +63,11 @@ public final class ScenarioExecution: Sendable {
     private let admission: ExecutionAdmission
 
     private init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease],
-                 reporter: DiagnosticReporter, admission: ExecutionAdmission)
+                 reporter: DiagnosticReporter, admission: ExecutionAdmission, usage: ExecutionUsage)
     {
         self.reporter = reporter
         self.admission = admission
-        state = Mutex(.running(Resources(systems: systems, leases: leases)))
+        state = Mutex(.running(Resources(systems: systems, leases: leases, usage: usage)))
     }
 
     /// Prepares and activates a fresh execution from immutable configuration.
@@ -94,6 +94,7 @@ public final class ScenarioExecution: Sendable {
             reporter.record(Diagnostic(issue: .lifecycle(.invalidRegistration)))
             throw ScenarioStartupFailure(report: reporter.freeze())
         }
+        ExecutionUsage(definition: definition).diagnoseUnattached(reporter: reporter)
         do {
             return try activate(definition: definition, systems: systems, reporter: reporter, admission: admission)
         } catch {
@@ -147,7 +148,8 @@ public final class ScenarioExecution: Sendable {
                 throw rollback(activated, leases: leases, reporter: reporter)
             }
         }
-        return ScenarioExecution(systems: activated, leases: leases, reporter: reporter, admission: admission)
+        return ScenarioExecution(systems: activated, leases: leases, reporter: reporter, admission: admission,
+                                 usage: ExecutionUsage(definition: definition))
     }
 
     /// Retrieves an activated dependency while the execution remains running.
@@ -199,7 +201,7 @@ public final class ScenarioExecution: Sendable {
     /// and captures resources rather than the execution itself. Cleanup must
     /// not wait for a recursive call to this execution's finish operation.
     ///
-    /// - Returns: Retained diagnostics, health, and ordered cleanup outcomes.
+    /// - Returns: Immutable usage, diagnostics, health, and ordered cleanup outcomes.
     public func finish() async -> ScenarioFinalizationResult {
         let selected = state.withLock { state in
             switch state {

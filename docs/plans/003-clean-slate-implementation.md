@@ -12,7 +12,9 @@ The owner explicitly approved this plan on 2026-09-07, alongside the consolidate
 003-A01 through 003-A04 and 003-B02 are complete.
 003-B03 through 003-B07A are complete. The owner approved 003-B07A and
 authorized pull request creation on 2026-09-16.
-Later units have not started.
+003-B08's implementation and local platform verification are complete. The
+owner accepted the review unit and authorized pull request creation on
+2026-09-16. Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -486,6 +488,13 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B08 — Concurrent finalization and report evaluation
 
+- Status: Complete; implementation finished on 2026-09-14, and the owner
+  confirmed scope and
+  GPT-6 Astra at `xhigh` reasoning, explicitly authorizing stacked development
+  atop B07 while its review remained open. The owner requested its local rebase
+  onto B07A, accepted the review unit after one close-API refinement, and
+  authorized pull request creation on 2026-09-16.
+- Evidence: [Concurrent finalization and report evaluation](../evidence/003-B08-concurrent-finalization-and-evaluation.md).
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Canceled waiters, one shared finish result, reporter lifetime, and racing diagnostics require a complete shutdown argument.
 - Prerequisites: 003-B07A; DD05, DD10, DD13; resolved Q3 contract.
 - Scope: Complete sequential execution finalization, immutable usage/health/ cleanup reports, deterministic rendering, and explicit evaluation helpers.

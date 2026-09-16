@@ -1,11 +1,17 @@
 /// Copies identity metadata only; never retains heterogeneous track content.
 struct DiagnosticOrdering: Sendable {
-    let attachments: [AttachmentID]
-    let tracks: [TrackID]
+    private(set) var attachments: [AttachmentID]
+    private(set) var tracks: [TrackID]
 
-    init(attachments: [ScenarioAttachment]) {
+    init(attachments: [ScenarioAttachment], unattachedTracks: [UnattachedTrack]) {
         self.attachments = attachments.map(\.id)
         tracks = attachments.flatMap(\.trackIDs)
+        for track in unattachedTracks {
+            if !self.attachments.contains(track.id.attachmentID) {
+                self.attachments.append(track.id.attachmentID)
+            }
+            tracks.append(track.id)
+        }
     }
 
     func precedes(_ lhs: ReportedDiagnostic, _ rhs: ReportedDiagnostic) -> Bool {

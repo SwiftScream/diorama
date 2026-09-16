@@ -43,6 +43,20 @@ struct SequentialTrackOperationTests {
         #expect(lease.recordedRecords().map(\.value) == [20])
         let result = await execution.finish()
         #expect(result.report.recordingHealth.failures.map(\.diagnostic.context.recordIdentity?.sequence) == [0])
+        #expect(result.usage[0].tracks[0].activity == .record(recordedCount: 1, incompleteCount: 1))
+    }
+
+    @Test
+    func `close returns frozen usage and permits intentionally discarded results`() async throws {
+        let (execution, lease) = try makeExecution(mode: .replay, values: [1, 2])
+        _ = try lease.claimNext()
+
+        let usage = lease.close()
+        #expect(usage.activity == .replay(usedCount: 1, unusedCount: 1))
+        lease.close()
+
+        let result = await execution.finish()
+        #expect(result.usage[0].tracks == [usage])
     }
 
     @Test

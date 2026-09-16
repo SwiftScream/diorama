@@ -17,6 +17,9 @@ public enum ScenarioDefinitionError: Error, Equatable, Sendable {
 
     /// The same track identity was used with incompatible record types.
     case incompatibleTrackRecordType(TrackID)
+
+    /// An ignored key identifies neither an active nor a recorded attachment.
+    case unknownIgnoredAttachment(AttachmentKey)
 }
 
 private protocol AnySequentialTrack: Sendable {
@@ -145,6 +148,12 @@ public struct ScenarioDefinition: Sendable {
     /// System attachments in deterministic setup order.
     public let attachments: [ScenarioAttachment]
 
+    /// Value-free inventory for prepared tracks with no active attachment.
+    public let unattachedTracks: [UnattachedTrack]
+
+    /// Keys exempt from unused/unattached verification, but no other checks.
+    public let ignoredAttachments: Set<AttachmentKey>
+
     /// Creates and validates an immutable scenario definition.
     ///
     /// An empty attachment array is valid. Attachment keys are unique across
@@ -154,9 +163,15 @@ public struct ScenarioDefinition: Sendable {
     ///   - id: The stable scenario identity.
     ///   - defaultMode: The mode inherited by attachments without an override.
     ///   - attachments: System declarations in deterministic setup order.
+    ///   - unattachedTracks: Prepared recording inventory in stable input order.
+    ///     Its attachment keys must be distinct from active declarations.
+    ///   - ignoredAttachments: Known active or recorded keys whose usage is
+    ///     intentionally excluded from unused/unattached verification.
     /// - Throws: ``ScenarioDefinitionError`` for duplicate or incompatible
-    ///   attachment identity.
-    public init(id: ScenarioID, defaultMode: ScenarioMode, attachments: [ScenarioAttachment] = []) throws {
+    ///   attachment/track identities or unknown ignored keys.
+    public init(id: ScenarioID, defaultMode: ScenarioMode, attachments: [ScenarioAttachment] = [],
+                unattachedTracks: [UnattachedTrack] = [], ignoredAttachments: Set<AttachmentKey> = []) throws
+    {
         var attachmentByKey: [AttachmentKey: AttachmentID] = [:]
         for attachment in attachments {
             if let existing = attachmentByKey[attachment.id.key] {
@@ -174,6 +189,9 @@ public struct ScenarioDefinition: Sendable {
         self.id = id
         self.defaultMode = defaultMode
         self.attachments = attachments
+        try Self.validateInventory(unattachedTracks, active: attachmentByKey, ignored: ignoredAttachments)
+        self.unattachedTracks = unattachedTracks
+        self.ignoredAttachments = ignoredAttachments
     }
 
     /// Finds an attachment by its caller-selected key.

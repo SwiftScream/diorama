@@ -1,0 +1,90 @@
+import DioramaCore
+import Synchronization
+import Testing
+
+struct ScenarioReportRenderingTests {
+    @Test
+    func `rendering uses declared order safe labels and an immutable golden report`() async throws {
+        let journal = ExecutionFixtures.Journal()
+        let base = try ExecutionFixtures.definition(["z", "a"])
+        let execution = try ScenarioExecution.start(definition: base, systems: [
+            ExecutionFixtures.system("a", journal: journal, failCleanup: true),
+            ExecutionFixtures.system("z", journal: journal),
+        ])
+        let first = try execution.dependency(
+            ExecutionFixtures.dependencyKey("z", as: SequentialTrackLease<Int>.self))
+        #expect(try first.claimNext().value == 1)
+        execution.reporter.record(Diagnostic(issue: .system(DiagnosticLabel("safe\nlabel")),
+                                             context: .track(ExecutionFixtures.track("a")),
+                                             fieldPath: [DiagnosticLabel("body"), DiagnosticLabel("name")],
+                                             rule: DiagnosticLabel("hide\"value"),
+                                             recordingImpact: .invalidatesCandidate))
+        let result = await execution.finish()
+        let text = result.rendered()
+        let issueLine = #"[0] system="consumer" key="a" track="values" system-issue "safe\u{a}label" "#
+            + #"fields=["body", "name"] rule="hide\"value" invalidates-recording"#
+        #expect(text == #"""
+        Scenario "execution"
+        Attachment system="consumer" key="z" replay usage=included
+          Track "values" replay used=1 unused=1
+            Unused record 1
+        Attachment system="consumer" key="a" replay usage=included
+          Track "values" replay used=0 unused=2
+            Unused record 0
+            Unused record 1
+        Diagnostics 2
+          [1] system="consumer" key="a" cleanup-failed
+          \#(issueLine)
+        Recording health unhealthy
+        Cleanup system="consumer" key="z" completed
+        Cleanup system="consumer" key="a" failed
+        """#)
+        #expect(!first.report(.system(DiagnosticLabel("late"))))
+        #expect(await execution.finish().rendered() == text)
+        #expect(journal.descriptions.withLock { $0 } == 0)
+        #expect(!text.contains("SECRET-LIFECYCLE-ERROR"))
+    }
+
+    @Test
+    func `rendering never inspects recorded values and escapes identity controls`() async throws {
+        let descriptions = Mutex(0)
+        let id = AttachmentID(systemTypeID: SystemTypeID(rawValue: "consumer\\type"),
+                              key: AttachmentKey(rawValue: "tab\tkey\u{202e}"))
+        let trackID = TrackID(attachmentID: id, key: TrackKey(rawValue: "lines\r\n\0"))
+        let value = SecretValue { descriptions.withLock { $0 += 1 } }
+        let track = try SequentialTrack(id: trackID, values: preparedValues([value]))
+        let definition = try ScenarioDefinition(id: ScenarioID(rawValue: "quoted\"scenario"), defaultMode: .replay,
+                                                attachments: [ScenarioAttachment(id: id).adding(track)])
+        let instance = ScenarioSystem(attachment: definition.attachments[0]) { context in
+            let lease = try context.lease(for: trackID, preparation: ValuePreparation<SecretValue>())
+            return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
+        }
+        let execution = try ScenarioExecution.start(
+            definition: definition,
+            systems: [AnyScenarioSystem(instance)])
+        let result = await execution.finish()
+        let text = result.rendered()
+        #expect(text.contains(#"Scenario "quoted\"scenario""#))
+        #expect(text.contains(#"system="consumer\\type" key="tab\u{9}key\u{202e}""#))
+        #expect(text.contains(#"Track "lines\u{d}\u{a}\u{0}""#))
+        #expect(text.contains("Recording health healthy"))
+        #expect(!text.contains("SECRET-RECORD"))
+        #expect(descriptions.withLock { $0 } == 0)
+        #expect(result.evaluate(.allRecordingsUsed).failures == [
+            .unusedRecord(RecordIdentity(trackID: trackID, sequence: 0)),
+        ])
+    }
+}
+
+private final class SecretValue: Sendable, CustomStringConvertible {
+    let descriptions: @Sendable () -> Void
+
+    init(descriptions: @escaping @Sendable () -> Void) {
+        self.descriptions = descriptions
+    }
+
+    var description: String {
+        descriptions()
+        return "SECRET-RECORD"
+    }
+}

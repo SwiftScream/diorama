@@ -69,6 +69,8 @@ public enum DiagnosticIssue: Equatable, Sendable {
     case lifecycle(ScenarioLifecycleIssue)
     /// An invalid or unavailable typed sequential-track operation.
     case sequential(SequentialOperationIssue)
+    /// Safe setup or finalization verification evidence.
+    case verification(VerificationIssue)
     /// A system-defined infrastructure or verification fact.
     case system(DiagnosticLabel)
 }

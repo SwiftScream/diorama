@@ -40,13 +40,15 @@ public struct AttachmentCleanup: Equatable, Sendable {
 
 /// An immutable result of explicit in-memory execution finalization.
 ///
-/// This sequential lifetime slice reports diagnostics, health, and cleanup.
-/// It performs no persistence or test-outcome evaluation.
+/// Usage and safe diagnostics contain no recorded values or live resources.
+/// Evaluation is an explicit consumer action, independent of test frameworks.
 public struct ScenarioFinalizationResult: Equatable, Sendable {
     /// Diagnostics and recording health through the result's freeze boundary.
     public let report: DiagnosticReport
     /// Cleanup outcomes in attachment order, not callback completion order.
     public let cleanup: [AttachmentCleanup]
+    /// Active attachments followed by unattached inventory, in setup order.
+    public let usage: [AttachmentUsage]
 }
 
 /// A safe, already-reported dependency lookup failure.

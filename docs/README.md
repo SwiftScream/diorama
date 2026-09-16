@@ -90,6 +90,9 @@ lifecycle composition.
 - [Typed dependency-key evidence](evidence/003-B07A-typed-dependency-keys.md)
   records typed system construction and erasure, exact attachment lookup, public
   consumer extensibility, and migration of the random setup contract.
+- [Concurrent finalization and evaluation evidence](evidence/003-B08-concurrent-finalization-and-evaluation.md)
+  records immutable usage, explicit evaluation, safe rendering, cancellation,
+  diagnostic freeze races, and escaped-reporter ownership.
 
 ## Historical boundary
 
