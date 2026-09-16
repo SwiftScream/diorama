@@ -40,6 +40,21 @@ Dependency adoption is governed by
 platform CI, strict concurrency, and coverage expectations are defined by
 [the quality gates and CI policy](docs/quality-gates-and-ci.md).
 
+## Usage example
+
+The repository includes a compiled, in-memory random record/replay example:
+
+```sh
+swift run --package-path Examples DioramaRandomUsage
+```
+
+It prints matching recorded and replayed values. The example uses only
+`DioramaCore` and `DioramaRandom` public APIs, always finalizes each scoped
+execution, and explicitly supplies prepared in-memory replay values.
+It lives in a separate examples package that depends on Diorama by a relative
+path, so the Diorama library package remains library-only. Persistence and
+record-to-replay transfer arrive in a later implementation phase.
+
 ## Development
 
 Development currently uses Xcode 27.0 beta 6 and its Swift 6.4 toolchain under

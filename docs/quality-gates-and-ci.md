@@ -74,7 +74,7 @@ container run --rm --arch x86_64 --cpus 2 --memory 4G \
   --mount type=bind,source="$PWD",target=/source,readonly \
   --workdir /work \
   swiftlang/swift@sha256:15ae709b1d8eb1f8691b300f5721499d007e944694f2c0e9929a55580c9bf1a5 \
-  bash -lc 'mkdir -p /work && cp -R /source/Package.swift /source/Sources /source/Tests /source/scripts /work/ && scripts/coverage swiftpm linux'
+  bash -lc 'mkdir -p /work && cp -R /source/Package.swift /source/Sources /source/Tests /source/scripts /source/Examples /work/ && scripts/coverage swiftpm linux'
 ```
 
 This command makes a local Linux result meaningful for the hosted job while
