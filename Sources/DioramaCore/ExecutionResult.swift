@@ -51,6 +51,21 @@ public struct ScenarioFinalizationResult: Equatable, Sendable {
     public let usage: [AttachmentUsage]
 }
 
+/// The body and finalization outcomes from one scoped scenario execution.
+///
+/// A body failure is a value so it cannot hide the immutable finalization
+/// result. Startup still throws ``ScenarioStartupFailure`` because no running
+/// execution or finalization result exists when startup fails.
+public struct ScopedExecutionResult<Success: Sendable, Failure: Error>: Sendable {
+    /// The value returned or error thrown by the scoped body.
+    public let body: Result<Success, Failure>
+
+    /// The result produced after the body stopped executing.
+    public let finalization: ScenarioFinalizationResult
+}
+
+extension ScopedExecutionResult: Equatable where Success: Equatable, Failure: Equatable {}
+
 /// A safe, already-reported dependency lookup failure.
 public struct DependencyAccessFailure: Error, Equatable, Sendable {
     /// The retained lookup diagnostic, without a native dependency or error.
