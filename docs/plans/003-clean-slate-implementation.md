@@ -15,7 +15,9 @@ authorized pull request creation on 2026-09-16.
 003-B08's implementation and local platform verification are complete. The
 owner accepted the review unit and authorized pull request creation on
 2026-09-16. 003-B09's implementation and local platform verification are
-complete and awaiting owner review. Later units have not started.
+complete and awaiting owner review. 003-B10's owner-confirmed coverage
+baseline and local platform verification are complete; owner review is the next
+checkpoint. Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -529,11 +531,16 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-B10 — First production coverage baseline
 
+- Status: Complete locally; the owner confirmed the 1-percentage-point project
+  tolerance and 90% patch target on 2026-09-16. Owner review is the next
+  checkpoint.
+- Evidence: [First production coverage baseline](../evidence/003-B10-first-production-coverage-baseline.md).
 - Recommended model: GPT-5.6 Terra; reasoning: `medium`. Evaluate actual coverage reports and exclusions against an established policy without inventing thresholds.
 - Prerequisites: 003-B08–003-B09 and 003-A04 platform uploads; quality policy, Q5.
 - Scope: Confirm exact project tolerance and patch coverage settings from the first meaningful core/random baseline, retaining every platform upload.
 - Expected files/modules: `.codecov.yml`, coverage-policy evidence and concise quality documentation update.
-- Public behavior: No library change; concrete regression/reporting thresholds proposed for owner confirmation.
+- Public behavior: No library change; project coverage may regress by at most
+  one percentage point from its baseline, and patch coverage must reach 90%.
 - Tests/verification: V-doc and actual macOS/iOS/Linux coverage status evidence; review exclusions, previous-commit baseline, patch report, incomplete uploads.
 - Exclusions: Invented coverage targets, disabling failing tests/uploads, generated assertions to inflate coverage.
 - Checkpoint: R; stop for threshold confirmation before wider feature coverage.
