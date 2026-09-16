@@ -132,6 +132,16 @@ also returned through the native operation's failure channel where one exists.
 That does not mean the core fails the enclosing test. Testing integrations and
 explicit report evaluators decide which diagnostics become test issues.
 
+### Body outcome and candidate health
+
+A scoped body returning, throwing, or being canceled does not alter the
+definition's publication policy. It always remains visible alongside the final
+result. Publication is instead conditional on Diorama producing a complete,
+healthy candidate through its recording, conversion, validation, encoding, and
+staging rules. This keeps fixture generation independent of test-framework
+outcome while preserving the previous publication whenever the candidate is
+untrustworthy.
+
 ### Immutable final reports and later diagnostics
 
 `finish()` freezes one result; repeated calls return it unchanged. New misuse
