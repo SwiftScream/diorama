@@ -93,6 +93,9 @@ lifecycle composition.
 - [Concurrent finalization and evaluation evidence](evidence/003-B08-concurrent-finalization-and-evaluation.md)
   records immutable usage, explicit evaluation, safe rendering, cancellation,
   diagnostic freeze races, and escaped-reporter ownership.
+- [Scoped execution convenience evidence](evidence/003-B09-scoped-execution-convenience.md)
+  records typed variadic dependency injection, both-outcome finalization,
+  cancellation, actor isolation, and compiler-regression verification.
 
 ## Historical boundary
 

@@ -225,6 +225,16 @@ public final class ScenarioExecution: Sendable {
         return result
     }
 
+    func requiredDependency<Dependency: Sendable>(
+        for system: ScenarioSystem<Dependency>) -> Dependency
+    {
+        do {
+            return try dependency(system)
+        } catch {
+            preconditionFailure("A successfully started system must provide its typed dependency")
+        }
+    }
+
     private static func validRegistrations(_ systems: [AnyScenarioSystem], definition: ScenarioDefinition) -> Bool {
         let ids = systems.map(\.attachmentID)
         return Set(ids).count == ids.count && Set(ids) == Set(definition.attachments.map(\.id))
