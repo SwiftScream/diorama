@@ -1,0 +1,18 @@
+{
+  "diorama" : {
+    "schemaVersion" : 1
+  },
+  "systems" : [
+    {
+      "attachmentKey" : "boundaries",
+      "payload" : {
+        "values" : [
+          0,
+          18446744073709551615
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.random"
+    }
+  ]
+}

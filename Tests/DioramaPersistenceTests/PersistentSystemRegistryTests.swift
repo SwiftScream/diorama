@@ -299,7 +299,7 @@ private struct UnusedEncoder: Encoder {
 }
 
 private var propertyListPayloadContextKey: CodingUserInfoKey {
-    guard let key = CodingUserInfoKey(rawValue: "org.swift.diorama.tests.payload-context") else {
+    guard let key = CodingUserInfoKey(rawValue: "diorama.tests.payload-context") else {
         preconditionFailure("The test payload context key must be valid")
     }
     return key

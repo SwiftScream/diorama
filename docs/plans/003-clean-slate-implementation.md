@@ -20,7 +20,8 @@ baseline and local platform verification are complete; owner review is the next
 checkpoint. 003-B11's implementation and local platform verification are
 complete; owner review is the next checkpoint. 003-C01's implementation and
 local platform verification are complete; owner review is the next checkpoint.
-Later units have not started.
+003-C02's implementation and local platform verification are complete; owner
+review is the next checkpoint. Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -602,9 +603,13 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C02 — Deterministic version-one JSON and random schema
 
+- Status: Complete locally; the owner confirmed scope and GPT-5.6 Sol at
+  `high` reasoning and explicitly authorized commencement on 2026-09-16.
+  Owner review is the next checkpoint.
+- Evidence: [Deterministic version-one JSON and random schema](../evidence/003-C02-deterministic-json-and-random-schema.md).
 - Recommended model: GPT-5.6 Sol; reasoning: `high`. Deterministic cross-platform JSON, full UInt64 precision, and strict schema rejection need independent fixture evidence.
 - Prerequisites: 003-C01, 003-B07; DD08–DD09, DD13.
-- Scope: Encode/decode the envelope and random payload deliberately; validate strict first-party keys and prepare loaded values before admission.
+- Scope: Encode/decode the envelope and random payload deliberately; validate strict first-party keys and admit decoded values only after persisted prepared-value validation.
 - Expected files/modules: `DioramaPersistence` JSON codec, random persistence registration, canonical/rejection fixtures and schema documentation.
 - Public behavior: Pretty UTF-8 JSON has deterministic object keys, semantic array order, trailing newline, no volatile metadata, explicit version 1.
   Random UInt64 values retain full precision without incidental timestamps.

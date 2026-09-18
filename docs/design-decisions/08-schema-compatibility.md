@@ -81,12 +81,12 @@ below:
   },
   "systems": {
     "weather-api": {
-      "type": "org.swift.diorama.http",
+      "type": "diorama.http",
       "schemaVersion": 1,
       "recording": {}
     },
     "device-clock": {
-      "type": "org.swift.diorama.clock",
+      "type": "diorama.clock",
       "schemaVersion": 1,
       "recording": {}
     }

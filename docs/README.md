@@ -16,6 +16,7 @@ The owner approved the consolidated design and implementation plan on
    (each unit requires owner scope confirmation before implementation)
 5. [Dependency approval policy](dependency-policy.md)
 6. [Quality gates and CI policy](quality-gates-and-ci.md)
+7. [JSON persistence schema version 1](persistence-schema-v1.md)
 
 Read the individual decisions referenced by an implementation-plan item before
 working on it. The design overview summarizes their combined architecture but
@@ -105,6 +106,9 @@ lifecycle composition.
 - [Persistent-system registration evidence](evidence/003-C01-persistence-registration.md)
   records the optional format-neutral `Codable` dispatch boundary, explicit
   schema-version readers, registration validation, and platform evidence.
+- [Deterministic JSON and random-schema evidence](evidence/003-C02-deterministic-json-and-random-schema.md)
+  records the strict version-one envelope, first-party random payload,
+  canonical fixtures, compatibility rejection, and platform evidence.
 
 ## Historical boundary
 

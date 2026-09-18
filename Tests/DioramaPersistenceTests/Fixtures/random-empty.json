@@ -1,0 +1,17 @@
+{
+  "diorama" : {
+    "schemaVersion" : 1
+  },
+  "systems" : [
+    {
+      "attachmentKey" : "empty",
+      "payload" : {
+        "values" : [
+
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.random"
+    }
+  ]
+}

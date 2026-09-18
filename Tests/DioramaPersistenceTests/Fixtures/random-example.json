@@ -1,0 +1,30 @@
+{
+  "diorama" : {
+    "schemaVersion" : 1
+  },
+  "systems" : [
+    {
+      "attachmentKey" : "account-id",
+      "payload" : {
+        "values" : [
+          1842,
+          90731,
+          412
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.random"
+    },
+    {
+      "attachmentKey" : "retry-jitter",
+      "payload" : {
+        "values" : [
+          17,
+          63
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.random"
+    }
+  ]
+}
