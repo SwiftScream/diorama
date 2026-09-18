@@ -17,8 +17,8 @@ public struct SequentialTrackUsage: Equatable, Sendable {
 
     /// Every unclaimed replay identity, in stable sequence order.
     ///
-    /// Successful sequential claims complete synchronously. Record,
-    /// Record and passthrough tracks have no replay cursor.
+    /// Successful sequential claims complete synchronously. Record and
+    /// passthrough tracks have no replay cursor.
     public var unusedRecords: [RecordIdentity] {
         guard case let .replay(used, unused) = activity else { return [] }
         return (used..<(used + unused)).map { RecordIdentity(trackID: id, sequence: $0) }

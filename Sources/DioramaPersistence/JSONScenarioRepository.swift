@@ -1,3 +1,4 @@
+import DioramaCore
 import Foundation
 
 /// A complete load outcome retained before execution policy is applied.
@@ -78,6 +79,20 @@ public struct JSONScenarioRepository: Sendable {
         } catch {
             return .invalidDocument(error)
         }
+    }
+
+    /// Verifies that runtime setup can be represented by this repository.
+    ///
+    /// Validation happens without reading or writing storage. Every active
+    /// attachment, including an ignored one, requires registration. Loading
+    /// separately validates every payload before discarding unmatched content.
+    ///
+    /// - Parameter definition: The runtime setup to validate.
+    /// - Throws: The first missing persistent-system registration.
+    public func validatePersistability(of definition: ScenarioDefinition)
+        throws(PersistenceDispatchError)
+    {
+        try codec.validatePersistability(of: definition)
     }
 
     /// Encodes and publishes a complete candidate as one document.

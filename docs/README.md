@@ -112,6 +112,9 @@ lifecycle composition.
 - [Atomic file repository evidence](evidence/003-C03-atomic-file-repository.md)
   records the byte-storage boundary, load outcomes, path rules, atomic
   replacement, failure preservation, and backend limitations.
+- [Baseline-loading evidence](evidence/003-C04-baseline-loading-before-activation.md)
+  records repository-backed startup, the complete load-result/effective-mode
+  policy, pre-activation replay refusal, and record rebuilding diagnostics.
 
 ## Historical boundary
 

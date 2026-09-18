@@ -74,6 +74,44 @@ struct ScenarioReportRenderingTests {
             .unusedRecord(RecordIdentity(trackID: trackID, sequence: 0)),
         ])
     }
+
+    @Test
+    func `rendering describes every baseline problem without underlying error text`() async throws {
+        let definition = try ScenarioDefinition(id: ScenarioID(rawValue: "baseline"), defaultMode: .record)
+        let diagnostics = [
+            Diagnostic(issue: .baseline(.invalidPersistenceConfiguration)),
+            Diagnostic(issue: .baseline(.requiredBaselineUnavailable(.missing))),
+            Diagnostic(issue: .baseline(.requiredBaselineUnavailable(.unreadable))),
+            Diagnostic(issue: .baseline(.requiredBaselineUnavailable(.invalidDocument))),
+            Diagnostic(issue: .baseline(.requiredBaselineUnavailable(.incompatibleEnvelope))),
+            Diagnostic(issue: .baseline(.requiredBaselineUnavailable(.incompatibleSystem))),
+            Diagnostic(issue: .baseline(.requiredBaselineUnavailable(.incompatibleSetup))),
+            Diagnostic(issue: .baseline(.replayAttachmentMissing)),
+            Diagnostic(issue: .baseline(.loadedAttachmentNotConfigured)),
+            Diagnostic(issue: .baseline(.baselineIgnoredForRecording(.invalidDocument))),
+        ]
+        let execution = try ScenarioExecution.start(
+            definition: definition,
+            systems: [],
+            initialDiagnostics: diagnostics)
+        let text = await execution.finish().rendered()
+
+        for expected in [
+            "invalid-persistence-configuration",
+            "required-baseline-unavailable reason=missing",
+            "required-baseline-unavailable reason=unreadable",
+            "required-baseline-unavailable reason=invalid-document",
+            "required-baseline-unavailable reason=incompatible-envelope",
+            "required-baseline-unavailable reason=incompatible-system",
+            "required-baseline-unavailable reason=incompatible-setup",
+            "replay-attachment-missing",
+            "loaded-attachment-not-configured preservation=discarded",
+            "baseline-ignored-for-recording reason=invalid-document preservation=lost",
+        ] {
+            #expect(text.contains(expected))
+        }
+        #expect(!text.contains("SECRET"))
+    }
 }
 
 private final class SecretValue: Sendable, CustomStringConvertible {
