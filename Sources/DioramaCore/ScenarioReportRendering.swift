@@ -99,12 +99,39 @@ enum ReportText {
         case let .preparationFailed(stage): "preparation-failed \(preparation(stage))"
         case .sinkFailed: "sink-failed"
         case let .lifecycle(fact): lifecycle(fact)
+        case let .baseline(fact): baseline(fact)
         case let .system(label): "system-issue \(quote(label.text))"
         case .verification(.recordingNotAdmitted): "recording-not-admitted"
         case let .sequential(.wrongMode(expected, actual)):
             "wrong-mode expected=\(mode(expected)) actual=\(mode(actual))"
         case let .sequential(.replayExhausted(availableCount)):
             "replay-exhausted available=\(availableCount)"
+        }
+    }
+
+    private static func baseline(_ issue: ScenarioBaselineIssue) -> String {
+        switch issue {
+        case .invalidPersistenceConfiguration:
+            "invalid-persistence-configuration"
+        case let .requiredBaselineUnavailable(problem):
+            "required-baseline-unavailable reason=\(baselineProblem(problem))"
+        case .replayAttachmentMissing:
+            "replay-attachment-missing"
+        case .loadedAttachmentNotConfigured:
+            "loaded-attachment-not-configured preservation=discarded"
+        case let .baselineIgnoredForRecording(problem):
+            "baseline-ignored-for-recording reason=\(baselineProblem(problem)) preservation=lost"
+        }
+    }
+
+    private static func baselineProblem(_ problem: ScenarioBaselineProblem) -> String {
+        switch problem {
+        case .missing: "missing"
+        case .unreadable: "unreadable"
+        case .invalidDocument: "invalid-document"
+        case .incompatibleEnvelope: "incompatible-envelope"
+        case .incompatibleSystem: "incompatible-system"
+        case .incompatibleSetup: "incompatible-setup"
         }
     }
 

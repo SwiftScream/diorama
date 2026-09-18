@@ -80,15 +80,21 @@ public final class ScenarioExecution: Sendable {
     /// - Parameters:
     ///   - definition: Ordered attachment declarations and prepared stable data.
     ///   - systems: Exactly one registration for each declared attachment.
+    ///   - initialDiagnostics: Safe facts produced by pre-activation
+    ///     orchestration, retained before any system callback.
     ///   - sink: Optional safe diagnostic notification for this run.
     /// - Returns: A fully activated, independent execution.
     /// - Throws: A structured startup failure including rollback outcomes.
     public static func start(
         definition: ScenarioDefinition,
         systems: [AnyScenarioSystem],
+        initialDiagnostics: [Diagnostic] = [],
         sink: DiagnosticSink? = nil) throws(ScenarioStartupFailure) -> ScenarioExecution
     {
         let reporter = DiagnosticReporter(definition: definition, sink: sink)
+        for diagnostic in initialDiagnostics {
+            reporter.record(diagnostic)
+        }
         let admission = ExecutionAdmission()
         guard validRegistrations(systems, definition: definition) else {
             reporter.record(Diagnostic(issue: .lifecycle(.invalidRegistration)))

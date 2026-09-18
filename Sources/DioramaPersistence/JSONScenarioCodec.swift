@@ -1,3 +1,4 @@
+import DioramaCore
 import Foundation
 
 /// Deterministic UTF-8 JSON transport for persisted scenario documents.
@@ -12,6 +13,12 @@ public struct JSONScenarioCodec: Sendable {
     /// - Parameter registry: Writers and readers for every included system.
     public init(registry: PersistentSystemRegistry) {
         self.registry = registry
+    }
+
+    func validatePersistability(of definition: ScenarioDefinition)
+        throws(PersistenceDispatchError)
+    {
+        try registry.validatePersistability(of: definition)
     }
 
     /// Encodes one complete semantic document as canonical version-one JSON.

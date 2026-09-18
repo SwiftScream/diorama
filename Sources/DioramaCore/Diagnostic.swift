@@ -67,12 +67,47 @@ public enum DiagnosticIssue: Equatable, Sendable {
     case sinkFailed
     /// An execution, startup, or lease-lifetime fact.
     case lifecycle(ScenarioLifecycleIssue)
+    /// A repository baseline or persistence-configuration fact.
+    case baseline(ScenarioBaselineIssue)
     /// An invalid or unavailable typed sequential-track operation.
     case sequential(SequentialOperationIssue)
     /// Safe setup or finalization verification evidence.
     case verification(VerificationIssue)
     /// A system-defined infrastructure or verification fact.
     case system(DiagnosticLabel)
+}
+
+/// Safe categories for an unusable repository baseline.
+public enum ScenarioBaselineProblem: Equatable, Sendable {
+    /// No document exists at the configured destination.
+    case missing
+    /// Storage could not supply the document bytes.
+    case unreadable
+    /// Decoding, preparation, or validation rejected the document.
+    case invalidDocument
+    /// The Diorama envelope is unversioned or unsupported.
+    case incompatibleEnvelope
+    /// A persisted system type or schema is unavailable or incompatible.
+    case incompatibleSystem
+    /// Persisted attachment identity conflicts with runtime setup.
+    case incompatibleSetup
+}
+
+/// Repository startup facts independent of concrete storage and codec errors.
+public enum ScenarioBaselineIssue: Equatable, Sendable {
+    /// Runtime setup cannot be represented by the configured persistence registry.
+    case invalidPersistenceConfiguration
+    /// Replay cannot start because the repository baseline is unusable.
+    case requiredBaselineUnavailable(ScenarioBaselineProblem)
+    /// Valid loaded content omits one attachment configured for replay.
+    case replayAttachmentMissing
+    /// Valid loaded content contains an attachment absent from current setup.
+    case loadedAttachmentNotConfigured
+    /// Recording discarded an unusable baseline and cannot preserve its content.
+    ///
+    /// This fact alone does not invalidate the new recording candidate. The
+    /// destination remains untouched until a later healthy publication.
+    case baselineIgnoredForRecording(ScenarioBaselineProblem)
 }
 
 /// Safe facts produced by typed sequential-track operations.

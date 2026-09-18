@@ -22,9 +22,11 @@ complete; owner review is the next checkpoint. 003-C01's implementation and
 local platform verification are complete; owner review is the next checkpoint.
 003-C02's implementation and local platform verification are complete; owner
 review is the next checkpoint. 003-C03's implementation and available local
-platform verification are complete; owner review is the next checkpoint. Its
-Apple verification uses the installed stable toolchain, with the inherited
-beta-pin gap recorded in its evidence. Later units have not started.
+platform verification are complete; owner review is the next checkpoint.
+003-C04's implementation and available local platform verification are
+complete; owner review is the next checkpoint. Its Apple verification uses the
+installed stable toolchain, with the inherited beta-pin gap recorded in its
+evidence. Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -641,6 +643,12 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C04 — Baseline loading before activation
 
+- Status: Implementation and available local platform verification complete on
+  2026-09-18; the owner confirmed scope and GPT-5.6 Sol at `high` reasoning.
+  Work is stacked atop C01 through C03 as requested. Owner review is the next
+  checkpoint; local Apple results use installed Xcode 27.0 stable and do not
+  verify this branch's inherited beta-6 pin.
+- Evidence: [Baseline loading before activation](../evidence/003-C04-baseline-loading-before-activation.md).
 - Recommended model: GPT-5.6 Sol; reasoning: `high`. The load-outcome and effective-mode matrix must prevent any live activation on unusable replay input.
 - Prerequisites: 003-C03, 003-B03; DD07–DD10.
 - Scope: Connect optional repository loading, preparation, and full validation to startup; retain exact load outcome and apply effective-mode policy.
