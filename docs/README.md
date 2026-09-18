@@ -109,6 +109,9 @@ lifecycle composition.
 - [Deterministic JSON and random-schema evidence](evidence/003-C02-deterministic-json-and-random-schema.md)
   records the strict version-one envelope, first-party random payload,
   canonical fixtures, compatibility rejection, and platform evidence.
+- [Atomic file repository evidence](evidence/003-C03-atomic-file-repository.md)
+  records the byte-storage boundary, load outcomes, path rules, atomic
+  replacement, failure preservation, and backend limitations.
 
 ## Historical boundary
 
