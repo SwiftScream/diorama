@@ -21,7 +21,10 @@ checkpoint. 003-B11's implementation and local platform verification are
 complete; owner review is the next checkpoint. 003-C01's implementation and
 local platform verification are complete; owner review is the next checkpoint.
 003-C02's implementation and local platform verification are complete; owner
-review is the next checkpoint. Later units have not started.
+review is the next checkpoint. 003-C03's implementation and available local
+platform verification are complete; owner review is the next checkpoint. Its
+Apple verification uses the installed stable toolchain, with the inherited
+beta-pin gap recorded in its evidence. Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -619,6 +622,12 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C03 — Single-document atomic file repository
 
+- Status: Implementation and available local platform verification complete on
+  2026-09-17; the owner confirmed scope and GPT-6 Astra at `high` reasoning.
+  Work is stacked atop C01/C02 as requested. Owner review is the next
+  checkpoint; local Apple results use installed Xcode 27.0 stable and do not
+  verify this branch's inherited beta-6 pin.
+- Evidence: [Single-document atomic file repository](../evidence/003-C03-atomic-file-repository.md).
 - Recommended model: GPT-6 Astra; reasoning: `high`. Atomic file replacement, failure preservation, and readers racing writers require platform-aware storage reasoning.
 - Prerequisites: 003-C02; DD07–DD08.
 - Scope: Implement repository location/load and staged atomic replacement for the first resource-free scenario; keep encoding separate from storage.
