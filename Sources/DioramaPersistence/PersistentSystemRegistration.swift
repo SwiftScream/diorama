@@ -35,8 +35,9 @@ public struct PersistedSystemDescriptor: Equatable, Sendable {
 
 /// A current writer and explicit version readers for one stable system type.
 ///
-/// Registrations contain no execution state. Decoders must convert and prepare
-/// their payload before returning a strict ``DioramaCore/ScenarioAttachment``.
+/// Registrations contain no execution state. Decoders must validate and admit
+/// their already-prepared payload before returning a strict
+/// ``DioramaCore/ScenarioAttachment``.
 public struct PersistentSystemRegistration: Sendable {
     typealias Reader = @Sendable (
         AttachmentKey,
@@ -61,16 +62,17 @@ public struct PersistentSystemRegistration: Sendable {
     /// Creates a registration with a current `Codable` payload reader/writer.
     ///
     /// The payload type is a deliberate persisted representation owned by the
-    /// system. `decode` must prepare and validate values before constructing
-    /// the returned attachment. The registry later verifies that its complete
-    /// identity matches the persisted descriptor.
+    /// system. `decode` must validate already-prepared values before constructing
+    /// the returned attachment, without rerunning capture transformations or
+    /// reporting through a synthetic scenario. The registry later verifies that
+    /// its complete identity matches the persisted descriptor.
     ///
     /// - Parameters:
     ///   - systemTypeID: Stable identity for the payload owner and semantics.
     ///   - currentSchemaVersion: The version emitted by the current writer.
     ///   - payloadType: The current deliberate `Codable` payload type.
     ///   - encode: Converts one strict semantic attachment into current payload.
-    ///   - decode: Converts current payload into one prepared strict attachment.
+    ///   - decode: Validates and admits current payload as one strict attachment.
     public init<Payload: Codable & Sendable>(
         systemTypeID: SystemTypeID,
         currentSchemaVersion: UInt32,
@@ -112,7 +114,7 @@ public struct PersistentSystemRegistration: Sendable {
     /// - Parameters:
     ///   - version: An additional explicitly supported historical version.
     ///   - payloadType: Its deliberate `Decodable` representation.
-    ///   - decode: Converts historical payload into one prepared current attachment.
+    ///   - decode: Validates and admits historical payload as one current attachment.
     /// - Returns: A new immutable registration with the additional reader.
     /// - Throws: ``PersistenceRegistrationError/duplicateReader(systemTypeID:version:)``
     ///   if the version already has a reader.

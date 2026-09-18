@@ -55,6 +55,60 @@ struct ValuePreparationTests {
         #expect(repeated.value == prepared.value)
     }
 
+    @Test
+    func `prepared admission validates without rerunning capture transformations`() throws {
+        let stages = Mutex<[String]>([])
+        let persisted = Payload(field: "authorization", value: "fictional-token")
+        let policy = ValuePreparation<Payload>(
+            canonicalize: { value in
+                stages.withLock { $0.append("canonicalize") }
+                return value
+            },
+            redact: { value in
+                stages.withLock { $0.append("redact") }
+                return value
+            },
+            normalize: { value in
+                stages.withLock { $0.append("normalize") }
+                return value
+            },
+            validate: { value in
+                stages.withLock { $0.append("validate") }
+                #expect(value == persisted)
+            })
+
+        let admitted = try policy.admitPrepared(persisted)
+
+        #expect(admitted.value == persisted)
+        #expect(stages.withLock { $0 } == ["validate"])
+    }
+
+    @Test
+    func `failed prepared admission returns safe unreported validation evidence`() throws {
+        let inspections = Mutex(0)
+        let context = DiagnosticContext.record(RecordIdentity(trackID: trackID(), sequence: 4))
+        let policy = ValuePreparation<String>(validate: { _ in
+            throw NativeError(onDescription: { inspections.withLock { $0 += 1 } })
+        })
+
+        do {
+            _ = try policy.admitPrepared(
+                "SECRET-EDITED-INPUT",
+                context: context,
+                fieldPath: [DiagnosticLabel("authorization")],
+                rule: DiagnosticLabel("fixture-token"))
+            Issue.record("Invalid persisted content unexpectedly received admission")
+        } catch {
+            #expect(error.diagnostic.issue == .preparationFailed(.validation))
+            #expect(error.diagnostic.context == context)
+            #expect(error.diagnostic.fieldPath.map(\.text) == ["authorization"])
+            #expect(error.diagnostic.rule == DiagnosticLabel("fixture-token"))
+            #expect(error.diagnostic.recordingImpact == .none)
+            #expect(!String(reflecting: error).contains("SECRET"))
+        }
+        #expect(inspections.withLock { $0 } == 0)
+    }
+
     @Test(arguments: 0..<5)
     func `every failed stage stops admission and records only safe health evidence`(failureIndex: Int) throws {
         let stages = Mutex<[Int]>([])

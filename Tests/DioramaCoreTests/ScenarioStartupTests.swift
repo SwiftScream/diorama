@@ -118,7 +118,7 @@ struct ScenarioStartupTests {
     }
 
     @Test(arguments: [ScenarioMode.record, .replay, .passthrough])
-    func `startup applies current track policy except in passthrough`(mode: ScenarioMode) async throws {
+    func `startup validates prepared track values except in passthrough`(mode: ScenarioMode) async throws {
         let calls = Mutex<[Int]>([])
         let definitions = try ExecutionFixtures.definition(["a"], mode: mode)
         let instance = ScenarioSystem(attachment: definitions.attachments[0]) { context in
@@ -141,7 +141,7 @@ struct ScenarioStartupTests {
         } catch {
             #expect(mode != .passthrough)
             #expect(calls.withLock { $0 } == [1])
-            #expect(error.report.recordingHealth.isHealthy == (mode != .record))
+            #expect(error.report.recordingHealth.isHealthy)
             #expect(error.report.diagnostics.contains { $0.diagnostic.issue == .preparationFailed(.validation) })
         }
     }

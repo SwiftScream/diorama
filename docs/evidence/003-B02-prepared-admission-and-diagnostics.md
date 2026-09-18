@@ -31,16 +31,18 @@ Preparation does not certify that a payload contains no personal data, and
 The core adds no native codec, reflection sanitizer, domain redaction defaults,
 matching projection, or persistence policy.
 
-Preparation failure retains a diagnostic before returning a typed
-`PreparationFailure`. The diagnostic contains the conversion/preparation stage,
-stable identity context, optional static field/rule labels, and recording
-impact. The raw value, underlying error, its description, and runtime type are
-never retained or rendered. Recording-purpose failures invalidate candidate
-health; replay-purpose failures remain infrastructure facts without declaring
-a recording damaged. Successful later preparation does not clear prior damage.
-Adapters remain responsible for forwarding live behavior after recording
-failure and for prohibiting live fallback during replay. Passthrough requires
-no preparation call.
+Execution preparation retains a diagnostic before returning a typed
+`PreparationFailure`. Validation-only admission of an already-prepared value
+instead returns the same safe failure without requiring a reporter, so a load
+owner can report it with the real scenario context. The diagnostic contains the
+conversion/preparation stage, stable identity context, optional static
+field/rule labels, and recording impact. The raw value, underlying error, its
+description, and runtime type are never retained or rendered.
+Recording-purpose failures invalidate candidate health; replay-purpose failures
+remain infrastructure facts without declaring a recording damaged. Successful
+later preparation does not clear prior damage. Adapters remain responsible for
+forwarding live behavior after recording failure and for prohibiting live
+fallback during replay. Passthrough requires no preparation call.
 
 ## Safe diagnostics and ordering
 

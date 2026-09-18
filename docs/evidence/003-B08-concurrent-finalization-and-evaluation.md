@@ -42,11 +42,12 @@ incompatible registrations still fail startup.
 This unit originally added value-free `UnattachedTrack` inventory to core usage
 and evaluation. On 2026-09-18, before C01 review continued, the owner approved a
 prerequisite revision that removes that inventory. Persistence still registers,
-decodes, prepares, and validates the complete loaded document. Repository
-startup then diagnoses and discards attachments absent from current setup, so
-only active attachments enter core execution usage. `ignoredAttachments` now
-names configured attachments and exempts only their unused-recording facts;
-unknown ignored keys still fail definition validation in lexical order.
+decodes, and validates the complete loaded document as already-prepared content.
+Repository startup then diagnoses and discards attachments absent from current
+setup, so only active attachments enter core execution usage.
+`ignoredAttachments` now names configured attachments and exempts only their
+unused-recording facts; unknown ignored keys still fail definition validation
+in lexical order.
 
 ## Finalization and synchronization
 

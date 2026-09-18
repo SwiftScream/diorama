@@ -31,9 +31,10 @@ of those prerequisite changes.
   policy and creates a fresh reference-semantic `SequentialTrackLease`. Every
   declared track must prepare before activation. Repeated, incompatible, missing,
   and escaped-context requests produce safe diagnostic evidence.
-- Record and replay input is prepared again under the selected setup policy.
-  Passthrough checks identity but does not inspect or transform record values.
-  This unit retains prepared baseline content; it does not append or claim it.
+- Existing record and replay content is validated for persisted-value admission
+  under the selected setup policy without rerunning capture transformations.
+  Passthrough checks identity but does not inspect record values. This unit
+  retains prepared baseline content; it does not append or claim it.
 - `PreparedSystem` separates preparation from installation. Its activation
   returns an `ActivatedSystem` containing a sendable dependency and a synchronous
   cleanup callback, sufficient for the sequential proving system.

@@ -3,9 +3,10 @@ import Synchronization
 /// The short-lived preparation boundary for one execution's system instance.
 ///
 /// Every declared track must receive a typed lease and policy before activation.
-/// Existing stable values are prepared again under that setup policy. A
-/// passthrough lease validates identity but never reads or transforms content.
-/// An escaped context is closed and releases all definition content and leases.
+/// Existing stable values receive validation-only persisted admission under
+/// that setup policy. A passthrough lease validates identity but never reads
+/// content. An escaped context is closed and releases all definition content
+/// and leases.
 public final class SystemPreparationContext: Sendable {
     private struct State: Sendable {
         var attachment: ScenarioAttachment?
@@ -35,16 +36,17 @@ public final class SystemPreparationContext: Sendable {
 
     /// Prepares one declared track and creates its fresh sequential lease.
     ///
-    /// Call exactly once for each declared track. Transforms run outside the
-    /// context lock; failed or abandoned requests cannot authorize activation.
-    /// The selected policy is used during preparation, not retained by the
-    /// lease. Systems use their own immutable policy for later observations.
+    /// Call exactly once for each declared track. Existing values are validated
+    /// outside the context lock without rerunning capture transformations;
+    /// failed or abandoned requests cannot authorize activation. The selected
+    /// policy is not retained by the lease. Systems use their own immutable
+    /// policy for later observations.
     ///
     /// - Parameters:
     ///   - id: The declared track identity for this attachment.
     ///   - preparation: The system's setup-selected policy for its stable type.
     /// - Returns: A fresh typed lease, closed on rollback or finalization.
-    /// - Throws: Safe, already-reported preparation or track-request evidence.
+    /// - Throws: Safe, already-reported admission or track-request evidence.
     public func lease<Value: Sendable>(
         for id: TrackID,
         preparation: ValuePreparation<Value>) throws(PreparationFailure) -> SequentialTrackLease<Value>
@@ -72,9 +74,8 @@ public final class SystemPreparationContext: Sendable {
             []
         } else {
             try original.records.map { record throws(PreparationFailure) in
-                try preparation.prepare(
-                    capturing: { record.value },
-                    purpose: mode == .record ? .recording : .replay,
+                try preparation.admitPrepared(
+                    record.value,
                     reporter: reporter,
                     context: .record(record.identity))
             }

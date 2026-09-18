@@ -47,7 +47,7 @@ Persistability validation visits every active attachment. Ignoring a configured
 attachment does not bypass this check. Under the owner-approved prerequisite
 policy, successfully loaded attachments absent from current setup are diagnosed
 and discarded before candidate construction. The loader must still register,
-decode, prepare, and validate their payloads before that reconciliation.
+decode, and validate their already-prepared payloads before that reconciliation.
 
 ## Executable evidence
 

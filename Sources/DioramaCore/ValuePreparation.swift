@@ -25,8 +25,11 @@ public enum PreparationStage: Equatable, Sendable {
 }
 
 /// Safe failure evidence with no captured value or arbitrary underlying error.
+///
+/// Execution paths retain the diagnostic before returning this failure.
+/// Reporting-free prepared admission returns it for a later owner to report.
 public struct PreparationFailure: Error, Equatable, Sendable {
-    /// The exact safe diagnostic retained before this failure is returned.
+    /// The exact safe diagnostic produced for this failure.
     public let diagnostic: Diagnostic
 }
 
@@ -69,6 +72,72 @@ public struct ValuePreparation<Value: Sendable>: Sendable {
         self.validate = validate
     }
 
+    /// Validates and admits one value that already crossed preparation.
+    ///
+    /// Existing content, including a decoded or programmatic baseline, already
+    /// contains the result of capture canonicalization, redaction, and
+    /// normalization. Admission therefore runs only final semantic validation
+    /// and preserves the value exactly. A failure is returned without creating
+    /// or notifying a diagnostic reporter.
+    ///
+    /// - Parameters:
+    ///   - value: An already-prepared stable value.
+    ///   - context: Stable identity for the value.
+    ///   - fieldPath: Safe setup-authored semantic field labels.
+    ///   - rule: A safe setup-authored validation-policy identifier.
+    /// - Returns: A value eligible for generic scenario storage.
+    /// - Throws: ``PreparationFailure`` containing safe validation evidence.
+    public func admitPrepared(
+        _ value: Value,
+        context: DiagnosticContext = .scenario,
+        fieldPath: [DiagnosticLabel] = [],
+        rule: DiagnosticLabel? = nil) throws(PreparationFailure) -> PreparedValue<Value>
+    {
+        try validatePrepared(
+            value,
+            reporter: nil,
+            context: context,
+            fieldPath: fieldPath,
+            rule: rule)
+    }
+
+    func admitPrepared(
+        _ value: Value,
+        reporter: DiagnosticReporter,
+        context: DiagnosticContext = .scenario,
+        fieldPath: [DiagnosticLabel] = [],
+        rule: DiagnosticLabel? = nil) throws(PreparationFailure) -> PreparedValue<Value>
+    {
+        try validatePrepared(
+            value,
+            reporter: reporter,
+            context: context,
+            fieldPath: fieldPath,
+            rule: rule)
+    }
+
+    private func validatePrepared(
+        _ value: Value,
+        reporter: DiagnosticReporter?,
+        context: DiagnosticContext,
+        fieldPath: [DiagnosticLabel],
+        rule: DiagnosticLabel?) throws(PreparationFailure) -> PreparedValue<Value>
+    {
+        do {
+            try validate(value)
+            return PreparedValue(value)
+        } catch {
+            let failure = failure(
+                issue: .preparationFailed(.validation),
+                context: context,
+                fieldPath: fieldPath,
+                rule: rule,
+                recordingImpact: .none)
+            reporter?.record(failure.diagnostic)
+            throw failure
+        }
+    }
+
     /// Captures and prepares one value before generic admission.
     ///
     /// Stops at the first failed stage, retains safe evidence and recording
@@ -106,14 +175,29 @@ public struct ValuePreparation<Value: Sendable>: Sendable {
             try validate(value)
             return PreparedValue(value)
         } catch {
-            let diagnostic = Diagnostic(
+            let failure = failure(
                 issue: issue,
                 context: context,
                 fieldPath: fieldPath,
                 rule: rule,
                 recordingImpact: purpose == .recording ? .invalidatesCandidate : .none)
-            reporter.record(diagnostic)
-            throw PreparationFailure(diagnostic: diagnostic)
+            reporter.record(failure.diagnostic)
+            throw failure
         }
+    }
+
+    private func failure(
+        issue: DiagnosticIssue,
+        context: DiagnosticContext,
+        fieldPath: [DiagnosticLabel],
+        rule: DiagnosticLabel?,
+        recordingImpact: RecordingImpact) -> PreparationFailure
+    {
+        PreparationFailure(diagnostic: Diagnostic(
+            issue: issue,
+            context: context,
+            fieldPath: fieldPath,
+            rule: rule,
+            recordingImpact: recordingImpact))
     }
 }
