@@ -193,6 +193,12 @@ The latter is not a second opportunity to redact raw values; it verifies
 cross-record invariants, authored-override merges, resource integrity, and
 publication health using values that are already prepared.
 
+Persisted values are also already prepared. System readers decode their
+deliberate schemas and validate the resulting prepared representations before
+admission, but do not rerun capture canonicalization, redaction, or
+normalization. A load failure returns to startup orchestration for reporting in
+the real scenario context.
+
 ### Shared HTTP and native adapter behavior
 
 Swift HTTP Types provide in-memory HTTP currency values, while Diorama owns its
@@ -294,14 +300,15 @@ shared HTTP schema or URLSession identity.
 
 ### Unmatched loaded attachments and persistence registration
 
-The repository decodes, prepares, and validates every payload before comparing
-the loaded attachment set with current setup. An unknown system or malformed
-payload therefore remains a load failure even when its attachment would not be
-configured. After successful loading, each unmatched attachment produces a safe
-diagnostic and is discarded from execution and future candidate construction.
-A later healthy publication may remove it from the Git-backed scenario file.
-Ignoring a configured attachment affects unused-recording verification only; it
-does not bypass persistent registration, preparation, or schema validation.
+The repository decodes and validates every payload for persisted-value
+admission before comparing the loaded attachment set with current setup. An
+unknown system or malformed payload therefore remains a load failure even when
+its attachment would not be configured. After successful loading, each
+unmatched attachment produces a safe diagnostic and is discarded from execution
+and future candidate construction. A later healthy publication may remove it
+from the Git-backed scenario file. Ignoring a configured attachment affects
+unused-recording verification only; it does not bypass persistent registration
+or schema and prepared-value validation.
 
 ## Required implementation evidence
 

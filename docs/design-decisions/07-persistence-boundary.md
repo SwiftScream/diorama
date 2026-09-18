@@ -528,10 +528,11 @@ input. An incompatible baseline prevents replay but may still be replaced by a
 fully healthy record-only execution under this decision's rebuild policy.
 
 On 2026-09-18, the owner revised unmatched-attachment preservation. The
-repository still decodes, prepares, and validates every payload in a loaded
-document, so an unknown system or malformed unmatched payload remains a load
-failure rather than opaque data to skip. After successful loading, attachment
-identity is reconciled with current setup. Each unmatched loaded attachment is
-diagnosed and discarded from the resolved definition and next candidate. If a
-healthy recording publishes, the Git-backed file no longer contains it; normal
-version-control review and recovery make this deliberate cleanup acceptable.
+repository still decodes and validates every payload as already-prepared
+content in a loaded document, so an unknown system or malformed unmatched
+payload remains a load failure rather than opaque data to skip. After successful
+loading, attachment identity is reconciled with current setup. Each unmatched
+loaded attachment is diagnosed and discarded from the resolved definition and
+next candidate. If a healthy recording publishes, the Git-backed file no longer
+contains it; normal version-control review and recovery make this deliberate
+cleanup acceptable.

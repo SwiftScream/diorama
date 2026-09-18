@@ -213,12 +213,13 @@ diagnostic for each unmatched loaded attachment.
 
 The original decision retained value-free track inventory for these attachments
 through core execution and verification. On 2026-09-18, the owner revised that
-policy: after the repository has decoded, prepared, and validated the complete
-document, unmatched loaded attachments are diagnosed and discarded. They do
-not enter the resolved `ScenarioDefinition`, execution usage, or a later
-publication candidate. A successful publication may therefore remove them from
-the Git-backed scenario file; an unintended removal can be reviewed or reverted
-through version control, or repaired by editing and rerunning the scenario.
+policy: after the repository has decoded and validated every payload as
+already-prepared content, unmatched loaded attachments are diagnosed and
+discarded. They do not enter the resolved `ScenarioDefinition`, execution
+usage, or a later publication candidate. A successful publication may therefore
+remove them from the Git-backed scenario file; an unintended removal can be
+reviewed or reverted through version control, or repaired by editing and
+rerunning the scenario.
 
 An unexpected track inside a matched attachment is not an unmatched attachment.
 It remains a load or system-preparation error because every track declared by an

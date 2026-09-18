@@ -1,7 +1,7 @@
 # Decision 9: Normalization and redaction
 
 - Status: Accepted
-- Last updated: 2026-09-05
+- Last updated: 2026-09-18
 - Depends on: [Decision 1: Common abstraction](01-common-abstraction.md),
   [Decision 2: Shared and system-specific semantics](02-shared-vs-system-semantics.md),
   [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
@@ -102,11 +102,28 @@ Every transformation should be deterministic and idempotent for the same value,
 policy, and scenario context. It must not implicitly depend on current time,
 locale, process identity, random values, or dictionary iteration order.
 
-The pipeline also applies when persisted input is decoded. This ensures
-manually edited values and authored overrides cannot bypass system validation
-or configured redaction before entering generic diagnostics or canonical
-rewriting. It cannot undo a secret that was already placed in a file, but it
-prevents further propagation through Diorama-controlled output.
+## Persisted-value admission — owner-approved amendment, 2026-09-18
+
+A persisted document contains values that have already crossed the preparation
+boundary. Loading therefore does not run canonicalization, redaction, or
+normalization again. Reapplying those transforms would require a system to
+guess whether an editable value, such as a valid fictional JWT, is sensitive
+input or an intentional safe replay substitute.
+
+Instead, each system's persistence reader decodes its deliberate schema and
+validates that the result is an admissible prepared representation. Validation
+may require a configured replacement value, an explicit typed representation,
+or another system-owned invariant. It must not infer whether arbitrary content
+is real or fictional. A policy that deliberately permits an arbitrary authored
+value accepts responsibility for that value; Diorama cannot prove it contains
+no sensitive data.
+
+Only a successfully decoded and validated value receives prepared admission to
+generic scenario storage. A failure is returned through the load boundary and
+later reported by startup orchestration using the real scenario context. The
+persistence reader does not create a synthetic scenario or diagnostic reporter.
+Strict admission catches malformed or policy-incompatible edits, but it cannot
+remove a secret that was already written to the source file.
 
 ## Recording, replay, and re-recording
 
@@ -134,9 +151,9 @@ snapshot must contain a safe substitute that satisfies the native API.
 ### Re-recording
 
 New observations are prepared before correspondence and merge. Existing
-persisted values are decoded and prepared through the currently configured
-system policy, then decision 3's authored override rules apply. The complete
-merged candidate is validated again before decision 7 permits publication.
+persisted values are decoded and validated as already-prepared values, then
+decision 3's authored override rules apply. The complete merged candidate is
+validated again before decision 7 permits publication.
 
 ## Ownership
 
@@ -184,11 +201,12 @@ to be versioned alongside the scenario files. The persisted scenario contains
 the resulting prepared values, not duplicated preparation instructions, a
 serialized closure, or a required transformation-profile identifier.
 
-Replay and re-recording apply the currently configured system policy. A policy
-change that alters prepared values should normally be committed with the
-resulting snapshot diff. If the policy no longer corresponds to the persisted
-values, ordinary conversion, matching, ambiguity, or recording-health
-diagnostics expose the mismatch.
+Replay applies the currently configured system policy to live inputs, and
+re-recording applies it to new observations. Loading does not silently
+transform an existing prepared value to follow a changed policy. The system's
+persisted-value validation must reject an incompatible representation; the
+consumer can then deliberately update the scenario and commit the resulting
+snapshot diff.
 
 First-party default behavior is different from per-scenario configuration. If a
 first-party release changes the persisted interpretation of a built-in rule, it
@@ -398,6 +416,12 @@ scenario storage, matching, diagnostics, resources, or persistence. Apply
 minimal structural canonicalization, then redaction, volatile normalization,
 and validation. Use the same relevant policy for recording and replay input.
 
+Treat persisted values as already prepared. Decode their deliberate schema and
+validate their prepared representation without rerunning transformations, then
+admit only successful values to generic scenario storage. Return admission
+failure to startup orchestration rather than creating a diagnostic reporter in
+the persistence reader.
+
 Keep typed transformation semantics in the system or domain layer while the
 core enforces the admission and diagnostic boundary. Keep per-scenario
 transformation configuration in consumer setup code and prepared values in the
@@ -428,8 +452,8 @@ Costs:
   consumers remain responsible for reviewing what they commit.
 - Redacted output can change application-visible replay values.
 - Constant placeholders can collapse otherwise distinct match candidates.
-- Configuration drift may be diagnosed only when conversion, matching, or
-  re-recording exposes it.
+- Systems must define enough persisted-value validation to reject representations
+  that no longer satisfy their configured policy.
 
 ## Explicit non-decisions
 
@@ -451,7 +475,9 @@ This proposal does not determine:
 1. **Safe admission boundary: Resolved.** Only prepared stable values enter
    generic scenario tracks, matching, diagnostics, external repository
    resources, or persistence. Capture-local unsanitized values remain confined
-   to the concrete system integration's controlled isolation.
+   to the concrete system integration's controlled isolation. Persistence
+   readers decode and validate already-prepared representations without
+   rerunning capture transformations.
 2. **Semantic separation and ownership: Resolved.** Systems or domain layers
    own typed canonicalization, redaction, and volatile normalization. Match
    projection and authored overrides remain separate mechanisms, while the core
