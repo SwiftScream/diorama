@@ -94,7 +94,6 @@ public final class ScenarioExecution: Sendable {
             reporter.record(Diagnostic(issue: .lifecycle(.invalidRegistration)))
             throw ScenarioStartupFailure(report: reporter.freeze())
         }
-        ExecutionUsage(definition: definition).diagnoseUnattached(reporter: reporter)
         do {
             return try activate(definition: definition, systems: systems, reporter: reporter, admission: admission)
         } catch {

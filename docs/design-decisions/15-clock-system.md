@@ -202,8 +202,9 @@ The following states remain distinct:
   valid;
 - a replay clock attachment was declared but its named track is absent from the
   loaded scenario, which is a setup configuration error;
-- a persisted clock attachment is not declared or explicitly ignored by setup,
-  which follows decision 5's unattached-track diagnostic policy.
+- a persisted clock attachment is not declared by setup, which follows
+  decisions 5 and 7's diagnose-and-discard policy for unmatched loaded
+  attachments.
 
 Calling wall `now` while replaying a valid empty payload is a runtime exhaustion
 diagnostic rather than a setup error because monotonic-only use was valid.

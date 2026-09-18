@@ -19,7 +19,7 @@ usage alongside the existing immutable diagnostics, recording health, and cleanu
 outcomes. It has no test pass/fail status. `finish()` remains a nondiscardable
 asynchronous operation.
 
-Each track reports one activity: record, replay, passthrough, or unattached.
+Each active track reports one activity: record, replay, or passthrough.
 Record activity counts admitted and incomplete observations. Replay counts used
 and unused records, with every unused identity available in sequence order.
 Exhaustion attempts do not inflate the used count. Record and passthrough do not
@@ -33,27 +33,20 @@ counts, never recorded values, source factories, live sources, or arbitrary
 errors. Escaped leases retain only their frozen usage and existing lightweight
 identity, mode, admission, and reporter context.
 
-## Unattached and ignored inventory
+## Later revision: unmatched loaded attachments
 
 The existing distinction between an active attachment declaration and its
 required runtime registration remains intact: missing, extra, duplicate, or
 incompatible registrations still fail startup.
 
-`UnattachedTrack` copies identity and count from an already prepared in-memory
-`SequentialTrack`. `ScenarioDefinition.unattachedTracks` supplies that inventory
-without activating a system or retaining its values. Unattached keys cannot
-collide with active keys; duplicate tracks and conflicting system identities
-are rejected. This is an in-memory verification boundary, not a new baseline
-repository or a way to retain undecoded payloads.
-
-Startup diagnoses each unignored unattached attachment once, including empty
-recorded tracks. The final result preserves all inventory, grouped by first
-attachment occurrence and then track input order. `ignoredAttachments` explicitly
-exempts known active or recorded keys from unused/unattached verification.
-Unknown ignored keys fail definition validation in lexical order. Ignoring does
-not suppress preparation, operation diagnostics, recording health, or cleanup.
-Future persistence still must register, decode, prepare, and validate every
-payload before deriving this metadata.
+This unit originally added value-free `UnattachedTrack` inventory to core usage
+and evaluation. On 2026-09-18, before C01 review continued, the owner approved a
+prerequisite revision that removes that inventory. Persistence still registers,
+decodes, prepares, and validates the complete loaded document. Repository
+startup then diagnoses and discards attachments absent from current setup, so
+only active attachments enter core execution usage. `ignoredAttachments` now
+names configured attachments and exempts only their unused-recording facts;
+unknown ignored keys still fail definition validation in lexical order.
 
 ## Finalization and synchronization
 

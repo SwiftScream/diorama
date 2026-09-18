@@ -47,7 +47,7 @@ public struct ScenarioFinalizationResult: Equatable, Sendable {
     public let report: DiagnosticReport
     /// Cleanup outcomes in attachment order, not callback completion order.
     public let cleanup: [AttachmentCleanup]
-    /// Active attachments followed by unattached inventory, in setup order.
+    /// Active attachments in setup order.
     public let usage: [AttachmentUsage]
 }
 

@@ -1,7 +1,7 @@
 # Decision 7: Persistence boundary
 
 - Status: Accepted
-- Last updated: 2026-09-04
+- Last updated: 2026-09-18
 - Depends on: [Decision 1: Common abstraction](01-common-abstraction.md),
   [Decision 2: Shared and system-specific semantics](02-shared-vs-system-semantics.md),
   [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
@@ -267,8 +267,8 @@ For a mixed-mode scenario with a valid loaded baseline:
 - replay-mode tracks remain the loaded stable baseline;
 - passthrough tracks are not newly recorded and any loaded baseline tracks are
   preserved;
-- explicitly ignored or unattached persisted tracks are preserved unless a
-  separate editing operation removes them.
+- loaded attachments absent from current setup are diagnosed and omitted from
+  the working candidate.
 
 The result is one complete candidate scenario. Publication does not mutate one
 track on disk while leaving the scenario manifest or other tracks at a
@@ -498,12 +498,13 @@ This proposal does not determine:
    working candidate and publish the logical scenario atomically only after
    finalization, override merge, transformation, and validation. Runtime events
    are not appended directly to the currently published snapshot.
-4. **Health and mixed modes: Resolved.** One unhealthy record-mode track blocks
-   the whole scenario publication. A healthy mixed-mode publication replaces
-   recorded tracks and, when a valid baseline is available, preserves replay,
-   passthrough, ignored, and unattached baseline tracks. Finalization provides
-   an actionable structured and human-readable publication report, while the
-   previous scenario remains intact on failure.
+4. **Health and mixed modes: Resolved, revised.** One unhealthy record-mode
+   track blocks the whole scenario publication. A healthy mixed-mode
+   publication replaces recorded tracks and, when a valid baseline is
+   available, preserves configured replay, passthrough, and ignored attachment
+   tracks. Loaded attachments absent from setup are diagnosed and omitted.
+   Finalization provides an actionable structured and human-readable
+   publication report, while the previous scenario remains intact on failure.
 5. **Concurrent changes: Resolved.** The initial repository uses atomic
    replacement for file integrity but accepts last-writer-wins concurrent
    publication. It does not hold a recording-duration lock or implement source
@@ -525,3 +526,12 @@ each registered system payload, selects deterministic UTF-8 JSON for the initial
 file repository, and rejects unknown first-party fields and unversioned POC
 input. An incompatible baseline prevents replay but may still be replaced by a
 fully healthy record-only execution under this decision's rebuild policy.
+
+On 2026-09-18, the owner revised unmatched-attachment preservation. The
+repository still decodes, prepares, and validates every payload in a loaded
+document, so an unknown system or malformed unmatched payload remains a load
+failure rather than opaque data to skip. After successful loading, attachment
+identity is reconciled with current setup. Each unmatched loaded attachment is
+diagnosed and discarded from the resolved definition and next candidate. If a
+healthy recording publishes, the Git-backed file no longer contains it; normal
+version-control review and recovery make this deliberate cleanup acceptable.

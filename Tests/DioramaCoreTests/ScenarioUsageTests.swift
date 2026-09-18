@@ -53,36 +53,6 @@ struct ScenarioUsageTests {
     }
 
     @Test
-    func `unattached inventory diagnoses once per system while ignored facts stay inspectable`() async throws {
-        let missing = ExecutionFixtures.track("missing")
-        let other = TrackID(attachmentID: missing.attachmentID, key: TrackKey(rawValue: "other"))
-        let ignored = ExecutionFixtures.track("ignored")
-        let inventory = try [
-            UnattachedTrack(SequentialTrack(id: missing, values: preparedValues([7]))),
-            UnattachedTrack(SequentialTrack<Int>(id: ignored)),
-            UnattachedTrack(SequentialTrack<Int>(id: other)),
-        ]
-        let definition = try ScenarioDefinition(id: ScenarioID(rawValue: "inventory"), defaultMode: .replay,
-                                                unattachedTracks: inventory,
-                                                ignoredAttachments: [ignored.attachmentID.key])
-        let notifications = Mutex<[ReportedDiagnostic]>([])
-        let execution = try ScenarioExecution.start(definition: definition, systems: [], sink: DiagnosticSink { entry in
-            notifications.withLock { $0.append(entry) }
-        })
-        #expect(execution.reporter.report.diagnostics.map(\.diagnostic.context) == [.attachment(missing.attachmentID)])
-        let result = await execution.finish()
-        #expect(result.report.diagnostics == notifications.withLock { $0 })
-        #expect(result.report.diagnostics.map(\.diagnostic.issue) == [.verification(.unattachedRecording)])
-        #expect(result.usage.map(\.attachmentID) == [missing.attachmentID, ignored.attachmentID])
-        #expect(result.usage.map(\.isIgnored) == [false, true])
-        #expect(result.usage.allSatisfy { $0.mode == nil })
-        #expect(result.usage[0].tracks.map(\.activity) == [.unattached(recordCount: 1), .unattached(recordCount: 0)])
-        #expect(result.evaluate(.allRecordingsUsed).failures == [.unattachedTrack(missing), .unattachedTrack(other)])
-        #expect(result.evaluate(.allRecordingsUsed, attachments: [ignored.attachmentID.key]).isSatisfied)
-        #expect(result.cleanup.isEmpty)
-    }
-
-    @Test
     func `ignoring active usage preserves preparation health and operation diagnostics`() async throws {
         let id = ExecutionFixtures.attachment("a")
         let base = try ExecutionFixtures.definition(["a"])
@@ -113,49 +83,10 @@ struct ScenarioUsageTests {
     }
 
     @Test
-    func `inventory validates identity collisions and unknown ignore keys`() throws {
-        let track = ExecutionFixtures.track("a")
-        let inventory = UnattachedTrack(SequentialTrack<Int>(id: track))
-        let incompatible = TrackID(attachmentID: AttachmentID(systemTypeID: SystemTypeID(rawValue: "different"),
-                                                              key: track.attachmentID.key), key: track.key)
-        #expect(throws: ScenarioDefinitionError.duplicateTrack(track)) {
-            try ScenarioDefinition(id: ScenarioID(rawValue: "inventory"), defaultMode: .replay,
-                                   unattachedTracks: [inventory, inventory])
-        }
-        #expect(throws: ScenarioDefinitionError.duplicateAttachment(track.attachmentID)) {
-            try ScenarioDefinition(id: ScenarioID(rawValue: "inventory"), defaultMode: .replay,
-                                   attachments: [ScenarioAttachment(id: track.attachmentID)],
-                                   unattachedTracks: [inventory])
-        }
-        #expect(throws: ScenarioDefinitionError.incompatibleAttachmentSystem(
-            key: track.attachmentID.key, existing: track.attachmentID.systemTypeID,
-            proposed: incompatible.attachmentID.systemTypeID))
-        {
-            try ScenarioDefinition(id: ScenarioID(rawValue: "inventory"), defaultMode: .replay,
-                                   unattachedTracks: [
-                                       inventory, UnattachedTrack(SequentialTrack<Int>(id: incompatible)),
-                                   ])
-        }
+    func `definition rejects unknown ignore keys in lexical order`() throws {
         #expect(throws: ScenarioDefinitionError.unknownIgnoredAttachment(AttachmentKey(rawValue: "a"))) {
             try ScenarioDefinition(id: ScenarioID(rawValue: "inventory"), defaultMode: .replay,
                                    ignoredAttachments: [AttachmentKey(rawValue: "z"), AttachmentKey(rawValue: "a")])
         }
-    }
-
-    @Test
-    func `inventory and frozen usage do not retain prepared values`() async throws {
-        let releases = Mutex(0)
-        let inventory: UnattachedTrack
-        do {
-            let value = ExecutionFixtures.Probe { releases.withLock { $0 += 1 } }
-            inventory = try UnattachedTrack(SequentialTrack(
-                id: ExecutionFixtures.track("a"), values: preparedValues([value])))
-        }
-        #expect(releases.withLock { $0 } == 1)
-        let execution = try ScenarioExecution.start(definition: ScenarioDefinition(
-            id: ScenarioID(rawValue: "inventory"), defaultMode: .replay, unattachedTracks: [inventory]), systems: [])
-        let result = await execution.finish()
-        #expect(result.usage[0].tracks[0].activity == .unattached(recordCount: 1))
-        #expect(result.evaluate(.allRecordingsUsed).failures == [.unattachedTrack(inventory.id)])
     }
 }

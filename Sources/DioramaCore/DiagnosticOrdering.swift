@@ -3,15 +3,9 @@ struct DiagnosticOrdering: Sendable {
     private(set) var attachments: [AttachmentID]
     private(set) var tracks: [TrackID]
 
-    init(attachments: [ScenarioAttachment], unattachedTracks: [UnattachedTrack]) {
+    init(attachments: [ScenarioAttachment]) {
         self.attachments = attachments.map(\.id)
         tracks = attachments.flatMap(\.trackIDs)
-        for track in unattachedTracks {
-            if !self.attachments.contains(track.id.attachmentID) {
-                self.attachments.append(track.id.attachmentID)
-            }
-            tracks.append(track.id)
-        }
     }
 
     func precedes(_ lhs: ReportedDiagnostic, _ rhs: ReportedDiagnostic) -> Bool {

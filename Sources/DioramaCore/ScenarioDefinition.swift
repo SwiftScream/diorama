@@ -148,10 +148,7 @@ public struct ScenarioDefinition: Sendable {
     /// System attachments in deterministic setup order.
     public let attachments: [ScenarioAttachment]
 
-    /// Value-free inventory for prepared tracks with no active attachment.
-    public let unattachedTracks: [UnattachedTrack]
-
-    /// Keys exempt from unused/unattached verification, but no other checks.
+    /// Keys exempt from unused-recording verification, but no other checks.
     public let ignoredAttachments: Set<AttachmentKey>
 
     /// Creates and validates an immutable scenario definition.
@@ -163,14 +160,12 @@ public struct ScenarioDefinition: Sendable {
     ///   - id: The stable scenario identity.
     ///   - defaultMode: The mode inherited by attachments without an override.
     ///   - attachments: System declarations in deterministic setup order.
-    ///   - unattachedTracks: Prepared recording inventory in stable input order.
-    ///     Its attachment keys must be distinct from active declarations.
-    ///   - ignoredAttachments: Known active or recorded keys whose usage is
-    ///     intentionally excluded from unused/unattached verification.
+    ///   - ignoredAttachments: Active attachment keys whose usage is
+    ///     intentionally excluded from unused-recording verification.
     /// - Throws: ``ScenarioDefinitionError`` for duplicate or incompatible
     ///   attachment/track identities or unknown ignored keys.
     public init(id: ScenarioID, defaultMode: ScenarioMode, attachments: [ScenarioAttachment] = [],
-                unattachedTracks: [UnattachedTrack] = [], ignoredAttachments: Set<AttachmentKey> = []) throws
+                ignoredAttachments: Set<AttachmentKey> = []) throws
     {
         var attachmentByKey: [AttachmentKey: AttachmentID] = [:]
         for attachment in attachments {
@@ -189,8 +184,9 @@ public struct ScenarioDefinition: Sendable {
         self.id = id
         self.defaultMode = defaultMode
         self.attachments = attachments
-        try Self.validateInventory(unattachedTracks, active: attachmentByKey, ignored: ignoredAttachments)
-        self.unattachedTracks = unattachedTracks
+        for key in ignoredAttachments.sorted(by: { $0.rawValue < $1.rawValue }) where attachmentByKey[key] == nil {
+            throw ScenarioDefinitionError.unknownIgnoredAttachment(key)
+        }
         self.ignoredAttachments = ignoredAttachments
     }
 

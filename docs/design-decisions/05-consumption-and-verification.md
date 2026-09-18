@@ -1,7 +1,7 @@
 # Decision 5: Consumption and verification
 
 - Status: Accepted
-- Last updated: 2026-09-06
+- Last updated: 2026-09-18
 - Depends on: [Decision 1: Common abstraction](01-common-abstraction.md),
   [Decision 2: Shared and system-specific semantics](02-shared-vs-system-semantics.md),
   [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
@@ -204,16 +204,25 @@ Record and passthrough attachments are not expected to consume existing
 recordings. In a mixed-mode scenario, unused replay diagnostics apply only to
 replay attachments.
 
-## Unattached recorded systems
+## Unmatched loaded attachments
 
-A persisted track whose system attachment is absent cannot be verified or
-interpreted by that system. Silently ignoring it would be indistinguishable
-from accidentally forgetting to configure a dependency.
+A persisted attachment absent from the current setup cannot participate in the
+execution. Silently omitting it would be indistinguishable from accidentally
+forgetting to configure a dependency, so repository startup reports one safe
+diagnostic for each unmatched loaded attachment.
 
-The recommended default is to diagnose recorded system keys that are not
-attached during setup. A consumer who intentionally uses only a subset of a
-scenario can name the ignored attachments explicitly. The exact setup API and
-the point at which this check runs belong to decision 10.
+The original decision retained value-free track inventory for these attachments
+through core execution and verification. On 2026-09-18, the owner revised that
+policy: after the repository has decoded, prepared, and validated the complete
+document, unmatched loaded attachments are diagnosed and discarded. They do
+not enter the resolved `ScenarioDefinition`, execution usage, or a later
+publication candidate. A successful publication may therefore remove them from
+the Git-backed scenario file; an unintended removal can be reviewed or reverted
+through version control, or repaired by editing and rerunning the scenario.
+
+An unexpected track inside a matched attachment is not an unmatched attachment.
+It remains a load or system-preparation error because every track declared by an
+active attachment must be understood and prepared by that system.
 
 ## Verification report
 
@@ -432,9 +441,11 @@ This proposal does not determine:
    incomplete recordings, but the core does not assign them a test outcome or
    call a test framework. Explicit, framework-independent evaluation helpers
    allow consumers to fail their own tests on selected conditions.
-4. **Unattached tracks: Resolved.** Recorded system keys that were neither
-   attached nor explicitly ignored appear in the report rather than being
-   silently excluded. This diagnostic does not impose a test outcome.
+4. **Unmatched loaded attachments: Resolved, revised.** Repository startup
+   diagnoses each successfully loaded attachment absent from current setup and
+   discards it from execution and future candidate construction. The diagnostic
+   does not impose a test outcome. This owner-approved 2026-09-18 revision
+   supersedes the original value-free unattached-track inventory.
 5. **Unexpected operations: Resolved.** Every unexpected operation produces an
    immediate diagnostic that remains in the final report. Systems also
    propagate a distinct infrastructure error when their native API has a

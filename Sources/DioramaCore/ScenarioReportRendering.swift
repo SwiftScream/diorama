@@ -10,7 +10,7 @@ public extension ScenarioFinalizationResult {
     func rendered() -> String {
         var lines = ["Scenario \(ReportText.quote(report.scenarioID.rawValue))"]
         for attachment in usage {
-            let mode = attachment.mode.map(ReportText.mode) ?? "unattached"
+            let mode = ReportText.mode(attachment.mode)
             let verification = attachment.isIgnored ? "ignored" : "included"
             lines.append("Attachment \(ReportText.attachment(attachment.attachmentID)) \(mode) usage=\(verification)")
             for track in attachment.tracks {
@@ -75,7 +75,6 @@ enum ReportText {
         case let .record(recorded, incomplete): "record admitted=\(recorded) incomplete=\(incomplete)"
         case let .replay(used, unused): "replay used=\(used) unused=\(unused)"
         case .passthrough: "passthrough"
-        case let .unattached(count): "unattached records=\(count)"
         }
     }
 
@@ -101,7 +100,6 @@ enum ReportText {
         case .sinkFailed: "sink-failed"
         case let .lifecycle(fact): lifecycle(fact)
         case let .system(label): "system-issue \(quote(label.text))"
-        case .verification(.unattachedRecording): "unattached-recording"
         case .verification(.recordingNotAdmitted): "recording-not-admitted"
         case let .sequential(.wrongMode(expected, actual)):
             "wrong-mode expected=\(mode(expected)) actual=\(mode(actual))"

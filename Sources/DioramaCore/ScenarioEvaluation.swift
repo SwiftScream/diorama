@@ -5,7 +5,7 @@ public enum ScenarioEvaluationCondition: Equatable, Sendable {
     case noUnexpectedOperations
     /// No diagnostics of any category occurred before the result froze.
     case noDiagnostics
-    /// All nonignored replay records were used and no unignored inventory was unattached.
+    /// All nonignored replay records were used.
     case allRecordingsUsed
     /// No selected diagnostic invalidates the recording candidate.
     case healthyRecording
@@ -21,8 +21,6 @@ public enum ScenarioEvaluationFailure: Equatable, Sendable {
     case diagnostic(ReportedDiagnostic)
     /// A replay record was never claimed.
     case unusedRecord(RecordIdentity)
-    /// A recorded track has no active system, including an empty track.
-    case unattachedTrack(TrackID)
     /// An activated attachment's cleanup failed.
     case cleanup(AttachmentCleanup)
 }
@@ -74,11 +72,8 @@ public extension ScenarioFinalizationResult {
             diagnostics.map { .diagnostic($0) }
         case .allRecordingsUsed:
             selected.filter { !$0.isIgnored }.flatMap { attachment in
-                attachment.tracks.flatMap { track -> [ScenarioEvaluationFailure] in
-                    if case .unattached = track.activity {
-                        return [.unattachedTrack(track.id)]
-                    }
-                    return track.unusedRecords.map { .unusedRecord($0) }
+                attachment.tracks.flatMap { track in
+                    track.unusedRecords.map { .unusedRecord($0) }
                 }
             }
         case .healthyRecording:

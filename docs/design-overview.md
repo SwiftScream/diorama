@@ -292,14 +292,16 @@ response dispositions, and failures are embedded typed supplements. Required
 platform capabilities derive from this structure without fragmenting the
 shared HTTP schema or URLSession identity.
 
-### Ignored attachments and persistence registration
+### Unmatched loaded attachments and persistence registration
 
-An intentionally ignored persisted attachment is exempt from unused/unattached
-verification, but that does not automatically make an unknown system payload
-safe to decode, validate, migrate, or republish. The plan should preserve this
-rule: ignoring affects execution verification; it does not bypass persistent
-system registration or schema validation. Supporting opaque preservation of an
-unregistered payload would be a separate future persistence feature.
+The repository decodes, prepares, and validates every payload before comparing
+the loaded attachment set with current setup. An unknown system or malformed
+payload therefore remains a load failure even when its attachment would not be
+configured. After successful loading, each unmatched attachment produces a safe
+diagnostic and is discarded from execution and future candidate construction.
+A later healthy publication may remove it from the Git-backed scenario file.
+Ignoring a configured attachment affects unused-recording verification only; it
+does not bypass persistent registration, preparation, or schema validation.
 
 ## Required implementation evidence
 
