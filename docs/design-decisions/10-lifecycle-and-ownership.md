@@ -12,6 +12,13 @@
 
 ## Decision
 
+Later refinement: [Decision 18](18-diorama-setup-and-scenario-data.md), approved
+on 2026-09-19, supersedes this document's use of "scenario definition" for
+runtime configuration. `Diorama` owns that setup; `ScenarioDefinition` is
+immutable semantic data. Each repository-backed execution loads its own
+baseline, and finalization exposes valid semantic output independently of
+publication success. Lifecycle and cleanup requirements below remain in force.
+
 What lifecycle owns scenario loading, system activation, recording, replay
 state, the recording horizon, verification, publication, and cleanup?
 

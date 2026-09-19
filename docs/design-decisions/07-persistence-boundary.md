@@ -11,6 +11,12 @@
 
 ## Decision
 
+Later refinement: [Decision 18](18-diorama-setup-and-scenario-data.md), approved
+on 2026-09-19, names the shared semantic model `ScenarioDefinition` and moves
+runtime configuration into `Diorama`. It also distinguishes valid in-memory
+output from encoding and publication success. Read the historical discussion
+below with that refinement.
+
 Is persistence a fundamental part of Diorama's record/replay core, or an
 optional capability layered over an in-memory scenario model?
 

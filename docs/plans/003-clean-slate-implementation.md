@@ -26,7 +26,10 @@ platform verification are complete; owner review is the next checkpoint.
 003-C04's implementation and available local platform verification are
 complete; owner review is the next checkpoint. Its Apple verification uses the
 installed stable toolchain, with the inherited beta-pin gap recorded in its
-evidence. Later units have not started.
+evidence. C04A's revised design direction is owner-approved on 2026-09-19 in
+[Decision 18](../design-decisions/18-diorama-setup-and-scenario-data.md).
+Its model migration and convenience implementation require the bounded scope
+review described below; production work on C04A and later units has not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -41,8 +44,11 @@ Location and clocks are optional attachments, not prerequisites for using HTTP o
 ## Authority and reconciliation
 
 Read [AGENTS.md](../../AGENTS.md), every decision referenced by the active unit, the [overview](../design-overview.md), the [dependency policy](../dependency-policy.md), and the [quality policy](../quality-gates-and-ci.md) before implementation.
-All seventeen accepted decisions, both completed plans, and every other document under `docs` were considered when drafting this plan.
-Decision references use DD01–DD17.
+All seventeen original accepted decisions, both completed plans, and every other document under `docs` were considered when drafting this plan.
+DD18 records the owner-approved 2026-09-19 revision of setup, scenario data,
+and in-memory result ownership. It governs C04A and the remaining affected units;
+earlier completed-unit evidence remains historical.
+Decision references use DD01–DD18.
 Review-unit IDs use phase letters A through J and local numbers, including 003-D01–003-D05 for interception evidence.
 An uppercase suffix identifies an owner-approved inserted unit that follows its
 unsuffixed unit without renumbering established references; 003-B07A is the
@@ -68,6 +74,7 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [DD15: Clock](../design-decisions/15-clock-system.md)                                        | Millisecond wall origins and signed successive deltas; positional overrides; empty wall payload; nonpersisted monotonic Clock. 003-F01–003-F07.                                                                                                                                              |
 | [DD16: Location](../design-decisions/16-location-system.md)                                  | Portable async replay, origin-relative WGS84 measurements, separate delivery time, access barriers, nonterminal failures, narrow Apple facade. 003-G01–003-G09.                                                                                                                              |
 | [DD17: HTTP composition](../design-decisions/17-http-lifecycle-composition.md)               | One recursive tree, embedded typed supplements, exact bodies once, weighted delivery, conditional derived length, local delays and timing-only override merge. 003-H05–003-H14, 003-I01–003-I09.                                                                                                     |
+| [DD18: Setup and scenario data](../design-decisions/18-diorama-setup-and-scenario-data.md) | Complete reusable `Diorama` setup; immutable data-only `ScenarioDefinition`; direct codec boundary without public `PersistedScenario`; load per execution; valid in-memory results independent of publication success. 003-C04A–003-C07, 003-H07, 003-J03–003-J04. |
 | [Overview](../design-overview.md)                                                            | Ignoring a configured attachment changes verification only. Every loaded payload still requires persistent registration plus schema and prepared-value validation before unmatched attachments are diagnosed and discarded. 003-C01–003-C06 including 003-C04A, 003-J03.                                                                                                           |
 | [Dependency policy](../dependency-policy.md)                                                 | Candidate status is not adoption approval. Tools and HTTP products need exact reviewed adoption records before use. 003-A02, 003-H01, and any later demonstrated need.                                                                                                                       |
 | [Quality policy](../quality-gates-and-ci.md)                                                 | One complete tooling/CI bootstrap review unit, warning-free strict concurrency, all applicable platforms, required Codecov uploads. 003-A01–003-A04, 003-B10, every subsequent code unit.                                                                                                        |
@@ -662,71 +669,105 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C04A — Unified scenario setup convenience
 
-- Status: Planned; owner requested this inserted unit on 2026-09-16. Detailed
-  design, scope confirmation, and implementation have not started.
+- Status: Design direction approved on 2026-09-19 in
+  [DD18](../design-decisions/18-diorama-setup-and-scenario-data.md), following
+  the owner's request for this inserted unit on 2026-09-16. The accepted design
+  now requires model separation as well as convenience. Production
+  implementation has not started; confirm the proposed review split below
+  before implementation. This status does not mark either code slice complete.
 - Recommended model: GPT-6 Astra; reasoning: `high`. A concise setup surface
   must compose heterogeneous typed systems with repository loading
   without merging stable scenario content, runtime factories, or execution
   state.
-- Prerequisites: 003-C04, 003-B07A, 003-B09; DD02, DD07–DD10.
-- Scope: Design and implement a runtime-only `ScenarioSetup` convenience after
-  the baseline-loading contract is proven. Support a programmatic path that
-  assembles a definition and erased startup systems from heterogeneous
-  `ScenarioSystem` values, and a loaded-definition path where the repository
-  result remains authoritative while systems contribute matching preparation
-  and typed dependency keys. Provide concise start and scoped-run
-  entry points using the established lifecycle behavior.
+- Prerequisites: 003-C04, 003-B07A, 003-B09; DD02, DD07–DD10, DD18.
+- Scope: Separate immutable semantic `ScenarioDefinition` data from runtime
+  configuration, then implement reusable typed `Diorama` setup. Move default
+  mode, attachment overrides, and execution policies into setup. Retarget the
+  persistence codec and repository to the shared definition model, removing
+  the public `PersistedScenario` semantic wrapper without changing JSON v1.
+  Retain heterogeneous typed systems once at construction and provide concise
+  start and scoped execution. Distinct constructors select no baseline, an
+  explicit definition, a file, or a custom repository. Keep persistence optional
+  at the core boundary. Candidate output and publication remain C05 work.
 - Expected files/modules: `DioramaCore` setup surface and heterogeneous system
   erasure/builder support as demonstrated necessary; random and external
   consumer usage tests, persistence startup integration tests, API examples,
   and an evidence document.
-- Public behavior: A typed system is declared once and can contribute its
-  immutable attachment, reusable preparation, and typed lookup contract. A
-  setup can start fresh independent executions without retaining dependencies
-  or execution state. Programmatic setup rejects duplicate or inconsistent
-  systems before activation. Loaded setup validates that every definition
-  attachment has its exact runtime system and never replaces loaded stable
-  content with a system's convenience attachment. Startup, rollback,
-  finalization, body outcomes, diagnostics, and publication-health rules retain their
-  existing meanings.
+- Public behavior: A typed system is declared once and contributes attachment
+  identity/layout, reusable preparation, and its typed dependency contract.
+  Setup creates fresh independent executions without retaining dependencies or
+  execution state. Systems define the active attachment set; unmatched baseline
+  attachments are diagnosed and discarded. Every active replay attachment needs
+  compatible recorded content. Missing record content can begin empty, and
+  convenience declarations never overwrite loaded stable values. File setup
+  performs no I/O at construction and loads once per execution before activation.
+  Duplicate or inconsistent systems fail before activation. Scoped bodies receive
+  dependencies in declaration order and retain caller isolation and body outcome.
 - Tests/verification: V-code; heterogeneous first-party and consumer systems,
   several keyed systems of one type, programmatic and loaded definitions,
-  absent, duplicate, extra, and incompatible runtime systems, unusable repository input
-  with zero activation, lazy fresh source factories across repeated starts,
-  typed dependency retrieval, scoped success/error/cancellation, and parity
-  with the lower-level definition/start APIs on every current gate.
+  missing replay content, new record attachments, duplicate declarations,
+  unconfigured baseline attachments, incompatible system types, unusable
+  repository input with zero activation, lazy fresh source factories across starts,
+  typed dependency retrieval, scoped success/error/cancellation, unchanged codec
+  goldens, nonpersistable in-memory systems, no setup-time I/O, fresh file loads
+  across starts, fixed explicit baselines, and parity with the lower-level
+  execution APIs on every current gate. Use DD18's random/HTTP/location example
+  as a design check; executable proof uses currently implemented random and
+  public consumer systems, not placeholder native systems.
 - Exclusions: Storing runtime factories or dependency handles in persisted
   definitions, treating missing/invalid loaded data as an empty programmatic
   scenario, caching one execution or its dependencies, hiding required
-  finalization, replacing the lower-level APIs, and adding a result builder or
-  DSL beyond what concrete ergonomics evidence justifies.
-- Checkpoint: R; first review the exact C04 startup and repository-loading API,
-  then confirm the smallest convenience shape and examples before
-  implementation. Stop if convenience would weaken validation, offline replay,
-  or lifecycle ownership.
+  finalization, removing explicit start/finish capability, implementing future
+  HTTP/location systems or resource lifetimes early, candidate publication, and
+  adding a result builder or DSL beyond what concrete ergonomics evidence
+  justifies. Existing low-level signatures may change to reflect DD18; preserving
+  the old configuration/data conflation is not a compatibility requirement.
+- Checkpoint: R; DD18 resolves the design direction, not the expanded code review
+  boundary. Confirm two separately reviewed implementation slices: first the
+  semantic-model/runtime-configuration separation and direct codec migration,
+  then typed `Diorama` construction and scoped execution. Assign the inserted
+  unit identifier and update prerequisites when that split is confirmed. Review
+  compiler feasibility of storing the typed system list in the convenience
+  slice. C05 then owns the returned-definition and publication capability.
 
 ### 003-C05 — Complete candidate replacement and final publication
 
 - Recommended model: GPT-6 Astra; reasoning: `high`. Combine mixed-mode candidate preservation, publication health, and exactly-once finalization without partial writes.
-- Prerequisites: 003-C04A, 003-B08–003-B09; DD07, DD10, DD13.
-- Scope: Build and publish one finalized candidate; replace random record-mode tracks, preserve configured replay/passthrough/ignored baseline data, and omit unmatched loaded attachments diagnosed by C04.
+- Prerequisites: Both confirmed C04A model/convenience slices, 003-B08–003-B09;
+  DD07, DD10, DD13, DD18.
+- Scope: Build and return one complete healthy `ScenarioDefinition` for both
+  in-memory and repository-backed execution; optionally publish it. Replace
+  random record-mode tracks, preserve configured replay/passthrough/ignored
+  baseline data, and omit unmatched attachments diagnosed during startup.
 - Expected files/modules: Core candidate/finalization orchestration and persistence integration tests, random file workflow examples.
 - Public behavior: No replay/consumption writes; publication occurs only at finish when requested and healthy.
-  Scoped body success, failure, and cancellation follow the same definition
+  Scoped body success, failure, and cancellation follow the same setup
   policy; body outcome is not a candidate-health signal.
-  Record replaces, not appends.
-- Tests/verification: V-code; mixed attachments, record-only rebuild, whole candidate health, preserved tracks, repeated finish publishes once, and body success/throw/cancellation following the same candidate-health rule.
+  Record replaces, not appends. The input definition remains immutable. A valid
+  resulting definition survives encoding or storage failure and can be used
+  directly for another in-memory execution. Unhealthy or partial candidates are
+  not exposed as healthy definitions. Result availability and publication success
+  remain independently inspectable; replay-only results cause no writes.
+- Tests/verification: V-code; in-memory record-to-new-replay without extracting
+  observations through the application body, nonpersistable consumer output,
+  mixed attachments, record-only rebuild, whole candidate health, input
+  immutability, preserved tracks, omission of unconfigured attachments, repeated
+  finish returning one result and publishing once, valid definition retention
+  after encoding/storage failure, and body success/throw/cancellation following
+  the same candidate-health rule.
 - Exclusions: HTTP/clock/location override merge before those systems define it, partial healthy-track publication, recovery draft files, incremental flush.
 - Checkpoint: R; review end-to-end load/run/finalize/publication ownership.
 
 ### 003-C06 — Publication failures and actionable reports
 
 - Recommended model: GPT-5.6 Sol; reasoning: `high`. Fault injection must distinguish committed publication from cleanup failures while retaining safe earlier diagnostics.
-- Prerequisites: 003-C05; DD05–DD10.
+- Prerequisites: 003-C05; DD05–DD10, DD18.
 - Scope: Complete report dispositions and stage-specific fault handling using injected storage, preparation, grouping, validation, and cleanup failures.
 - Expected files/modules: Core/persistence reports and renderers; fault-injection tests and safe report goldens.
 - Public behavior: Published/not-requested/unhealthy-refusal/encoding-storage failure remain programmatically distinct.
   Reports identify safe destination, stage, affected data, unpublished candidate summary, and preservation outcome.
+  A valid semantic definition remains inspectable after publication failure;
+  diagnostics and renderers do not automatically include its recorded payloads.
 - Tests/verification: V-code; live return preserved on conversion failure, ledger-before-sink at finalization, one unhealthy track blocks all writes, cancellation cannot abandon finalization, post-publication cleanup failure is reported without pretending to undo a committed publication.
 - Exclusions: Raw native error dumps, automatic test outcomes, hidden partial success, loss of earlier diagnostics after a later failure.
 - Checkpoint: R; review every refusal/failure disposition and prior-file evidence.
@@ -1196,6 +1237,10 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Atomic document/resource generations must survive concurrent readers, replacement failures, and cleanup on every platform.
 - Prerequisites: 003-H02–003-H03, 003-H05–003-H06, 003-C03–003-C06; DD07–DD09, DD17.
 - Scope: Extend repository publication to one logical document/resource set, using the first real HTTP body references; fix portable resource naming/layout.
+- DD18 prerequisite: Define ownership that keeps a returned healthy definition's
+  resource bytes usable after publication failure without retaining live
+  execution machinery or deleting its only backing bytes during staging cleanup.
+  Review this lifetime alongside the existing logical publication guarantees.
 - Expected files/modules: Persistence resource resolver/staging/publication, HTTP resource integration, fixtures and failure-injection evidence.
 - Public behavior: Prepared bytes publish with their referencing document; readers see one complete generation.
   References are normally scenario-relative; inline/resource storage has identical byte meaning.
