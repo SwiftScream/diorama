@@ -6,6 +6,9 @@ import Foundation
 /// The versioned `Codable` object model is format-neutral. This wrapper only
 /// selects JSON, configures its canonical formatting, and manages bytes.
 public struct JSONScenarioCodec: Sendable {
+    /// The only envelope schema version currently written and read.
+    public static let schemaVersion: UInt32 = 1
+
     private let registry: PersistentSystemRegistry
 
     /// Creates a JSON transport using explicit persistent-system registrations.
@@ -28,7 +31,7 @@ public struct JSONScenarioCodec: Sendable {
     ///
     /// - Parameter scenario: Prepared scenario content to encode.
     /// - Returns: Canonical JSON bytes.
-    public func encode(_ scenario: PersistedScenario) throws -> Data {
+    public func encode(_ scenario: ScenarioDefinition) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         encoder.userInfo[persistentSystemRegistryUserInfoKey] = registry
@@ -43,7 +46,7 @@ public struct JSONScenarioCodec: Sendable {
     ///
     /// - Parameter data: UTF-8 JSON document bytes.
     /// - Returns: Prepared scenario content in persisted semantic order.
-    public func decode(_ data: Data) throws -> PersistedScenario {
+    public func decode(_ data: Data) throws -> ScenarioDefinition {
         let decoder = JSONDecoder()
         decoder.userInfo[persistentSystemRegistryUserInfoKey] = registry
         do {

@@ -9,7 +9,7 @@ struct PersistedScenarioCodingTests {
         let registry = try PersistentSystemRegistry([
             PersistentSystemRegistryTests.numberRegistration(current: 1),
         ])
-        let original = try PersistedScenario(attachments: [
+        let original = try ScenarioDefinition(attachments: [
             PersistentSystemRegistryTests.numberAttachment(
                 key: "registry-required",
                 values: [7]),
@@ -35,7 +35,7 @@ struct PersistedScenarioCodingTests {
         let registry = try PersistentSystemRegistry([
             PersistentSystemRegistryTests.numberRegistration(current: 1),
         ])
-        let original = try PersistedScenario(attachments: [
+        let original = try ScenarioDefinition(attachments: [
             PersistentSystemRegistryTests.numberAttachment(
                 key: "property-list",
                 values: [7, 11]),

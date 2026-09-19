@@ -9,10 +9,10 @@ struct ExecutionUsage: Sendable {
 
     let active: [Attachment]
 
-    init(definition: ScenarioDefinition) {
+    init(definition: ScenarioDefinition, configuration: ScenarioConfiguration) {
         active = definition.attachments.map {
-            Attachment(id: $0.id, mode: $0.modeOverride ?? definition.defaultMode,
-                       ignored: definition.ignoredAttachments.contains($0.id.key), tracks: $0.trackIDs)
+            Attachment(id: $0.id, mode: configuration.effectiveMode(for: $0.id.key),
+                       ignored: configuration.ignoredAttachments.contains($0.id.key), tracks: $0.trackIDs)
         }
     }
 

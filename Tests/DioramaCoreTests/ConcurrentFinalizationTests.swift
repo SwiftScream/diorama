@@ -12,10 +12,10 @@ struct ConcurrentFinalizationTests {
         let gate = FinalizationGate()
         defer { gate.release() }
         let journal = ExecutionFixtures.Journal()
-        let second = blockingSystem(gate: gate, journal: journal)
-        let execution = try ScenarioExecution.start(definition: ExecutionFixtures.definition(["a", "b"]), systems: [
-            ExecutionFixtures.system("a", journal: journal), second,
-        ])
+        let execution = try ScenarioExecution.start(
+            definition: ExecutionFixtures.definition(["a", "b"]),
+            configuration: ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay),
+            systems: [ExecutionFixtures.system("a", journal: journal), blockingSystem(gate: gate, journal: journal)])
         let lease = try execution.dependency(
             ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self))
         #expect(try lease.claimNext().value == 1)
@@ -71,9 +71,13 @@ struct ConcurrentFinalizationTests {
             #expect(reporter.report.diagnostics.contains(entry) || reporter.postFinishDiagnostics.contains(entry))
             notifications.withLock { $0.append(entry) }
         }
-        let execution = try ScenarioExecution.start(definition: ExecutionFixtures.definition(["a"]), systems: [
-            ExecutionFixtures.system("a", journal: ExecutionFixtures.Journal()),
-        ], sink: hasSink ? sink : nil)
+        let execution = try ScenarioExecution.start(
+            definition: ExecutionFixtures.definition(["a"]),
+            configuration: ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay),
+            systems: [
+                ExecutionFixtures.system("a", journal: ExecutionFixtures.Journal()),
+            ],
+            sink: hasSink ? sink : nil)
         let reporter = execution.reporter
         reference.withLock { $0 = reporter }
         reporter.record(Diagnostic(issue: .system(DiagnosticLabel("before"))))
@@ -108,7 +112,9 @@ struct ConcurrentFinalizationTests {
         let gate = FinalizationGate()
         defer { gate.release() }
         let execution = try ScenarioExecution.start(
-            definition: ExecutionFixtures.definition(["a"], mode: .record), systems: [
+            definition: ExecutionFixtures.definition(["a"]), configuration: ScenarioConfiguration(
+                id: ScenarioID(rawValue: "execution"),
+                defaultMode: .record), systems: [
                 ExecutionFixtures.system("a", journal: ExecutionFixtures.Journal()),
             ])
         let lease = try execution.dependency(

@@ -10,12 +10,15 @@ struct ScenarioRepositoryStartupTests {
     func `loaded replay is authoritative and never reads or writes after startup`() async throws {
         let probe = StartupProbe()
         let system = try probe.system(key: "boundaries")
-        let setup = try definition(mode: .replay, systems: [system])
+        let setupConfiguration = ScenarioConfiguration(
+            id: ScenarioID(rawValue: "repository-startup"),
+            defaultMode: .replay)
+        let setup = try definition(systems: [system])
         let storage = try StartupStorage(document: persistedFixture("random-boundaries"))
         let repository = try randomRepository(storage: storage)
 
         let started = try repository.start(
-            configuredBy: setup,
+            configuredBy: setupConfiguration, layout: setup,
             systems: [AnyScenarioSystem(system)])
         guard case let .loaded(baseline) = started.loadResult else {
             Issue.record("Expected the exact loaded result"); return
@@ -39,13 +42,16 @@ struct ScenarioRepositoryStartupTests {
     func `every unusable replay outcome refuses startup before system callbacks`(kind: String) throws {
         let probe = StartupProbe()
         let system = try probe.system(key: "boundaries")
-        let setup = try definition(mode: .replay, systems: [system])
+        let setupConfiguration = ScenarioConfiguration(
+            id: ScenarioID(rawValue: "repository-startup"),
+            defaultMode: .replay)
+        let setup = try definition(systems: [system])
         let storage = try failureStorage(kind)
         let repository = try randomRepository(storage: storage)
 
         do {
             _ = try repository.start(
-                configuredBy: setup,
+                configuredBy: setupConfiguration, layout: setup,
                 systems: [AnyScenarioSystem(system)])
             Issue.record("Unusable replay input returned an execution")
         } catch {
@@ -74,11 +80,14 @@ struct ScenarioRepositoryStartupTests {
     func `valid empty payload differs from missing replay attachment`() async throws {
         let emptyProbe = StartupProbe()
         let emptySystem = try emptyProbe.system(key: "empty")
-        let emptySetup = try definition(mode: .replay, systems: [emptySystem])
+        let emptySetupConfiguration = ScenarioConfiguration(
+            id: ScenarioID(rawValue: "repository-startup"),
+            defaultMode: .replay)
+        let emptySetup = try definition(systems: [emptySystem])
         let emptyRepository = try randomRepository(
             storage: StartupStorage(document: persistedFixture("random-empty")))
         let started = try emptyRepository.start(
-            configuredBy: emptySetup,
+            configuredBy: emptySetupConfiguration, layout: emptySetup,
             systems: [AnyScenarioSystem(emptySystem)])
         let lease = try started.execution.dependency(emptySystem)
         #expect(throws: SequentialOperationFailure.self) {
@@ -89,10 +98,13 @@ struct ScenarioRepositoryStartupTests {
 
         let missingProbe = StartupProbe()
         let missingSystem = try missingProbe.system(key: "other")
-        let missingSetup = try definition(mode: .replay, systems: [missingSystem])
+        let missingSetupConfiguration = ScenarioConfiguration(
+            id: ScenarioID(rawValue: "repository-startup"),
+            defaultMode: .replay)
+        let missingSetup = try definition(systems: [missingSystem])
         do {
             _ = try emptyRepository.start(
-                configuredBy: missingSetup,
+                configuredBy: missingSetupConfiguration, layout: missingSetup,
                 systems: [AnyScenarioSystem(missingSystem)])
             Issue.record("A valid document missing the replay attachment started")
         } catch {
@@ -112,11 +124,14 @@ struct ScenarioRepositoryStartupTests {
     {
         let probe = StartupProbe()
         let system = try probe.system(key: "boundaries")
-        let setup = try definition(mode: .record, systems: [system])
+        let setupConfiguration = ScenarioConfiguration(
+            id: ScenarioID(rawValue: "repository-startup"),
+            defaultMode: .record)
+        let setup = try definition(systems: [system])
         let storage = try failureStorage(kind)
         let repository = try randomRepository(storage: storage)
         let started = try repository.start(
-            configuredBy: setup,
+            configuredBy: setupConfiguration, layout: setup,
             systems: [AnyScenarioSystem(system)])
         let expected: ScenarioBaselineProblem = switch kind {
         case "unreadable": ScenarioBaselineProblem.unreadable
@@ -144,7 +159,8 @@ struct ScenarioRepositoryStartupTests {
         let missingStorage = StartupStorage()
         let missing = try randomRepository(storage: missingStorage)
         let recordingStart = try missing.start(
-            configuredBy: definition(mode: .record, systems: [recording]),
+            configuredBy: ScenarioConfiguration(id: ScenarioID(rawValue: "repository-startup"), defaultMode: .record),
+            layout: definition(systems: [recording]),
             systems: [AnyScenarioSystem(recording)])
         #expect(recordingStart.execution.reporter.report.diagnostics.isEmpty)
         #expect(recordingProbe.activationCount == 1)
@@ -155,7 +171,10 @@ struct ScenarioRepositoryStartupTests {
         let invalidStorage = StartupStorage(document: Data())
         let invalid = try randomRepository(storage: invalidStorage)
         let passthroughStart = try invalid.start(
-            configuredBy: definition(mode: .passthrough, systems: [passthrough]),
+            configuredBy: ScenarioConfiguration(
+                id: ScenarioID(rawValue: "repository-startup"),
+                defaultMode: .passthrough),
+            layout: definition(systems: [passthrough]),
             systems: [AnyScenarioSystem(passthrough)])
         #expect(passthroughStart.execution.reporter.report.diagnostics.isEmpty)
         #expect(passthroughProbe.activationCount == 1)
@@ -168,15 +187,19 @@ struct ScenarioRepositoryStartupTests {
     func `one replay mode makes an unusable mixed baseline refuse every activation`() throws {
         let recordProbe = StartupProbe()
         let replayProbe = StartupProbe()
-        let recording = try recordProbe.system(key: "recording", modeOverride: .record)
-        let replaying = try replayProbe.system(key: "replaying", modeOverride: .replay)
-        let setup = try definition(mode: .passthrough, systems: [recording, replaying])
+        let recording = try recordProbe.system(key: "recording")
+        let replaying = try replayProbe.system(key: "replaying")
+        let setupConfiguration = ScenarioConfiguration(
+            id: ScenarioID(rawValue: "repository-startup"),
+            defaultMode: .passthrough,
+            modeOverrides: [recording.attachment.id.key: .record, replaying.attachment.id.key: .replay])
+        let setup = try definition(systems: [recording, replaying])
         let storage = StartupStorage(document: Data())
         let repository = try randomRepository(storage: storage)
 
         #expect(throws: ScenarioRepositoryStartupFailure.self) {
             _ = try repository.start(
-                configuredBy: setup,
+                configuredBy: setupConfiguration, layout: setup,
                 systems: [AnyScenarioSystem(recording), AnyScenarioSystem(replaying)])
         }
         #expect(recordProbe.preparationCount == 0)
@@ -185,16 +208,18 @@ struct ScenarioRepositoryStartupTests {
         #expect(replayProbe.activationCount == 0)
         #expect(storage.writeCount == 0)
     }
+}
 
+struct ScenarioRepositoryValidationTests {
     @Test
     func `persistence registration fails before storage and ignored system callbacks`() throws {
         let probe = StartupProbe()
         let system = try probe.system(key: "ignored")
-        let setup = try ScenarioDefinition(
+        let setupConfiguration = ScenarioConfiguration(
             id: ScenarioID(rawValue: "registration"),
             defaultMode: .record,
-            attachments: [system.attachment],
             ignoredAttachments: [system.attachment.id.key])
+        let setup = try ScenarioDefinition(attachments: [system.attachment])
         let storage = try StartupStorage(document: persistedFixture("random-empty"))
         let repository = try JSONScenarioRepository(
             codec: JSONScenarioCodec(registry: PersistentSystemRegistry()),
@@ -202,7 +227,7 @@ struct ScenarioRepositoryStartupTests {
 
         do {
             _ = try repository.start(
-                configuredBy: setup,
+                configuredBy: setupConfiguration, layout: setup,
                 systems: [AnyScenarioSystem(system)])
             Issue.record("Unregistered ignored setup started")
         } catch {
@@ -226,11 +251,14 @@ struct ScenarioRepositoryStartupTests {
         let system = try probe.system(key: "boundaries")
         let storage = try StartupStorage(document: persistedFixture("random-boundaries"))
         let repository = try randomRepository(storage: storage)
-        let setup = try definition(mode: .replay, systems: [system])
+        let setupConfiguration = ScenarioConfiguration(
+            id: ScenarioID(rawValue: "repository-startup"),
+            defaultMode: .replay)
+        let setup = try definition(systems: [system])
 
         do {
             _ = try repository.start(
-                configuredBy: setup,
+                configuredBy: setupConfiguration, layout: setup,
                 systems: [AnyScenarioSystem(system)])
             Issue.record("Current-policy validation failure returned an execution")
         } catch {
@@ -260,7 +288,8 @@ struct UnmatchedAttachmentStartupTests {
         let repository = try randomRepository(
             storage: StartupStorage(document: persistedFixture("random-example")))
         let started = try repository.start(
-            configuredBy: definition(mode: .replay, systems: [system]),
+            configuredBy: ScenarioConfiguration(id: ScenarioID(rawValue: "repository-startup"), defaultMode: .replay),
+            layout: definition(systems: [system]),
             systems: [AnyScenarioSystem(system)])
         let lease = try started.execution.dependency(system)
         #expect(try lease.claimNext().value == 1842)

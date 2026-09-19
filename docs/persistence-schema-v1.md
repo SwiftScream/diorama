@@ -12,7 +12,12 @@ versions, timestamps, and host metadata are not part of the document.
 
 The envelope, header, and system entries are a format-neutral `Codable` object
 model. `JSONScenarioCodec` is the canonical JSON byte transport for that model;
-it does not own the schema structures or their validation rules.
+it does not own the schema structures or their validation rules. Its public
+boundary accepts and returns the core's immutable `ScenarioDefinition` directly.
+The `Codable` envelope and schema helpers are internal to persistence; the core
+model does not require `Codable`. `JSONScenarioCodec.schemaVersion` identifies
+the envelope version. Runtime `ScenarioConfiguration` is supplied separately at
+startup and has no encoded representation.
 
 ## Document shape
 

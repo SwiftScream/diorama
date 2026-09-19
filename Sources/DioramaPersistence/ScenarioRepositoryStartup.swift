@@ -15,6 +15,9 @@ public struct RepositoryScenarioExecution: Sendable {
 
 /// Exact repository evidence retained when startup returns no execution.
 public enum ScenarioRepositoryStartupEvidence: Sendable {
+    /// Runtime policy references an inactive attachment; storage was not read.
+    case configuration(ScenarioConfigurationError)
+
     /// Runtime setup lacks a required persistent-system registration; storage
     /// was not read.
     case persistenceConfiguration(PersistenceDispatchError)
@@ -35,19 +38,26 @@ public struct ScenarioRepositoryStartupFailure: Error, Sendable {
 
 private struct RepositoryStartupContext: Sendable {
     let setup: ScenarioDefinition
+    let configuration: ScenarioConfiguration
     let loadResult: ScenarioLoadResult
     let hasReplay: Bool
     let hasRecord: Bool
     let sink: DiagnosticSink?
 
-    init(setup: ScenarioDefinition, loadResult: ScenarioLoadResult, sink: DiagnosticSink?) {
+    init(
+        setup: ScenarioDefinition,
+        configuration: ScenarioConfiguration,
+        loadResult: ScenarioLoadResult,
+        sink: DiagnosticSink?)
+    {
         self.setup = setup
+        self.configuration = configuration
         self.loadResult = loadResult
         hasReplay = setup.attachments.contains {
-            ($0.modeOverride ?? setup.defaultMode) == .replay
+            configuration.effectiveMode(for: $0.id.key) == .replay
         }
         hasRecord = setup.attachments.contains {
-            ($0.modeOverride ?? setup.defaultMode) == .record
+            configuration.effectiveMode(for: $0.id.key) == .record
         }
         self.sink = sink
     }
@@ -67,10 +77,10 @@ public extension JSONScenarioRepository {
     /// effective-mode requirements are satisfied.
     ///
     /// This is the repository-backed counterpart to the programmatic
-    /// ``DioramaCore/ScenarioExecution/start(definition:systems:initialDiagnostics:sink:)``
-    /// path. The setup definition contributes scenario identity, modes,
-    /// attachment layout, and ignored keys. Matching loaded attachments supply
-    /// stable content and are prepared again under current system policy before
+    /// ``DioramaCore/ScenarioExecution/start(definition:configuration:systems:initialDiagnostics:sink:)``
+    /// path. Configuration supplies identity, modes, and ignored keys; the
+    /// setup definition supplies only the active attachment layout. Matching
+    /// loaded attachments supply stable content and are validated under current system policy before
     /// any activation. Loaded attachments absent from setup are diagnosed and
     /// discarded from the resolved definition.
     ///
@@ -81,24 +91,34 @@ public extension JSONScenarioRepository {
     /// Startup never publishes or otherwise writes the repository.
     ///
     /// - Parameters:
-    ///   - setup: Immutable runtime configuration. Its record content is not a
-    ///     fallback for this explicitly repository-backed path.
+    ///   - configuration: Runtime identity, modes, and verification policy.
+    ///   - setup: Active typed layout. Its record content is not a fallback
+    ///     for this explicitly repository-backed path.
     ///   - systems: Exactly one runtime registration per configured attachment.
     ///   - sink: Optional safe diagnostic notification for this run.
     /// - Returns: A running execution and the exact retained load result.
     /// - Throws: Configuration, load-policy, preparation, activation, or
     ///   rollback evidence. No partially active execution escapes.
     func start(
-        configuredBy setup: ScenarioDefinition,
+        configuredBy configuration: ScenarioConfiguration,
+        layout setup: ScenarioDefinition,
         systems: [AnyScenarioSystem],
         sink: DiagnosticSink? = nil) throws(ScenarioRepositoryStartupFailure) -> RepositoryScenarioExecution
     {
+        do {
+            try configuration.validate(against: setup)
+        } catch {
+            throw startupFailure(
+                definition: setup, configuration: configuration,
+                diagnostic: Diagnostic(issue: .lifecycle(.invalidRegistration)),
+                evidence: .configuration(error), sink: sink)
+        }
         do {
             try validatePersistability(of: setup)
         } catch {
             let diagnostic = Diagnostic(issue: .baseline(.invalidPersistenceConfiguration))
             throw startupFailure(
-                definition: setup,
+                definition: setup, configuration: configuration,
                 diagnostic: diagnostic,
                 evidence: .persistenceConfiguration(error),
                 sink: sink)
@@ -106,13 +126,14 @@ public extension JSONScenarioRepository {
 
         let loadResult = load()
         let resolution = try resolve(RepositoryStartupContext(
-            setup: setup,
+            setup: setup, configuration: configuration,
             loadResult: loadResult,
             sink: sink))
 
         do {
             let execution = try ScenarioExecution.start(
                 definition: resolution.definition,
+                configuration: configuration,
                 systems: systems,
                 initialDiagnostics: resolution.diagnostics,
                 sink: sink)
@@ -144,15 +165,15 @@ public extension JSONScenarioRepository {
     }
 
     private func resolveLoaded(
-        _ baseline: PersistedScenario,
+        _ baseline: ScenarioDefinition,
         context: RepositoryStartupContext) throws(ScenarioRepositoryStartupFailure) -> RepositoryStartupResolution
     {
         if let missing = context.setup.attachments.first(where: { attachment in
-            (attachment.modeOverride ?? context.setup.defaultMode) == .replay &&
+            context.configuration.effectiveMode(for: attachment.id.key) == .replay &&
                 !baseline.attachments.contains(where: { $0.id.key == attachment.id.key })
         }) {
             throw startupFailure(
-                definition: context.setup,
+                definition: context.setup, configuration: context.configuration,
                 diagnostic: Diagnostic(
                     issue: .baseline(.replayAttachmentMissing),
                     context: .attachment(missing.id)),
@@ -168,7 +189,7 @@ public extension JSONScenarioRepository {
                     context: .attachment(attachment.id))
             }
             return try RepositoryStartupResolution(
-                definition: context.setup.replacingBaseline(with: baseline.attachments),
+                definition: context.setup.replacingBaseline(with: baseline),
                 diagnostics: diagnostics)
         } catch {
             return try resolveUnusable(.incompatibleSetup, context: context)
@@ -181,20 +202,12 @@ public extension JSONScenarioRepository {
     {
         if context.hasReplay {
             throw startupFailure(
-                definition: context.setup,
+                definition: context.setup, configuration: context.configuration,
                 diagnostic: Diagnostic(issue: .baseline(.requiredBaselineUnavailable(problem))),
                 evidence: context.evidence,
                 sink: context.sink)
         }
-        let definition: ScenarioDefinition
-        do {
-            definition = try context.setup.removingBaseline()
-        } catch {
-            throw definitionFailure(
-                definition: context.setup,
-                evidence: context.evidence,
-                sink: context.sink)
-        }
+        let definition = context.setup.removingRecords()
         let diagnostics: [Diagnostic] = if context.hasRecord, problem != .missing {
             [Diagnostic(issue: .baseline(.baselineIgnoredForRecording(problem)))]
         } else {
@@ -203,25 +216,13 @@ public extension JSONScenarioRepository {
         return RepositoryStartupResolution(definition: definition, diagnostics: diagnostics)
     }
 
-    private func definitionFailure(
-        definition: ScenarioDefinition,
-        evidence: ScenarioRepositoryStartupEvidence,
-        sink: DiagnosticSink?) -> ScenarioRepositoryStartupFailure
-    {
-        startupFailure(
-            definition: definition,
-            diagnostic: Diagnostic(issue: .baseline(.requiredBaselineUnavailable(.incompatibleSetup))),
-            evidence: evidence,
-            sink: sink)
-    }
-
     private func startupFailure(
-        definition: ScenarioDefinition,
+        definition: ScenarioDefinition, configuration: ScenarioConfiguration,
         diagnostic: Diagnostic,
         evidence: ScenarioRepositoryStartupEvidence,
         sink: DiagnosticSink?) -> ScenarioRepositoryStartupFailure
     {
-        let reporter = DiagnosticReporter(definition: definition, sink: sink)
+        let reporter = DiagnosticReporter(scenarioID: configuration.id, definition: definition, sink: sink)
         reporter.record(diagnostic)
         return ScenarioRepositoryStartupFailure(
             evidence: evidence,

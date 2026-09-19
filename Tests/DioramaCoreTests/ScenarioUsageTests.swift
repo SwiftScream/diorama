@@ -11,12 +11,15 @@ struct ScenarioUsageTests {
         let replay = try ScenarioAttachment(id: replayID)
             .adding(SequentialTrack(id: first, values: preparedValues([11, 12, 13])))
             .adding(SequentialTrack(id: second, values: preparedValues([21])))
-        let record = try ScenarioAttachment(id: ExecutionFixtures.attachment("record"), modeOverride: .record)
+        let record = try ScenarioAttachment(id: ExecutionFixtures.attachment("record"))
             .adding(SequentialTrack(id: ExecutionFixtures.track("record"), values: preparedValues([99])))
-        let pass = try ScenarioAttachment(id: ExecutionFixtures.attachment("pass"), modeOverride: .passthrough)
+        let pass = try ScenarioAttachment(id: ExecutionFixtures.attachment("pass"))
             .adding(SequentialTrack(id: ExecutionFixtures.track("pass"), values: preparedValues([99])))
-        let definition = try ScenarioDefinition(id: ScenarioID(rawValue: "mixed"), defaultMode: .replay,
-                                                attachments: [replay, record, pass])
+        let definitionConfiguration = ScenarioConfiguration(
+            id: ScenarioID(rawValue: "mixed"),
+            defaultMode: .replay,
+            modeOverrides: [record.id.key: .record, pass.id.key: .passthrough])
+        let definition = try ScenarioDefinition(attachments: [replay, record, pass])
         let journal = ExecutionFixtures.Journal()
         let replayInstance = ScenarioSystem(attachment: replay) { context in
             // Lease request order deliberately differs from declaration order.
@@ -24,10 +27,13 @@ struct ScenarioUsageTests {
             let firstLease = try context.lease(for: first, preparation: ValuePreparation<Int>())
             return PreparedSystem { ActivatedSystem(dependency: [firstLease, secondLease], deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(definition: definition, systems: [
-            ExecutionFixtures.system("pass", journal: journal), AnyScenarioSystem(replayInstance),
-            ExecutionFixtures.system("record", journal: journal),
-        ])
+        let execution = try ScenarioExecution.start(
+            definition: definition,
+            configuration: definitionConfiguration,
+            systems: [
+                ExecutionFixtures.system("pass", journal: journal), AnyScenarioSystem(replayInstance),
+                ExecutionFixtures.system("record", journal: journal),
+            ])
         let leases = try execution.dependency(replayInstance)
         #expect(try leases[0].claimNext().value == 11)
         #expect(try leases[1].claimNext().value == 21)
@@ -55,9 +61,13 @@ struct ScenarioUsageTests {
     @Test
     func `ignoring active usage preserves preparation health and operation diagnostics`() async throws {
         let id = ExecutionFixtures.attachment("a")
+        let baseConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
         let base = try ExecutionFixtures.definition(["a"])
-        let definition = try ScenarioDefinition(id: base.id, defaultMode: .replay, attachments: base.attachments,
-                                                ignoredAttachments: [id.key])
+        let definitionConfiguration = ScenarioConfiguration(
+            id: baseConfiguration.id,
+            defaultMode: .replay,
+            ignoredAttachments: [id.key])
+        let definition = try ScenarioDefinition(attachments: base.attachments)
         let preparations = Mutex(0)
         let instance = ScenarioSystem(attachment: definition.attachments[0]) { context in
             let lease = try context.lease(
@@ -67,7 +77,7 @@ struct ScenarioUsageTests {
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
         let execution = try ScenarioExecution.start(
-            definition: definition,
+            definition: definition, configuration: definitionConfiguration,
             systems: [AnyScenarioSystem(instance)])
         let lease = try execution.dependency(instance)
         #expect(throws: SequentialOperationFailure.self) {
@@ -83,10 +93,11 @@ struct ScenarioUsageTests {
     }
 
     @Test
-    func `definition rejects unknown ignore keys in lexical order`() throws {
-        #expect(throws: ScenarioDefinitionError.unknownIgnoredAttachment(AttachmentKey(rawValue: "a"))) {
-            try ScenarioDefinition(id: ScenarioID(rawValue: "inventory"), defaultMode: .replay,
-                                   ignoredAttachments: [AttachmentKey(rawValue: "z"), AttachmentKey(rawValue: "a")])
+    func `configuration rejects unknown ignore keys in lexical order`() throws {
+        #expect(throws: ScenarioConfigurationError.unknownIgnoredAttachment(AttachmentKey(rawValue: "a"))) {
+            try ScenarioConfiguration(id: ScenarioID(rawValue: "inventory"), defaultMode: .replay,
+                                      ignoredAttachments: [AttachmentKey(rawValue: "z"), AttachmentKey(rawValue: "a")])
+                .validate(against: ScenarioDefinition())
         }
     }
 }

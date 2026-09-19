@@ -5,9 +5,12 @@ struct ScenarioEvaluationTests {
     @Test
     func `known dependency lookup failures participate in attachment evaluation`() async throws {
         let key = AttachmentKey(rawValue: "a")
-        let execution = try ScenarioExecution.start(definition: ExecutionFixtures.definition(["a"]), systems: [
-            ExecutionFixtures.system("a", journal: ExecutionFixtures.Journal()),
-        ])
+        let execution = try ScenarioExecution.start(
+            definition: ExecutionFixtures.definition(["a"]),
+            configuration: ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay),
+            systems: [
+                ExecutionFixtures.system("a", journal: ExecutionFixtures.Journal()),
+            ])
         let known = DependencyKey<String>(attachmentID: ExecutionFixtures.attachment("a"))
         let missing = DependencyKey<String>(attachmentID: ExecutionFixtures.attachment("missing"))
         #expect(throws: DependencyAccessFailure.self) { try execution.dependency(known) }
@@ -31,10 +34,13 @@ struct ScenarioEvaluationTests {
     @Test
     func `evaluation selects attachment facts without treating scope typos as success`() async throws {
         let journal = ExecutionFixtures.Journal()
-        let execution = try ScenarioExecution.start(definition: ExecutionFixtures.definition(["a", "b"]), systems: [
-            ExecutionFixtures.system("a", journal: journal),
-            ExecutionFixtures.system("b", journal: journal, failCleanup: true),
-        ])
+        let execution = try ScenarioExecution.start(
+            definition: ExecutionFixtures.definition(["a", "b"]),
+            configuration: ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay),
+            systems: [
+                ExecutionFixtures.system("a", journal: journal),
+                ExecutionFixtures.system("b", journal: journal, failCleanup: true),
+            ])
         let first = try execution.dependency(
             ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self))
         #expect(first.report(.system(DiagnosticLabel("custom"))))
@@ -62,8 +68,10 @@ struct ScenarioEvaluationTests {
 
     @Test
     func `empty runs satisfy every explicit condition`() async throws {
-        let execution = try ScenarioExecution.start(definition: ScenarioDefinition(
-            id: ScenarioID(rawValue: "empty"), defaultMode: .record), systems: [])
+        let execution = try ScenarioExecution.start(
+            definition: ScenarioDefinition(),
+            configuration: ScenarioConfiguration(id: ScenarioID(rawValue: "empty"), defaultMode: .record),
+            systems: [])
         let result = await execution.finish()
         let conditions: [ScenarioEvaluationCondition] = [
             .noUnexpectedOperations, .noDiagnostics, .allRecordingsUsed, .healthyRecording, .successfulCleanup,

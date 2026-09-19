@@ -6,12 +6,15 @@ struct DioramaRandomUsage {
     static func main() async throws {
         let randomKey = AttachmentKey(rawValue: "example-random")
         let recordingSystem = try DioramaRandomSystem.instance(for: randomKey)
-        let recordingDefinition = try ScenarioDefinition(
+        let recordingDefinitionConfiguration = ScenarioConfiguration(
             id: ScenarioID(rawValue: "random-recording-example"),
-            defaultMode: .record,
-            attachments: [recordingSystem.attachment])
+            defaultMode: .record)
+        let recordingDefinition = try ScenarioDefinition(attachments: [recordingSystem.attachment])
 
-        let recording = try await recordingDefinition.execute(with: recordingSystem) { generator in
+        let recording = try await recordingDefinition.execute(
+            configuration: recordingDefinitionConfiguration,
+            with: recordingSystem)
+        { generator in
             var generator = generator
             return Array(0..<5).map { _ in
                 generator.next()
@@ -24,7 +27,13 @@ struct DioramaRandomUsage {
         let replayDefinition = try makeReplayDefinition(
             randomKey: randomKey,
             values: recordedValues)
-        let replay = try await replayDefinition.execute(with: replaySystem) { generator in
+        let replayDefinitionConfiguration = ScenarioConfiguration(
+            id: ScenarioID(rawValue: "random-replay-example"),
+            defaultMode: .replay)
+        let replay = try await replayDefinition.execute(
+            configuration: replayDefinitionConfiguration,
+            with: replaySystem)
+        { generator in
             var generator = generator
             return Array(0..<5).map { _ in
                 generator.next()
@@ -41,10 +50,10 @@ struct DioramaRandomUsage {
         randomKey: AttachmentKey,
         values: [UInt64]) throws -> ScenarioDefinition
     {
-        let preparationDefinition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "random-replay-preparation-example"),
-            defaultMode: .replay)
-        let reporter = DiagnosticReporter(definition: preparationDefinition)
+        let preparationDefinition = try ScenarioDefinition()
+        let reporter = DiagnosticReporter(
+            scenarioID: ScenarioID(rawValue: "random-replay-preparation-example"),
+            definition: preparationDefinition)
         let preparation = ValuePreparation<UInt64>()
         let preparedValues = try values.map { value in
             try preparation.prepare(
@@ -57,10 +66,7 @@ struct DioramaRandomUsage {
             SequentialTrack(
                 id: DioramaRandomSystem.trackID(for: randomKey),
                 values: preparedValues))
-        return try ScenarioDefinition(
-            id: ScenarioID(rawValue: "random-replay-example"),
-            defaultMode: .replay,
-            attachments: [attachment])
+        return try ScenarioDefinition(attachments: [attachment])
     }
 
     private static func requireCleanFinalization(

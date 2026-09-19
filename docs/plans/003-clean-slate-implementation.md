@@ -28,8 +28,10 @@ complete; owner review is the next checkpoint. Its Apple verification uses the
 installed stable toolchain, with the inherited beta-pin gap recorded in its
 evidence. C04A's revised design direction is owner-approved on 2026-09-19 in
 [Decision 18](../design-decisions/18-diorama-setup-and-scenario-data.md).
-Its model migration and convenience implementation require the bounded scope
-review described below; production work on C04A and later units has not started.
+The owner confirmed the C04A/C04B split and C04A implementation scope on
+2026-09-19. C04A's implementation and local macOS, iOS Simulator, and Linux
+verification are complete on 2026-09-20; owner review is the next checkpoint.
+C04B and later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -58,15 +60,15 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | Source                                                                                       | Required interpretation and principal units                                                                                                                                                                                                                                          |
 | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [DD01: Common abstraction](../design-decisions/01-common-abstraction.md)                     | Independently ordered typed tracks in a heterogeneous scenario; repeated system instances have separate attachment keys. 003-B01–003-B05, 003-B07A, 003-E04–003-E08, 003-J03.                                                                                                                            |
-| [DD02: Ownership layers](../design-decisions/02-shared-vs-system-semantics.md)               | Whole-attachment mode overrides; public system services; domain and adapter boundaries. 003-B01–003-B07A, 003-C04A, 003-E08, 003-H02–003-H04, 003-I01.                                                                                                                                                      |
+| [DD02: Ownership layers](../design-decisions/02-shared-vs-system-semantics.md)               | Whole-attachment mode overrides; public system services; domain and adapter boundaries. 003-B01–003-B07A, 003-C04A–003-C04B, 003-E08, 003-H02–003-H04, 003-I01.                                                                                                                                                      |
 | [DD03: Recorded behaviors](../design-decisions/03-recorded-behaviors.md)                     | Mutually exclusive grouped conclusions, explicit open horizons, capability-specific timing, observed/override normalization. 003-E04–003-E07, 003-F01–003-F05, 003-G03–003-G06, 003-H05–003-H14.                                                                                                                     |
 | [DD04: Selection](../design-decisions/04-replay-selection.md)                                | Stable inputs, deterministic system selectors, FIFO among equivalent candidates, explicit ambiguity and no live replay fallback. 003-B04, 003-E05, 003-H04, 003-H14, 003-I01–003-I09.                                                                                                                        |
 | [DD05: Consumption and verification](../design-decisions/05-consumption-and-verification.md) | Whole groups claimed once at selection; usage differs from completion; retention precedes sink; immutable reports have no test outcome; later diagnostics remain separately inspectable; unmatched loaded attachments are diagnosed then discarded. 003-B02, 003-B04, 003-B08, 003-C04, 003-E05–003-E06, 003-J01–003-J03. DD15 supersedes the old example of persisted clock sleeps. |
 | [DD06: Stable conversion](../design-decisions/06-runtime-to-snapshot-conversion.md)          | Reserve order and needed time at observation; detach native values in their valid isolation; preserve live results on late conversion failure and refuse unhealthy publication. 003-B02–003-B04, 003-C06, 003-G08, 003-I01–003-I08.                                                                          |
-| [DD07: Persistence](../design-decisions/07-persistence-boundary.md)                          | Optional at the core; load once; replace whole healthy candidates; preserve configured untouched baseline tracks while discarding diagnosed unmatched attachments; logical atomicity and last writer wins. 003-C01–003-C07 including 003-C04A, 003-H07.                                                                                                              |
-| [DD08: Schema compatibility](../design-decisions/08-schema-compatibility.md)                 | Independent non-negative `UInt32` envelope/system versions, explicit registration, strict first-party fields, deterministic JSON, no POC importer. 003-C01–003-C04A, 003-F02, 003-G03, 003-H02–003-H13.                                                                                                       |
+| [DD07: Persistence](../design-decisions/07-persistence-boundary.md)                          | Optional at the core; load once; replace whole healthy candidates; preserve configured untouched baseline tracks while discarding diagnosed unmatched attachments; logical atomicity and last writer wins. 003-C01–003-C07 including 003-C04A–003-C04B, 003-H07.                                                                                                              |
+| [DD08: Schema compatibility](../design-decisions/08-schema-compatibility.md)                 | Independent non-negative `UInt32` envelope/system versions, explicit registration, strict first-party fields, deterministic JSON, no POC importer. 003-C01–003-C04A–003-C04B, 003-F02, 003-G03, 003-H02–003-H13.                                                                                                       |
 | [DD09: Preparation](../design-decisions/09-normalization-and-redaction.md)                   | Live captured values undergo structural canonicalization, redaction, normalization, and validation before admission. Already-prepared decoded input is preserved and validated without rerunning capture transformations. Immutable setup policy; match projection is separate. 003-B02, 003-C02, 003-G06, 003-H03–003-H04, 003-H07–003-H08.                  |
-| [DD10: Lifecycle](../design-decisions/10-lifecycle-and-ownership.md)                         | Immutable definitions, fresh executions, ordered activation and reverse rollback, explicit idempotent finish, body outcome plus final report, quiescence, lightweight post-finish reporter independent of execution resources. 003-B02–003-B03, 003-B07A–003-B09, 003-C04–003-C06 including 003-C04A, 003-E03, 003-G09, 003-I08. |
+| [DD10: Lifecycle](../design-decisions/10-lifecycle-and-ownership.md)                         | Immutable definitions, fresh executions, ordered activation and reverse rollback, explicit idempotent finish, body outcome plus final report, quiescence, lightweight post-finish reporter independent of execution resources. 003-B02–003-B03, 003-B07A–003-B09, 003-C04–003-C06 including 003-C04A–003-C04B, 003-E03, 003-G09, 003-I08. |
 | [DD11: HTTP domain](../design-decisions/11-http-model-strategy.md)                           | HTTP Types currency only in optional HTTP products; Diorama owns fields, bodies, policies, schema; native semantics remain in adapters. 003-H01–003-H14.                                                                                                                                     |
 | [DD12: URLSession](../design-decisions/12-urlsession-scope.md)                               | Per-session interception, supported HTTP(S) data tasks, early rejection in all modes, redirects and Basic/Digest, tested platform profiles. 003-D01–003-D05, 003-I01–003-I09; ordering gate Q1 applies.                                                                                              |
 | [DD13: Random](../design-decisions/13-random-proving-system.md)                              | Reference-semantic generator, ordered raw UInt64, no timestamps, injected live source, zero after diagnosed exhaustion, public-only implementation. 003-B01–003-B08 including 003-B07A, 003-C07.                                                                                                 |
@@ -75,7 +77,7 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [DD16: Location](../design-decisions/16-location-system.md)                                  | Portable async replay, origin-relative WGS84 measurements, separate delivery time, access barriers, nonterminal failures, narrow Apple facade. 003-G01–003-G09.                                                                                                                              |
 | [DD17: HTTP composition](../design-decisions/17-http-lifecycle-composition.md)               | One recursive tree, embedded typed supplements, exact bodies once, weighted delivery, conditional derived length, local delays and timing-only override merge. 003-H05–003-H14, 003-I01–003-I09.                                                                                                     |
 | [DD18: Setup and scenario data](../design-decisions/18-diorama-setup-and-scenario-data.md) | Complete reusable `Diorama` setup; immutable data-only `ScenarioDefinition`; direct codec boundary without public `PersistedScenario`; load per execution; valid in-memory results independent of publication success. 003-C04A–003-C07, 003-H07, 003-J03–003-J04. |
-| [Overview](../design-overview.md)                                                            | Ignoring a configured attachment changes verification only. Every loaded payload still requires persistent registration plus schema and prepared-value validation before unmatched attachments are diagnosed and discarded. 003-C01–003-C06 including 003-C04A, 003-J03.                                                                                                           |
+| [Overview](../design-overview.md)                                                            | Ignoring a configured attachment changes verification only. Every loaded payload still requires persistent registration plus schema and prepared-value validation before unmatched attachments are diagnosed and discarded. 003-C01–003-C06 including 003-C04A–003-C04B, 003-J03.                                                                                                           |
 | [Dependency policy](../dependency-policy.md)                                                 | Candidate status is not adoption approval. Tools and HTTP products need exact reviewed adoption records before use. 003-A02, 003-H01, and any later demonstrated need.                                                                                                                       |
 | [Quality policy](../quality-gates-and-ci.md)                                                 | One complete tooling/CI bootstrap review unit, warning-free strict concurrency, all applicable platforms, required Codecov uploads. 003-A01–003-A04, 003-B10, every subsequent code unit.                                                                                                        |
 
@@ -272,7 +274,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | ----- | ------------ | ---------------------------------------------------------------------------- |
 | A     | 003-A01–003-A04      | Toolchain/approval evidence, minimal package, complete quality bootstrap.    |
 | B     | 003-B01–003-B11 plus 003-B07A | Public sequential core, an in-memory random system, and a compiled usage example. |
-| C     | 003-C01–003-C07 plus 003-C04A | Persisted random and consumer-defined systems; first complete vertical path. |
+| C     | 003-C01–003-C07 plus 003-C04A–003-C04B | Persisted random and consumer-defined systems; first complete vertical path. |
 | D     | 003-D01–003-D05      | Isolated URLProtocol evidence and reviewed native capability boundaries.     |
 | E     | 003-E01–003-E08      | Shared real-time scheduler and reusable grouped behavior services.           |
 | F     | 003-F01–003-F07      | Complete portable clock system.                                              |
@@ -667,73 +669,76 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 - Exclusions: Treating invalid as empty, partial replay, live fallback, publication at startup, diagnosing mere unused data as a test failure.
 - Checkpoint: R; review the full load-outcome/effective-mode table.
 
-### 003-C04A — Unified scenario setup convenience
+### 003-C04A — Semantic model and persistence migration
 
-- Status: Design direction approved on 2026-09-19 in
-  [DD18](../design-decisions/18-diorama-setup-and-scenario-data.md), following
-  the owner's request for this inserted unit on 2026-09-16. The accepted design
-  now requires model separation as well as convenience. Production
-  implementation has not started; confirm the proposed review split below
-  before implementation. This status does not mark either code slice complete.
-- Recommended model: GPT-6 Astra; reasoning: `high`. A concise setup surface
-  must compose heterogeneous typed systems with repository loading
-  without merging stable scenario content, runtime factories, or execution
-  state.
+- Status: Implementation and local macOS, iOS Simulator, and Linux verification
+  complete on 2026-09-20; owner review is the next checkpoint. The owner confirmed
+  scope and the C04A/C04B split on 2026-09-19, using GPT-6 Astra at `high` reasoning.
+- Evidence: [Semantic model and codec migration](../evidence/003-C04A-semantic-model-and-codec-migration.md).
+- Recommended model: GPT-6 Astra; reasoning: `high`. Separate semantic content
+  from runtime policy across core, startup, diagnostics, and persistence.
 - Prerequisites: 003-C04, 003-B07A, 003-B09; DD02, DD07–DD10, DD18.
-- Scope: Separate immutable semantic `ScenarioDefinition` data from runtime
-  configuration, then implement reusable typed `Diorama` setup. Move default
-  mode, attachment overrides, and execution policies into setup. Retarget the
-  persistence codec and repository to the shared definition model, removing
-  the public `PersistedScenario` semantic wrapper without changing JSON v1.
-  Retain heterogeneous typed systems once at construction and provide concise
-  start and scoped execution. Distinct constructors select no baseline, an
-  explicit definition, a file, or a custom repository. Keep persistence optional
-  at the core boundary. Candidate output and publication remain C05 work.
-- Expected files/modules: `DioramaCore` setup surface and heterogeneous system
-  erasure/builder support as demonstrated necessary; random and external
-  consumer usage tests, persistence startup integration tests, API examples,
-  and an evidence document.
-- Public behavior: A typed system is declared once and contributes attachment
-  identity/layout, reusable preparation, and its typed dependency contract.
-  Setup creates fresh independent executions without retaining dependencies or
-  execution state. Systems define the active attachment set; unmatched baseline
-  attachments are diagnosed and discarded. Every active replay attachment needs
-  compatible recorded content. Missing record content can begin empty, and
-  convenience declarations never overwrite loaded stable values. File setup
-  performs no I/O at construction and loads once per execution before activation.
-  Duplicate or inconsistent systems fail before activation. Scoped bodies receive
-  dependencies in declaration order and retain caller isolation and body outcome.
-- Tests/verification: V-code; heterogeneous first-party and consumer systems,
-  several keyed systems of one type, programmatic and loaded definitions,
-  missing replay content, new record attachments, duplicate declarations,
-  unconfigured baseline attachments, incompatible system types, unusable
-  repository input with zero activation, lazy fresh source factories across starts,
-  typed dependency retrieval, scoped success/error/cancellation, unchanged codec
-  goldens, nonpersistable in-memory systems, no setup-time I/O, fresh file loads
-  across starts, fixed explicit baselines, and parity with the lower-level
-  execution APIs on every current gate. Use DD18's random/HTTP/location example
-  as a design check; executable proof uses currently implemented random and
-  public consumer systems, not placeholder native systems.
-- Exclusions: Storing runtime factories or dependency handles in persisted
-  definitions, treating missing/invalid loaded data as an empty programmatic
-  scenario, caching one execution or its dependencies, hiding required
-  finalization, removing explicit start/finish capability, implementing future
-  HTTP/location systems or resource lifetimes early, candidate publication, and
-  adding a result builder or DSL beyond what concrete ergonomics evidence
-  justifies. Existing low-level signatures may change to reflect DD18; preserving
-  the old configuration/data conflation is not a compatibility requirement.
-- Checkpoint: R; DD18 resolves the design direction, not the expanded code review
-  boundary. Confirm two separately reviewed implementation slices: first the
-  semantic-model/runtime-configuration separation and direct codec migration,
-  then typed `Diorama` construction and scoped execution. Assign the inserted
-  unit identifier and update prerequisites when that split is confirmed. Review
-  compiler feasibility of storing the typed system list in the convenience
-  slice. C05 then owns the returned-definition and publication capability.
+- Scope: Make `ScenarioDefinition` immutable attachment/track data. Move identity,
+  default mode, attachment overrides, and verification policy into separate
+  runtime configuration. Adapt low-level startup, scoped execution, and diagnostic
+  APIs. Retarget codecs and repositories to `ScenarioDefinition`, removing the
+  public `PersistedScenario` semantic wrapper without changing JSON v1.
+- Expected files/modules: Core model, policy, execution and diagnostics;
+  persistence codec/repository/startup; random and consumer callers, tests,
+  compiled example, schema documentation, and evidence.
+- Public behavior: Definitions contain no execution policy or live configuration.
+  One definition supports independent policies and execution state. Strict
+  registration and prepared-value validation remain required. Repository startup
+  preserves exact load outcomes, effective-mode refusal, unmatched-attachment
+  diagnostics/discard, and zero activation on unusable replay.
+- Tests/verification: V-code; independent policies over immutable shared data,
+  policy membership validation before callbacks, nonpersistable consumer values,
+  direct definition codec round trips, unchanged JSON goldens, preserved
+  load/mode matrix and lifecycle/scoped outcomes.
+- Exclusions: Typed `Diorama` convenience, typed-list storage experiments, result
+  builders, candidate construction/publication orchestration, native systems,
+  and new dependencies. Low-level signatures may change without compatibility
+  wrappers preserving the old configuration/data conflation.
+- Checkpoint: R; review the complete migration before beginning C04B.
+
+### 003-C04B — Reusable typed Diorama setup
+
+- Status: Inserted unit and scope confirmed by the owner on 2026-09-19.
+  Implementation has not started; requires an explicit instruction after C04A review.
+- Recommended model: GPT-6 Astra; reasoning: `high`. Retaining heterogeneous typed
+  declarations must preserve type information without retaining execution state.
+- Prerequisites: 003-C04A, 003-B07A, 003-B09; DD02, DD07–DD10, DD18.
+- Scope: Build reusable typed `Diorama` over the separated model/configuration.
+  Declare systems once, with distinct no-baseline, explicit-definition, file,
+  and custom-repository constructors. Provide explicit start/finish and scoped
+  execution with dependencies in declaration order. Persistence stays optional
+  at the core boundary.
+- Expected files/modules: Core setup and demonstrated heterogeneous storage
+  support; persistence convenience; first-party/consumer tests, examples, evidence.
+- Public behavior: Systems define the active typed layout. Every start creates
+  fresh state and dependencies. Missing replay content refuses activation;
+  missing record content can begin empty. Baseline values remain authoritative;
+  unmatched attachments are diagnosed/discarded. Construction performs no I/O;
+  file-backed starts load once each; explicit baselines remain fixed. Persistent
+  declarations supply ordinary codecs; advanced use permits additional readers.
+  Invalid systems fail before activation. Scoped execution preserves isolation
+  and body outcomes.
+- Tests/verification: V-code; heterogeneous and repeated keyed systems, missing
+  replay/new record attachments, duplicate/incompatible declarations, unmatched
+  content, zero activation on unusable input, lazy fresh factories, typed lookup,
+  scoped success/error/cancellation, nonpersistable systems, no construction I/O,
+  fresh loads, fixed baselines, and low-level API parity. Review compiler
+  feasibility of stored typed lists. DD18's native example is a design check;
+  executable proof uses random and currently implemented public consumer systems.
+- Exclusions: Cached execution/dependencies, hidden finalization, synthesized
+  replay content, early native/resource systems, candidate/publication capability,
+  and a DSL beyond demonstrated ergonomic need.
+- Checkpoint: R; review storage feasibility and the complete convenience API.
 
 ### 003-C05 — Complete candidate replacement and final publication
 
 - Recommended model: GPT-6 Astra; reasoning: `high`. Combine mixed-mode candidate preservation, publication health, and exactly-once finalization without partial writes.
-- Prerequisites: Both confirmed C04A model/convenience slices, 003-B08–003-B09;
+- Prerequisites: 003-C04A–003-C04B, 003-B08–003-B09;
   DD07, DD10, DD13, DD18.
 - Scope: Build and return one complete healthy `ScenarioDefinition` for both
   in-memory and repository-backed execution; optionally publish it. Replace

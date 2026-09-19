@@ -38,10 +38,7 @@ struct ScenarioDefinitionTests {
         let text = try ScenarioAttachment(id: textID).adding(
             SequentialTrack(id: textTrackID, values: preparedValues(["hello"])))
 
-        let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "heterogeneous"),
-            defaultMode: .replay,
-            attachments: [second, text, first])
+        let definition = try ScenarioDefinition(attachments: [second, text, first])
 
         #expect(definition.attachments.map(\.id) == [secondID, textID, firstID])
         #expect(
@@ -101,9 +98,7 @@ struct ScenarioDefinitionTests {
 
     @Test
     func `accepts empty definitions attachments and tracks`() throws {
-        let empty = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "empty"),
-            defaultMode: .replay)
+        let empty = try ScenarioDefinition()
         #expect(empty.attachments.isEmpty)
 
         let attachmentID = AttachmentID(
@@ -131,22 +126,23 @@ struct ScenarioDefinitionTests {
         let recording = ScenarioAttachment(
             id: AttachmentID(
                 systemTypeID: systemTypeID,
-                key: AttachmentKey(rawValue: "recording")),
-            modeOverride: .record)
+                key: AttachmentKey(rawValue: "recording")))
         let passthrough = ScenarioAttachment(
             id: AttachmentID(
                 systemTypeID: systemTypeID,
-                key: AttachmentKey(rawValue: "passthrough")),
-            modeOverride: .passthrough)
-        let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "modes"),
-            defaultMode: .replay,
-            attachments: [inherited, recording, passthrough])
+                key: AttachmentKey(rawValue: "passthrough")))
+        let definition = try ScenarioDefinition(attachments: [inherited, recording, passthrough])
 
-        #expect(definition.effectiveMode(for: inherited.id.key) == .replay)
-        #expect(definition.effectiveMode(for: recording.id.key) == .record)
-        #expect(definition.effectiveMode(for: passthrough.id.key) == .passthrough)
-        #expect(definition.effectiveMode(for: AttachmentKey(rawValue: "missing")) == nil)
+        let configuration = ScenarioConfiguration(id: ScenarioID(rawValue: "modes"), defaultMode: .replay,
+                                                  modeOverrides: [
+                                                      recording.id.key: .record,
+                                                      passthrough.id.key: .passthrough,
+                                                  ])
+        try configuration.validate(against: definition)
+        #expect(configuration.effectiveMode(for: inherited.id.key) == .replay)
+        #expect(configuration.effectiveMode(for: recording.id.key) == .record)
+        #expect(configuration.effectiveMode(for: passthrough.id.key) == .passthrough)
+        #expect(configuration.effectiveMode(for: AttachmentKey(rawValue: "missing")) == .replay)
     }
 
     @Test
@@ -157,10 +153,7 @@ struct ScenarioDefinitionTests {
         let attachment = ScenarioAttachment(id: id)
 
         #expect(throws: ScenarioDefinitionError.duplicateAttachment(id)) {
-            _ = try ScenarioDefinition(
-                id: ScenarioID(rawValue: "duplicates"),
-                defaultMode: .replay,
-                attachments: [attachment, attachment])
+            _ = try ScenarioDefinition(attachments: [attachment, attachment])
         }
     }
 
@@ -175,15 +168,12 @@ struct ScenarioDefinitionTests {
             existing: firstSystem,
             proposed: secondSystem)
         #expect(throws: expectedError) {
-            _ = try ScenarioDefinition(
-                id: ScenarioID(rawValue: "incompatible"),
-                defaultMode: .replay,
-                attachments: [
-                    ScenarioAttachment(
-                        id: AttachmentID(systemTypeID: firstSystem, key: key)),
-                    ScenarioAttachment(
-                        id: AttachmentID(systemTypeID: secondSystem, key: key)),
-                ])
+            _ = try ScenarioDefinition(attachments: [
+                ScenarioAttachment(
+                    id: AttachmentID(systemTypeID: firstSystem, key: key)),
+                ScenarioAttachment(
+                    id: AttachmentID(systemTypeID: secondSystem, key: key)),
+            ])
         }
     }
 

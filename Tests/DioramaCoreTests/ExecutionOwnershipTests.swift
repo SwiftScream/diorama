@@ -60,9 +60,13 @@ struct ExecutionOwnershipTests {
     func `resource destruction diagnostics precede result freeze`(failStartup: Bool) async throws {
         let first = ExecutionFixtures.attachment("a")
         let second = ExecutionFixtures.attachment("b")
-        let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "release-diagnostics"), defaultMode: .passthrough,
-            attachments: [ScenarioAttachment(id: first), ScenarioAttachment(id: second)])
+        let definitionConfiguration = ScenarioConfiguration(
+            id: ScenarioID(rawValue: "release-diagnostics"),
+            defaultMode: .passthrough)
+        let definition = try ScenarioDefinition(attachments: [
+            ScenarioAttachment(id: first),
+            ScenarioAttachment(id: second),
+        ])
         let instance = ScenarioSystem(attachment: ScenarioAttachment(id: first)) { context in
             PreparedSystem {
                 let source = ExecutionFixtures.Probe {
@@ -81,7 +85,7 @@ struct ExecutionOwnershipTests {
         }
         do {
             let execution = try ScenarioExecution.start(
-                definition: definition,
+                definition: definition, configuration: definitionConfiguration,
                 systems: [AnyScenarioSystem(instance), AnyScenarioSystem(otherInstance)])
             #expect(!failStartup)
             let result = await execution.finish()
@@ -101,9 +105,11 @@ struct ExecutionOwnershipTests {
     func `consumer source remains consumer owned after adapter cleanup`() async throws {
         let releases = Mutex(0)
         var source: ExecutionFixtures.Probe? = ExecutionFixtures.Probe { releases.withLock { $0 += 1 } }
-        let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "consumer-owned"), defaultMode: .passthrough,
-            attachments: [ScenarioAttachment(id: ExecutionFixtures.attachment("a"))])
+        let definitionConfiguration = ScenarioConfiguration(
+            id: ScenarioID(rawValue: "consumer-owned"),
+            defaultMode: .passthrough)
+        let definition =
+            try ScenarioDefinition(attachments: [ScenarioAttachment(id: ExecutionFixtures.attachment("a"))])
         let execution: ScenarioExecution
         do {
             let retainedSource = try #require(source)
@@ -113,7 +119,7 @@ struct ExecutionOwnershipTests {
                 }
             }
             execution = try ScenarioExecution.start(
-                definition: definition,
+                definition: definition, configuration: definitionConfiguration,
                 systems: [AnyScenarioSystem(instance)])
         }
         let result = await execution.finish()
@@ -126,6 +132,7 @@ struct ExecutionOwnershipTests {
     @Test
     func `preparation context rejects repeated incompatible missing and escaped requests`() async throws {
         let contexts = Mutex<SystemPreparationContext?>(nil)
+        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
         let definition = try ExecutionFixtures.definition(["a"])
         let instance = ScenarioSystem(attachment: definition.attachments[0]) { context in
             contexts.withLock { $0 = context }
@@ -142,7 +149,7 @@ struct ExecutionOwnershipTests {
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
         let execution = try ScenarioExecution.start(
-            definition: definition,
+            definition: definition, configuration: definitionConfiguration,
             systems: [AnyScenarioSystem(instance)])
         let context = try #require(contexts.withLock { $0 })
         #expect(throws: PreparationFailure.self) {
@@ -162,9 +169,13 @@ struct ExecutionOwnershipTests {
             let content = ExecutionFixtures.Probe { observations.releases.withLock { $0.append("content") } }
             let attachment = try ScenarioAttachment(id: ExecutionFixtures.attachment("a")).adding(
                 SequentialTrack(id: ExecutionFixtures.track("a"), values: preparedValues([content])))
-            let definition = try ScenarioDefinition(
-                id: ScenarioID(rawValue: "rollback"), defaultMode: .replay,
-                attachments: [attachment, ScenarioAttachment(id: ExecutionFixtures.attachment("b"))])
+            let definitionConfiguration = ScenarioConfiguration(
+                id: ScenarioID(rawValue: "rollback"),
+                defaultMode: .replay)
+            let definition = try ScenarioDefinition(attachments: [
+                attachment,
+                ScenarioAttachment(id: ExecutionFixtures.attachment("b")),
+            ])
             let first = ScenarioSystem(attachment: attachment) { context in
                 observations.context.withLock { $0 = context }
                 let lease = try context.lease(
@@ -182,7 +193,7 @@ struct ExecutionOwnershipTests {
             }
             do {
                 _ = try ScenarioExecution.start(
-                    definition: definition,
+                    definition: definition, configuration: definitionConfiguration,
                     systems: [AnyScenarioSystem(first), AnyScenarioSystem(second)])
                 Issue.record("The second activation must fail")
                 return
@@ -200,8 +211,8 @@ struct ExecutionOwnershipTests {
         let content = ExecutionFixtures.Probe { observations.releases.withLock { $0.append("content") } }
         let attachment = try ScenarioAttachment(id: ExecutionFixtures.attachment("a")).adding(
             SequentialTrack(id: ExecutionFixtures.track("a"), values: preparedValues([content])))
-        let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "owned"), defaultMode: .replay, attachments: [attachment])
+        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "owned"), defaultMode: .replay)
+        let definition = try ScenarioDefinition(attachments: [attachment])
         let instance = ScenarioSystem(attachment: attachment) { context in
             observations.context.withLock { $0 = context }
             let lease = try context.lease(
@@ -216,7 +227,7 @@ struct ExecutionOwnershipTests {
             }
         }
         return try ScenarioExecution.start(
-            definition: definition,
+            definition: definition, configuration: definitionConfiguration,
             systems: [AnyScenarioSystem(instance)])
     }
 }

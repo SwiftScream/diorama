@@ -44,14 +44,14 @@ public final class DiagnosticReporter: Sendable {
     private let sink: DiagnosticSink?
     private let state = Mutex(State())
 
-    /// Creates an independent reporter using a definition's identity order.
+    /// Creates an independent reporter using explicit identity and attachment order.
     ///
     /// - Parameters:
-    ///   - definition: The source of scenario, attachment, and track identities.
-    ///     Content, policies, and the definition itself are not retained.
+    ///   - scenarioID: Diagnostic identity supplied by runtime configuration.
+    ///   - definition: Attachment and track identities; content is not retained.
     ///   - sink: Optional immediate notification after each retained fact.
-    public init(definition: ScenarioDefinition, sink: DiagnosticSink? = nil) {
-        scenarioID = definition.id
+    public init(scenarioID: ScenarioID, definition: ScenarioDefinition, sink: DiagnosticSink? = nil) {
+        self.scenarioID = scenarioID
         ordering = DiagnosticOrdering(attachments: definition.attachments)
         self.sink = sink
     }

@@ -15,14 +15,16 @@ struct ScopedExecutionTests {
     @Test
     func `variadic execution injects heterogeneous dependencies in argument order`() async throws {
         let journal = ExecutionFixtures.Journal()
+        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
         let definition = try ExecutionFixtures.definition(["a", "b", "c"])
         let first = system("a", dependency: 42, journal: journal)
         let second = system("b", dependency: "text", journal: journal)
         let third = system("c", dependency: true, journal: journal)
 
-        let scoped = try await definition.execute(with: third, first, second) { flag, number, text in
-            "\(flag)-\(number)-\(text)"
-        }
+        let scoped = try await definition
+            .execute(configuration: definitionConfiguration, with: third, first, second) { flag, number, text in
+                "\(flag)-\(number)-\(text)"
+            }
 
         switch scoped.body {
         case let .success(value): #expect(value == "true-42-text")
@@ -39,11 +41,12 @@ struct ScopedExecutionTests {
     @Test
     func `variadic body preserves caller actor isolation`() async throws {
         let journal = ExecutionFixtures.Journal()
+        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
         let definition = try ExecutionFixtures.definition(["a"])
         let instance = system("a", dependency: 42, journal: journal)
         let state = MainActorState()
 
-        let scoped = try await definition.execute(with: instance) { value in
+        let scoped = try await definition.execute(configuration: definitionConfiguration, with: instance) { value in
             state.values.append(value)
             return state.values.count
         }
@@ -55,11 +58,13 @@ struct ScopedExecutionTests {
     @Test
     func `advanced execution preserves body and cleanup failures independently`() async throws {
         let journal = ExecutionFixtures.Journal()
+        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
         let definition = try ExecutionFixtures.definition(["a", "b"])
         let first = system("a", dependency: 1, journal: journal)
         let second = system("b", dependency: 2, journal: journal, failCleanup: true)
 
         let scoped = try await definition.execute(
+            configuration: definitionConfiguration,
             with: [AnyScenarioSystem(first), AnyScenarioSystem(second)])
         { execution async throws(BodyFailure) -> Int in
             #expect((try? execution.dependency(first)) == 1)
@@ -76,16 +81,18 @@ struct ScopedExecutionTests {
     @Test
     func `body cancellation still completes finalization`() async throws {
         let journal = ExecutionFixtures.Journal()
+        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
         let definition = try ExecutionFixtures.definition(["a"])
         let instance = system("a", dependency: 1, journal: journal, expectUncancelledCleanup: true)
         let started = AsyncStream<Void>.makeStream()
 
         let task = Task {
-            try await definition.execute(with: instance) { value async throws -> Int in
-                started.continuation.yield(())
-                try await Task.sleep(for: .seconds(10))
-                return value
-            }
+            try await definition
+                .execute(configuration: definitionConfiguration, with: instance) { value async throws -> Int in
+                    started.continuation.yield(())
+                    try await Task.sleep(for: .seconds(10))
+                    return value
+                }
         }
         var iterator = started.stream.makeAsyncIterator()
         _ = await iterator.next()
@@ -105,13 +112,14 @@ struct ScopedExecutionTests {
     @Test
     func `caller cancellation still completes finalization when the body returns`() async throws {
         let journal = ExecutionFixtures.Journal()
+        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
         let definition = try ExecutionFixtures.definition(["a"])
         let instance = system("a", dependency: 1, journal: journal, expectUncancelledCleanup: true)
         let started = AsyncStream<Void>.makeStream()
         let blocker = AsyncStream<Void>.makeStream()
 
         let task = Task {
-            try await definition.execute(with: instance) { value in
+            try await definition.execute(configuration: definitionConfiguration, with: instance) { value in
                 started.continuation.yield(())
                 var iterator = blocker.stream.makeAsyncIterator()
                 _ = await iterator.next()
@@ -130,11 +138,12 @@ struct ScopedExecutionTests {
 
     @Test
     func `startup failure throws without invoking a scoped body`() async throws {
+        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
         let definition = try ExecutionFixtures.definition(["a"])
         let bodyCalls = Mutex(0)
 
         await #expect(throws: ScenarioStartupFailure.self) {
-            _ = try await definition.execute(with: [AnyScenarioSystem]()) { _ in
+            _ = try await definition.execute(configuration: definitionConfiguration, with: [AnyScenarioSystem]()) { _ in
                 bodyCalls.withLock { $0 += 1 }
             }
         }
