@@ -3,8 +3,8 @@
 - Status: Accepted
 - Created: 2026-09-05
 - Approved by owner: 2026-09-07
-- Last reviewed: 2026-09-09
-- Scope: Decisions 1 through 17
+- Last reviewed: 2026-09-19
+- Scope: Decisions 1 through 18
 - Derived from: [Accepted design decisions](design-decisions/README.md)
 
 This document maintains a consolidated reading of the accepted decisions. It
@@ -18,9 +18,11 @@ The owner approved the consolidated design and implementation plan on
 2026-09-07. The individual decisions retain their accepted status and historical
 dates; this approval does not replace their detailed contracts or evidence gates.
 
-The seventeen accepted decisions describe one coherent architecture. No direct
-contradiction requires an accepted decision to be reopened before plan
-synthesis.
+The original seventeen decisions established the architecture for plan
+synthesis. On 2026-09-19, the owner approved
+[Decision 18](design-decisions/18-diorama-setup-and-scenario-data.md), separating
+runtime setup from immutable scenario data and refining the persistence and
+result boundaries. Its explicit reconciliation governs earlier terminology.
 
 The original review of decisions 1 through 12 identified scheduler, clock,
 location, consumer-extension, and HTTP-composition prerequisites. Decisions 13
@@ -52,10 +54,13 @@ synthesis or implementation.
 
 The decisions combine into this design:
 
-1. A reusable immutable scenario definition describes identity, repository,
-   policies, attachments, and their effective modes.
-2. Starting a definition creates a concurrency-safe scenario execution that
-   owns all mutable state for one bounded run.
+1. A reusable `Diorama` describes complete runtime setup: system declarations,
+   live configuration, modes, policies, identity, and optional repository.
+   An immutable `ScenarioDefinition` contains attachment identities and their
+   prepared recorded tracks, independent of runtime configuration.
+2. Starting a `Diorama` creates a concurrency-safe scenario execution that
+   owns all mutable state for one bounded run. Its configured systems determine
+   membership; unconfigured baseline attachments are diagnosed and omitted.
 3. Each setup-keyed system attachment owns one or more independently ordered,
    typed tracks. Several instances of the same system can be attached under
    different keys.
@@ -74,9 +79,11 @@ The decisions combine into this design:
    real duration.
 9. Verification and diagnostics report facts. The core does not decide whether
    a test passes; opt-in evaluation helpers and testing integrations do that.
-10. The strict in-memory scenario is authoritative. Optional persistence loads
-    it once and atomically publishes one complete, healthy candidate at
-    finalization.
+10. In-memory recording and replay are first-class workflows over the same
+    strict `ScenarioDefinition`. File-backed setup loads once per execution,
+    before activation. Finalization produces a new healthy definition and may
+    atomically publish it; publication failure does not discard valid semantic
+    output or mutate the starting definition.
 11. Persisted scenarios have independently versioned Diorama envelopes and
     system payloads, deliberate `Codable` schemas, and deterministic UTF-8 JSON
     in the initial file repository.
@@ -135,12 +142,23 @@ explicit report evaluators decide which diagnostics become test issues.
 ### Body outcome and candidate health
 
 A scoped body returning, throwing, or being canceled does not alter the
-definition's publication policy. It always remains visible alongside the final
-result. Publication is instead conditional on Diorama producing a complete,
-healthy candidate through its recording, conversion, validation, encoding, and
-staging rules. This keeps fixture generation independent of test-framework
-outcome while preserving the previous publication whenever the candidate is
-untrustworthy.
+setup's publication policy. It always remains visible alongside the final
+result. Recording, grouping, merge, and semantic validation determine whether
+there is a complete, healthy resulting definition. Optional publication also
+requires successful encoding, staging, and commit. A persistence failure retains
+the valid semantic output while reporting that publication failed. This keeps
+fixture generation independent of test-framework outcome while preserving the
+previous publication whenever replacement cannot succeed.
+
+### Reusable setup and immutable scenario data
+
+`Diorama` retains its typed systems and execution policies, not an execution or
+its dependencies. Distinct construction paths select no baseline, a supplied
+definition, a file, or a custom repository. File setup performs no I/O at
+construction; every execution loads its own fixed semantic baseline. A supplied
+definition is already fixed and reusable. Finalization constructs a new
+definition, preserving configured replay/passthrough content, replacing record
+content under system merge rules, and omitting unconfigured attachments.
 
 ### Immutable final reports and later diagnostics
 
@@ -173,6 +191,10 @@ need not be `Codable`. `Codable` is nevertheless the only initial extension
 mechanism for tracks that are persisted. Every track included in a publication
 must have a registered persistent system type; resource references can be
 `Codable` without requiring their bytes to be resident in the semantic graph.
+Codecs accept and return `ScenarioDefinition` directly; a separate public
+`PersistedScenario` is unnecessary. Deliberate schema helpers remain inside
+persistence, and the core definition does not acquire a `Codable` requirement.
+A definition can be semantically valid without being persistable.
 
 ### Recording failures and unsupported operations
 

@@ -14,6 +14,12 @@ amendments on 2026-09-07, together with the consolidated
 [design overview](../design-overview.md). Individual decision dates remain
 historical records; no architectural contract changes with this status update.
 
+On 2026-09-19, the owner approved Decision 18 during the C04/C04A API review.
+It separates reusable `Diorama` setup from immutable `ScenarioDefinition` data
+and makes persistence operate directly on that shared in-memory model. Its
+explicit reconciliation supersedes the earlier configuration meaning of
+"scenario definition" in Decision 10; other earlier records retain their history.
+
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |
 | 1 | [Common abstraction](01-common-abstraction.md) | `01-common-abstraction.md` | Accepted |
@@ -33,6 +39,7 @@ historical records; no architectural contract changes with this status update.
 | 15 | [Initial clock system](15-clock-system.md) | `15-clock-system.md` | Accepted |
 | 16 | [Initial location system](16-location-system.md) | `16-location-system.md` | Accepted |
 | 17 | [HTTP lifecycle composition](17-http-lifecycle-composition.md) | `17-http-lifecycle-composition.md` | Accepted |
+| 18 | [Diorama setup and immutable scenario data](18-diorama-setup-and-scenario-data.md) | `18-diorama-setup-and-scenario-data.md` | Accepted |
 
 The initial twelve decisions and their combined
 [design overview](../design-overview.md) establish the architecture and

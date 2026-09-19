@@ -43,6 +43,12 @@ persistence, schema evolution, transformation, lifecycle ownership, HTTP,
 URLSession, the proving system, scheduling, clocks, location, and concrete HTTP
 lifecycle composition.
 
+[Decision 18: Diorama setup and immutable scenario data](design-decisions/18-diorama-setup-and-scenario-data.md)
+refines the runtime and persistence boundaries with one semantic definition
+model, reusable typed setup, and first-class in-memory recording results. It
+includes the random, URLSession, and location API design example and reconciles
+the earlier decisions explicitly.
+
 ## Delivery policies
 
 - [Dependency approval policy](dependency-policy.md) requires approval before a

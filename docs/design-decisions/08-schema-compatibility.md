@@ -12,6 +12,11 @@
 
 ## Decision
 
+Later refinement: [Decision 18](18-diorama-setup-and-scenario-data.md), approved
+on 2026-09-19, makes codecs accept and return `ScenarioDefinition` without a
+separate public `PersistedScenario`. Private schema representations and this
+decision's versioning, registration, and compatibility rules remain in force.
+
 What compatibility and migration promises does Diorama make for persisted
 scenario schemas?
 
