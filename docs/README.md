@@ -121,6 +121,9 @@ the earlier decisions explicitly.
 - [Baseline-loading evidence](evidence/003-C04-baseline-loading-before-activation.md)
   records repository-backed startup, the complete load-result/effective-mode
   policy, pre-activation replay refusal, and record rebuilding diagnostics.
+- [Semantic model and codec migration evidence](evidence/003-C04A-semantic-model-and-codec-migration.md)
+  records data/policy separation, the direct definition codec boundary, and
+  unchanged JSON compatibility and execution behavior.
 
 ## Historical boundary
 

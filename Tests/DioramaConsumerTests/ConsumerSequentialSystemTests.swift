@@ -64,21 +64,20 @@ struct ConsumerSequentialSystemTests {
         let second = AttachmentKey(rawValue: "second")
         let firstInstance = try ConsumerSequentialSystem.instance(
             key: first,
-            values: [ConsumerStableValue(1), ConsumerStableValue(2)],
-            modeOverride: .replay)
+            values: [ConsumerStableValue(1), ConsumerStableValue(2)])
         let secondInstance = try ConsumerSequentialSystem.instance(
             key: second,
-            values: [ConsumerStableValue(10), ConsumerStableValue(20)],
-            modeOverride: .replay)
-        let definition = try ScenarioDefinition(
+            values: [ConsumerStableValue(10), ConsumerStableValue(20)])
+        let definitionConfiguration = ScenarioConfiguration(
             id: ScenarioID(rawValue: "consumer-independent"),
             defaultMode: .record,
-            attachments: [
-                firstInstance.attachment,
-                secondInstance.attachment,
-            ])
+            modeOverrides: [firstInstance.attachment.id.key: .replay, secondInstance.attachment.id.key: .replay])
+        let definition = try ScenarioDefinition(attachments: [
+            firstInstance.attachment,
+            secondInstance.attachment,
+        ])
         let execution = try ScenarioExecution.start(
-            definition: definition,
+            definition: definition, configuration: definitionConfiguration,
             systems: [
                 AnyScenarioSystem(secondInstance),
                 AnyScenarioSystem(firstInstance),
@@ -141,12 +140,12 @@ struct ConsumerSequentialSystemTests {
         -> (ScenarioExecution, ScenarioSystem<ConsumerSequentialDependency>)
     {
         let instance = try ConsumerSequentialSystem.instance(key: key, values: values)
-        let definition = try ScenarioDefinition(
+        let definitionConfiguration = ScenarioConfiguration(
             id: ScenarioID(rawValue: "consumer-" + key.rawValue),
-            defaultMode: mode,
-            attachments: [instance.attachment])
+            defaultMode: mode)
+        let definition = try ScenarioDefinition(attachments: [instance.attachment])
         let execution = try ScenarioExecution.start(
-            definition: definition,
+            definition: definition, configuration: definitionConfiguration,
             systems: [AnyScenarioSystem(instance)])
         return (execution, instance)
     }

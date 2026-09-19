@@ -8,6 +8,7 @@ public extension ScenarioDefinition {
     /// Startup failure still throws because no execution exists to finalize.
     ///
     /// - Parameters:
+    ///   - configuration: Runtime identity, modes, and verification policy.
     ///   - systems: Exactly one reusable system for every declared attachment.
     ///   - sink: Optional diagnostic notification for this execution.
     ///   - body: Work receiving each activated dependency in argument order.
@@ -17,6 +18,7 @@ public extension ScenarioDefinition {
     /// Keep the explicit isolation on this parameter-pack closure. It preserves
     /// caller actor isolation and avoids swiftlang/swift#91831.
     func execute<each Dependency: Sendable, Success: Sendable, Failure: Error>(
+        configuration: ScenarioConfiguration,
         with systems: repeat ScenarioSystem<each Dependency>,
         sink: DiagnosticSink? = nil,
         _ body: @isolated(any) (repeat each Dependency) async throws(Failure) -> Success)
@@ -26,7 +28,11 @@ public extension ScenarioDefinition {
         for system in repeat each systems {
             registrations.append(AnyScenarioSystem(system))
         }
-        let execution = try ScenarioExecution.start(definition: self, systems: registrations, sink: sink)
+        let execution = try ScenarioExecution.start(
+            definition: self,
+            configuration: configuration,
+            systems: registrations,
+            sink: sink)
         let dependencies = (repeat execution.requiredDependency(for: each systems))
         return await execution.runScoped { () async throws(Failure) -> Success in
             try await body(repeat each dependencies)
@@ -41,18 +47,24 @@ public extension ScenarioDefinition {
     /// known so the body receives their dependencies directly.
     ///
     /// - Parameters:
+    ///   - configuration: Runtime identity, modes, and verification policy.
     ///   - systems: Exactly one erased registration per declared attachment.
     ///   - sink: Optional diagnostic notification for this execution.
     ///   - body: Work receiving the fully activated execution.
     /// - Returns: Both the body outcome and immutable finalization result.
     /// - Throws: ``ScenarioStartupFailure`` when startup cannot produce a run.
     func execute<Success: Sendable, Failure: Error>(
+        configuration: ScenarioConfiguration,
         with systems: [AnyScenarioSystem],
         sink: DiagnosticSink? = nil,
         _ body: (ScenarioExecution) async throws(Failure) -> Success)
         async throws(ScenarioStartupFailure) -> ScopedExecutionResult<Success, Failure>
     {
-        let execution = try ScenarioExecution.start(definition: self, systems: systems, sink: sink)
+        let execution = try ScenarioExecution.start(
+            definition: self,
+            configuration: configuration,
+            systems: systems,
+            sink: sink)
         return await execution.runScoped {
             () async throws(Failure) -> Success in
             try await body(execution)

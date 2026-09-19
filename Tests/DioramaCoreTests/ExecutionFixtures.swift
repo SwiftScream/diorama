@@ -16,13 +16,11 @@ enum ExecutionFixtures {
         TrackID(attachmentID: attachment(key), key: TrackKey(rawValue: "values"))
     }
 
-    static func definition(_ keys: [String], mode: ScenarioMode = .replay) throws -> ScenarioDefinition {
-        try ScenarioDefinition(
-            id: ScenarioID(rawValue: "execution"), defaultMode: mode,
-            attachments: keys.map { key in
-                try ScenarioAttachment(id: attachment(key)).adding(
-                    SequentialTrack(id: track(key), values: preparedValues([1, 2])))
-            })
+    static func definition(_ keys: [String]) throws -> ScenarioDefinition {
+        try ScenarioDefinition(attachments: keys.map { key in
+            try ScenarioAttachment(id: attachment(key)).adding(
+                SequentialTrack(id: track(key), values: preparedValues([1, 2])))
+        })
     }
 
     static func system(

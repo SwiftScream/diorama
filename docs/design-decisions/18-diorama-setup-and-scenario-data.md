@@ -289,7 +289,7 @@ publication. Earlier implementation evidence remains historical; acceptance of
 this design does not claim those changes are implemented or tested.
 
 Before production work, confirm the bounded review units in
-[Plan 003](../plans/003-clean-slate-implementation.md#003-c04a--unified-scenario-setup-convenience):
+[Plan 003](../plans/003-clean-slate-implementation.md#003-c04a--semantic-model-and-persistence-migration):
 first separate semantic data from runtime configuration and retarget the codec,
 then implement typed reusable `Diorama` construction and execution, then deliver
 complete in-memory results and optional publication. Future URLSession and

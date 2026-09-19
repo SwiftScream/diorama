@@ -1,6 +1,7 @@
 /// Safe execution-lifetime facts without arbitrary callback errors.
 public enum ScenarioLifecycleIssue: Equatable, Sendable {
-    /// Registrations do not identify every declared attachment exactly once.
+    /// Registrations do not identify every declared attachment exactly once,
+    /// or runtime policy references an attachment outside that layout.
     case invalidRegistration
     /// A system's preparation callback failed.
     case preparationFailed

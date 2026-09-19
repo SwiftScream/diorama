@@ -155,18 +155,16 @@ public enum DioramaRandomSystem {
     /// Creates one reusable random system.
     ///
     /// Recording forms a new `UInt64` sequence, replay consumes existing values,
-    /// and passthrough ignores content. Persistence arrives in phase C.
+    /// and passthrough ignores content. Select modes in runtime configuration.
     ///
     /// - Parameters:
     ///   - key: The caller-selected random-domain key.
-    ///   - modeOverride: An optional mode for this whole attachment.
     /// - Returns: Typed immutable setup using `SystemRandomNumberGenerator`.
     /// - Throws: Public scenario-definition evidence.
     public static func instance(
-        for key: AttachmentKey,
-        modeOverride: ScenarioMode? = nil) throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
+        for key: AttachmentKey) throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
     {
-        try instance(for: key, modeOverride: modeOverride) { SystemRandomNumberGenerator() }
+        try instance(for: key) { SystemRandomNumberGenerator() }
     }
 
     /// Creates one reusable random system with an injected source factory.
@@ -181,31 +179,27 @@ public enum DioramaRandomSystem {
     ///     KnownRandomNumberGenerator(values: [7, 11, 13])
     /// }
     /// let definition = try ScenarioDefinition(
-    ///     id: scenarioID,
-    ///     defaultMode: .record,
     ///     attachments: [random.attachment])
     /// let execution = try ScenarioExecution.start(
     ///     definition: definition,
+    ///     configuration: ScenarioConfiguration(id: scenarioID, defaultMode: .record),
     ///     systems: [AnyScenarioSystem(random)])
     /// var generator = try execution.dependency(random)
     /// ```
     ///
     /// - Parameters:
     ///   - key: The caller-selected random-domain key.
-    ///   - modeOverride: An optional mode for this whole attachment.
     ///   - sourceFactory: Creates the live source after all systems prepare.
     /// - Returns: Typed immutable attachment, preparation, and lookup setup.
     /// - Throws: Public scenario-definition evidence.
     public static func instance(
         for key: AttachmentKey,
-        modeOverride: ScenarioMode? = nil,
         sourceFactory: @escaping @Sendable () -> some RandomNumberGenerator & Sendable)
         throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
     {
         let trackID = trackID(for: key)
         let attachment = try ScenarioAttachment(
-            id: attachmentID(for: key),
-            modeOverride: modeOverride).adding(
+            id: attachmentID(for: key)).adding(
             SequentialTrack<UInt64>(id: trackID))
         return ScenarioSystem(attachment: attachment) { context in
             let preparation = ValuePreparation<UInt64>()

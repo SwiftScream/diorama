@@ -207,8 +207,10 @@ struct ValuePreparationTests {
     }
 
     private func makeReporter(sink: DiagnosticSink? = nil) throws -> DiagnosticReporter {
-        try DiagnosticReporter(definition: ScenarioDefinition(
-            id: ScenarioID(rawValue: "preparation"), defaultMode: .record), sink: sink)
+        try DiagnosticReporter(
+            scenarioID: ScenarioID(rawValue: "preparation"),
+            definition: ScenarioDefinition(),
+            sink: sink)
     }
 
     private func trackID() -> TrackID {

@@ -1,4 +1,4 @@
-/// A configuration error detected before a scenario execution exists.
+/// Invalid semantic attachment or track structure.
 public enum ScenarioDefinitionError: Error, Equatable, Sendable {
     /// The same attachment was declared more than once.
     case duplicateAttachment(AttachmentID)
@@ -17,9 +17,6 @@ public enum ScenarioDefinitionError: Error, Equatable, Sendable {
 
     /// The same track identity was used with incompatible record types.
     case incompatibleTrackRecordType(TrackID)
-
-    /// An ignored key identifies neither an active nor a recorded attachment.
-    case unknownIgnoredAttachment(AttachmentKey)
 }
 
 private protocol AnySequentialTrack: Sendable {
@@ -53,12 +50,6 @@ public struct ScenarioAttachment: Sendable {
     /// The stable identity of the attached system instance.
     public let id: AttachmentID
 
-    /// An optional mode for this whole attachment.
-    ///
-    /// A value here overrides the containing scenario's default. Individual
-    /// tracks cannot select different modes.
-    public let modeOverride: ScenarioMode?
-
     private let tracks: [any AnySequentialTrack]
 
     /// Track identities in their deterministic declaration order.
@@ -73,17 +64,13 @@ public struct ScenarioAttachment: Sendable {
     ///
     /// - Parameters:
     ///   - id: The stable attachment identity.
-    ///   - modeOverride: A mode for the entire attachment, or `nil` to inherit
-    ///     the scenario default.
-    public init(id: AttachmentID, modeOverride: ScenarioMode? = nil) {
+    public init(id: AttachmentID) {
         self.id = id
-        self.modeOverride = modeOverride
         tracks = []
     }
 
-    private init(id: AttachmentID, modeOverride: ScenarioMode?, tracks: [any AnySequentialTrack]) {
+    private init(id: AttachmentID, tracks: [any AnySequentialTrack]) {
         self.id = id
-        self.modeOverride = modeOverride
         self.tracks = tracks
     }
 
@@ -109,7 +96,6 @@ public struct ScenarioAttachment: Sendable {
 
         return ScenarioAttachment(
             id: id,
-            modeOverride: modeOverride,
             tracks: tracks + [SequentialTrackBox(track: track)])
     }
 
@@ -139,150 +125,84 @@ public struct ScenarioAttachment: Sendable {
         return box.track
     }
 
-    func replacingModeOverride(_ modeOverride: ScenarioMode?) -> ScenarioAttachment {
-        ScenarioAttachment(id: id, modeOverride: modeOverride, tracks: tracks)
-    }
-
     func removingRecords() -> ScenarioAttachment {
         ScenarioAttachment(
             id: id,
-            modeOverride: modeOverride,
             tracks: tracks.map { $0.removingRecords() })
     }
 }
 
-/// Reusable, immutable configuration for independently created executions.
+/// Immutable semantic scenario data, independent of runtime configuration.
 ///
-/// A definition contains no replay cursor, working recording, native adapter,
-/// or other per-execution mutable state.
+/// A definition contains ordered attachments and prepared tracks. It contains
+/// no scenario identity, modes, policies, factories, dependencies, or replay state.
+/// Persistence uses explicit registered codecs rather than requiring Codable.
 public struct ScenarioDefinition: Sendable {
-    /// The stable scenario identity.
-    public let id: ScenarioID
-
-    /// The mode inherited by attachments without an override.
-    public let defaultMode: ScenarioMode
-
-    /// System attachments in deterministic setup order.
+    /// Prepared attachments in deterministic semantic order.
     public let attachments: [ScenarioAttachment]
 
-    /// Keys exempt from unused-recording verification, but no other checks.
-    public let ignoredAttachments: Set<AttachmentKey>
-
-    /// Creates and validates an immutable scenario definition.
+    /// Creates a definition after validating unique attachment keys and types.
     ///
-    /// An empty attachment array is valid. Attachment keys are unique across
-    /// the scenario even when their system types differ.
-    ///
-    /// - Parameters:
-    ///   - id: The stable scenario identity.
-    ///   - defaultMode: The mode inherited by attachments without an override.
-    ///   - attachments: System declarations in deterministic setup order.
-    ///   - ignoredAttachments: Active attachment keys whose usage is
-    ///     intentionally excluded from unused-recording verification.
-    /// - Throws: ``ScenarioDefinitionError`` for duplicate or incompatible
-    ///   attachment/track identities or unknown ignored keys.
-    public init(id: ScenarioID, defaultMode: ScenarioMode, attachments: [ScenarioAttachment] = [],
-                ignoredAttachments: Set<AttachmentKey> = []) throws
-    {
-        var attachmentByKey: [AttachmentKey: AttachmentID] = [:]
+    /// - Parameter attachments: Prepared content in semantic order; empty is valid.
+    /// - Throws: Duplicate or incompatible attachment identity evidence.
+    public init(attachments: [ScenarioAttachment] = []) throws(ScenarioDefinitionError) {
+        var typesByKey: [AttachmentKey: SystemTypeID] = [:]
         for attachment in attachments {
-            if let existing = attachmentByKey[attachment.id.key] {
-                if existing == attachment.id {
-                    throw ScenarioDefinitionError.duplicateAttachment(attachment.id)
+            if let existing = typesByKey[attachment.id.key] {
+                if existing == attachment.id.systemTypeID {
+                    throw .duplicateAttachment(attachment.id)
                 }
-                throw ScenarioDefinitionError.incompatibleAttachmentSystem(
-                    key: attachment.id.key,
-                    existing: existing.systemTypeID,
-                    proposed: attachment.id.systemTypeID)
+                throw .incompatibleAttachmentSystem(
+                    key: attachment.id.key, existing: existing, proposed: attachment.id.systemTypeID)
             }
-            attachmentByKey[attachment.id.key] = attachment.id
+            typesByKey[attachment.id.key] = attachment.id.systemTypeID
         }
-
-        self.id = id
-        self.defaultMode = defaultMode
         self.attachments = attachments
-        for key in ignoredAttachments.sorted(by: { $0.rawValue < $1.rawValue }) where attachmentByKey[key] == nil {
-            throw ScenarioDefinitionError.unknownIgnoredAttachment(key)
-        }
-        self.ignoredAttachments = ignoredAttachments
     }
 
-    /// Finds an attachment by its caller-selected key.
+    /// Finds recorded content by its caller-selected attachment key.
     ///
-    /// - Parameter key: The attachment key to find.
-    /// - Returns: The declaration, or `nil` when the key is not configured.
+    /// - Parameter key: The key to find.
+    /// - Returns: Recorded attachment content, or nil if absent.
     public func attachment(for key: AttachmentKey) -> ScenarioAttachment? {
         attachments.first { $0.id.key == key }
     }
 
-    /// Resolves the effective whole-attachment mode.
+    /// Derives an empty typed layout without modifying this definition.
     ///
-    /// - Parameter key: The key of the configured attachment.
-    /// - Returns: Its override or the scenario default, or `nil` when no such
-    ///   attachment is configured.
-    public func effectiveMode(for key: AttachmentKey) -> ScenarioMode? {
-        attachment(for: key).map { $0.modeOverride ?? defaultMode }
+    /// - Returns: The same attachment and track order with no recorded values.
+    public func removingRecords() -> ScenarioDefinition {
+        // Removing values cannot invalidate the already validated identities.
+        ScenarioDefinition(validatedAttachments: attachments.map { $0.removingRecords() })
     }
 
-    /// Returns setup with no programmatic record content.
+    /// Reconciles authoritative content with this definition's active layout.
     ///
-    /// Repository-backed startup uses this value when no usable persisted
-    /// baseline exists. Attachment identities, track types, modes, and order
-    /// remain unchanged.
-    /// - Returns: A definition containing only the configured track layout.
-    /// - Throws: Definition evidence if the retained setup is inconsistent.
-    public func removingBaseline() throws -> ScenarioDefinition {
-        try ScenarioDefinition(
-            id: id,
-            defaultMode: defaultMode,
-            attachments: attachments.map { $0.removingRecords() },
-            ignoredAttachments: ignoredAttachments)
-    }
-
-    /// Replaces programmatic record content with one authoritative baseline.
+    /// Matching baseline attachments supply their entire stable content.
+    /// Missing attachments keep an empty typed layout; callers must separately
+    /// refuse missing replay content and diagnose unmatched baseline attachments.
     ///
-    /// Configured attachment order and modes remain setup-owned. A matching
-    /// baseline attachment supplies all stable track content. A configured
-    /// attachment absent from the baseline retains only its empty typed layout.
-    /// Baseline attachments without an active configuration are omitted after
-    /// their content has already been prepared and validated by the repository.
-    /// The repository boundary diagnoses each omission before execution.
-    ///
-    /// - Parameter baseline: Prepared persisted attachments in semantic order.
-    /// - Returns: A definition ready for runtime system preparation.
-    /// - Throws: Definition evidence for duplicate or incompatible identities,
-    ///   including one key naming different configured and persisted systems.
-    public func replacingBaseline(with baseline: [ScenarioAttachment]) throws -> ScenarioDefinition {
-        var baselineByKey: [AttachmentKey: ScenarioAttachment] = [:]
-        for attachment in baseline {
-            if let existing = baselineByKey[attachment.id.key] {
-                if existing.id == attachment.id {
-                    throw ScenarioDefinitionError.duplicateAttachment(attachment.id)
-                }
-                throw ScenarioDefinitionError.incompatibleAttachmentSystem(
-                    key: attachment.id.key,
-                    existing: existing.id.systemTypeID,
-                    proposed: attachment.id.systemTypeID)
-            }
-            baselineByKey[attachment.id.key] = attachment
-        }
-
-        let active = try attachments.map { configured in
-            guard let persisted = baselineByKey.removeValue(forKey: configured.id.key) else {
+    /// - Parameter baseline: Validated authoritative scenario content.
+    /// - Returns: Content ordered by the active layout, omitting unmatched keys.
+    /// - Throws: An attachment key associated with incompatible system types.
+    public func replacingBaseline(with baseline: ScenarioDefinition) throws(ScenarioDefinitionError)
+        -> ScenarioDefinition
+    {
+        let active = try attachments.map { configured throws(ScenarioDefinitionError) in
+            guard let recorded = baseline.attachment(for: configured.id.key) else {
                 return configured.removingRecords()
             }
-            guard persisted.id == configured.id else {
-                throw ScenarioDefinitionError.incompatibleAttachmentSystem(
-                    key: configured.id.key,
-                    existing: configured.id.systemTypeID,
-                    proposed: persisted.id.systemTypeID)
+            guard recorded.id == configured.id else {
+                throw .incompatibleAttachmentSystem(
+                    key: configured.id.key, existing: configured.id.systemTypeID,
+                    proposed: recorded.id.systemTypeID)
             }
-            return persisted.replacingModeOverride(configured.modeOverride)
+            return recorded
         }
-        return try ScenarioDefinition(
-            id: id,
-            defaultMode: defaultMode,
-            attachments: active,
-            ignoredAttachments: ignoredAttachments)
+        return ScenarioDefinition(validatedAttachments: active)
+    }
+
+    private init(validatedAttachments: [ScenarioAttachment]) {
+        attachments = validatedAttachments
     }
 }

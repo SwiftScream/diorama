@@ -3,14 +3,14 @@ import Foundation
 
 /// The format-neutral versioned object model shared by persistence transports.
 struct PersistedScenarioEnvelope: Codable {
-    let scenario: PersistedScenario
+    let scenario: ScenarioDefinition
 
     enum CodingKeys: String, CodingKey, CaseIterable {
         case diorama
         case systems
     }
 
-    init(_ scenario: PersistedScenario) {
+    init(_ scenario: ScenarioDefinition) {
         self.scenario = scenario
     }
 
@@ -18,7 +18,7 @@ struct PersistedScenarioEnvelope: Codable {
         let container = try decoder.strictContainer(keyedBy: CodingKeys.self)
         _ = try container.decode(PersistedScenarioHeader.self, forKey: .diorama)
         let systems = try container.decode([PersistedSystemEntry].self, forKey: .systems)
-        scenario = try PersistedScenario(attachments: systems.map(\.attachment))
+        scenario = try ScenarioDefinition(attachments: systems.map(\.attachment))
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -38,7 +38,7 @@ private struct PersistedScenarioHeader: Codable {
     }
 
     init() {
-        schemaVersion = PersistedScenario.schemaVersion
+        schemaVersion = JSONScenarioCodec.schemaVersion
     }
 
     init(from decoder: any Decoder) throws {
@@ -47,10 +47,10 @@ private struct PersistedScenarioHeader: Codable {
             from: container,
             forKey: .schemaVersion,
             codingPath: decoder.codingPath)
-        guard schemaVersion == PersistedScenario.schemaVersion else {
+        guard schemaVersion == JSONScenarioCodec.schemaVersion else {
             throw PersistedScenarioCodingError.unsupportedEnvelopeVersion(
                 declared: schemaVersion,
-                supported: [PersistedScenario.schemaVersion])
+                supported: [JSONScenarioCodec.schemaVersion])
         }
     }
 }
@@ -124,7 +124,7 @@ private extension Encoder {
                 as? PersistentSystemRegistry
             else {
                 throw EncodingError.invalidValue(
-                    PersistedScenario.self,
+                    ScenarioDefinition.self,
                     .init(
                         codingPath: codingPath,
                         debugDescription: "Missing internal persistent-system registry"))

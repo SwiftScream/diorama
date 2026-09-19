@@ -30,12 +30,12 @@ struct DioramaRandomTests {
         let probe = SourceProbe(sequences: [[21, 22]])
         let attachment = try attachment(key: key, values: [1, 2, 3])
         let instance = try DioramaRandomSystem.instance(for: key) { probe.makeSource() }
-        let definition = try ScenarioDefinition(
+        let definitionConfiguration = ScenarioConfiguration(
             id: ScenarioID(rawValue: "random-passthrough"),
-            defaultMode: .passthrough,
-            attachments: [attachment])
+            defaultMode: .passthrough)
+        let definition = try ScenarioDefinition(attachments: [attachment])
         let execution = try ScenarioExecution.start(
-            definition: definition,
+            definition: definition, configuration: definitionConfiguration,
             systems: [AnyScenarioSystem(instance)])
         var generator = try execution.dependency(instance)
 
@@ -53,15 +53,15 @@ struct DioramaRandomTests {
         let secondProbe = SourceProbe(sequences: [[10, 20]])
         let firstInstance = try DioramaRandomSystem.instance(for: first) { firstProbe.makeSource() }
         let secondInstance = try DioramaRandomSystem.instance(for: second) { secondProbe.makeSource() }
-        let definition = try ScenarioDefinition(
+        let definitionConfiguration = ScenarioConfiguration(
             id: ScenarioID(rawValue: "random-independent"),
-            defaultMode: .record,
-            attachments: [
-                firstInstance.attachment,
-                secondInstance.attachment,
-            ])
+            defaultMode: .record)
+        let definition = try ScenarioDefinition(attachments: [
+            firstInstance.attachment,
+            secondInstance.attachment,
+        ])
         let execution = try ScenarioExecution.start(
-            definition: definition,
+            definition: definition, configuration: definitionConfiguration,
             systems: [
                 AnyScenarioSystem(secondInstance),
                 AnyScenarioSystem(firstInstance),
@@ -85,20 +85,20 @@ struct DioramaRandomTests {
         let instance = try DioramaRandomSystem.instance(for: key) {
             probe.makeSource()
         }
-        let definition = try ScenarioDefinition(
+        let definitionConfiguration = ScenarioConfiguration(
             id: ScenarioID(rawValue: "random-fresh"),
-            defaultMode: .record,
-            attachments: [instance.attachment])
+            defaultMode: .record)
+        let definition = try ScenarioDefinition(attachments: [instance.attachment])
 
         let firstExecution = try ScenarioExecution.start(
-            definition: definition,
+            definition: definition, configuration: definitionConfiguration,
             systems: [AnyScenarioSystem(instance)])
         var first = try firstExecution.dependency(instance)
         #expect(first.next() == 31)
         _ = await firstExecution.finish()
 
         let secondExecution = try ScenarioExecution.start(
-            definition: definition,
+            definition: definition, configuration: definitionConfiguration,
             systems: [AnyScenarioSystem(instance)])
         var second = try secondExecution.dependency(instance.dependencyKey)
         #expect(second.next() == 41)
@@ -170,11 +170,14 @@ struct DioramaRandomTests {
         mode: ScenarioMode,
         instance: ScenarioSystem<any RandomNumberGenerator & Sendable>) throws -> ScenarioExecution
     {
-        let definition = try ScenarioDefinition(
+        let definitionConfiguration = ScenarioConfiguration(
             id: ScenarioID(rawValue: "random-" + instance.attachment.id.key.rawValue),
-            defaultMode: mode,
-            attachments: [instance.attachment])
-        return try ScenarioExecution.start(definition: definition, systems: [AnyScenarioSystem(instance)])
+            defaultMode: mode)
+        let definition = try ScenarioDefinition(attachments: [instance.attachment])
+        return try ScenarioExecution.start(
+            definition: definition,
+            configuration: definitionConfiguration,
+            systems: [AnyScenarioSystem(instance)])
     }
 
     private func attachment(key: AttachmentKey, values: [UInt64]) throws -> ScenarioAttachment {
@@ -185,10 +188,10 @@ struct DioramaRandomTests {
     }
 
     private func preparedValues(_ values: [UInt64]) throws -> [PreparedValue<UInt64>] {
-        let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "random-test-values"),
-            defaultMode: .replay)
-        let reporter = DiagnosticReporter(definition: definition)
+        let definition = try ScenarioDefinition()
+        let reporter = DiagnosticReporter(
+            scenarioID: ScenarioID(rawValue: "random-test-values"),
+            definition: definition)
         let preparation = ValuePreparation<UInt64>()
         return try values.map { value in
             try preparation.prepare(

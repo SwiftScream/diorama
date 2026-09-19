@@ -6,10 +6,17 @@ struct ScenarioExecutionTests {
     @Test
     func `two starts have independent leases reporters and finish state`() async throws {
         let journal = ExecutionFixtures.Journal()
+        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
         let definition = try ExecutionFixtures.definition(["a"])
         let systems = [ExecutionFixtures.system("a", journal: journal)]
-        let first = try ScenarioExecution.start(definition: definition, systems: systems)
-        let second = try ScenarioExecution.start(definition: definition, systems: systems)
+        let first = try ScenarioExecution.start(
+            definition: definition,
+            configuration: definitionConfiguration,
+            systems: systems)
+        let second = try ScenarioExecution.start(
+            definition: definition,
+            configuration: definitionConfiguration,
+            systems: systems)
         let key = ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self)
         let firstLease = try first.dependency(key)
         let secondLease = try second.dependency(key)
@@ -30,9 +37,14 @@ struct ScenarioExecutionTests {
     func `heterogeneous dependencies inherit whole attachment modes`() async throws {
         let first = ExecutionFixtures.attachment("first")
         let second = AttachmentID(systemTypeID: SystemTypeID(rawValue: "text"), key: AttachmentKey(rawValue: "second"))
-        let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "heterogeneous"), defaultMode: .record,
-            attachments: [ScenarioAttachment(id: first), ScenarioAttachment(id: second, modeOverride: .passthrough)])
+        let definitionConfiguration = ScenarioConfiguration(
+            id: ScenarioID(rawValue: "heterogeneous"),
+            defaultMode: .record,
+            modeOverrides: [second.key: .passthrough])
+        let definition = try ScenarioDefinition(attachments: [
+            ScenarioAttachment(id: first),
+            ScenarioAttachment(id: second),
+        ])
         let firstInstance = ScenarioSystem(attachment: ScenarioAttachment(id: first)) { context in
             #expect(context.mode == .record)
             return PreparedSystem { ActivatedSystem(dependency: 42, deactivate: {}) }
@@ -42,7 +54,7 @@ struct ScenarioExecutionTests {
             return PreparedSystem { ActivatedSystem(dependency: "text", deactivate: {}) }
         }
         let execution = try ScenarioExecution.start(
-            definition: definition,
+            definition: definition, configuration: definitionConfiguration,
             systems: [AnyScenarioSystem(firstInstance), AnyScenarioSystem(secondInstance)])
         #expect(try execution.dependency(firstInstance) == 42)
         #expect(try execution.dependency(secondInstance.dependencyKey) == "text")
@@ -76,7 +88,9 @@ struct ScenarioExecutionTests {
         let journal = ExecutionFixtures.Journal()
         let sink = DiagnosticSink { entry in notifications.withLock { $0.append(entry.diagnostic.issue) } }
         let execution = try ScenarioExecution.start(
-            definition: ExecutionFixtures.definition(["a"]),
+            definition: ExecutionFixtures.definition(["a"]), configuration: ScenarioConfiguration(
+                id: ScenarioID(rawValue: "execution"),
+                defaultMode: .replay),
             systems: [ExecutionFixtures.system("a", journal: journal)], sink: hasSink ? sink : nil)
         let key = ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self)
         let lease = try execution.dependency(key)
@@ -100,7 +114,9 @@ struct ScenarioExecutionTests {
     func `cleanup failures preserve reverse cleanup and one result for concurrent canceled callers`() async throws {
         let journal = ExecutionFixtures.Journal()
         let execution = try ScenarioExecution.start(
-            definition: ExecutionFixtures.definition(["a", "b", "c"]),
+            definition: ExecutionFixtures.definition(["a", "b", "c"]), configuration: ScenarioConfiguration(
+                id: ScenarioID(rawValue: "execution"),
+                defaultMode: .replay),
             systems: ["a", "b", "c"].map {
                 ExecutionFixtures.system(
                     $0, journal: journal, failCleanup: $0 == "b")
@@ -137,6 +153,7 @@ struct ScenarioExecutionTests {
     func `leases close before cleanup and callbacks can reenter diagnostics and lookup`() async throws {
         let executionReference = Mutex<ScenarioExecution?>(nil)
         defer { executionReference.withLock { $0 = nil } }
+        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
         let definition = try ExecutionFixtures.definition(["a"])
         let instance = ScenarioSystem(
             attachment: ScenarioAttachment(id: ExecutionFixtures.attachment("a")))
@@ -155,7 +172,8 @@ struct ScenarioExecutionTests {
             }
         }
         let execution = try ScenarioExecution.start(
-            definition: definition, systems: [AnyScenarioSystem(instance)], sink: DiagnosticSink { _ in
+            definition: definition, configuration: definitionConfiguration, systems: [AnyScenarioSystem(instance)],
+            sink: DiagnosticSink { _ in
                 let execution = try #require(executionReference.withLock { $0 })
                 #expect(!execution.reporter.report.diagnostics.isEmpty)
             })
@@ -168,8 +186,12 @@ struct ScenarioExecutionTests {
 
     @Test
     func `empty execution still has explicit idempotent finish`() async throws {
-        let definition = try ScenarioDefinition(id: ScenarioID(rawValue: "empty"), defaultMode: .record)
-        let execution = try ScenarioExecution.start(definition: definition, systems: [])
+        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "empty"), defaultMode: .record)
+        let definition = try ScenarioDefinition()
+        let execution = try ScenarioExecution.start(
+            definition: definition,
+            configuration: definitionConfiguration,
+            systems: [])
         let result = await execution.finish()
         #expect(result.cleanup.isEmpty)
         #expect(result.report.diagnostics.isEmpty)

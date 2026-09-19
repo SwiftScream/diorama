@@ -26,14 +26,12 @@ final class StartupProbe: Sendable {
     }
 
     func system(
-        key: String,
-        modeOverride: ScenarioMode? = nil) throws -> ScenarioSystem<SequentialTrackLease<UInt64>>
+        key: String) throws -> ScenarioSystem<SequentialTrackLease<UInt64>>
     {
         let attachmentKey = AttachmentKey(rawValue: key)
         let trackID = DioramaRandomSystem.trackID(for: attachmentKey)
         let attachment = try ScenarioAttachment(
-            id: DioramaRandomSystem.attachmentID(for: attachmentKey),
-            modeOverride: modeOverride).adding(SequentialTrack<UInt64>(id: trackID))
+            id: DioramaRandomSystem.attachmentID(for: attachmentKey)).adding(SequentialTrack<UInt64>(id: trackID))
         return ScenarioSystem(attachment: attachment) { [self] context in
             state.withLock { $0.preparations += 1 }
             let preparation = ValuePreparation<UInt64>(validate: { [failValidation] _ in
@@ -90,13 +88,9 @@ final class StartupStorage: ScenarioDocumentStorage, Sendable {
 struct StartupFault: Error {}
 
 func definition(
-    mode: ScenarioMode,
     systems: [ScenarioSystem<SequentialTrackLease<UInt64>>]) throws -> ScenarioDefinition
 {
-    try ScenarioDefinition(
-        id: ScenarioID(rawValue: "repository-startup"),
-        defaultMode: mode,
-        attachments: systems.map(\.attachment))
+    try ScenarioDefinition(attachments: systems.map(\.attachment))
 }
 
 func randomRepository(storage: any ScenarioDocumentStorage) throws -> JSONScenarioRepository {

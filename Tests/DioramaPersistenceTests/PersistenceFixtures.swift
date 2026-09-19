@@ -84,10 +84,10 @@ extension PersistentSystemRegistryTests {
     }
 
     static func prepared<Value: Sendable>(_ values: [Value]) throws -> [PreparedValue<Value>] {
-        let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "persistence-fixture"),
-            defaultMode: .replay)
-        let reporter = DiagnosticReporter(definition: definition)
+        let definition = try ScenarioDefinition()
+        let reporter = DiagnosticReporter(
+            scenarioID: ScenarioID(rawValue: "persistence-fixture"),
+            definition: definition)
         let preparation = ValuePreparation<Value>()
         return try values.map { value in
             try preparation.prepare(

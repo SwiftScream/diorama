@@ -118,20 +118,17 @@ public enum ConsumerSequentialSystem {
     ///   - key: The caller-selected instance key.
     ///   - values: Prepared baseline values; the type intentionally is not
     ///     `Codable`.
-    ///   - modeOverride: An optional whole-attachment mode override.
     /// - Returns: Typed immutable attachment, preparation, and lookup setup.
     /// - Throws: Public definition or preparation evidence.
     public static func instance(
         key: AttachmentKey,
-        values: [ConsumerStableValue] = [],
-        modeOverride: ScenarioMode? = nil) throws -> ScenarioSystem<ConsumerSequentialDependency>
+        values: [ConsumerStableValue] = []) throws -> ScenarioSystem<ConsumerSequentialDependency>
     {
         let track = try SequentialTrack(
             id: trackID(for: key),
             values: prepared(values))
         let attachment = try ScenarioAttachment(
-            id: attachmentID(for: key),
-            modeOverride: modeOverride).adding(track)
+            id: attachmentID(for: key)).adding(track)
         let trackID = trackID(for: key)
         return ScenarioSystem(attachment: attachment) { context in
             let preparation = ValuePreparation<ConsumerStableValue>()
@@ -149,10 +146,10 @@ public enum ConsumerSequentialSystem {
     private static func prepared(
         _ values: [ConsumerStableValue]) throws -> [PreparedValue<ConsumerStableValue>]
     {
-        let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "test.consumer-preparation"),
-            defaultMode: .replay)
-        let reporter = DiagnosticReporter(definition: definition)
+        let definition = try ScenarioDefinition()
+        let reporter = DiagnosticReporter(
+            scenarioID: ScenarioID(rawValue: "test.consumer-preparation"),
+            definition: definition)
         let preparation = ValuePreparation<ConsumerStableValue>()
         return try values.map { value in
             try preparation.prepare(

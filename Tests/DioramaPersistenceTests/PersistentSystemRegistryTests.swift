@@ -172,11 +172,7 @@ struct PersistentSystemRegistryTests {
     @Test
     func `refuses an unknown system type without changing in-memory use`() throws {
         let attachment = try Self.nonCodableAttachment(key: "ephemeral", values: [NonCodableValue(value: 9)])
-        let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "ephemeral"),
-            defaultMode: .replay,
-            attachments: [attachment],
-            ignoredAttachments: [attachment.id.key])
+        let definition = try ScenarioDefinition(attachments: [attachment])
         let registry = try PersistentSystemRegistry()
 
         #expect(try Self.values(in: attachment, as: NonCodableValue.self) == [NonCodableValue(value: 9)])

@@ -191,18 +191,18 @@ struct SequentialTrackOperationTests {
     func `attachments keep independent replay cursors`() async throws {
         let first = ExecutionFixtures.attachment("first")
         let second = ExecutionFixtures.attachment("second")
-        let definition = try ScenarioDefinition(
+        let definitionConfiguration = ScenarioConfiguration(
             id: ScenarioID(rawValue: "independent"),
-            defaultMode: .replay,
-            attachments: [
-                ScenarioAttachment(id: first).adding(
-                    SequentialTrack(id: ExecutionFixtures.track("first"), values: preparedValues([1, 2]))),
-                ScenarioAttachment(id: second).adding(
-                    SequentialTrack(id: ExecutionFixtures.track("second"), values: preparedValues([10, 20]))),
-            ])
+            defaultMode: .replay)
+        let definition = try ScenarioDefinition(attachments: [
+            ScenarioAttachment(id: first).adding(
+                SequentialTrack(id: ExecutionFixtures.track("first"), values: preparedValues([1, 2]))),
+            ScenarioAttachment(id: second).adding(
+                SequentialTrack(id: ExecutionFixtures.track("second"), values: preparedValues([10, 20]))),
+        ])
         let journal = ExecutionFixtures.Journal()
         let execution = try ScenarioExecution.start(
-            definition: definition,
+            definition: definition, configuration: definitionConfiguration,
             systems: [
                 ExecutionFixtures.system("second", journal: journal),
                 ExecutionFixtures.system("first", journal: journal),
@@ -228,16 +228,16 @@ struct SequentialTrackOperationTests {
         let trackID = ExecutionFixtures.track("primary")
         let attachment = try ScenarioAttachment(id: attachmentID).adding(
             SequentialTrack(id: trackID, values: preparedValues(values)))
-        let definition = try ScenarioDefinition(
+        let definitionConfiguration = ScenarioConfiguration(
             id: ScenarioID(rawValue: "sequential-operations"),
-            defaultMode: mode,
-            attachments: [attachment])
+            defaultMode: mode)
+        let definition = try ScenarioDefinition(attachments: [attachment])
         let instance = ScenarioSystem(attachment: attachment) { context in
             let lease = try context.lease(for: trackID, preparation: ValuePreparation<Int>())
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
         let execution = try ScenarioExecution.start(
-            definition: definition,
+            definition: definition, configuration: definitionConfiguration,
             systems: [AnyScenarioSystem(instance)],
             sink: sink)
         let lease = try execution.dependency(instance)

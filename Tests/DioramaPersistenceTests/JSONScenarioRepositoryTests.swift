@@ -18,7 +18,7 @@ struct JSONScenarioRepositoryTests {
         guard case .invalidDocument = repository.load() else {
             Issue.record("Zero-byte document was accepted"); return
         }
-        _ = try repository.publish(PersistedScenario())
+        _ = try repository.publish(ScenarioDefinition())
         guard case let .loaded(empty) = repository.load() else {
             Issue.record("Valid empty document did not load"); return
         }
@@ -144,7 +144,7 @@ struct JSONScenarioRepositoryTests {
         let bytes = try persistedFixture("random-boundaries")
         try bytes.write(to: fixture.location.fileURL)
         let invalid = ScenarioAttachment(id: DioramaRandomSystem.attachmentID(for: AttachmentKey(rawValue: "bad")))
-        let candidate = try PersistedScenario(attachments: [invalid])
+        let candidate = try ScenarioDefinition(attachments: [invalid])
         var operations = FileStorageOperations()
         operations.createDirectory = { _ in Issue.record("Encoding failure reached storage"); throw storageFault() }
         let repository = try repository(storage: FileScenarioStorage(
@@ -164,7 +164,7 @@ struct JSONScenarioRepositoryTests {
     func `repository preserves storage stage and committed cleanup receipt`() throws {
         let failure = FileStorageError(operation: .commit, cause: .posix(5), cleanupFailure: .posix(13))
         let failing = try repository(storage: StubDocumentStorage(write: { _ in throw failure }))
-        let candidate = try PersistedScenario()
+        let candidate = try ScenarioDefinition()
         do {
             _ = try failing.publish(candidate)
             Issue.record("Expected storage failure")

@@ -79,6 +79,7 @@ public final class ScenarioExecution: Sendable {
     ///
     /// - Parameters:
     ///   - definition: Ordered attachment declarations and prepared stable data.
+    ///   - configuration: Diagnostic identity, attachment modes, and verification policy.
     ///   - systems: Exactly one registration for each declared attachment.
     ///   - initialDiagnostics: Safe facts produced by pre-activation
     ///     orchestration, retained before any system callback.
@@ -87,13 +88,20 @@ public final class ScenarioExecution: Sendable {
     /// - Throws: A structured startup failure including rollback outcomes.
     public static func start(
         definition: ScenarioDefinition,
+        configuration: ScenarioConfiguration,
         systems: [AnyScenarioSystem],
         initialDiagnostics: [Diagnostic] = [],
         sink: DiagnosticSink? = nil) throws(ScenarioStartupFailure) -> ScenarioExecution
     {
-        let reporter = DiagnosticReporter(definition: definition, sink: sink)
+        let reporter = DiagnosticReporter(scenarioID: configuration.id, definition: definition, sink: sink)
         for diagnostic in initialDiagnostics {
             reporter.record(diagnostic)
+        }
+        do {
+            try configuration.validate(against: definition)
+        } catch {
+            reporter.record(Diagnostic(issue: .lifecycle(.invalidRegistration)))
+            throw ScenarioStartupFailure(report: reporter.freeze())
         }
         let admission = ExecutionAdmission()
         guard validRegistrations(systems, definition: definition) else {
@@ -101,7 +109,12 @@ public final class ScenarioExecution: Sendable {
             throw ScenarioStartupFailure(report: reporter.freeze())
         }
         do {
-            return try activate(definition: definition, systems: systems, reporter: reporter, admission: admission)
+            return try activate(
+                definition: definition,
+                configuration: configuration,
+                systems: systems,
+                reporter: reporter,
+                admission: admission)
         } catch {
             // Prepared systems and activation resources have left their scope;
             // release-time facts therefore precede this immutable boundary too.
@@ -110,7 +123,8 @@ public final class ScenarioExecution: Sendable {
     }
 
     private static func activate(
-        definition: ScenarioDefinition, systems: [AnyScenarioSystem], reporter: DiagnosticReporter,
+        definition: ScenarioDefinition, configuration: ScenarioConfiguration,
+        systems: [AnyScenarioSystem], reporter: DiagnosticReporter,
         admission: ExecutionAdmission) throws(StartupRollback) -> ScenarioExecution
     {
         var prepared: [AnyPreparedSystem] = []
@@ -123,7 +137,7 @@ public final class ScenarioExecution: Sendable {
             }
             let context = SystemPreparationContext(
                 attachment: attachment,
-                mode: attachment.modeOverride ?? definition.defaultMode,
+                mode: configuration.effectiveMode(for: attachment.id.key),
                 reporter: reporter, admission: admission)
             do {
                 let preparedSystem = try system.prepare(context)
@@ -154,7 +168,7 @@ public final class ScenarioExecution: Sendable {
             }
         }
         return ScenarioExecution(systems: activated, leases: leases, reporter: reporter, admission: admission,
-                                 usage: ExecutionUsage(definition: definition))
+                                 usage: ExecutionUsage(definition: definition, configuration: configuration))
     }
 
     /// Retrieves an activated dependency while the execution remains running.

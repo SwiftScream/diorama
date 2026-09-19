@@ -7,7 +7,7 @@ import Foundation
 /// errors must be made safe before rendering; this type never renders them.
 public enum ScenarioLoadResult: Sendable {
     /// Fully decoded and prepared content, including a valid empty scenario.
-    case loaded(PersistedScenario)
+    case loaded(ScenarioDefinition)
 
     /// Storage contains no document at the configured destination.
     case missing
@@ -81,13 +81,13 @@ public struct JSONScenarioRepository: Sendable {
         }
     }
 
-    /// Verifies that runtime setup can be represented by this repository.
+    /// Verifies registration availability for every attachment in a definition.
     ///
     /// Validation happens without reading or writing storage. Every active
     /// attachment, including an ignored one, requires registration. Loading
     /// separately validates every payload before discarding unmatched content.
     ///
-    /// - Parameter definition: The runtime setup to validate.
+    /// - Parameter definition: Semantic content or an empty typed startup layout.
     /// - Throws: The first missing persistent-system registration.
     public func validatePersistability(of definition: ScenarioDefinition)
         throws(PersistenceDispatchError)
@@ -100,7 +100,7 @@ public struct JSONScenarioRepository: Sendable {
     /// - Parameter candidate: Complete prepared content selected by the caller.
     /// - Returns: A commit receipt, retaining any subsequent cleanup failure.
     /// - Throws: A distinct encoding or precommit storage failure.
-    public func publish(_ candidate: PersistedScenario)
+    public func publish(_ candidate: ScenarioDefinition)
         throws(ScenarioPublicationError) -> DocumentPublication
     {
         let data: Data

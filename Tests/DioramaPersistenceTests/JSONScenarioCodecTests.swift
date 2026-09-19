@@ -37,8 +37,8 @@ struct JSONScenarioCodecTests {
     @Test
     func `empty scenario and repeated random instances preserve semantic array order`() throws {
         let codec = try codec()
-        let empty = try PersistedScenario()
-        let ordered = try PersistedScenario(attachments: [
+        let empty = try ScenarioDefinition()
+        let ordered = try ScenarioDefinition(attachments: [
             randomAttachment(key: "second", values: [2]),
             randomAttachment(key: "first", values: [1]),
         ])
@@ -148,7 +148,7 @@ struct JSONScenarioCodecTests {
     func `zero versions are valid but unsupported`() throws {
         #expect(throws: PersistedScenarioCodingError.unsupportedEnvelopeVersion(
             declared: 0,
-            supported: [PersistedScenario.schemaVersion]))
+            supported: [JSONScenarioCodec.schemaVersion]))
         {
             _ = try codec().decode(fixture("zero-envelope-version"))
         }
@@ -181,7 +181,7 @@ struct JSONScenarioCodecTests {
         let first = try randomAttachment(key: "duplicate", values: [1])
         let second = try randomAttachment(key: "duplicate", values: [2])
         #expect(throws: ScenarioDefinitionError.duplicateAttachment(first.id)) {
-            _ = try PersistedScenario(attachments: [first, second])
+            _ = try ScenarioDefinition(attachments: [first, second])
         }
     }
 
@@ -196,7 +196,7 @@ struct JSONScenarioCodecTests {
             existing: PersistentSystemRegistryTests.numberType,
             proposed: PersistentSystemRegistryTests.labelType))
         {
-            _ = try PersistedScenario(attachments: [numbers, labels])
+            _ = try ScenarioDefinition(attachments: [numbers, labels])
         }
     }
 
@@ -205,7 +205,7 @@ struct JSONScenarioCodecTests {
         let invalid = ScenarioAttachment(
             id: DioramaRandomSystem.attachmentID(
                 for: AttachmentKey(rawValue: "invalid-layout")))
-        let document = try PersistedScenario(attachments: [invalid])
+        let document = try ScenarioDefinition(attachments: [invalid])
 
         #expect(throws: RandomPersistenceSchemaError.invalidTrackLayout(invalid.id)) {
             _ = try codec().encode(document)
@@ -219,8 +219,8 @@ struct JSONScenarioCodecTests {
             ]))
     }
 
-    private func document(key: String, values: [UInt64]) throws -> PersistedScenario {
-        try PersistedScenario(attachments: [randomAttachment(key: key, values: values)])
+    private func document(key: String, values: [UInt64]) throws -> ScenarioDefinition {
+        try ScenarioDefinition(attachments: [randomAttachment(key: key, values: values)])
     }
 
     private func randomAttachment(key: String, values: [UInt64]) throws -> ScenarioAttachment {
@@ -236,10 +236,8 @@ struct JSONScenarioCodecTests {
         _ values: [UInt64],
         trackID: TrackID) throws -> [PreparedValue<UInt64>]
     {
-        let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "json-codec-tests"),
-            defaultMode: .replay)
-        let reporter = DiagnosticReporter(definition: definition)
+        let definition = try ScenarioDefinition()
+        let reporter = DiagnosticReporter(scenarioID: ScenarioID(rawValue: "json-codec-tests"), definition: definition)
         let preparation = ValuePreparation<UInt64>()
         return try values.enumerated().map { index, value in
             try preparation.prepare(

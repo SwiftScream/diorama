@@ -74,8 +74,9 @@ struct DioramaRandomFinalizationTests {
         -> (ScenarioExecution, ScenarioSystem<any RandomNumberGenerator & Sendable>)
     {
         let preparation = ValuePreparation<UInt64>()
-        let reporter = try DiagnosticReporter(definition: ScenarioDefinition(
-            id: ScenarioID(rawValue: "fixture"), defaultMode: .replay))
+        let reporter = try DiagnosticReporter(
+            scenarioID: ScenarioID(rawValue: "fixture"),
+            definition: ScenarioDefinition())
         let prepared = try values.map { value in
             try preparation.prepare(capturing: { value }, purpose: .replay, reporter: reporter)
         }
@@ -84,9 +85,10 @@ struct DioramaRandomFinalizationTests {
         let instance = try DioramaRandomSystem.instance(for: key) { () -> SystemRandomNumberGenerator in
             fatalError("Replay finalization must remain offline")
         }
-        let execution = try ScenarioExecution.start(definition: ScenarioDefinition(
-            id: ScenarioID(rawValue: "random-finalization"), defaultMode: .replay,
-            attachments: [attachment]), systems: [AnyScenarioSystem(instance)])
+        let execution = try ScenarioExecution.start(
+            definition: ScenarioDefinition(attachments: [attachment]),
+            configuration: ScenarioConfiguration(id: ScenarioID(rawValue: "random-finalization"), defaultMode: .replay),
+            systems: [AnyScenarioSystem(instance)])
         return (execution, instance)
     }
 }

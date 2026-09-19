@@ -109,10 +109,9 @@ struct DiagnosticReporterTests {
         let attachment = try ScenarioAttachment(id: first)
             .adding(SequentialTrack<Int>(id: firstTrack))
             .adding(SequentialTrack<Int>(id: secondTrack))
-        let definition = try ScenarioDefinition(
-            id: ScenarioID(rawValue: "ordered"), defaultMode: .record,
-            attachments: [attachment, ScenarioAttachment(id: second)])
-        let reporter = DiagnosticReporter(definition: definition)
+        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "ordered"), defaultMode: .record)
+        let definition = try ScenarioDefinition(attachments: [attachment, ScenarioAttachment(id: second)])
+        let reporter = DiagnosticReporter(scenarioID: definitionConfiguration.id, definition: definition)
         let contexts: [DiagnosticContext] = [
             .scenario,
             .attachment(first),
@@ -208,13 +207,16 @@ struct DiagnosticReporterTests {
         let content = LifetimeProbe(onRelease: onRelease)
         let attachment = try ScenarioAttachment(id: track.attachmentID).adding(
             SequentialTrack(id: track, values: preparedValues([content])))
-        return try DiagnosticReporter(definition: ScenarioDefinition(
-            id: ScenarioID(rawValue: "ownership"), defaultMode: .replay, attachments: [attachment]))
+        return try DiagnosticReporter(
+            scenarioID: ScenarioID(rawValue: "ownership"),
+            definition: ScenarioDefinition(attachments: [attachment]))
     }
 
     private func makeReporter(sink: DiagnosticSink? = nil) throws -> DiagnosticReporter {
-        try DiagnosticReporter(definition: ScenarioDefinition(
-            id: ScenarioID(rawValue: "diagnostics"), defaultMode: .record), sink: sink)
+        try DiagnosticReporter(
+            scenarioID: ScenarioID(rawValue: "diagnostics"),
+            definition: ScenarioDefinition(),
+            sink: sink)
     }
 
     private func attachmentID(_ key: String) -> AttachmentID {
