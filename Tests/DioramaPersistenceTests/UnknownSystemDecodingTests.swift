@@ -1,7 +1,7 @@
 import Diorama
 import DioramaCore
 import DioramaPersistence
-import DioramaRandom
+@testable import DioramaRandom
 import Foundation
 import Testing
 
@@ -164,7 +164,7 @@ struct UnknownSystemDecodingTests {
     }
 
     private func entry(
-        _ key: String, type: String = "diorama.random", version: UInt32 = 1,
+        _ key: String, type: String = DioramaRandomSystem.type.id.rawValue, version: UInt32 = 1,
         payload: String = "{\"values\":[7]}") -> String
     {
         "{\"attachmentKey\":\"\(key)\",\"type\":\"\(type)\",\"schemaVersion\":\(version),\"payload\":\(payload)}"

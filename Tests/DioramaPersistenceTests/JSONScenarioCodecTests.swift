@@ -1,6 +1,6 @@
 import DioramaCore
 import DioramaPersistence
-import DioramaRandom
+@testable import DioramaRandom
 import Foundation
 import Testing
 
@@ -136,7 +136,7 @@ struct JSONScenarioCodecTests {
             _ = try codec().decode(fixture("unsupported-envelope-version"))
         }
         #expect(throws: PersistenceDispatchError.unsupportedSchemaVersion(
-            systemTypeID: DioramaRandomSystem.systemTypeID,
+            systemTypeID: DioramaRandomSystem.type.id,
             declared: unsupportedRandomVersion,
             supported: [DioramaRandomPersistence.schemaVersion]))
         {
@@ -153,7 +153,7 @@ struct JSONScenarioCodecTests {
             _ = try codec().decode(fixture("zero-envelope-version"))
         }
         #expect(throws: PersistenceDispatchError.unsupportedSchemaVersion(
-            systemTypeID: DioramaRandomSystem.systemTypeID,
+            systemTypeID: DioramaRandomSystem.type.id,
             declared: 0,
             supported: [DioramaRandomPersistence.schemaVersion]))
         {

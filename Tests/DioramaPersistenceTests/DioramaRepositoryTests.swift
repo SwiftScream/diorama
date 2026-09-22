@@ -1,7 +1,7 @@
 import Diorama
 import DioramaCore
 import DioramaPersistence
-import DioramaRandom
+@testable import DioramaRandom
 import Foundation
 import Testing
 
@@ -90,7 +90,7 @@ struct DioramaRepositoryTests {
             guard case let .persistenceConfiguration(problem) = error.evidence else {
                 Issue.record("Missing registration evidence"); return
             }
-            #expect(problem == .unknownSystemType(DioramaRandomSystem.systemTypeID))
+            #expect(problem == .unknownSystemType(DioramaRandomSystem.type.id))
         }
         #expect(storage.readCount == 0)
         #expect(probe.preparationCount == 0)
