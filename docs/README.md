@@ -127,6 +127,9 @@ the earlier decisions explicitly.
 - [Reusable typed setup evidence](evidence/003-C04B-reusable-typed-setup.md)
   records the consumer `Diorama` module, direct run and scoped result API, shared
   optional capabilities, baseline constructors, and registry-based omission.
+- [Candidate replacement and publication evidence](evidence/003-C05-candidate-replacement-and-publication.md)
+  describes complete semantic results, mixed-mode preservation, optional atomic
+  publication, and the associated verification evidence.
 
 ## Historical boundary
 

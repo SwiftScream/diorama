@@ -129,7 +129,7 @@ struct ScenarioRepositoryStartupTests {
             .baseline(.baselineIgnoredForRecording(expected)),
         ])
         #expect(result.finalization.report.recordingHealth.isHealthy)
-        #expect(storage.writeCount == 0)
+        #expect(storage.writeCount == 1)
     }
 
     @Test
@@ -153,7 +153,7 @@ struct ScenarioRepositoryStartupTests {
                                                   systems: passthrough).execute { _ in () }
         #expect(passthroughResult.finalization.report.diagnostics.isEmpty)
         #expect(passthroughProbe.activationCount == 1)
-        #expect(missingStorage.writeCount == 0)
+        #expect(missingStorage.writeCount == 1)
         #expect(invalidStorage.writeCount == 0)
     }
 

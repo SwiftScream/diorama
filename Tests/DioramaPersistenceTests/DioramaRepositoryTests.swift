@@ -57,7 +57,7 @@ struct DioramaRepositoryTests {
     }
 
     @Test
-    func `missing and invalid record baselines retain exact evidence without writes`() async throws {
+    func `missing and invalid record baselines retain exact evidence and publish at finish`() async throws {
         for storage in [StartupStorage(), StartupStorage(document: Data())] {
             let system = try StartupProbe().system(key: "record")
             let setup = try Diorama(
@@ -70,7 +70,7 @@ struct DioramaRepositoryTests {
             #expect(baselineProblem == .missing || baselineProblem == .invalidDocument)
             #expect(result.finalization.usage[0].tracks[0].activity == .record(recordedCount: 1, incompleteCount: 0))
             #expect(storage.readCount == 1)
-            #expect(storage.writeCount == 0)
+            #expect(storage.writeCount == 1)
         }
     }
 

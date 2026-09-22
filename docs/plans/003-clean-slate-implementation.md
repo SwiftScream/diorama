@@ -33,7 +33,11 @@ The owner confirmed the C04A/C04B split and C04A implementation scope on
 verification are complete on 2026-09-20; owner review is the next checkpoint.
 C04B implementation was explicitly authorized on 2026-09-20. Its implementation
 and local macOS, iOS Simulator, and Linux verification are complete; owner review
-is the next checkpoint. Later units have not started.
+is the next checkpoint. C05's scope and GPT-6 Astra at `high` reasoning were
+confirmed on 2026-09-22. Its implementation and local macOS, iOS Simulator,
+and Linux verification are complete; owner review is the next checkpoint.
+See its [candidate/publication evidence](../evidence/003-C05-candidate-replacement-and-publication.md).
+Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -761,6 +765,10 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C05 — Complete candidate replacement and final publication
 
+- Status: Complete. Scope and model settings confirmed on 2026-09-22;
+  implementation and local macOS, iOS Simulator, and Linux verification are
+  complete. Owner review is the next checkpoint.
+- Evidence: [Candidate replacement and publication](../evidence/003-C05-candidate-replacement-and-publication.md).
 - Recommended model: GPT-6 Astra; reasoning: `high`. Combine mixed-mode candidate preservation, publication health, and exactly-once finalization without partial writes.
 - Prerequisites: 003-C04A–003-C04B, 003-B08–003-B09;
   DD07, DD10, DD13, DD18.
@@ -782,10 +790,10 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 - Tests/verification: V-code; in-memory record-to-new-replay without extracting
   observations through the application body, nonpersistable consumer output,
   mixed attachments, record-only rebuild, whole candidate health, input
-  immutability, preserved tracks, omission of unconfigured attachments, repeated
-  finish returning one result and publishing once, valid definition retention
-  after encoding/storage failure, and body success/throw/cancellation following
-  the same candidate-health rule.
+  immutability, preserved tracks, omission of unconfigured attachments, one
+  publication attempt per scoped execution, valid definition retention after
+  encoding/storage failure, and body success/throw/cancellation following the
+  same candidate-health rule, including cancellation during publication.
 - Exclusions: HTTP/clock/location override merge before those systems define it, partial healthy-track publication, recovery draft files, incremental flush.
 - Checkpoint: R; review end-to-end load/run/finalize/publication ownership.
 

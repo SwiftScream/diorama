@@ -86,7 +86,9 @@ enum RepositoryStartup {
                 baseline: incompatible ? nil : loadResult.baseline,
                 problem: incompatible ? .incompatibleSetup : loadResult.problem,
                 initialDiagnostics: diagnostics)
-            return DioramaRun(execution: execution, loadResult: loadResult)
+            let records = systems.contains { $0.effectiveMode(defaultMode: defaultMode) == .record }
+            return DioramaRun(execution: execution, loadResult: loadResult,
+                              repository: records ? repository : nil)
         } catch {
             throw ScenarioRepositoryStartupFailure(
                 evidence: .load(loadResult),

@@ -80,7 +80,7 @@ struct UnknownSystemDecodingTests {
             #expect(result.finalization.report.recordingHealth.isHealthy)
         }
         #expect(storage.readCount == 1)
-        #expect(storage.writeCount == 0)
+        #expect(storage.writeCount == (mode == .record ? 1 : 0))
     }
 
     @Test(arguments: [false, true])

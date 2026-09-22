@@ -7,6 +7,43 @@ import Synchronization
 import Testing
 
 struct DioramaFileSetupTests {
+    private struct Counter: RandomNumberGenerator, Sendable {
+        var value: UInt64 = 42
+        mutating func next() -> UInt64 {
+            defer { value += 1 }
+            return value
+        }
+    }
+
+    @Test
+    func `random file recording replays and a later empty recording replaces prior values`() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("scenario.json")
+        let random = try DioramaRandomSystem.instance(named: "random") { Counter() }
+        let setup = try Diorama(file: file, scenarioID: "record", mode: .record, systems: random)
+        let result = try await setup.execute { generator in
+            var generator = generator
+            _ = generator.next()
+            _ = generator.next()
+            #expect(!FileManager.default.fileExists(atPath: file.path))
+        }
+        guard case .published = result.publication else { Issue.record("Expected file publication"); return }
+        let bytes = try Data(contentsOf: file)
+        let replay = try await Diorama(file: file, scenarioID: "replay", mode: .replay, systems: random)
+            .execute { generator in
+                var generator = generator
+                return [generator.next(), generator.next()]
+            }
+        #expect(replay.body == [42, 43])
+        #expect(try Data(contentsOf: file) == bytes)
+        let empty = try await setup.execute { _ in () }
+        #expect(try PublicationFixtures.values("random", in: #require(empty.definition)).isEmpty)
+        let stored = try PublicationFixtures.codec().decode(Data(contentsOf: file))
+        #expect(try PublicationFixtures.values("random", in: stored).isEmpty)
+    }
+
     @Test
     func `file setup reads fresh content per run and explicit definition stays fixed`() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -45,6 +82,7 @@ struct DioramaFileSetupTests {
     func `repeated persistent instances share codecs and start without a second registry declaration`() async throws {
         let location = try ScenarioFileLocation(
             rootDirectory: FileManager.default.temporaryDirectory, relativePath: UUID().uuidString + ".json")
+        defer { try? FileManager.default.removeItem(at: location.fileURL) }
         let first = try DioramaRandomSystem.instance(named: "first")
         let second = try DioramaRandomSystem.instance(named: "second")
         let setup = try Diorama(
@@ -60,7 +98,8 @@ struct DioramaFileSetupTests {
         guard case .missing = result.loadResult else { Issue.record("Expected missing file"); return }
         #expect(result.finalization.usage.count == 2)
         #expect(result.finalization.report.diagnostics.isEmpty)
-        #expect(!FileManager.default.fileExists(atPath: location.fileURL.path))
+        #expect(FileManager.default.fileExists(atPath: location.fileURL.path))
+        guard case .published = result.publication else { Issue.record("Expected publication"); return }
     }
 
     @Test

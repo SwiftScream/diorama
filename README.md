@@ -56,18 +56,19 @@ Callers configuring codecs or custom storage import `DioramaPersistence`.
 
 ## Usage example
 
-The repository includes a compiled, in-memory random record/replay example:
+The repository includes an in-memory and file-backed random record/replay example:
 
 ```sh
 swift run --package-path Examples DioramaRandomUsage
 ```
 
-It prints matching recorded and replayed values. The example imports
-`DioramaCore` to construct its explicit in-memory replay baseline; ordinary
-setup uses `Diorama` and `DioramaRandom`. Each scoped execution finalizes.
+It passes the recording's resulting definition directly into in-memory replay
+and prints matching values. It also records and replays a temporary scenario
+file, removing that example file afterward. Ordinary setup uses `Diorama` and
+`DioramaRandom`; the example imports core to name types in its helper functions.
+Each scoped execution finalizes and reports optional publication separately.
 It lives in a separate examples package that depends on Diorama by a relative
-path, so the Diorama library package remains library-only. Automatic publication and
-record-to-replay transfer arrive in a later implementation phase.
+path, so the Diorama library package remains library-only.
 
 ## Development
 

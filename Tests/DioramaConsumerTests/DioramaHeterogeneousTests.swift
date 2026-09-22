@@ -14,6 +14,37 @@ struct DioramaHeterogeneousTests {
     }
 
     @Test
+    func `complete nonpersistable output replays without returning observations from the body`() async throws {
+        let random = try DioramaRandomSystem.instance(named: "random") { Counter() }
+        let consumer = try ConsumerSequentialSystem.instance(key: .init(rawValue: "consumer"))
+        let recording = try await Diorama(scenarioID: "record", mode: .record, systems: random, consumer)
+            .execute { random, consumer in
+                var random = random
+                _ = random.next()
+                _ = random.next()
+                _ = try consumer.next { ConsumerStableValue(42) }
+            }
+        let definition = try #require(recording.definition)
+        guard case .notRequested = recording.publication else {
+            Issue.record("In-memory run requested storage"); return
+        }
+        let replay = try Diorama(definition: definition, scenarioID: "replay", mode: .replay,
+                                 systems: random, consumer)
+        for _ in 0..<2 {
+            let result = try await replay.execute { random, consumer async throws in
+                var random = random
+                #expect(random.next() == 10)
+                #expect(random.next() == 11)
+                #expect(try consumer.next {
+                    Issue.record("Replay consulted live consumer")
+                    return ConsumerStableValue(-1)
+                } == ConsumerStableValue(42))
+            }
+            #expect(result.finalization.report.diagnostics.isEmpty)
+        }
+    }
+
+    @Test
     func `file setup accepts a URL with only consumer and system imports`() throws {
         let file = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString + ".json")

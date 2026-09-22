@@ -1,6 +1,7 @@
 import Diorama
 import DioramaCore
 import DioramaRandom
+import Foundation
 
 @main
 struct DioramaRandomUsage {
@@ -17,10 +18,7 @@ struct DioramaRandomUsage {
         let recordedValues = recording.body
         try requireCleanFinalization(recording.finalization)
 
-        // Candidate extraction is a later unit; construct the baseline explicitly.
-        let replayDefinition = try makeReplayDefinition(
-            randomAttachment: random.attachment,
-            values: recordedValues)
+        guard let replayDefinition = recording.definition else { throw ExampleError.unavailableDefinition }
 
         let replaySetup = try Diorama(
             definition: replayDefinition, scenarioID: "random-replay-example", mode: .replay, systems: random)
@@ -35,28 +33,31 @@ struct DioramaRandomUsage {
 
         print("recorded: \(recordedValues)")
         print("replayed: \(replayedValues)")
+        try await demonstrateFileWorkflow(random: random)
     }
 
-    private static func makeReplayDefinition(
-        randomAttachment: ScenarioAttachment,
-        values: [UInt64]) throws -> ScenarioDefinition
+    private static func demonstrateFileWorkflow(
+        random: ScenarioSystem<any RandomNumberGenerator & Sendable>) async throws
     {
-        let preparationDefinition = try ScenarioDefinition()
-        let reporter = DiagnosticReporter(
-            scenarioID: ScenarioID(rawValue: "random-replay-preparation-example"),
-            definition: preparationDefinition)
-        let preparation = ValuePreparation<UInt64>()
-        let preparedValues = try values.map { value in
-            try preparation.prepare(
-                capturing: { value },
-                purpose: .replay,
-                reporter: reporter)
-        }
-        let attachment = try ScenarioAttachment(id: randomAttachment.id).adding(
-            SequentialTrack(
-                id: randomAttachment.trackIDs[0],
-                values: preparedValues))
-        return try ScenarioDefinition(attachments: [attachment])
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("random.json")
+        let recording = try await Diorama(file: file, scenarioID: "file-record", mode: .record, systems: random)
+            .execute { generator in
+                var generator = generator
+                // The complete recording is returned even when the body returns no observations.
+                _ = generator.next()
+            }
+        try requireCleanFinalization(recording.finalization)
+        guard case .published = recording.publication else { throw ExampleError.publicationFailed }
+        let replay = try await Diorama(file: file, scenarioID: "file-replay", mode: .replay, systems: random)
+            .execute { generator in
+                var generator = generator
+                return generator.next()
+            }
+        try requireCleanFinalization(replay.finalization)
+        print("file replay: \(replay.body)")
     }
 
     private static func requireCleanFinalization(
@@ -70,4 +71,6 @@ struct DioramaRandomUsage {
 
 private enum ExampleError: Error {
     case unexpectedDiagnostics
+    case unavailableDefinition
+    case publicationFailed
 }

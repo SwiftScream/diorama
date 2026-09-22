@@ -46,7 +46,9 @@ public struct Diorama<each Dependency: Sendable>: Sendable {
     ///
     /// This advanced path accepts custom document storage and explicit readers.
     /// Construction performs no I/O; each start validates registrations and loads
-    /// once. Neither startup nor finalization publishes in this implementation slice.
+    /// once. Runs with an effective record attachment publish their complete
+    /// healthy result at finalization, including after body failure or cancellation.
+    /// Replay and passthrough alone never request publication.
     /// - Parameters:
     ///   - repository: Fixed codec and storage configuration, without cached content.
     ///   - scenarioID: Diagnostic identity for each run.
@@ -69,6 +71,8 @@ public struct Diorama<each Dependency: Sendable>: Sendable {
     /// Unknown persisted system types are diagnosed and discarded without payload
     /// decoding. Registered types still validate every instance before membership
     /// reconciliation. Construction performs no I/O.
+    /// Healthy recording replaces the complete file at finalization. Encoding
+    /// or storage failure preserves the resulting in-memory definition.
     /// - Parameters:
     ///   - file: Absolute local file URL for the scenario document.
     ///   - scenarioID: Diagnostic identity for each run.
@@ -136,7 +140,9 @@ public struct Diorama<each Dependency: Sendable>: Sendable {
     /// preserves the caller's actor through the stored parameter pack.
     /// - Parameters:
     ///   - body: Work receiving fresh dependencies on its inferred actor.
-    /// - Returns: Successful body value, finalization, and the exact load outcome.
+    /// - Returns: Successful body value, finalization, resulting definition,
+    ///   publication disposition, and the exact load outcome. A failed publication
+    ///   is reported without discarding the body value or healthy definition.
     /// - Throws: Startup or body failure, after finalization when the body throws.
     public func execute<Success: Sendable, Failure: Error>(
         _ body: @isolated(any) (repeat each Dependency) async throws(Failure) -> Success)
