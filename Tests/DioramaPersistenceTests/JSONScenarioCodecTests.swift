@@ -207,7 +207,7 @@ struct JSONScenarioCodecTests {
                 for: AttachmentKey(rawValue: "invalid-layout")))
         let document = try ScenarioDefinition(attachments: [invalid])
 
-        #expect(throws: RandomPersistenceSchemaError.invalidTrackLayout(invalid.id)) {
+        #expect(throws: PersistentSystemEncodingError.invalidTrackLayout(invalid.id)) {
             _ = try codec().encode(document)
         }
     }

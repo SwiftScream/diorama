@@ -75,6 +75,8 @@ runtime source details.
 Decoded values are validated and admitted as already-prepared content before
 becoming the single `values` sequential track. Capture transformations are not
 rerun. The canonical writer accepts only that exact track layout.
+An attachment with a different layout fails with
+`PersistentSystemEncodingError.invalidTrackLayout`.
 
 ## Canonical writing
 

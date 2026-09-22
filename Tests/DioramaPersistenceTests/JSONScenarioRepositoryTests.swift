@@ -154,7 +154,7 @@ struct JSONScenarioRepositoryTests {
             Issue.record("Invalid candidate published")
         } catch {
             guard case let .encoding(cause) = error else { Issue.record("Wrong failure stage"); return }
-            #expect(cause as? RandomPersistenceSchemaError == .invalidTrackLayout(invalid.id))
+            #expect(cause as? PersistentSystemEncodingError == .invalidTrackLayout(invalid.id))
         }
         #expect(try fixture.storage.load() == bytes)
         #expect(try fixture.entries() == ["scenario.json"])
