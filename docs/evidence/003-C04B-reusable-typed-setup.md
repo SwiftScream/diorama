@@ -44,7 +44,7 @@ import Diorama
 import DioramaRandom
 import Foundation
 
-let random = try DioramaRandomSystem.instance(for: "random")
+let random = try DioramaRandomSystem.instance(named: "random")
 
 let setup = try Diorama(scenarioID: "example", mode: .record, systems: random)
 let result = try await setup.execute { generator in

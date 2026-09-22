@@ -149,15 +149,17 @@ public enum DioramaRandomSystem {
     /// and passthrough ignores content. Select a mode on the returned system.
     ///
     /// - Parameters:
-    ///   - key: The caller-selected random-domain key.
+    ///   - name: The caller-selected random-domain name.
     ///   - allowsUnusedReplayRecords: Whether replay may leave random values unused.
     /// - Returns: Typed immutable setup using `SystemRandomNumberGenerator`.
     /// - Throws: Public scenario-definition evidence.
     public static func instance(
-        for key: String,
+        named name: String,
         allowsUnusedReplayRecords: Bool = false) throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
     {
-        try instance(for: key, allowsUnusedReplayRecords: allowsUnusedReplayRecords) { SystemRandomNumberGenerator() }
+        try instance(named: name, allowsUnusedReplayRecords: allowsUnusedReplayRecords) {
+            SystemRandomNumberGenerator()
+        }
     }
 
     /// Creates one reusable random system with an injected source factory.
@@ -168,7 +170,7 @@ public enum DioramaRandomSystem {
     /// concurrency-safe source. For example:
     ///
     /// ```swift
-    /// let random = try DioramaRandomSystem.instance(for: "random") {
+    /// let random = try DioramaRandomSystem.instance(named: "random") {
     ///     KnownRandomNumberGenerator(values: [7, 11, 13])
     /// }
     /// let definition = try ScenarioDefinition(
@@ -181,18 +183,18 @@ public enum DioramaRandomSystem {
     /// ```
     ///
     /// - Parameters:
-    ///   - key: The caller-selected random-domain key.
+    ///   - name: The caller-selected random-domain name.
     ///   - allowsUnusedReplayRecords: Whether replay may leave random values unused.
     ///   - sourceFactory: Creates the live source after all systems prepare.
     /// - Returns: Typed immutable attachment, preparation, and lookup setup.
     /// - Throws: Public scenario-definition evidence.
     public static func instance(
-        for key: String,
+        named name: String,
         allowsUnusedReplayRecords: Bool = false,
         sourceFactory: @escaping @Sendable () -> some RandomNumberGenerator & Sendable)
         throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
     {
-        let attachmentKey = AttachmentKey(rawValue: key)
+        let attachmentKey = AttachmentKey(rawValue: name)
         let trackID = trackID(for: attachmentKey)
         let attachment = try ScenarioAttachment(
             id: attachmentID(for: attachmentKey)).adding(

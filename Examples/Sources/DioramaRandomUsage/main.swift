@@ -5,7 +5,7 @@ import DioramaRandom
 @main
 struct DioramaRandomUsage {
     static func main() async throws {
-        let random = try DioramaRandomSystem.instance(for: "example-random")
+        let random = try DioramaRandomSystem.instance(named: "example-random")
 
         let recordingSetup = try Diorama(scenarioID: "random-recording-example", mode: .record, systems: random)
         let recording = try await recordingSetup.execute { generator in
