@@ -17,7 +17,7 @@ struct DioramaHeterogeneousTests {
     func `file setup accepts a URL with only consumer and system imports`() throws {
         let file = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString + ".json")
-        let random = try DioramaRandomSystem.instance(for: "random")
+        let random = try DioramaRandomSystem.instance(named: "random")
         _ = try Diorama(
             file: file,
             scenarioID: "file", mode: .record,
@@ -28,7 +28,7 @@ struct DioramaHeterogeneousTests {
     @Test
     func `random and nonpersistable consumer systems retain typed declaration order`() async throws {
         let factories = Mutex(0)
-        let random = try DioramaRandomSystem.instance(for: "random") {
+        let random = try DioramaRandomSystem.instance(named: "random") {
             factories.withLock { $0 += 1 }
             return Counter()
         }.withMode(.record)

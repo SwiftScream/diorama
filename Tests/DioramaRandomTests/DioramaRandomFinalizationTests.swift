@@ -80,7 +80,7 @@ struct DioramaRandomFinalizationTests {
         let prepared = try values.map { value in
             try preparation.prepare(capturing: { value }, purpose: .replay, reporter: reporter)
         }
-        let instance = try DioramaRandomSystem.instance(for: key.rawValue) { () -> SystemRandomNumberGenerator in
+        let instance = try DioramaRandomSystem.instance(named: key.rawValue) { () -> SystemRandomNumberGenerator in
             fatalError("Replay finalization must remain offline")
         }
         let layout = instance.attachment

@@ -12,7 +12,7 @@ struct DioramaFileSetupTests {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let location = try ScenarioFileLocation(rootDirectory: directory, relativePath: "scenario.json")
         let factories = Mutex(0)
-        let random = try DioramaRandomSystem.instance(for: "boundaries") {
+        let random = try DioramaRandomSystem.instance(named: "boundaries") {
             factories.withLock { $0 += 1 }
             return SystemRandomNumberGenerator()
         }
@@ -45,8 +45,8 @@ struct DioramaFileSetupTests {
     func `repeated persistent instances share codecs and start without a second registry declaration`() async throws {
         let location = try ScenarioFileLocation(
             rootDirectory: FileManager.default.temporaryDirectory, relativePath: UUID().uuidString + ".json")
-        let first = try DioramaRandomSystem.instance(for: "first")
-        let second = try DioramaRandomSystem.instance(for: "second")
+        let first = try DioramaRandomSystem.instance(named: "first")
+        let second = try DioramaRandomSystem.instance(named: "second")
         let setup = try Diorama(
             file: location.fileURL,
             scenarioID: "record", mode: .record,
@@ -72,7 +72,7 @@ struct DioramaFileSetupTests {
         let registration = extraRegistration()
         let inactive = ScenarioAttachment(id: AttachmentID(
             systemTypeID: registration.id, key: AttachmentKey(rawValue: "inactive")))
-        let random = try DioramaRandomSystem.instance(for: "boundaries")
+        let random = try DioramaRandomSystem.instance(named: "boundaries")
         let codec = try JSONScenarioCodec(registry: PersistentSystemRegistry([
             random.type, registration,
         ]))
@@ -134,7 +134,7 @@ struct DioramaFileSetupTests {
 
     @Test
     func `file setup rejects nonfile and directory URLs before accessing storage`() throws {
-        let random = try DioramaRandomSystem.instance(for: "random")
+        let random = try DioramaRandomSystem.instance(named: "random")
         let remote = try #require(URL(string: "https://example.com/scenario.json"))
         #expect(throws: ScenarioFileLocationError.invalidRoot) {
             _ = try Diorama(file: remote, scenarioID: "file-setup", mode: .replay, systems: random)

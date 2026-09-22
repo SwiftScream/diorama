@@ -41,7 +41,7 @@ activation independently each time.
 
 ## System migrations
 
-`DioramaRandomSystem.instance(for:modeOverride:sourceFactory:)` replaces the
+`DioramaRandomSystem.instance(named:modeOverride:sourceFactory:)` replaces the
 separate attachment and registration helpers. It returns
 `ScenarioSystem<any RandomNumberGenerator & Sendable>` while both live
 and replay generator classes remain private. The source factory remains lazy,
