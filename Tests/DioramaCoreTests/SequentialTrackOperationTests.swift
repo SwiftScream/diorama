@@ -51,7 +51,7 @@ struct SequentialTrackOperationTests {
         let (execution, lease) = try makeExecution(mode: .replay, values: [1, 2])
         _ = try lease.claimNext()
 
-        let usage = lease.close()
+        let usage = lease.close().usage
         #expect(usage.activity == .replay(usedCount: 1, unusedCount: 1))
         lease.close()
 

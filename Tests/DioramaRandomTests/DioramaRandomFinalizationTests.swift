@@ -34,7 +34,10 @@ struct DioramaRandomFinalizationTests {
         let diagnostics = result.report.diagnostics + execution.reporter.postFinishDiagnostics
         #expect(diagnostics.count == values.count - used.count)
         #expect(diagnostics.allSatisfy { $0.diagnostic.issue == .lifecycle(.leaseClosed) })
-        #expect(await execution.finish() == result)
+        let repeated = await execution.finish()
+        #expect(repeated.report == result.report)
+        #expect(repeated.usage == result.usage)
+        #expect(repeated.cleanup == result.cleanup)
     }
 
     @Test

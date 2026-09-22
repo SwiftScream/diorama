@@ -41,8 +41,13 @@ public struct AttachmentCleanup: Equatable, Sendable {
 /// An immutable result of explicit in-memory execution finalization.
 ///
 /// Usage and safe diagnostics contain no recorded values or live resources.
+/// The separate definition is explicit caller-owned semantic data; rendering
+/// and evaluation never inspect its payloads.
 /// Evaluation is an explicit consumer action, independent of test frameworks.
-public struct ScenarioFinalizationResult: Equatable, Sendable {
+public struct ScenarioFinalizationResult: Sendable {
+    /// Complete healthy content, or nil when recording could not be finalized.
+    /// Contains stable values only and requires no persistence capability.
+    public let definition: ScenarioDefinition?
     /// Diagnostics and recording health through the result's freeze boundary.
     public let report: DiagnosticReport
     /// Cleanup outcomes in attachment order, not callback completion order.

@@ -48,9 +48,9 @@ struct ConcurrentFinalizationTests {
         gate.release()
         let result = await first.value
         for other in others {
-            #expect(await other.value == result)
+            await expectSameFacts(other.value, result)
         }
-        #expect(await execution.finish() == result)
+        await expectSameFacts(execution.finish(), result)
         #expect(result.cleanup.map(\.disposition) == [.completed, .failed])
         #expect(journal.events.withLock { $0.filter { $0.hasPrefix("cleanup-") } } == ["cleanup-b", "cleanup-a"])
         #expect(result.usage[0].tracks[0].activity == .replay(usedCount: 1, unusedCount: 1))
@@ -103,7 +103,10 @@ struct ConcurrentFinalizationTests {
         #expect(result.report.recordingHealth.failures.count == result.report.diagnostics.count - 1)
         #expect(notifications.withLock { $0.sorted { $0.sequence < $1.sequence } } ==
             (hasSink ? all.sorted { $0.sequence < $1.sequence } : []))
-        #expect(await execution.finish() == result)
+        let repeated = await execution.finish()
+        #expect(repeated.report == result.report)
+        #expect(repeated.usage == result.usage)
+        #expect(repeated.cleanup == result.cleanup)
         #expect(reporter.report == result.report)
     }
 
@@ -136,10 +139,20 @@ struct ConcurrentFinalizationTests {
         #expect(result.usage[0].tracks[0].activity == .record(recordedCount: 0, incompleteCount: 1))
         #expect(result.report.diagnostics.map(\.diagnostic.issue) == [.verification(.recordingNotAdmitted)])
         #expect(!result.report.recordingHealth.isHealthy)
+        #expect(result.definition == nil)
         gate.release()
         #expect(await operation.value?.diagnostic.issue == .lifecycle(.leaseClosed))
         #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [.lifecycle(.leaseClosed)])
-        #expect(await execution.finish() == result)
+        let repeated = await execution.finish()
+        #expect(repeated.report == result.report)
+        #expect(repeated.usage == result.usage)
+        #expect(repeated.cleanup == result.cleanup)
+    }
+
+    private func expectSameFacts(_ repeated: ScenarioFinalizationResult, _ result: ScenarioFinalizationResult) {
+        #expect(repeated.report == result.report)
+        #expect(repeated.usage == result.usage)
+        #expect(repeated.cleanup == result.cleanup)
     }
 
     private func blockingSystem(gate: FinalizationGate,

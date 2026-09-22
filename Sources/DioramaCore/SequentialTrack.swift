@@ -36,6 +36,11 @@ public struct SequentialTrack<Value: Sendable>: Sendable {
                 value: value.value)
         }
     }
+
+    init(id: TrackID, preparedRecords: [SequentialRecord<Value>]) {
+        self.id = id
+        records = preparedRecords
+    }
 }
 
 extension SequentialRecord: Equatable where Value: Equatable {}

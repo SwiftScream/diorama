@@ -11,18 +11,27 @@ public final class ScenarioExecution: Sendable {
     private struct ResourceContents: Sendable {
         var systems: [AnyActivatedSystem] = []
         var leases: [any AnySequentialLease] = []
+        var definition: ScenarioDefinition?
     }
 
     private struct StartupRollback: Error {
         let cleanup: [AttachmentCleanup]
     }
 
+    private struct FinalizedContents {
+        let definition: ScenarioDefinition?
+        let cleanup: [AttachmentCleanup]
+        let usage: [AttachmentUsage]
+    }
+
     private final class Resources: Sendable {
         private let contents: Mutex<ResourceContents>
         private let usage: ExecutionUsage
 
-        init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease], usage: ExecutionUsage) {
-            contents = Mutex(ResourceContents(systems: systems, leases: leases))
+        init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease], usage: ExecutionUsage,
+             definition: ScenarioDefinition)
+        {
+            contents = Mutex(ResourceContents(systems: systems, leases: leases, definition: definition))
             self.usage = usage
         }
 
@@ -34,19 +43,24 @@ public final class ScenarioExecution: Sendable {
 
         func finish(reporter: DiagnosticReporter) -> ScenarioFinalizationResult {
             let final = release(reporter: reporter)
-            return ScenarioFinalizationResult(report: reporter.freeze(), cleanup: final.cleanup, usage: final.usage)
+            let report = reporter.freeze()
+            return ScenarioFinalizationResult(definition: report.recordingHealth.isHealthy ? final.definition : nil,
+                                              report: report, cleanup: final.cleanup, usage: final.usage)
         }
 
-        private func release(reporter: DiagnosticReporter) -> (cleanup: [AttachmentCleanup], usage: [AttachmentUsage]) {
+        private func release(reporter: DiagnosticReporter) -> FinalizedContents {
             let detached = contents.withLock { contents in
                 let detached = contents
                 contents = ResourceContents()
                 return detached
             }
             let tracks = detached.leases.map { $0.close() }
+            let definition = detached.definition?.replacingRecordings(tracks.compactMap(\.recording))
             // This scope drops dependencies and cleanup captures before freeze.
             // Their destruction, like callbacks, occurs outside all locks.
-            return (ScenarioExecution.cleanUp(detached.systems, reporter: reporter), usage.snapshot(tracks))
+            return FinalizedContents(definition: definition,
+                                     cleanup: ScenarioExecution.cleanUp(detached.systems, reporter: reporter),
+                                     usage: usage.snapshot(tracks.map(\.usage)))
         }
     }
 
@@ -63,11 +77,12 @@ public final class ScenarioExecution: Sendable {
     private let admission: ExecutionAdmission
 
     private init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease],
-                 reporter: DiagnosticReporter, admission: ExecutionAdmission, usage: ExecutionUsage)
+                 reporter: DiagnosticReporter, admission: ExecutionAdmission, usage: ExecutionUsage,
+                 definition: ScenarioDefinition)
     {
         self.reporter = reporter
         self.admission = admission
-        state = Mutex(.running(Resources(systems: systems, leases: leases, usage: usage)))
+        state = Mutex(.running(Resources(systems: systems, leases: leases, usage: usage, definition: definition)))
     }
 
     /// Prepares and activates a fresh execution from immutable configuration.
@@ -165,7 +180,7 @@ public final class ScenarioExecution: Sendable {
         }
         let usage = ExecutionUsage(definition: definition, defaultMode: defaultMode, systems: systems)
         return ScenarioExecution(systems: activated, leases: leases, reporter: reporter, admission: admission,
-                                 usage: usage)
+                                 usage: usage, definition: definition)
     }
 
     /// Retrieves an activated dependency while the execution remains running.

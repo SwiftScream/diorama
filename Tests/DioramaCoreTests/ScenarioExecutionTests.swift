@@ -101,7 +101,10 @@ struct ScenarioExecutionTests {
         #expect(throws: DependencyAccessFailure.self) {
             try execution.dependency(key)
         }
-        #expect(await execution.finish() == result)
+        let repeated = await execution.finish()
+        #expect(repeated.report == result.report)
+        #expect(repeated.usage == result.usage)
+        #expect(repeated.cleanup == result.cleanup)
         #expect(execution.reporter.report == result.report)
         #expect(result.report.recordingHealth.isHealthy)
         #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [
@@ -139,7 +142,9 @@ struct ScenarioExecutionTests {
         }
         let result = await canceled.value
         #expect(results.count == 12)
-        #expect(results.allSatisfy { $0 == result })
+        #expect(results.allSatisfy {
+            $0.report == result.report && $0.usage == result.usage && $0.cleanup == result.cleanup
+        })
         #expect(result.cleanup.map(\.disposition) == [.completed, .failed, .completed])
         #expect(result.report.diagnostics.map(\.diagnostic.issue) == [.lifecycle(.cleanupFailed)])
         #expect(journal.events.withLock { $0.filter { $0.hasPrefix("cleanup-") } } == [
@@ -196,6 +201,9 @@ struct ScenarioExecutionTests {
         let result = await execution.finish()
         #expect(result.cleanup.isEmpty)
         #expect(result.report.diagnostics.isEmpty)
-        #expect(await execution.finish() == result)
+        let repeated = await execution.finish()
+        #expect(repeated.report == result.report)
+        #expect(repeated.usage == result.usage)
+        #expect(repeated.cleanup == result.cleanup)
     }
 }

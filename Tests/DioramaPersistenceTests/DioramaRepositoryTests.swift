@@ -106,7 +106,9 @@ struct DioramaRepositoryTests {
         let high = try await setup.execute { lease in try lease.claimNext().value }
         let second = try await setup.execute { lease in try lease.claimNext().value }
         #expect(second.body == high.body)
-        #expect(second.finalization == high.finalization)
+        #expect(second.finalization.report == high.finalization.report)
+        #expect(second.finalization.usage == high.finalization.usage)
+        #expect(second.finalization.cleanup == high.finalization.cleanup)
         #expect(storage.readCount == 2)
         #expect(storage.writeCount == 0)
     }

@@ -15,7 +15,12 @@ final class ExecutionAdmission: Sendable {
 protocol AnySequentialLease: Sendable {
     var id: TrackID { get }
     @discardableResult
-    func close() -> SequentialTrackUsage
+    func close() -> ClosedSequentialTrack
+}
+
+struct ClosedSequentialTrack: Sendable {
+    let usage: SequentialTrackUsage
+    let recording: (any AnySequentialTrack)?
 }
 
 /// A reference-semantic, execution-owned lifetime for one typed track.
@@ -43,6 +48,7 @@ public final class SequentialTrackLease<Value: Sendable>: Sendable {
         let usage: SequentialTrackUsage
         let records: [SequentialRecord<Value>]
         let incomplete: [RecordIdentity]
+        let recording: SequentialTrack<Value>?
     }
 
     private struct State: Sendable {
@@ -251,12 +257,12 @@ public final class SequentialTrackLease<Value: Sendable>: Sendable {
 
 extension SequentialTrackLease: AnySequentialLease {
     @discardableResult
-    func close() -> SequentialTrackUsage {
+    func close() -> ClosedSequentialTrack {
         // Release stable values outside the lock: their destruction may run
         // consumer code. The closed lease never retains the detached content.
         let detached = state.withLock { state -> ClosedContents in
             if let usage = state.finalUsage {
-                return ClosedContents(usage: usage, records: [], incomplete: [])
+                return ClosedContents(usage: usage, records: [], incomplete: [], recording: nil)
             }
             state.closed = true
             let incomplete = state.recording.indices.filter {
@@ -285,14 +291,16 @@ extension SequentialTrackLease: AnySequentialLease {
             let records = state.baseline + admitted
             state.baseline = []
             state.recording = []
-            return ClosedContents(usage: usage, records: records, incomplete: incomplete)
+            let recording = mode == .record ? SequentialTrack(id: id, preparedRecords: admitted) : nil
+            return ClosedContents(usage: usage, records: records, incomplete: incomplete, recording: recording)
         }
         for identity in detached.incomplete {
             reporter.record(Diagnostic(issue: .verification(.recordingNotAdmitted), context: .record(identity),
                                        recordingImpact: .invalidatesCandidate))
         }
         withExtendedLifetime(detached) {}
-        return detached.usage
+        return ClosedSequentialTrack(usage: detached.usage,
+                                     recording: detached.recording.map { SequentialTrackBox(track: $0) })
     }
 }
 

@@ -9,7 +9,7 @@ struct ExecutionOwnershipTests {
     }
 
     @Test
-    func `finish releases sources and content despite escaped leases contexts and reporter`() async throws {
+    func `finish releases sources while only the result retains stable content`() async throws {
         let observations = Observations()
         var execution: ScenarioExecution? = try makeOwnedExecution(observations)
         weak let weakExecution = execution
@@ -19,15 +19,17 @@ struct ExecutionOwnershipTests {
         var reporter: DiagnosticReporter? = execution?.reporter
         weak let weakReporter = reporter
         #expect(observations.releases.withLock { $0 } == ["prepared system"])
-        let result = try #require(await execution?.finish())
-        #expect(observations.releases.withLock { $0.sorted() } == ["content", "prepared system", "source"])
+        var result = try #require(await execution?.finish()) as ScenarioFinalizationResult?
+        #expect(observations.releases.withLock { $0.sorted() } == ["prepared system", "source"])
         #expect(lease?.isClosed == true)
         execution = nil
         #expect(weakExecution == nil)
 
         #expect(lease?.report(.system(DiagnosticLabel("escaped"))) == false)
-        #expect(reporter?.report == result.report)
+        #expect(reporter?.report == result?.report)
         #expect(reporter?.postFinishDiagnostics.map(\.diagnostic.issue) == [.lifecycle(.leaseClosed)])
+        result = nil
+        #expect(observations.releases.withLock { $0.sorted() } == ["content", "prepared system", "source"])
         let context = try #require(observations.context.withLock { $0 })
         #expect(throws: PreparationFailure.self) {
             try context.lease(

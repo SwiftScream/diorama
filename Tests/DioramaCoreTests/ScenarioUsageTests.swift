@@ -52,7 +52,10 @@ struct ScenarioUsageTests {
         ])
         #expect(!result.evaluate(.noUnexpectedOperations).isSatisfied)
         #expect(result.evaluate(.allRecordingsUsed, attachments: [record.id.key, pass.id.key]).isSatisfied)
-        #expect(await execution.finish() == result)
+        let repeated = await execution.finish()
+        #expect(repeated.report == result.report)
+        #expect(repeated.usage == result.usage)
+        #expect(repeated.cleanup == result.cleanup)
     }
 
     @Test

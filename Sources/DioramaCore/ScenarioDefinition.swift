@@ -19,7 +19,7 @@ public enum ScenarioDefinitionError: Error, Equatable, Sendable {
     case incompatibleTrackRecordType(TrackID)
 }
 
-private protocol AnySequentialTrack: Sendable {
+protocol AnySequentialTrack: Sendable {
     var id: TrackID { get }
 
     /// Runtime type identity validates in-memory generic compatibility only. It
@@ -29,7 +29,7 @@ private protocol AnySequentialTrack: Sendable {
     func removingRecords() -> any AnySequentialTrack
 }
 
-private struct SequentialTrackBox<Value: Sendable>: AnySequentialTrack {
+struct SequentialTrackBox<Value: Sendable>: AnySequentialTrack {
     let track: SequentialTrack<Value>
 
     var id: TrackID {
@@ -130,6 +130,12 @@ public struct ScenarioAttachment: Sendable {
             id: id,
             tracks: tracks.map { $0.removingRecords() })
     }
+
+    func replacingRecordings(_ recordings: [any AnySequentialTrack]) -> ScenarioAttachment {
+        ScenarioAttachment(id: id, tracks: tracks.map { original in
+            recordings.first { $0.id == original.id } ?? original
+        })
+    }
 }
 
 /// Immutable semantic scenario data, independent of runtime configuration.
@@ -204,5 +210,11 @@ public struct ScenarioDefinition: Sendable {
 
     private init(validatedAttachments: [ScenarioAttachment]) {
         attachments = validatedAttachments
+    }
+
+    func replacingRecordings(_ recordings: [any AnySequentialTrack]) -> ScenarioDefinition {
+        // Every replacement comes from the typed lease prepared for this exact
+        // track. Identity, value type, and prepared-value invariants are preserved.
+        ScenarioDefinition(validatedAttachments: attachments.map { $0.replacingRecordings(recordings) })
     }
 }

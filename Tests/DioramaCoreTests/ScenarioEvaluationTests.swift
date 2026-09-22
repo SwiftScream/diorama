@@ -62,7 +62,10 @@ struct ScenarioEvaluationTests {
         let before = result.evaluate(.noUnexpectedOperations)
         #expect(!first.report(.system(DiagnosticLabel("late"))))
         #expect(result.evaluate(.noUnexpectedOperations) == before)
-        #expect(await execution.finish() == result)
+        let repeated = await execution.finish()
+        #expect(repeated.report == result.report)
+        #expect(repeated.usage == result.usage)
+        #expect(repeated.cleanup == result.cleanup)
         #expect(execution.reporter.postFinishDiagnostics.count == 1)
     }
 
