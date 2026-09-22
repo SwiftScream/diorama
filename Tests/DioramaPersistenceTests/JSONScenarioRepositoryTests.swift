@@ -1,6 +1,6 @@
 import DioramaCore
 @testable import DioramaPersistence
-import DioramaRandom
+@testable import DioramaRandom
 import Foundation
 import Synchronization
 import Testing
@@ -83,7 +83,7 @@ struct JSONScenarioRepositoryTests {
         guard case let .incompatibleSystem(unknown) = emptyRegistry.load() else {
             Issue.record("Expected missing registration"); return
         }
-        #expect(unknown == .unknownSystemType(DioramaRandomSystem.systemTypeID))
+        #expect(unknown == .unknownSystemType(DioramaRandomSystem.type.id))
         let unsupportedVersions: [(String, UInt32)] = [
             ("unsupported-random-version", 2),
             ("zero-random-version", 0),
@@ -94,7 +94,7 @@ struct JSONScenarioRepositoryTests {
                 Issue.record("Expected unsupported payload version"); return
             }
             #expect(version == .unsupportedSchemaVersion(
-                systemTypeID: DioramaRandomSystem.systemTypeID,
+                systemTypeID: DioramaRandomSystem.type.id,
                 declared: declared,
                 supported: [DioramaRandomPersistence.schemaVersion]))
         }

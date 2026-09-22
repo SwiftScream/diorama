@@ -9,7 +9,7 @@ struct DioramaRandomTests {
     func `record returns a known source sequence through shared references`() async throws {
         let key = AttachmentKey(rawValue: "record")
         let probe = SourceProbe(sequences: [[7, 11, 13]])
-        let instance = try DioramaRandomSystem.instance(for: key) {
+        let instance = try DioramaRandomSystem.instance(for: key.rawValue) {
             probe.makeSource()
         }
         let execution = try start(mode: .record, instance: instance)
@@ -29,7 +29,7 @@ struct DioramaRandomTests {
         let key = AttachmentKey(rawValue: "passthrough")
         let probe = SourceProbe(sequences: [[21, 22]])
         let attachment = try attachment(key: key, values: [1, 2, 3])
-        let instance = try DioramaRandomSystem.instance(for: key) { probe.makeSource() }
+        let instance = try DioramaRandomSystem.instance(for: key.rawValue) { probe.makeSource() }
 
         let definition = try ScenarioDefinition(attachments: [attachment])
         let execution = try ScenarioExecution.start(
@@ -49,8 +49,8 @@ struct DioramaRandomTests {
         let second = AttachmentKey(rawValue: "second")
         let firstProbe = SourceProbe(sequences: [[1, 2]])
         let secondProbe = SourceProbe(sequences: [[10, 20]])
-        let firstInstance = try DioramaRandomSystem.instance(for: first) { firstProbe.makeSource() }
-        let secondInstance = try DioramaRandomSystem.instance(for: second) { secondProbe.makeSource() }
+        let firstInstance = try DioramaRandomSystem.instance(for: first.rawValue) { firstProbe.makeSource() }
+        let secondInstance = try DioramaRandomSystem.instance(for: second.rawValue) { secondProbe.makeSource() }
 
         let definition = try ScenarioDefinition(attachments: [
             firstInstance.attachment,
@@ -78,7 +78,7 @@ struct DioramaRandomTests {
     func `source factory creates fresh state for every execution`() async throws {
         let key = AttachmentKey(rawValue: "fresh")
         let probe = SourceProbe(sequences: [[31], [41]])
-        let instance = try DioramaRandomSystem.instance(for: key) {
+        let instance = try DioramaRandomSystem.instance(for: key.rawValue) {
             probe.makeSource()
         }
 
@@ -107,7 +107,7 @@ struct DioramaRandomTests {
         let key = AttachmentKey(rawValue: "concurrent")
         let values = Array(0..<UInt64(100))
         let probe = SourceProbe(sequences: [values], operationDelay: 0.001)
-        let instance = try DioramaRandomSystem.instance(for: key) { probe.makeSource() }
+        let instance = try DioramaRandomSystem.instance(for: key.rawValue) { probe.makeSource() }
         let execution = try start(mode: .record, instance: instance)
         let generator = try execution.dependency(instance)
         let observed = await withTaskGroup(of: UInt64.self, returning: [UInt64].self) { group in
@@ -134,7 +134,7 @@ struct DioramaRandomTests {
     func `finish releases the source and closes an escaped generator`() async throws {
         let key = AttachmentKey(rawValue: "closed")
         let probe = SourceProbe(sequences: [[51, 52]])
-        let instance = try DioramaRandomSystem.instance(for: key) { probe.makeSource() }
+        let instance = try DioramaRandomSystem.instance(for: key.rawValue) { probe.makeSource() }
         let execution = try start(mode: .record, instance: instance)
         var generator = try execution.dependency(instance)
 
@@ -152,7 +152,7 @@ struct DioramaRandomTests {
     @Test
     func `default source registration activates in passthrough`() async throws {
         let key = AttachmentKey(rawValue: "default")
-        let instance = try DioramaRandomSystem.instance(for: key)
+        let instance = try DioramaRandomSystem.instance(for: key.rawValue)
         let execution = try start(mode: .passthrough, instance: instance)
         var generator = try execution.dependency(instance)
 
@@ -172,9 +172,10 @@ struct DioramaRandomTests {
     }
 
     private func attachment(key: AttachmentKey, values: [UInt64]) throws -> ScenarioAttachment {
-        try ScenarioAttachment(id: DioramaRandomSystem.attachmentID(for: key)).adding(
+        let layout = try DioramaRandomSystem.instance(for: key.rawValue).attachment
+        return try ScenarioAttachment(id: layout.id).adding(
             SequentialTrack(
-                id: DioramaRandomSystem.trackID(for: key),
+                id: layout.trackIDs[0],
                 values: preparedValues(values)))
     }
 

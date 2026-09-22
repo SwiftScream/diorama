@@ -131,29 +131,15 @@ private final class ReplayRandomNumberGenerator: RandomNumberGenerator, Sendable
 
 /// Setup helpers for Diorama's first-party random system.
 public enum DioramaRandomSystem {
-    /// The stable identity of the first-party random system.
-    public static var systemTypeID: SystemTypeID {
-        type.id
-    }
-
-    /// Shared random-system identity and its optional versioned persistence capability.
-    public static let type = ScenarioSystemType("diorama.random", persistence: DioramaRandomPersistence.registration)
+    static let type = ScenarioSystemType("diorama.random", persistence: DioramaRandomPersistence.registration)
 
     private static let valuesTrackKey = TrackKey(rawValue: "values")
 
-    /// Creates the stable identity for one named random attachment.
-    ///
-    /// - Parameter key: The caller-selected random-domain key.
-    /// - Returns: A distinct identity using the stable random system type.
-    public static func attachmentID(for key: AttachmentKey) -> AttachmentID {
-        AttachmentID(systemTypeID: systemTypeID, key: key)
+    static func attachmentID(for key: AttachmentKey) -> AttachmentID {
+        AttachmentID(systemTypeID: type.id, key: key)
     }
 
-    /// Creates the raw-values track identity for one named random attachment.
-    ///
-    /// - Parameter key: The caller-selected random-domain key.
-    /// - Returns: The attachment's sole sequential track identity.
-    public static func trackID(for key: AttachmentKey) -> TrackID {
+    static func trackID(for key: AttachmentKey) -> TrackID {
         TrackID(attachmentID: attachmentID(for: key), key: valuesTrackKey)
     }
 
@@ -168,7 +154,7 @@ public enum DioramaRandomSystem {
     /// - Returns: Typed immutable setup using `SystemRandomNumberGenerator`.
     /// - Throws: Public scenario-definition evidence.
     public static func instance(
-        for key: AttachmentKey,
+        for key: String,
         allowsUnusedReplayRecords: Bool = false) throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
     {
         try instance(for: key, allowsUnusedReplayRecords: allowsUnusedReplayRecords) { SystemRandomNumberGenerator() }
@@ -182,7 +168,7 @@ public enum DioramaRandomSystem {
     /// concurrency-safe source. For example:
     ///
     /// ```swift
-    /// let random = try DioramaRandomSystem.instance(for: randomKey) {
+    /// let random = try DioramaRandomSystem.instance(for: "random") {
     ///     KnownRandomNumberGenerator(values: [7, 11, 13])
     /// }
     /// let definition = try ScenarioDefinition(
@@ -201,14 +187,15 @@ public enum DioramaRandomSystem {
     /// - Returns: Typed immutable attachment, preparation, and lookup setup.
     /// - Throws: Public scenario-definition evidence.
     public static func instance(
-        for key: AttachmentKey,
+        for key: String,
         allowsUnusedReplayRecords: Bool = false,
         sourceFactory: @escaping @Sendable () -> some RandomNumberGenerator & Sendable)
         throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
     {
-        let trackID = trackID(for: key)
+        let attachmentKey = AttachmentKey(rawValue: key)
+        let trackID = trackID(for: attachmentKey)
         let attachment = try ScenarioAttachment(
-            id: attachmentID(for: key)).adding(
+            id: attachmentID(for: attachmentKey)).adding(
             SequentialTrack<UInt64>(id: trackID))
         return try ScenarioSystem(type: type, attachment: attachment,
                                   allowsUnusedReplayRecords: allowsUnusedReplayRecords)

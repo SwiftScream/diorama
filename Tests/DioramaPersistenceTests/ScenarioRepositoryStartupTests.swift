@@ -1,7 +1,7 @@
 import Diorama
 import DioramaCore
 import DioramaPersistence
-import DioramaRandom
+@testable import DioramaRandom
 import Foundation
 import Synchronization
 import Testing
@@ -264,7 +264,7 @@ struct UnmatchedAttachmentStartupTests {
         ])
         #expect(result.finalization.report.diagnostics.map(\.diagnostic.context) == [
             .attachment(AttachmentID(
-                systemTypeID: DioramaRandomSystem.systemTypeID,
+                systemTypeID: DioramaRandomSystem.type.id,
                 key: AttachmentKey(rawValue: "retry-jitter"))),
         ])
     }

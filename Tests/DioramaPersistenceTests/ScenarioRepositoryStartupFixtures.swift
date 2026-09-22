@@ -1,6 +1,6 @@
 import DioramaCore
 import DioramaPersistence
-import DioramaRandom
+@testable import DioramaRandom
 import Foundation
 import Synchronization
 

@@ -1,7 +1,7 @@
 import Diorama
 import DioramaCore
 import DioramaPersistence
-import DioramaRandom
+@testable import DioramaRandom
 import Testing
 
 struct ScenarioDefinitionIntegrationTests {

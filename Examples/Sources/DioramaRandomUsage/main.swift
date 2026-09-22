@@ -5,8 +5,7 @@ import DioramaRandom
 @main
 struct DioramaRandomUsage {
     static func main() async throws {
-        let randomKey = AttachmentKey(rawValue: "example-random")
-        let random = try DioramaRandomSystem.instance(for: randomKey)
+        let random = try DioramaRandomSystem.instance(for: "example-random")
 
         let recordingSetup = try Diorama(scenarioID: "random-recording-example", mode: .record, systems: random)
         let recording = try await recordingSetup.execute { generator in
@@ -20,7 +19,7 @@ struct DioramaRandomUsage {
 
         // Candidate extraction is a later unit; construct the baseline explicitly.
         let replayDefinition = try makeReplayDefinition(
-            randomKey: randomKey,
+            randomAttachment: random.attachment,
             values: recordedValues)
 
         let replaySetup = try Diorama(
@@ -39,7 +38,7 @@ struct DioramaRandomUsage {
     }
 
     private static func makeReplayDefinition(
-        randomKey: AttachmentKey,
+        randomAttachment: ScenarioAttachment,
         values: [UInt64]) throws -> ScenarioDefinition
     {
         let preparationDefinition = try ScenarioDefinition()
@@ -53,10 +52,9 @@ struct DioramaRandomUsage {
                 purpose: .replay,
                 reporter: reporter)
         }
-        let attachmentID = DioramaRandomSystem.attachmentID(for: randomKey)
-        let attachment = try ScenarioAttachment(id: attachmentID).adding(
+        let attachment = try ScenarioAttachment(id: randomAttachment.id).adding(
             SequentialTrack(
-                id: DioramaRandomSystem.trackID(for: randomKey),
+                id: randomAttachment.trackIDs[0],
                 values: preparedValues))
         return try ScenarioDefinition(attachments: [attachment])
     }
