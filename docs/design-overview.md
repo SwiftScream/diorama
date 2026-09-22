@@ -3,7 +3,7 @@
 - Status: Accepted
 - Created: 2026-09-05
 - Approved by owner: 2026-09-07
-- Last reviewed: 2026-09-19
+- Last reviewed: 2026-09-21
 - Scope: Decisions 1 through 18
 - Derived from: [Accepted design decisions](design-decisions/README.md)
 
@@ -23,6 +23,10 @@ synthesis. On 2026-09-19, the owner approved
 [Decision 18](design-decisions/18-diorama-setup-and-scenario-data.md), separating
 runtime setup from immutable scenario data and refining the persistence and
 result boundaries. Its explicit reconciliation governs earlier terminology.
+Its 2026-09-20 amendment places optional persistence capabilities on shared
+system-type descriptors and permits startup to omit unregistered payload types.
+Its 2026-09-21 amendment places consumer setup and run orchestration in a
+`Diorama` module above separate core and persistence modules.
 
 The original review of decisions 1 through 12 identified scheduler, clock,
 location, consumer-extension, and HTTP-composition prerequisites. Decisions 13
@@ -150,6 +154,31 @@ the valid semantic output while reporting that publication failed. This keeps
 fixture generation independent of test-framework outcome while preserving the
 previous publication whenever replacement cannot succeed.
 
+### Consumer and implementation modules
+
+Consumers import `Diorama` together with their selected system modules.
+`Diorama` depends on `DioramaCore` and `DioramaPersistence` and owns baseline
+selection, startup, scoped execution, and optional publication orchestration.
+Setup takes a string scenario ID and default mode directly; file-backed setup
+accepts an absolute local file URL. It does not re-export every declaration from
+either module. Returned system instances pass directly to setup without a caller
+import of core; system authors and callers naming or constructing lower-level
+semantic values import core. Each configured system may override the default mode
+and declare whether unused replay records are acceptable for its attachment.
+
+Core contains semantic values, system authoring contracts, and the execution
+engine. Persistence depends on core and contains schema conversion and storage;
+repositories load and publish definitions without activating systems.
+System implementations depend on core and may use persistence schema helpers.
+
+`Diorama.execute` supplies dependencies and finalizes the run. Startup and body
+errors throw, with finalization awaited before a body error is rethrown. A
+returned `DioramaResult` holds the successful body value, finalization facts,
+and concrete optional load outcome. The intermediate `DioramaRun` is internal;
+the consumer API has no diagnostic sink argument.
+Core has no opaque integration-evidence field. Its engine finalization remains
+independent of the consumer layer's optional publication responsibility.
+
 ### Reusable setup and immutable scenario data
 
 `Diorama` retains its typed systems and execution policies, not an execution or
@@ -159,6 +188,12 @@ construction; every execution loads its own fixed semantic baseline. A supplied
 definition is already fixed and reusable. Finalization constructs a new
 definition, preserving configured replay/passthrough content, replacing record
 content under system merge rules, and omitting unconfigured attachments.
+
+Each `ScenarioSystem` refers to a shared `ScenarioSystemType` containing stable
+identity and optional capabilities. Several keyed instances share that metadata.
+`SystemTypeID` remains the stable value used in semantic data; the descriptor
+and its implementations stay in runtime setup. Ordinary system instances serve
+both in-memory and persistent constructors.
 
 ### Immutable final reports and later diagnostics
 
@@ -195,6 +230,17 @@ Codecs accept and return `ScenarioDefinition` directly; a separate public
 `PersistedScenario` is unnecessary. Deliberate schema helpers remain inside
 persistence, and the core definition does not acquire a `Codable` requirement.
 A definition can be semantically valid without being persistable.
+
+Core may declare optional format-neutral persistence protocols without requiring
+systems to implement them or consumers to use them. File setup collects codecs
+from its configured system types. One decoder uses the registry for dispatch:
+standalone decoding rejects unknown types; execution startup skips their payloads
+and retains headers for diagnosis and membership reconciliation. No attachment-ID
+selection enters the codec. All registered types still decode every instance,
+including inactive keys. Unknown payloads remain opaque, while the envelope,
+headers, duplicate attachment keys, and JSON syntax remain validated throughout
+the document. An unknown type occupying a configured key is an incompatible
+baseline, never a source of synthesized replay content.
 
 ### Recording failures and unsupported operations
 

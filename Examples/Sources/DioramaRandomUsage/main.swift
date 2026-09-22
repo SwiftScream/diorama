@@ -1,3 +1,4 @@
+import Diorama
 import DioramaCore
 import DioramaRandom
 
@@ -5,41 +6,32 @@ import DioramaRandom
 struct DioramaRandomUsage {
     static func main() async throws {
         let randomKey = AttachmentKey(rawValue: "example-random")
-        let recordingSystem = try DioramaRandomSystem.instance(for: randomKey)
-        let recordingDefinitionConfiguration = ScenarioConfiguration(
-            id: ScenarioID(rawValue: "random-recording-example"),
-            defaultMode: .record)
-        let recordingDefinition = try ScenarioDefinition(attachments: [recordingSystem.attachment])
+        let random = try DioramaRandomSystem.instance(for: randomKey)
 
-        let recording = try await recordingDefinition.execute(
-            configuration: recordingDefinitionConfiguration,
-            with: recordingSystem)
-        { generator in
+        let recordingSetup = try Diorama(scenarioID: "random-recording-example", mode: .record, systems: random)
+        let recording = try await recordingSetup.execute { generator in
             var generator = generator
             return Array(0..<5).map { _ in
                 generator.next()
             }
         }
-        let recordedValues = recording.body.get()
+        let recordedValues = recording.body
         try requireCleanFinalization(recording.finalization)
 
-        let replaySystem = try DioramaRandomSystem.instance(for: randomKey)
+        // Candidate extraction is a later unit; construct the baseline explicitly.
         let replayDefinition = try makeReplayDefinition(
             randomKey: randomKey,
             values: recordedValues)
-        let replayDefinitionConfiguration = ScenarioConfiguration(
-            id: ScenarioID(rawValue: "random-replay-example"),
-            defaultMode: .replay)
-        let replay = try await replayDefinition.execute(
-            configuration: replayDefinitionConfiguration,
-            with: replaySystem)
-        { generator in
+
+        let replaySetup = try Diorama(
+            definition: replayDefinition, scenarioID: "random-replay-example", mode: .replay, systems: random)
+        let replay = try await replaySetup.execute { generator in
             var generator = generator
             return Array(0..<5).map { _ in
                 generator.next()
             }
         }
-        let replayedValues = replay.body.get()
+        let replayedValues = replay.body
         try requireCleanFinalization(replay.finalization)
 
         print("recorded: \(recordedValues)")

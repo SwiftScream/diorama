@@ -20,6 +20,17 @@ and makes persistence operate directly on that shared in-memory model. Its
 explicit reconciliation supersedes the earlier configuration meaning of
 "scenario definition" in Decision 10; other earlier records retain their history.
 
+On 2026-09-20, the owner approved Decision 18's amendment introducing shared
+system-type capabilities and registry-based unknown-payload omission at startup.
+Complete standalone decoding remains strict; see the amendment for its explicit
+reconciliation with the earlier registration and validation rules.
+
+On 2026-09-21, the owner approved Decision 18's consumer-module amendment:
+`Diorama` owns setup and run orchestration above core and persistence, with
+concrete load outcomes and one scoped result API.
+The same review later narrowed the consumer import boundary, replacing
+whole-module re-exports with explicit setup arguments and inferred system values.
+
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |
 | 1 | [Common abstraction](01-common-abstraction.md) | `01-common-abstraction.md` | Accepted |

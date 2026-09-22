@@ -11,9 +11,9 @@ public struct JSONScenarioCodec: Sendable {
 
     private let registry: PersistentSystemRegistry
 
-    /// Creates a JSON transport using explicit persistent-system registrations.
+    /// Creates a JSON transport using capabilities collected from system types.
     ///
-    /// - Parameter registry: Writers and readers for every included system.
+    /// - Parameter registry: Writers and readers from the known system types.
     public init(registry: PersistentSystemRegistry) {
         self.registry = registry
     }
@@ -44,13 +44,20 @@ public struct JSONScenarioCodec: Sendable {
 
     /// Decodes and validates one versioned JSON document.
     ///
+    /// Every system type must be registered; unknown types are errors. Execution
+    /// startup uses the same decoder with an internal discard policy instead.
     /// - Parameter data: UTF-8 JSON document bytes.
     /// - Returns: Prepared scenario content in persisted semantic order.
     public func decode(_ data: Data) throws -> ScenarioDefinition {
+        try decode(data, unknownSystems: .reject).scenario
+    }
+
+    func decode(_ data: Data, unknownSystems: UnknownSystemPolicy) throws -> PersistedScenarioEnvelope {
         let decoder = JSONDecoder()
         decoder.userInfo[persistentSystemRegistryUserInfoKey] = registry
+        decoder.userInfo[unknownSystemPolicyUserInfoKey] = unknownSystems
         do {
-            return try decoder.decode(PersistedScenarioEnvelope.self, from: data).scenario
+            return try decoder.decode(PersistedScenarioEnvelope.self, from: data)
         } catch let error as PersistedScenarioCodingError {
             throw error
         } catch let error as DecodingError {

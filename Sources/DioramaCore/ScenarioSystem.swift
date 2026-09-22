@@ -45,11 +45,20 @@ public struct ActivatedSystem<Dependency: Sendable>: Sendable {
 /// state. Use ``AnyScenarioSystem`` to combine systems with heterogeneous
 /// dependency types at startup.
 public struct ScenarioSystem<Dependency: Sendable>: Sendable {
+    /// Shared system-wide identity and optional capabilities.
+    public let type: ScenarioSystemType
+
     /// The immutable stable content contributed to a programmatic definition.
     public let attachment: ScenarioAttachment
 
     /// The typed key used to retrieve this system's activated dependency.
     public let dependencyKey: DependencyKey<Dependency>
+
+    /// This attachment's mode, or `nil` to inherit the scenario default.
+    public private(set) var modeOverride: ScenarioMode?
+
+    /// Whether unused replay records are exempt from evaluation.
+    public let allowsUnusedReplayRecords: Bool
 
     let prepare: @Sendable (SystemPreparationContext) throws -> PreparedSystem<Dependency>
 
@@ -61,15 +70,37 @@ public struct ScenarioSystem<Dependency: Sendable>: Sendable {
     /// throws; do not launch work that continues using it afterward.
     ///
     /// - Parameters:
+    ///   - type: Shared descriptor whose identity owns the attachment.
     ///   - attachment: Immutable stable attachment content.
+    ///   - allowsUnusedReplayRecords: Whether unused replay records are acceptable
+    ///     for this attachment. A system factory chooses whether to expose this option.
     ///   - prepare: Creates a fresh prepared system for each execution.
+    /// - Throws: An attachment identity belonging to another system type.
     public init(
+        type: ScenarioSystemType,
         attachment: ScenarioAttachment,
+        allowsUnusedReplayRecords: Bool = false,
         prepare: @escaping @Sendable (SystemPreparationContext) throws -> PreparedSystem<Dependency>)
+        throws(ScenarioDefinitionError)
     {
+        guard type.id == attachment.id.systemTypeID else {
+            throw .incompatibleAttachmentSystem(
+                key: attachment.id.key, existing: type.id, proposed: attachment.id.systemTypeID)
+        }
+        self.type = type
         self.attachment = attachment
         dependencyKey = DependencyKey(attachmentID: attachment.id)
+        modeOverride = nil
+        self.allowsUnusedReplayRecords = allowsUnusedReplayRecords
         self.prepare = prepare
+    }
+
+    /// Returns a copy using a caller-selected mode for this attachment.
+    /// Passing `nil` restores inheritance of the scenario default.
+    public func withMode(_ mode: ScenarioMode?) -> Self {
+        var copy = self
+        copy.modeOverride = mode
+        return copy
     }
 }
 
@@ -82,6 +113,12 @@ public struct AnyScenarioSystem: Sendable {
     /// The exact system type and key declared by the scenario definition.
     public let attachmentID: AttachmentID
 
+    /// Per-attachment mode selected by the caller, if any.
+    public let modeOverride: ScenarioMode?
+
+    /// Whether this attachment waives unused-replay-record evaluation.
+    public let allowsUnusedReplayRecords: Bool
+
     let prepare: @Sendable (SystemPreparationContext) throws -> AnyPreparedSystem
 
     /// Erases a typed system for heterogeneous execution startup.
@@ -91,6 +128,8 @@ public struct AnyScenarioSystem: Sendable {
         let attachmentID = system.attachment.id
         let prepare = system.prepare
         self.attachmentID = attachmentID
+        modeOverride = system.modeOverride
+        allowsUnusedReplayRecords = system.allowsUnusedReplayRecords
         self.prepare = { context in
             let prepared = try prepare(context)
             return AnyPreparedSystem {
@@ -101,6 +140,11 @@ public struct AnyScenarioSystem: Sendable {
                     deactivate: activation.deactivate)
             }
         }
+    }
+
+    /// The attachment's selected mode after inheriting the scenario default.
+    public func effectiveMode(defaultMode: ScenarioMode) -> ScenarioMode {
+        modeOverride ?? defaultMode
     }
 }
 

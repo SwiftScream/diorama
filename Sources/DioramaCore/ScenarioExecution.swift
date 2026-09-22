@@ -79,7 +79,8 @@ public final class ScenarioExecution: Sendable {
     ///
     /// - Parameters:
     ///   - definition: Ordered attachment declarations and prepared stable data.
-    ///   - configuration: Diagnostic identity, attachment modes, and verification policy.
+    ///   - scenarioID: Diagnostic identity for this execution.
+    ///   - defaultMode: Mode inherited by systems without an override.
     ///   - systems: Exactly one registration for each declared attachment.
     ///   - initialDiagnostics: Safe facts produced by pre-activation
     ///     orchestration, retained before any system callback.
@@ -88,20 +89,15 @@ public final class ScenarioExecution: Sendable {
     /// - Throws: A structured startup failure including rollback outcomes.
     public static func start(
         definition: ScenarioDefinition,
-        configuration: ScenarioConfiguration,
+        scenarioID: ScenarioID,
+        defaultMode: ScenarioMode,
         systems: [AnyScenarioSystem],
         initialDiagnostics: [Diagnostic] = [],
         sink: DiagnosticSink? = nil) throws(ScenarioStartupFailure) -> ScenarioExecution
     {
-        let reporter = DiagnosticReporter(scenarioID: configuration.id, definition: definition, sink: sink)
+        let reporter = DiagnosticReporter(scenarioID: scenarioID, definition: definition, sink: sink)
         for diagnostic in initialDiagnostics {
             reporter.record(diagnostic)
-        }
-        do {
-            try configuration.validate(against: definition)
-        } catch {
-            reporter.record(Diagnostic(issue: .lifecycle(.invalidRegistration)))
-            throw ScenarioStartupFailure(report: reporter.freeze())
         }
         let admission = ExecutionAdmission()
         guard validRegistrations(systems, definition: definition) else {
@@ -111,7 +107,7 @@ public final class ScenarioExecution: Sendable {
         do {
             return try activate(
                 definition: definition,
-                configuration: configuration,
+                defaultMode: defaultMode,
                 systems: systems,
                 reporter: reporter,
                 admission: admission)
@@ -123,7 +119,7 @@ public final class ScenarioExecution: Sendable {
     }
 
     private static func activate(
-        definition: ScenarioDefinition, configuration: ScenarioConfiguration,
+        definition: ScenarioDefinition, defaultMode: ScenarioMode,
         systems: [AnyScenarioSystem], reporter: DiagnosticReporter,
         admission: ExecutionAdmission) throws(StartupRollback) -> ScenarioExecution
     {
@@ -137,7 +133,7 @@ public final class ScenarioExecution: Sendable {
             }
             let context = SystemPreparationContext(
                 attachment: attachment,
-                mode: configuration.effectiveMode(for: attachment.id.key),
+                mode: system.effectiveMode(defaultMode: defaultMode),
                 reporter: reporter, admission: admission)
             do {
                 let preparedSystem = try system.prepare(context)
@@ -167,8 +163,9 @@ public final class ScenarioExecution: Sendable {
                 throw rollback(activated, leases: leases, reporter: reporter)
             }
         }
+        let usage = ExecutionUsage(definition: definition, defaultMode: defaultMode, systems: systems)
         return ScenarioExecution(systems: activated, leases: leases, reporter: reporter, admission: admission,
-                                 usage: ExecutionUsage(definition: definition, configuration: configuration))
+                                 usage: usage)
     }
 
     /// Retrieves an activated dependency while the execution remains running.
@@ -242,16 +239,6 @@ public final class ScenarioExecution: Sendable {
         let result = await operation.value
         state.withLock { $0 = .finished(result) }
         return result
-    }
-
-    func requiredDependency<Dependency: Sendable>(
-        for system: ScenarioSystem<Dependency>) -> Dependency
-    {
-        do {
-            return try dependency(system)
-        } catch {
-            preconditionFailure("A successfully started system must provide its typed dependency")
-        }
     }
 
     private static func validRegistrations(_ systems: [AnyScenarioSystem], definition: ScenarioDefinition) -> Bool {

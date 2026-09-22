@@ -109,9 +109,9 @@ struct DiagnosticReporterTests {
         let attachment = try ScenarioAttachment(id: first)
             .adding(SequentialTrack<Int>(id: firstTrack))
             .adding(SequentialTrack<Int>(id: secondTrack))
-        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "ordered"), defaultMode: .record)
+
         let definition = try ScenarioDefinition(attachments: [attachment, ScenarioAttachment(id: second)])
-        let reporter = DiagnosticReporter(scenarioID: definitionConfiguration.id, definition: definition)
+        let reporter = DiagnosticReporter(scenarioID: ScenarioID(rawValue: "ordered"), definition: definition)
         let contexts: [DiagnosticContext] = [
             .scenario,
             .attachment(first),

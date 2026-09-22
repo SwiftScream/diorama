@@ -7,7 +7,8 @@ struct PersistedScenarioCodingTests {
     @Test
     func `format-neutral coding requires an explicitly configured registry`() throws {
         let registry = try PersistentSystemRegistry([
-            PersistentSystemRegistryTests.numberRegistration(current: 1),
+            ScenarioSystemType(id: PersistentSystemRegistryTests.numberType,
+                               persistence: PersistentSystemRegistryTests.numberRegistration(current: 1)),
         ])
         let original = try ScenarioDefinition(attachments: [
             PersistentSystemRegistryTests.numberAttachment(
@@ -33,7 +34,8 @@ struct PersistedScenarioCodingTests {
     @Test
     func `codable object model round trips through a non JSON format`() throws {
         let registry = try PersistentSystemRegistry([
-            PersistentSystemRegistryTests.numberRegistration(current: 1),
+            ScenarioSystemType(id: PersistentSystemRegistryTests.numberType,
+                               persistence: PersistentSystemRegistryTests.numberRegistration(current: 1)),
         ])
         let original = try ScenarioDefinition(attachments: [
             PersistentSystemRegistryTests.numberAttachment(

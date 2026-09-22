@@ -2,6 +2,8 @@ import DioramaCore
 import Synchronization
 
 enum ExecutionFixtures {
+    static let type = ScenarioSystemType("consumer")
+
     final class Journal: Sendable {
         let events = Mutex<[String]>([])
         let leases = Mutex<[SequentialTrackLease<Int>]>([])
@@ -26,11 +28,15 @@ enum ExecutionFixtures {
     static func system(
         _ key: String,
         journal: Journal,
+        mode: ScenarioMode? = nil,
         failPreparation: Bool = false,
         failActivation: Bool = false,
-        failCleanup: Bool = false) -> AnyScenarioSystem
+        failCleanup: Bool = false) throws -> AnyScenarioSystem
     {
-        AnyScenarioSystem(ScenarioSystem(attachment: ScenarioAttachment(id: attachment(key))) { context in
+        try AnyScenarioSystem(ScenarioSystem(
+            type: ExecutionFixtures.type,
+            attachment: ScenarioAttachment(id: attachment(key)))
+        { context in
             journal.events.withLock { $0.append("prepare-" + key) }
             let lease = try context.lease(for: track(key), preparation: ValuePreparation<Int>())
             journal.leases.withLock { $0.append(lease) }
@@ -49,7 +55,7 @@ enum ExecutionFixtures {
                     }
                 }
             }
-        })
+        }.withMode(mode))
     }
 
     static func dependencyKey<Dependency: Sendable>(

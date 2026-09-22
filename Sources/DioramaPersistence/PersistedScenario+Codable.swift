@@ -4,6 +4,7 @@ import Foundation
 /// The format-neutral versioned object model shared by persistence transports.
 struct PersistedScenarioEnvelope: Codable {
     let scenario: ScenarioDefinition
+    let skippedSystems: [PersistedSystemDescriptor]
 
     enum CodingKeys: String, CodingKey, CaseIterable {
         case diorama
@@ -12,20 +13,24 @@ struct PersistedScenarioEnvelope: Codable {
 
     init(_ scenario: ScenarioDefinition) {
         self.scenario = scenario
+        skippedSystems = []
     }
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.strictContainer(keyedBy: CodingKeys.self)
         _ = try container.decode(PersistedScenarioHeader.self, forKey: .diorama)
         let systems = try container.decode([PersistedSystemEntry].self, forKey: .systems)
-        scenario = try ScenarioDefinition(attachments: systems.map(\.attachment))
+        // Validate all keys before omission, including collisions involving opaque payloads.
+        _ = try ScenarioDefinition(attachments: systems.map { ScenarioAttachment(id: $0.descriptor.attachmentID) })
+        scenario = try ScenarioDefinition(attachments: systems.compactMap(\.attachment))
+        skippedSystems = systems.filter { $0.attachment == nil }.map(\.descriptor)
     }
 
     func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(PersistedScenarioHeader(), forKey: .diorama)
         try container.encode(
-            scenario.attachments.map(PersistedSystemEntry.init),
+            scenario.attachments.map(PersistedSystemWriter.init),
             forKey: .systems)
     }
 }
@@ -55,18 +60,15 @@ private struct PersistedScenarioHeader: Codable {
     }
 }
 
-private struct PersistedSystemEntry: Codable {
-    let attachment: ScenarioAttachment
+private struct PersistedSystemEntry: Decodable {
+    let descriptor: PersistedSystemDescriptor
+    let attachment: ScenarioAttachment?
 
     enum CodingKeys: String, CodingKey, CaseIterable {
         case attachmentKey
         case payload
         case schemaVersion
         case type
-    }
-
-    init(_ attachment: ScenarioAttachment) {
-        self.attachment = attachment
     }
 
     init(from decoder: any Decoder) throws {
@@ -79,16 +81,33 @@ private struct PersistedSystemEntry: Codable {
             from: container,
             forKey: .schemaVersion,
             codingPath: decoder.codingPath)
-        attachment = try decoder.persistentSystemRegistry.decode(
-            PersistedSystemDescriptor(
-                attachmentKey: attachmentKey,
-                systemTypeID: systemTypeID,
-                schemaVersion: schemaVersion),
-            from: container.superDecoder(forKey: .payload))
+        descriptor = PersistedSystemDescriptor(
+            attachmentKey: attachmentKey, systemTypeID: systemTypeID, schemaVersion: schemaVersion)
+        // Even an opaque entry must contain a payload; its JSON value may be null.
+        guard container.contains(.payload) else {
+            throw PersistedScenarioCodingError
+                .malformed(codingPath: persistedCodingPath(decoder.codingPath) + ["payload"])
+        }
+        let registry = try decoder.persistentSystemRegistry
+        if !registry.contains(systemTypeID),
+           decoder.userInfo[unknownSystemPolicyUserInfoKey] as? UnknownSystemPolicy == .discard
+        {
+            attachment = nil
+        } else {
+            attachment = try registry.decode(descriptor, from: container.superDecoder(forKey: .payload))
+        }
+    }
+}
+
+private struct PersistedSystemWriter: Encodable {
+    let attachment: ScenarioAttachment
+
+    init(_ attachment: ScenarioAttachment) {
+        self.attachment = attachment
     }
 
     func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
+        var container = encoder.container(keyedBy: PersistedSystemEntry.CodingKeys.self)
         let descriptor = try encoder.persistentSystemRegistry.encode(
             attachment,
             to: container.superEncoder(forKey: .payload))
@@ -178,4 +197,16 @@ func persistedScenarioCodingError(for error: DecodingError) -> PersistedScenario
     @unknown default:
         return .malformed(codingPath: [])
     }
+}
+
+package enum UnknownSystemPolicy: Sendable {
+    case reject
+    case discard
+}
+
+var unknownSystemPolicyUserInfoKey: CodingUserInfoKey {
+    guard let key = CodingUserInfoKey(rawValue: "diorama.persistence.unknown-systems") else {
+        preconditionFailure("The static unknown-system policy key must be valid")
+    }
+    return key
 }

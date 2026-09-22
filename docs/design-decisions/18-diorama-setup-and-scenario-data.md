@@ -8,6 +8,12 @@
   [Decision 8](08-schema-compatibility.md), and
   [Decision 10](10-lifecycle-and-ownership.md)
 
+The owner-approved [2026-09-20 amendment](#system-type-capabilities-and-unknown-payloads--2026-09-20)
+below refines system declarations and supersedes the original requirement to
+decode every unmatched payload. The original decision text remains as history.
+The [2026-09-21 amendment](#consumer-module-and-run-orchestration--2026-09-21)
+places consumer orchestration in the `Diorama` module above core and persistence.
+
 ## Decision
 
 Use `Diorama` for complete reusable runtime setup and `ScenarioDefinition` for
@@ -294,3 +300,168 @@ first separate semantic data from runtime configuration and retarget the codec,
 then implement typed reusable `Diorama` construction and execution, then deliver
 complete in-memory results and optional publication. Future URLSession and
 location examples remain design tests until their own implementation units.
+
+## System type capabilities and unknown payloads — 2026-09-20
+
+The owner approved this amendment during the combined C04A/C04B review and
+explicitly authorized implementation and documentation updates.
+
+`ScenarioSystemType` is shared immutable runtime metadata for a system type.
+It owns a stable `SystemTypeID` and an optional format-neutral persistence
+capability. Each `ScenarioSystem<Dependency>` refers to its type descriptor and
+supplies reusable setup for one keyed attachment. `ScenarioAttachment` retains
+only stable identity and data. Keep the distinct `SystemTypeID` value type:
+runtime descriptors and their codec implementations must not enter semantic
+definitions or persisted files.
+
+Optional persistence means that systems may omit the capability and consumers
+may choose not to use it. It does not prohibit persistence protocols in
+`DioramaCore`. Core defines the capability contract using standard `Encoder`
+and `Decoder` boundaries, while the persistence module implements deliberate
+`Codable` schemas, registration, transport, and publication. In-memory setup
+never invokes the capability.
+
+`Diorama` accepts ordinary `ScenarioSystem` instances directly and retains their
+dependency types. There is no persistent instance wrapper or declaration
+protocol. First-party random instances share their system descriptor, including
+its ordinary codec. File setup collects codecs from the configured system types;
+it does not accept an additional independent registration list. Repeated keyed
+instances reuse one descriptor. Conflicting descriptors for one stable ID and
+missing required persistence capabilities fail before storage access.
+
+Use one envelope decoder and registry dispatch path. The only decoding policy
+difference is how an absent registry entry is handled:
+
+- Complete standalone decoding and repository loading reject an unregistered
+  system type.
+- Execution startup skips payload decoding for unregistered types and retains
+  their headers as omission evidence. It supplies no configured attachment-ID
+  filter to the codec.
+
+Every registered type still decodes and validates all its instances, including
+keys absent from setup. Unsupported versions or malformed payloads of a known
+type remain errors. Unknown types may have unsupported payload versions or
+unrecognized payload shapes without blocking startup; those payloads remain
+opaque and are never admitted into a `ScenarioDefinition`.
+
+Both policies validate the envelope and all entry headers, required fields,
+version representation, JSON syntax, and uniqueness of attachment keys across
+the whole document, including skipped entries. Skipping cannot hide structural
+ambiguity. The successful startup load outcome retains the decoded definition
+and skipped descriptors separately; no raw payload retention or opaque semantic
+attachment type is introduced.
+
+Membership reconciliation remains outside the codec. An unconfigured key is
+diagnosed and omitted whether its payload was decoded or skipped. An unknown
+type occupying a configured key makes the baseline incompatible: any required
+replay refuses startup, while record-only setup can rebuild under the existing
+unusable-baseline policy. Skipped entries cannot satisfy missing replay content.
+Final definitions include only configured attachments; omission alone does not
+make a recording unhealthy.
+
+This amendment supersedes the original paragraphs requiring registered readers
+and payload validation for every unmatched type, and the corresponding
+unknown-type rejection rule in Decision 8 for execution startup. Strict complete
+decoding, registered-payload validation, immutable content, replay refusal,
+publication health, and schema version-one bytes otherwise retain their existing
+contracts.
+
+## Consumer module and run orchestration — 2026-09-21
+
+The owner approved a consumer-facing `Diorama` target during C04B review and
+authorized implementation and documentation updates.
+
+`Diorama` depends on `DioramaCore` and `DioramaPersistence`. It owns reusable
+setup, baseline selection and reconciliation, repository-backed startup, scoped
+execution, and optional publication orchestration. Ordinary consumers import
+`Diorama` and their chosen system modules. The consumer module exposes the
+shared configuration, identity, semantic, and persistence types needed for that
+workflow without requiring additional implementation-module imports.
+
+`DioramaCore` owns semantic values, system extension contracts, preparation,
+the execution engine, recording/replay behavior, lifecycle, and diagnostics.
+System implementations import core; they may use persistence schema helpers
+when providing that optional capability. Core does not depend on persistence
+or the consumer module.
+
+`DioramaPersistence` depends on core and owns schema conversion, registries,
+document loading, encoding, and atomic storage. A repository loads and publishes
+definitions; it does not activate systems or apply runtime mode policy.
+Persistence remains available independently for explicit complete decoding and
+publication.
+
+The consumer run owns the consumer workflow. `DioramaRun` exposes dependency
+lookup, diagnostics, and `finish()` directly; callers do not reach through a
+public execution wrapper. Its load outcome is a concrete optional
+`ScenarioLoadResult`, also retained by the single scoped `DioramaResult`.
+There is no arbitrary `any Sendable` evidence field, persistence downcast,
+`RepositoryScenarioExecution`, or duplicate `ScopedExecutionResult`.
+Scoped execution belongs to `Diorama`; `ScenarioDefinition` remains semantic
+data rather than a second scoped execution entry point.
+
+Engine finalization and optional publication retain separate responsibilities:
+core closes dependencies and produces semantic output; the consumer layer
+coordinates any requested publication and retains its result. This ownership
+does not authorize publication ahead of C05 or alter finalization, cancellation,
+or candidate-health requirements. Runtime configuration errors are detected at
+Diorama construction, before loading; repository startup failures retain exact
+registration or load evidence and safe core startup diagnostics.
+
+Optional persistence describes behavior and system capability. Importing
+`Diorama` makes the persistence implementation available, but an in-memory run
+does not require codecs, storage, or I/O. Separate targets remain useful without
+requiring core to carry opaque integration data.
+
+The owner approved a further C04B review refinement on 2026-09-21: the
+consumer module initially exposed deliberately selected type names through public
+aliases rather than re-exporting all declarations from core and persistence. A
+later review iteration removes the final alias and accepts an absolute local file
+URL for the file convenience, validating it through persistence.
+Other public method signatures still use the original module types. A
+caller may pass a system value returned by a system module into `Diorama`
+without explicitly importing core. Contextual construction permits attachment
+keys without naming that type. A caller who
+authors a system or uses lower-level semantic construction imports
+`DioramaCore`; one who configures codecs or storage beyond the file convenience
+imports `DioramaPersistence`. This
+refines the preceding expectation that every shared implementation-module type
+is available through `import Diorama`; it changes no runtime or persistence
+behavior.
+
+This amendment supersedes the placement of consumer setup/scoped conveniences
+in core and execution startup on repositories. It preserves Decision 7's
+in-memory execution and storage boundaries, the preceding amendment's decoding
+policy, and Decision 18's exact load evidence and finalization contracts.
+
+During further C04B review, the owner approved moving per-attachment mode
+overrides and unused-replay-record waivers from key-indexed configuration to
+`ScenarioSystem` instances. `ScenarioConfiguration` retains diagnostic identity
+and the default mode. An instance without an override inherits that default;
+callers may select a mode on a copy of the returned system. System factories
+choose whether to expose the unused-record waiver. The waiver affects only
+`allRecordingsUsed` evaluation, not decoding, diagnostics, or cleanup. This
+removes unknown policy keys without changing stable scenario data or persisted
+schemas. The owner subsequently approved removing `ScenarioConfiguration`:
+`Diorama` setup now takes a string `scenarioID` and `defaultMode` directly;
+low-level execution startup retains the typed `ScenarioID`. The ID remains
+runtime diagnostic context and does not enter `ScenarioDefinition` or the
+persisted document.
+
+The owner subsequently shortened the consumer initializer label to `mode`,
+while internal startup retains `defaultMode` for the inherited mode.
+
+The owner subsequently removed the public manual-run entry point for v1.
+`Diorama.execute` is the consumer operation and always finalizes its execution.
+`DioramaRun` remains an internal implementation detail; its exact load outcome
+flows into public `DioramaResult`. System authors and advanced consumers can use
+the explicit lifecycle in `DioramaCore` when needed. This supersedes the earlier
+public `DioramaRun` and `Diorama.start()` contract without changing core lifecycle
+or persistence behavior.
+
+The owner then approved a simpler scoped error contract for v1. Public
+`Diorama.execute` has no diagnostic sink argument. Startup failure throws before
+the body runs; body failure is rethrown after finalization. A returned
+`DioramaResult` contains the successful body value and the finalization report,
+whose diagnostics remain facts for the consumer or test integration to evaluate.
+Core retains its diagnostic sink and explicit execution lifecycle. This
+supersedes the earlier consumer `Result` body and public sink contract.

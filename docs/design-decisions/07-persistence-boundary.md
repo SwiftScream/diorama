@@ -17,6 +17,14 @@ runtime configuration into `Diorama`. It also distinguishes valid in-memory
 output from encoding and publication success. Read the historical discussion
 below with that refinement.
 
+Decision 18's [2026-09-20 amendment](18-diorama-setup-and-scenario-data.md#system-type-capabilities-and-unknown-payloads--2026-09-20)
+also permits optional format-neutral persistence protocols in core and defines
+registry-based omission of unknown payloads during execution startup.
+
+Decision 18's [2026-09-21 amendment](18-diorama-setup-and-scenario-data.md#consumer-module-and-run-orchestration--2026-09-21)
+places consumer orchestration in `Diorama`, above separate core and persistence
+targets. Importing that consumer module does not require using persistence.
+
 Is persistence a fundamental part of Diorama's record/replay core, or an
 optional capability layered over an in-memory scenario model?
 

@@ -31,7 +31,9 @@ evidence. C04A's revised design direction is owner-approved on 2026-09-19 in
 The owner confirmed the C04A/C04B split and C04A implementation scope on
 2026-09-19. C04A's implementation and local macOS, iOS Simulator, and Linux
 verification are complete on 2026-09-20; owner review is the next checkpoint.
-C04B and later units have not started.
+C04B implementation was explicitly authorized on 2026-09-20. Its implementation
+and local macOS, iOS Simulator, and Linux verification are complete; owner review
+is the next checkpoint. Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -287,7 +289,11 @@ Default order follows the table, one unit at a time.
 Explicit prerequisites identify independent work the owner may choose to reorder; they do not authorize parallel agent work or automatic continuation.
 Under resolved Q1, the provisional HTTP/URLSession production breakdown is confirmed or revised against reviewed spike evidence at 003-D05 before production work depends on that boundary.
 
-Proposed products are `DioramaCore`, `DioramaRandom`, `DioramaClock`, `DioramaLocation`, `DioramaHTTP`, and `DioramaURLSession`.
+The consumer entry product is `Diorama`, depending on `DioramaCore` and
+`DioramaPersistence`. Core remains the system authoring and execution engine
+boundary; persistence owns codecs and storage. Consumer run orchestration belongs
+in `Diorama`, as approved in DD18's 2026-09-21 amendment.
+System products include `DioramaRandom`, `DioramaClock`, `DioramaLocation`, `DioramaHTTP`, and `DioramaURLSession`.
 Optional persistence, Core Location, XCTest, and Swift Testing code belongs in suitable separate targets/products when introduced.
 Names such as `DioramaPersistence`, `DioramaCoreLocation`, `DioramaXCTest`, and `DioramaTesting` below are working labels.
 They do not impose a new architectural commitment.
@@ -703,31 +709,49 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C04B — Reusable typed Diorama setup
 
-- Status: Inserted unit and scope confirmed by the owner on 2026-09-19.
-  Implementation has not started; requires an explicit instruction after C04A review.
+- Status: Complete. Scope confirmed on 2026-09-19; implementation explicitly
+  authorized on 2026-09-20 after C04A pull request creation. Implementation and
+  local macOS, iOS Simulator, and Linux verification completed for the initial
+  revision on 2026-09-20. The final consumer API and review refinements pass
+  the macOS, iOS Simulator, and pinned Linux gates on 2026-09-22. Owner review
+  is the next checkpoint. See the
+  [typed setup evidence](../evidence/003-C04B-reusable-typed-setup.md).
+  `Diorama` provides scoped `execute` with a string scenario ID, a `mode` label,
+  and no public sink or manual run. Body errors are rethrown after finalization;
+  successful results retain diagnostic and load evidence. Per-system mode and
+  unused-record policy replace `ScenarioConfiguration`. File setup accepts a URL;
+  ordinary callers need only `Diorama` and their system modules.
 - Recommended model: GPT-6 Astra; reasoning: `high`. Retaining heterogeneous typed
-  declarations must preserve type information without retaining execution state.
+  systems must preserve dependency types without retaining execution state.
 - Prerequisites: 003-C04A, 003-B07A, 003-B09; DD02, DD07–DD10, DD18.
 - Scope: Build reusable typed `Diorama` over the separated model/configuration.
   Declare systems once, with distinct no-baseline, explicit-definition, file,
-  and custom-repository constructors. Provide explicit start/finish and scoped
-  execution with dependencies in declaration order. Persistence stays optional
+  and custom-repository constructors. Provide scoped execution with dependencies
+  in declaration order; the manual run remains internal. Persistence stays optional
   at the core boundary.
-- Expected files/modules: Core setup and demonstrated heterogeneous storage
-  support; persistence convenience; first-party/consumer tests, examples, evidence.
+- Expected files/modules: Consumer `Diorama` setup, run/result, baseline and
+  repository startup orchestration; core engine and persistence access boundaries;
+  first-party/consumer tests, examples, evidence.
 - Public behavior: Systems define the active typed layout. Every start creates
   fresh state and dependencies. Missing replay content refuses activation;
   missing record content can begin empty. Baseline values remain authoritative;
   unmatched attachments are diagnosed/discarded. Construction performs no I/O;
-  file-backed starts load once each; explicit baselines remain fixed. Persistent
-  declarations supply ordinary codecs; advanced use permits additional readers.
-  Invalid systems fail before activation. Scoped execution preserves isolation
-  and body outcomes.
+  file-backed starts load once each; explicit baselines remain fixed. Shared
+  system-type descriptors supply optional codecs. Startup skips payloads only
+  for unregistered types, retaining headers; known types validate every instance.
+  Complete standalone decoding remains strict.
+  Invalid systems fail before activation. Scoped execution preserves isolation,
+  awaits finalization, and throws startup or body errors. Its returned result
+  contains a successful body value, finalization, and optional load outcome.
+  Repositories load and publish
+  definitions; core exposes the engine rather than a second scoped convenience.
 - Tests/verification: V-code; heterogeneous and repeated keyed systems, missing
   replay/new record attachments, duplicate/incompatible declarations, unmatched
   content, zero activation on unusable input, lazy fresh factories, typed lookup,
   scoped success/error/cancellation, nonpersistable systems, no construction I/O,
-  fresh loads, fixed baselines, and low-level API parity. Review compiler
+  fresh loads, fixed baselines, and low-level API parity. Also verify shared
+  capabilities, unknown-type omission, registered inactive validation,
+  skipped-header collisions, and strict standalone decoding. Review compiler
   feasibility of stored typed lists. DD18's native example is a design check;
   executable proof uses random and currently implemented public consumer systems.
 - Exclusions: Cached execution/dependencies, hidden finalization, synthesized
@@ -744,7 +768,9 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
   in-memory and repository-backed execution; optionally publish it. Replace
   random record-mode tracks, preserve configured replay/passthrough/ignored
   baseline data, and omit unmatched attachments diagnosed during startup.
-- Expected files/modules: Core candidate/finalization orchestration and persistence integration tests, random file workflow examples.
+- Expected files/modules: Core semantic candidate/finalization support,
+  `Diorama` run completion and optional publication orchestration, persistence
+  integration tests, and random file workflow examples.
 - Public behavior: No replay/consumption writes; publication occurs only at finish when requested and healthy.
   Scoped body success, failure, and cancellation follow the same setup
   policy; body outcome is not a candidate-health signal.

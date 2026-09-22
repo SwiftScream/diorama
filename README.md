@@ -40,6 +40,20 @@ Dependency adoption is governed by
 platform CI, strict concurrency, and coverage expectations are defined by
 [the quality gates and CI policy](docs/quality-gates-and-ci.md).
 
+## Modules
+
+Import `Diorama` when writing tests, together with the systems you use, such as
+`DioramaRandom`. Setup takes a string scenario ID and default mode, accepts a
+file URL, and coordinates in-memory or file-backed runs.
+
+`DioramaCore` provides the execution engine and system authoring contracts.
+`DioramaPersistence` provides codecs, repositories, and storage over core
+definitions. Both remain available independently. Importing the consumer module
+links persistence internally; in-memory runs require neither a store nor
+persistable systems.
+System authors and callers constructing low-level tracks import `DioramaCore`.
+Callers configuring codecs or custom storage import `DioramaPersistence`.
+
 ## Usage example
 
 The repository includes a compiled, in-memory random record/replay example:
@@ -48,11 +62,11 @@ The repository includes a compiled, in-memory random record/replay example:
 swift run --package-path Examples DioramaRandomUsage
 ```
 
-It prints matching recorded and replayed values. The example uses only
-`DioramaCore` and `DioramaRandom` public APIs, always finalizes each scoped
-execution, and explicitly supplies prepared in-memory replay values.
+It prints matching recorded and replayed values. The example imports
+`DioramaCore` to construct its explicit in-memory replay baseline; ordinary
+setup uses `Diorama` and `DioramaRandom`. Each scoped execution finalizes.
 It lives in a separate examples package that depends on Diorama by a relative
-path, so the Diorama library package remains library-only. Persistence and
+path, so the Diorama library package remains library-only. Automatic publication and
 record-to-replay transfer arrive in a later implementation phase.
 
 ## Development

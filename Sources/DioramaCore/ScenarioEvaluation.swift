@@ -5,7 +5,7 @@ public enum ScenarioEvaluationCondition: Equatable, Sendable {
     case noUnexpectedOperations
     /// No diagnostics of any category occurred before the result froze.
     case noDiagnostics
-    /// All nonignored replay records were used.
+    /// All replay records were used, except where their system allows leftovers.
     case allRecordingsUsed
     /// No selected diagnostic invalidates the recording candidate.
     case healthyRecording
@@ -40,8 +40,8 @@ public struct ScenarioEvaluation: Equatable, Sendable {
 public extension ScenarioFinalizationResult {
     /// Evaluates frozen facts without reporting test failures or new diagnostics.
     ///
-    /// A selected attachment scope excludes scenario-level diagnostics. Ignored
-    /// keys affect only `allRecordingsUsed`; all other conditions inspect them.
+    /// A selected attachment scope excludes scenario-level diagnostics. A system's
+    /// unused-replay waiver affects only `allRecordingsUsed`; all other conditions inspect it.
     /// An unknown selected key yields a failure instead of vacuous success.
     /// Late diagnostics stay in the separately retained reporter and cannot
     /// change this evaluation. Sequential claims complete synchronously, so
@@ -71,7 +71,7 @@ public extension ScenarioFinalizationResult {
         case .noDiagnostics:
             diagnostics.map { .diagnostic($0) }
         case .allRecordingsUsed:
-            selected.filter { !$0.isIgnored }.flatMap { attachment in
+            selected.filter { !$0.allowsUnusedReplayRecords }.flatMap { attachment in
                 attachment.tracks.flatMap { track in
                     track.unusedRecords.map { .unusedRecord($0) }
                 }

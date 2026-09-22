@@ -1,7 +1,6 @@
 /// Safe execution-lifetime facts without arbitrary callback errors.
 public enum ScenarioLifecycleIssue: Equatable, Sendable {
-    /// Registrations do not identify every declared attachment exactly once,
-    /// or runtime policy references an attachment outside that layout.
+    /// Registrations do not identify every declared attachment exactly once.
     case invalidRegistration
     /// A system's preparation callback failed.
     case preparationFailed
@@ -51,21 +50,6 @@ public struct ScenarioFinalizationResult: Equatable, Sendable {
     /// Active attachments in setup order.
     public let usage: [AttachmentUsage]
 }
-
-/// The body and finalization outcomes from one scoped scenario execution.
-///
-/// A body failure is a value so it cannot hide the immutable finalization
-/// result. Startup still throws ``ScenarioStartupFailure`` because no running
-/// execution or finalization result exists when startup fails.
-public struct ScopedExecutionResult<Success: Sendable, Failure: Error>: Sendable {
-    /// The value returned or error thrown by the scoped body.
-    public let body: Result<Success, Failure>
-
-    /// The result produced after the body stopped executing.
-    public let finalization: ScenarioFinalizationResult
-}
-
-extension ScopedExecutionResult: Equatable where Success: Equatable, Failure: Equatable {}
 
 /// A safe, already-reported dependency lookup failure.
 public struct DependencyAccessFailure: Error, Equatable, Sendable {

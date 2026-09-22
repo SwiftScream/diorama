@@ -19,7 +19,7 @@ struct JSONScenarioRepositoryTests {
             Issue.record("Zero-byte document was accepted"); return
         }
         _ = try repository.publish(ScenarioDefinition())
-        guard case let .loaded(empty) = repository.load() else {
+        guard case let .loaded(empty, _) = repository.load() else {
             Issue.record("Valid empty document did not load"); return
         }
         #expect(empty.attachments.isEmpty)
@@ -33,7 +33,7 @@ struct JSONScenarioRepositoryTests {
         let bytes = try persistedFixture("random-boundaries")
         try bytes.write(to: fixture.location.fileURL)
         let repository = try repository(storage: fixture.storage)
-        guard case let .loaded(scenario) = repository.load() else {
+        guard case let .loaded(scenario, _) = repository.load() else {
             Issue.record("Fixture did not load"); return
         }
         let attachment = try #require(scenario.attachments.first)
@@ -127,7 +127,7 @@ struct JSONScenarioRepositoryTests {
             return DocumentPublication()
         })
         let repository = try repository(storage: storage)
-        guard case let .loaded(scenario) = repository.load() else {
+        guard case let .loaded(scenario, _) = repository.load() else {
             Issue.record("Expected loaded custom storage"); return
         }
         #expect(calls.withLock { $0 } == 1)
@@ -181,7 +181,7 @@ struct JSONScenarioRepositoryTests {
 
     private func repository(storage: any ScenarioDocumentStorage) throws -> JSONScenarioRepository {
         try JSONScenarioRepository(codec: JSONScenarioCodec(registry: PersistentSystemRegistry([
-            DioramaRandomPersistence.registration,
+            DioramaRandomSystem.type,
         ])), storage: storage)
     }
 }

@@ -6,16 +6,16 @@ struct ScenarioExecutionTests {
     @Test
     func `two starts have independent leases reporters and finish state`() async throws {
         let journal = ExecutionFixtures.Journal()
-        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
+
         let definition = try ExecutionFixtures.definition(["a"])
-        let systems = [ExecutionFixtures.system("a", journal: journal)]
+        let systems = try [ExecutionFixtures.system("a", journal: journal)]
         let first = try ScenarioExecution.start(
             definition: definition,
-            configuration: definitionConfiguration,
+            scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: systems)
         let second = try ScenarioExecution.start(
             definition: definition,
-            configuration: definitionConfiguration,
+            scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: systems)
         let key = ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self)
         let firstLease = try first.dependency(key)
@@ -37,24 +37,26 @@ struct ScenarioExecutionTests {
     func `heterogeneous dependencies inherit whole attachment modes`() async throws {
         let first = ExecutionFixtures.attachment("first")
         let second = AttachmentID(systemTypeID: SystemTypeID(rawValue: "text"), key: AttachmentKey(rawValue: "second"))
-        let definitionConfiguration = ScenarioConfiguration(
-            id: ScenarioID(rawValue: "heterogeneous"),
-            defaultMode: .record,
-            modeOverrides: [second.key: .passthrough])
+
         let definition = try ScenarioDefinition(attachments: [
             ScenarioAttachment(id: first),
             ScenarioAttachment(id: second),
         ])
-        let firstInstance = ScenarioSystem(attachment: ScenarioAttachment(id: first)) { context in
+        let firstInstance = try ScenarioSystem(type: ExecutionFixtures.type,
+                                               attachment: ScenarioAttachment(id: first))
+        { context in
             #expect(context.mode == .record)
             return PreparedSystem { ActivatedSystem(dependency: 42, deactivate: {}) }
         }
-        let secondInstance = ScenarioSystem(attachment: ScenarioAttachment(id: second)) { context in
+        let secondInstance = try ScenarioSystem(
+            type: ScenarioSystemType(id: second.systemTypeID),
+            attachment: ScenarioAttachment(id: second))
+        { context in
             #expect(context.mode == .passthrough)
             return PreparedSystem { ActivatedSystem(dependency: "text", deactivate: {}) }
-        }
+        }.withMode(.passthrough)
         let execution = try ScenarioExecution.start(
-            definition: definition, configuration: definitionConfiguration,
+            definition: definition, scenarioID: ScenarioID(rawValue: "heterogeneous"), defaultMode: .record,
             systems: [AnyScenarioSystem(firstInstance), AnyScenarioSystem(secondInstance)])
         #expect(try execution.dependency(firstInstance) == 42)
         #expect(try execution.dependency(secondInstance.dependencyKey) == "text")
@@ -88,9 +90,8 @@ struct ScenarioExecutionTests {
         let journal = ExecutionFixtures.Journal()
         let sink = DiagnosticSink { entry in notifications.withLock { $0.append(entry.diagnostic.issue) } }
         let execution = try ScenarioExecution.start(
-            definition: ExecutionFixtures.definition(["a"]), configuration: ScenarioConfiguration(
-                id: ScenarioID(rawValue: "execution"),
-                defaultMode: .replay),
+            definition: ExecutionFixtures.definition(["a"]),
+            scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [ExecutionFixtures.system("a", journal: journal)], sink: hasSink ? sink : nil)
         let key = ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self)
         let lease = try execution.dependency(key)
@@ -114,11 +115,10 @@ struct ScenarioExecutionTests {
     func `cleanup failures preserve reverse cleanup and one result for concurrent canceled callers`() async throws {
         let journal = ExecutionFixtures.Journal()
         let execution = try ScenarioExecution.start(
-            definition: ExecutionFixtures.definition(["a", "b", "c"]), configuration: ScenarioConfiguration(
-                id: ScenarioID(rawValue: "execution"),
-                defaultMode: .replay),
+            definition: ExecutionFixtures.definition(["a", "b", "c"]),
+            scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: ["a", "b", "c"].map {
-                ExecutionFixtures.system(
+                try ExecutionFixtures.system(
                     $0, journal: journal, failCleanup: $0 == "b")
             })
         let canceled = Task {
@@ -153,9 +153,10 @@ struct ScenarioExecutionTests {
     func `leases close before cleanup and callbacks can reenter diagnostics and lookup`() async throws {
         let executionReference = Mutex<ScenarioExecution?>(nil)
         defer { executionReference.withLock { $0 = nil } }
-        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
+
         let definition = try ExecutionFixtures.definition(["a"])
-        let instance = ScenarioSystem(
+        let instance = try ScenarioSystem(
+            type: ExecutionFixtures.type,
             attachment: ScenarioAttachment(id: ExecutionFixtures.attachment("a")))
         { context in
             let lease = try context.lease(for: ExecutionFixtures.track("a"), preparation: ValuePreparation<Int>())
@@ -172,7 +173,8 @@ struct ScenarioExecutionTests {
             }
         }
         let execution = try ScenarioExecution.start(
-            definition: definition, configuration: definitionConfiguration, systems: [AnyScenarioSystem(instance)],
+            definition: definition, scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
+            systems: [AnyScenarioSystem(instance)],
             sink: DiagnosticSink { _ in
                 let execution = try #require(executionReference.withLock { $0 })
                 #expect(!execution.reporter.report.diagnostics.isEmpty)
@@ -186,11 +188,10 @@ struct ScenarioExecutionTests {
 
     @Test
     func `empty execution still has explicit idempotent finish`() async throws {
-        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "empty"), defaultMode: .record)
         let definition = try ScenarioDefinition()
         let execution = try ScenarioExecution.start(
             definition: definition,
-            configuration: definitionConfiguration,
+            scenarioID: ScenarioID(rawValue: "empty"), defaultMode: .record,
             systems: [])
         let result = await execution.finish()
         #expect(result.cleanup.isEmpty)

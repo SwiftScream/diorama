@@ -98,7 +98,7 @@ public final class DiagnosticReporter: Sendable {
 
     /// The execution owner will call this at its final-result freeze boundary.
     /// It freezes only diagnostic facts, not an execution or adapter lifecycle.
-    func freeze() -> DiagnosticReport {
+    package func freeze() -> DiagnosticReport {
         state.withLock { state in
             switch state.phase {
             case .collecting:

@@ -6,12 +6,12 @@ struct ScenarioStartupTests {
     @Test
     func `prepares all systems before ordered activation regardless of registration order`() async throws {
         let journal = ExecutionFixtures.Journal()
-        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
+
         let definition = try ExecutionFixtures.definition(["a", "b", "c"])
-        let systems = ["c", "a", "b"].map { ExecutionFixtures.system($0, journal: journal) }
+        let systems = try ["c", "a", "b"].map { try ExecutionFixtures.system($0, journal: journal) }
         let execution = try ScenarioExecution.start(
             definition: definition,
-            configuration: definitionConfiguration,
+            scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: systems)
         #expect(journal.events.withLock { $0 } == [
             "prepare-a", "prepare-b", "prepare-c", "activate-a", "activate-b", "activate-c",
@@ -31,15 +31,15 @@ struct ScenarioStartupTests {
     func `preparation failure activates nothing and closes every prepared lease`(failureIndex: Int) throws {
         let journal = ExecutionFixtures.Journal()
         let keys = ["a", "b", "c"]
-        let systems = keys.enumerated().map { index, key in
-            ExecutionFixtures.system(
+        let systems = try keys.enumerated().map { index, key in
+            try ExecutionFixtures.system(
                 key, journal: journal,
                 failPreparation: index == failureIndex)
         }
         do {
             _ = try ScenarioExecution.start(
                 definition: ExecutionFixtures.definition(keys),
-                configuration: ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay),
+                scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
                 systems: systems)
             Issue.record("A failed preparation must not return an execution")
         } catch let failure as ScenarioStartupFailure {
@@ -59,15 +59,15 @@ struct ScenarioStartupTests {
     func `activation failure unwinds adapters despite cleanup failure`(failureIndex: Int) throws {
         let journal = ExecutionFixtures.Journal()
         let keys = ["a", "b", "c"]
-        let systems = keys.enumerated().map { index, key in
-            ExecutionFixtures.system(
+        let systems = try keys.enumerated().map { index, key in
+            try ExecutionFixtures.system(
                 key, journal: journal,
                 failActivation: index == failureIndex, failCleanup: index == 1)
         }
         do {
             _ = try ScenarioExecution.start(
                 definition: ExecutionFixtures.definition(keys),
-                configuration: ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay),
+                scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
                 systems: systems)
             Issue.record("A failed activation must not return an execution")
         } catch let failure as ScenarioStartupFailure {
@@ -87,20 +87,20 @@ struct ScenarioStartupTests {
     @Test(arguments: ["missing", "duplicate", "extra", "incompatible"])
     func `invalid registrations fail before any consumer callback`(kind: String) throws {
         let journal = ExecutionFixtures.Journal()
-        let system = ExecutionFixtures.system("a", journal: journal)
-        let other = ExecutionFixtures.system("other", journal: journal)
+        let system = try ExecutionFixtures.system("a", journal: journal)
+        let other = try ExecutionFixtures.system("other", journal: journal)
         let systems = switch kind {
         case "missing": [AnyScenarioSystem]()
         case "duplicate": [system, system]
         case "extra": [system, other]
         default: [other]
         }
-        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
+
         let definition = try ExecutionFixtures.definition(["a"])
         do {
             _ = try ScenarioExecution.start(
                 definition: definition,
-                configuration: definitionConfiguration,
+                scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
                 systems: systems)
             Issue.record("Invalid registrations must fail before preparation")
         } catch {
@@ -113,9 +113,9 @@ struct ScenarioStartupTests {
     @Test
     func `unprepared tracks cannot slip through a successful system callback`() throws {
         let activations = Mutex(0)
-        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
+
         let definition = try ExecutionFixtures.definition(["a"])
-        let instance = ScenarioSystem(attachment: definition.attachments[0]) { _ in
+        let instance = try ScenarioSystem(type: ExecutionFixtures.type, attachment: definition.attachments[0]) { _ in
             PreparedSystem {
                 activations.withLock { $0 += 1 }
                 return ActivatedSystem(dependency: 0, deactivate: {})
@@ -124,7 +124,7 @@ struct ScenarioStartupTests {
         do {
             _ = try ScenarioExecution.start(
                 definition: definition,
-                configuration: definitionConfiguration,
+                scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
                 systems: [AnyScenarioSystem(instance)])
             Issue.record("Unprepared tracks must reject startup")
         } catch {
@@ -138,9 +138,11 @@ struct ScenarioStartupTests {
     @Test(arguments: [ScenarioMode.record, .replay, .passthrough])
     func `startup validates prepared track values except in passthrough`(mode: ScenarioMode) async throws {
         let calls = Mutex<[Int]>([])
-        let definitionsConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: mode)
+
         let definitions = try ExecutionFixtures.definition(["a"])
-        let instance = ScenarioSystem(attachment: definitions.attachments[0]) { context in
+        let instance = try ScenarioSystem(type: ExecutionFixtures.type,
+                                          attachment: definitions.attachments[0])
+        { context in
             let lease = try context.lease(
                 for: ExecutionFixtures.track("a"),
                 preparation: ValuePreparation<Int>(validate: { value in
@@ -151,7 +153,7 @@ struct ScenarioStartupTests {
         }
         do {
             let execution = try ScenarioExecution.start(
-                definition: definitions, configuration: definitionsConfiguration,
+                definition: definitions, scenarioID: ScenarioID(rawValue: "execution"), defaultMode: mode,
                 systems: [AnyScenarioSystem(instance)])
             #expect(mode == .passthrough)
             #expect(calls.withLock { $0.isEmpty })

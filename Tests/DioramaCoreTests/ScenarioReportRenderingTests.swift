@@ -6,12 +6,16 @@ struct ScenarioReportRenderingTests {
     @Test
     func `rendering uses declared order safe labels and an immutable golden report`() async throws {
         let journal = ExecutionFixtures.Journal()
-        let baseConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
+
         let base = try ExecutionFixtures.definition(["z", "a"])
-        let execution = try ScenarioExecution.start(definition: base, configuration: baseConfiguration, systems: [
-            ExecutionFixtures.system("a", journal: journal, failCleanup: true),
-            ExecutionFixtures.system("z", journal: journal),
-        ])
+        let execution = try ScenarioExecution.start(
+            definition: base,
+            scenarioID: ScenarioID(rawValue: "execution"),
+            defaultMode: .replay,
+            systems: [
+                ExecutionFixtures.system("a", journal: journal, failCleanup: true),
+                ExecutionFixtures.system("z", journal: journal),
+            ])
         let first = try execution.dependency(
             ExecutionFixtures.dependencyKey("z", as: SequentialTrackLease<Int>.self))
         #expect(try first.claimNext().value == 1)
@@ -54,16 +58,17 @@ struct ScenarioReportRenderingTests {
         let trackID = TrackID(attachmentID: id, key: TrackKey(rawValue: "lines\r\n\0"))
         let value = SecretValue { descriptions.withLock { $0 += 1 } }
         let track = try SequentialTrack(id: trackID, values: preparedValues([value]))
-        let definitionConfiguration = ScenarioConfiguration(
-            id: ScenarioID(rawValue: "quoted\"scenario"),
-            defaultMode: .replay)
+
         let definition = try ScenarioDefinition(attachments: [ScenarioAttachment(id: id).adding(track)])
-        let instance = ScenarioSystem(attachment: definition.attachments[0]) { context in
+        let instance = try ScenarioSystem(
+            type: ScenarioSystemType(id: definition.attachments[0].id.systemTypeID),
+            attachment: definition.attachments[0])
+        { context in
             let lease = try context.lease(for: trackID, preparation: ValuePreparation<SecretValue>())
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
         let execution = try ScenarioExecution.start(
-            definition: definition, configuration: definitionConfiguration,
+            definition: definition, scenarioID: ScenarioID(rawValue: "quoted\"scenario"), defaultMode: .replay,
             systems: [AnyScenarioSystem(instance)])
         let result = await execution.finish()
         let text = result.rendered()
@@ -80,7 +85,6 @@ struct ScenarioReportRenderingTests {
 
     @Test
     func `rendering describes every baseline problem without underlying error text`() async throws {
-        let definitionConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "baseline"), defaultMode: .record)
         let definition = try ScenarioDefinition()
         let diagnostics = [
             Diagnostic(issue: .baseline(.invalidPersistenceConfiguration)),
@@ -95,7 +99,7 @@ struct ScenarioReportRenderingTests {
             Diagnostic(issue: .baseline(.baselineIgnoredForRecording(.invalidDocument))),
         ]
         let execution = try ScenarioExecution.start(
-            definition: definition, configuration: definitionConfiguration,
+            definition: definition, scenarioID: ScenarioID(rawValue: "baseline"), defaultMode: .record,
             systems: [],
             initialDiagnostics: diagnostics)
         let text = await execution.finish().rendered()

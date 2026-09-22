@@ -15,7 +15,11 @@
 Later refinement: [Decision 18](18-diorama-setup-and-scenario-data.md), approved
 on 2026-09-19, makes codecs accept and return `ScenarioDefinition` without a
 separate public `PersistedScenario`. Private schema representations and this
-decision's versioning, registration, and compatibility rules remain in force.
+decision's versioning rules remain in force. Decision 18's
+[2026-09-20 amendment](18-diorama-setup-and-scenario-data.md#system-type-capabilities-and-unknown-payloads--2026-09-20)
+supersedes unknown-system rejection during execution startup: unknown payloads
+may be omitted by registry policy. Complete decoding and validation of all
+registered payloads remain strict.
 
 What compatibility and migration promises does Diorama make for persisted
 scenario schemas?
