@@ -15,19 +15,13 @@ public enum DioramaRandomPersistence {
             guard attachment.trackIDs == [expectedTrackID],
                   let track = try? attachment.track(expectedTrackID, as: UInt64.self)
             else {
-                throw RandomPersistenceSchemaError.invalidTrackLayout(attachment.id)
+                throw PersistentSystemEncodingError.invalidTrackLayout(attachment.id)
             }
             return RandomPayload(values: track.records.map(\.value))
         },
         decode: { payload, key in
             try makeAttachment(key: key, values: payload.values)
         })
-}
-
-/// Safe structural failures for the first-party random payload schema.
-public enum RandomPersistenceSchemaError: Error, Equatable, Sendable {
-    /// An outgoing attachment does not contain exactly one raw-values track.
-    case invalidTrackLayout(AttachmentID)
 }
 
 private struct RandomPayload: Codable, Sendable {
