@@ -132,7 +132,12 @@ private final class ReplayRandomNumberGenerator: RandomNumberGenerator, Sendable
 /// Setup helpers for Diorama's first-party random system.
 public enum DioramaRandomSystem {
     /// The stable identity of the first-party random system.
-    public static let systemTypeID = SystemTypeID(rawValue: "diorama.random")
+    public static var systemTypeID: SystemTypeID {
+        type.id
+    }
+
+    /// Shared random-system identity and its optional versioned persistence capability.
+    public static let type = ScenarioSystemType("diorama.random", persistence: DioramaRandomPersistence.registration)
 
     private static let valuesTrackKey = TrackKey(rawValue: "values")
 
@@ -155,16 +160,18 @@ public enum DioramaRandomSystem {
     /// Creates one reusable random system.
     ///
     /// Recording forms a new `UInt64` sequence, replay consumes existing values,
-    /// and passthrough ignores content. Select modes in runtime configuration.
+    /// and passthrough ignores content. Select a mode on the returned system.
     ///
     /// - Parameters:
     ///   - key: The caller-selected random-domain key.
+    ///   - allowsUnusedReplayRecords: Whether replay may leave random values unused.
     /// - Returns: Typed immutable setup using `SystemRandomNumberGenerator`.
     /// - Throws: Public scenario-definition evidence.
     public static func instance(
-        for key: AttachmentKey) throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
+        for key: AttachmentKey,
+        allowsUnusedReplayRecords: Bool = false) throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
     {
-        try instance(for: key) { SystemRandomNumberGenerator() }
+        try instance(for: key, allowsUnusedReplayRecords: allowsUnusedReplayRecords) { SystemRandomNumberGenerator() }
     }
 
     /// Creates one reusable random system with an injected source factory.
@@ -182,18 +189,20 @@ public enum DioramaRandomSystem {
     ///     attachments: [random.attachment])
     /// let execution = try ScenarioExecution.start(
     ///     definition: definition,
-    ///     configuration: ScenarioConfiguration(id: scenarioID, defaultMode: .record),
+    ///     scenarioID: scenarioID, defaultMode: .record,
     ///     systems: [AnyScenarioSystem(random)])
     /// var generator = try execution.dependency(random)
     /// ```
     ///
     /// - Parameters:
     ///   - key: The caller-selected random-domain key.
+    ///   - allowsUnusedReplayRecords: Whether replay may leave random values unused.
     ///   - sourceFactory: Creates the live source after all systems prepare.
     /// - Returns: Typed immutable attachment, preparation, and lookup setup.
     /// - Throws: Public scenario-definition evidence.
     public static func instance(
         for key: AttachmentKey,
+        allowsUnusedReplayRecords: Bool = false,
         sourceFactory: @escaping @Sendable () -> some RandomNumberGenerator & Sendable)
         throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
     {
@@ -201,7 +210,9 @@ public enum DioramaRandomSystem {
         let attachment = try ScenarioAttachment(
             id: attachmentID(for: key)).adding(
             SequentialTrack<UInt64>(id: trackID))
-        return ScenarioSystem(attachment: attachment) { context in
+        return try ScenarioSystem(type: type, attachment: attachment,
+                                  allowsUnusedReplayRecords: allowsUnusedReplayRecords)
+        { context in
             let preparation = ValuePreparation<UInt64>()
             let lease = try context.lease(for: trackID, preparation: preparation)
             let mode: LiveRandomMode

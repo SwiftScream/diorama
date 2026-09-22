@@ -117,32 +117,20 @@ struct ScenarioDefinitionTests {
     }
 
     @Test
-    func `resolves default and whole attachment modes`() throws {
-        let systemTypeID = SystemTypeID(rawValue: "example")
-        let inherited = ScenarioAttachment(
-            id: AttachmentID(
-                systemTypeID: systemTypeID,
-                key: AttachmentKey(rawValue: "inherited")))
-        let recording = ScenarioAttachment(
-            id: AttachmentID(
-                systemTypeID: systemTypeID,
-                key: AttachmentKey(rawValue: "recording")))
-        let passthrough = ScenarioAttachment(
-            id: AttachmentID(
-                systemTypeID: systemTypeID,
-                key: AttachmentKey(rawValue: "passthrough")))
-        let definition = try ScenarioDefinition(attachments: [inherited, recording, passthrough])
-
-        let configuration = ScenarioConfiguration(id: ScenarioID(rawValue: "modes"), defaultMode: .replay,
-                                                  modeOverrides: [
-                                                      recording.id.key: .record,
-                                                      passthrough.id.key: .passthrough,
-                                                  ])
-        try configuration.validate(against: definition)
-        #expect(configuration.effectiveMode(for: inherited.id.key) == .replay)
-        #expect(configuration.effectiveMode(for: recording.id.key) == .record)
-        #expect(configuration.effectiveMode(for: passthrough.id.key) == .passthrough)
-        #expect(configuration.effectiveMode(for: AttachmentKey(rawValue: "missing")) == .replay)
+    func `system mode copies preserve inheritance and attachment identity`() throws {
+        let type = ScenarioSystemType("example")
+        let attachment = ScenarioAttachment(id: AttachmentID(
+            systemTypeID: type.id, key: AttachmentKey(rawValue: "instance")))
+        let original = try ScenarioSystem(type: type, attachment: attachment) { _ in
+            PreparedSystem { ActivatedSystem(dependency: true, deactivate: {}) }
+        }
+        let replay = original.withMode(.replay)
+        #expect(original.modeOverride == nil)
+        #expect(replay.modeOverride == .replay)
+        #expect(replay.attachment.id == original.attachment.id)
+        #expect(replay.withMode(nil).modeOverride == nil)
+        #expect(AnyScenarioSystem(replay).effectiveMode(defaultMode: .record) == .replay)
+        #expect(AnyScenarioSystem(original).effectiveMode(defaultMode: .record) == .record)
     }
 
     @Test

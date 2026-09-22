@@ -20,24 +20,34 @@ public enum PersistenceDispatchError: Error, Equatable, Sendable {
 /// A registry is optional and lives outside `DioramaCore`. Its presence never
 /// changes the ability to construct or execute non-`Codable` in-memory tracks.
 public struct PersistentSystemRegistry: Sendable {
-    private let registrations: [SystemTypeID: PersistentSystemRegistration]
+    private let registrations: [SystemTypeID: any ScenarioSystemPersistence]
 
-    /// Creates and validates an immutable registry.
+    /// Collects persistence capabilities from shared system descriptors.
     ///
-    /// - Parameter registrations: One registration per stable system type.
-    /// - Throws: ``PersistenceRegistrationError/duplicateSystemType(_:)`` when
-    ///   two entries claim the same stable identity.
-    public init(_ registrations: [PersistentSystemRegistration] = [])
+    /// Repeated references to the same descriptor contribute one codec.
+    /// Distinct descriptors claiming the same identity are ambiguous and fail.
+    /// - Parameter systemTypes: System-wide metadata for all available codecs.
+    /// - Throws: Conflicting descriptors or a type without persistence capability.
+    public init(_ systemTypes: [ScenarioSystemType] = [])
         throws(PersistenceRegistrationError)
     {
-        var byType: [SystemTypeID: PersistentSystemRegistration] = [:]
-        for registration in registrations {
-            guard byType[registration.systemTypeID] == nil else {
-                throw .duplicateSystemType(registration.systemTypeID)
+        var types: [SystemTypeID: ScenarioSystemType] = [:]
+        var registrations: [SystemTypeID: any ScenarioSystemPersistence] = [:]
+        for type in systemTypes {
+            if let existing = types[type.id], existing !== type {
+                throw .duplicateSystemType(type.id)
             }
-            byType[registration.systemTypeID] = registration
+            guard let persistence = type.persistence else {
+                throw .missingPersistence(type.id)
+            }
+            types[type.id] = type
+            registrations[type.id] = persistence
         }
-        self.registrations = byType
+        self.registrations = registrations
+    }
+
+    func contains(_ id: SystemTypeID) -> Bool {
+        registrations[id] != nil
     }
 
     /// Verifies that every active attachment has a registration.
@@ -99,7 +109,7 @@ public struct PersistentSystemRegistry: Sendable {
             throw PersistenceDispatchError.unknownSystemType(descriptor.systemTypeID)
         }
         let attachment = try registration.decode(
-            key: descriptor.attachmentKey,
+            attachmentID: descriptor.attachmentID,
             version: descriptor.schemaVersion,
             from: decoder)
         guard attachment.id == descriptor.attachmentID else {

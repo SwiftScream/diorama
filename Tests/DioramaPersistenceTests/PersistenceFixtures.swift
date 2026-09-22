@@ -4,7 +4,6 @@ import DioramaPersistence
 extension PersistentSystemRegistryTests {
     static func numberRegistration(current: UInt32) -> PersistentSystemRegistration {
         PersistentSystemRegistration(
-            systemTypeID: numberType,
             currentSchemaVersion: current,
             payloadType: NumberPayload.self,
             encode: { attachment in
@@ -17,7 +16,6 @@ extension PersistentSystemRegistryTests {
 
     static func labelRegistration(current: UInt32) -> PersistentSystemRegistration {
         PersistentSystemRegistration(
-            systemTypeID: labelType,
             currentSchemaVersion: current,
             payloadType: LabelPayload.self,
             encode: { attachment in

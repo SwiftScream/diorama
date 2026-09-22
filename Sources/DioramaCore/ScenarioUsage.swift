@@ -31,11 +31,11 @@ public struct AttachmentUsage: Equatable, Sendable {
     public let attachmentID: AttachmentID
     /// The active mode.
     public let mode: ScenarioMode
-    /// Whether unused-recording verification was explicitly waived at setup.
+    /// Whether this attachment allows unused replay records during evaluation.
     ///
-    /// Ignoring does not suppress operation diagnostics, health, preparation,
-    /// or cleanup, and does not waive persistence validation.
-    public let isIgnored: Bool
+    /// This does not suppress operation diagnostics, health, preparation, or
+    /// cleanup, and does not waive persistence validation.
+    public let allowsUnusedReplayRecords: Bool
     /// Track facts in declaration order, without their recorded values.
     public let tracks: [SequentialTrackUsage]
 }

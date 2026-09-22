@@ -68,19 +68,16 @@ struct ConsumerSequentialSystemTests {
         let secondInstance = try ConsumerSequentialSystem.instance(
             key: second,
             values: [ConsumerStableValue(10), ConsumerStableValue(20)])
-        let definitionConfiguration = ScenarioConfiguration(
-            id: ScenarioID(rawValue: "consumer-independent"),
-            defaultMode: .record,
-            modeOverrides: [firstInstance.attachment.id.key: .replay, secondInstance.attachment.id.key: .replay])
+
         let definition = try ScenarioDefinition(attachments: [
             firstInstance.attachment,
             secondInstance.attachment,
         ])
         let execution = try ScenarioExecution.start(
-            definition: definition, configuration: definitionConfiguration,
+            definition: definition, scenarioID: ScenarioID(rawValue: "consumer-independent"), defaultMode: .record,
             systems: [
-                AnyScenarioSystem(secondInstance),
-                AnyScenarioSystem(firstInstance),
+                AnyScenarioSystem(secondInstance.withMode(.replay)),
+                AnyScenarioSystem(firstInstance.withMode(.replay)),
             ])
         let firstDependency = try execution.dependency(firstInstance)
         let secondDependency = try execution.dependency(secondInstance.dependencyKey)
@@ -140,12 +137,10 @@ struct ConsumerSequentialSystemTests {
         -> (ScenarioExecution, ScenarioSystem<ConsumerSequentialDependency>)
     {
         let instance = try ConsumerSequentialSystem.instance(key: key, values: values)
-        let definitionConfiguration = ScenarioConfiguration(
-            id: ScenarioID(rawValue: "consumer-" + key.rawValue),
-            defaultMode: mode)
+
         let definition = try ScenarioDefinition(attachments: [instance.attachment])
         let execution = try ScenarioExecution.start(
-            definition: definition, configuration: definitionConfiguration,
+            definition: definition, scenarioID: ScenarioID(rawValue: "consumer-" + key.rawValue), defaultMode: mode,
             systems: [AnyScenarioSystem(instance)])
         return (execution, instance)
     }

@@ -14,6 +14,7 @@ let package = Package(
         .executableTarget(
             name: "DioramaRandomUsage",
             dependencies: [
+                .product(name: "Diorama", package: "Diorama"),
                 .product(name: "DioramaCore", package: "Diorama"),
                 .product(name: "DioramaRandom", package: "Diorama"),
             ],

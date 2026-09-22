@@ -11,7 +11,7 @@ public extension ScenarioFinalizationResult {
         var lines = ["Scenario \(ReportText.quote(report.scenarioID.rawValue))"]
         for attachment in usage {
             let mode = ReportText.mode(attachment.mode)
-            let verification = attachment.isIgnored ? "ignored" : "included"
+            let verification = attachment.allowsUnusedReplayRecords ? "ignored" : "included"
             lines.append("Attachment \(ReportText.attachment(attachment.attachmentID)) \(mode) usage=\(verification)")
             for track in attachment.tracks {
                 let key = ReportText.quote(track.id.key.rawValue)

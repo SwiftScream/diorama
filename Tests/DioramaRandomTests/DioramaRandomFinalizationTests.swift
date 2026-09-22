@@ -87,7 +87,7 @@ struct DioramaRandomFinalizationTests {
         }
         let execution = try ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
-            configuration: ScenarioConfiguration(id: ScenarioID(rawValue: "random-finalization"), defaultMode: .replay),
+            scenarioID: ScenarioID(rawValue: "random-finalization"), defaultMode: .replay,
             systems: [AnyScenarioSystem(instance)])
         return (execution, instance)
     }

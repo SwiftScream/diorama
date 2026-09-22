@@ -215,7 +215,7 @@ struct JSONScenarioCodecTests {
     private func codec() throws -> JSONScenarioCodec {
         try JSONScenarioCodec(
             registry: PersistentSystemRegistry([
-                DioramaRandomPersistence.registration,
+                DioramaRandomSystem.type,
             ]))
     }
 

@@ -94,7 +94,12 @@ public final class ConsumerSequentialDependency: Sendable {
 /// Public-only configuration helpers for the external consumer proof.
 public enum ConsumerSequentialSystem {
     /// Stable identity for this consumer-defined system implementation.
-    public static let systemTypeID = SystemTypeID(rawValue: "test.consumer-sequential")
+    public static var systemTypeID: SystemTypeID {
+        type.id
+    }
+
+    /// Shared metadata for every consumer instance, with no persistence capability.
+    public static let type = ScenarioSystemType("test.consumer-sequential")
 
     /// Creates the stable attachment identity for one named instance.
     ///
@@ -130,7 +135,7 @@ public enum ConsumerSequentialSystem {
         let attachment = try ScenarioAttachment(
             id: attachmentID(for: key)).adding(track)
         let trackID = trackID(for: key)
-        return ScenarioSystem(attachment: attachment) { context in
+        return try ScenarioSystem(type: type, attachment: attachment) { context in
             let preparation = ValuePreparation<ConsumerStableValue>()
             let lease = try context.lease(for: trackID, preparation: preparation)
             return PreparedSystem {

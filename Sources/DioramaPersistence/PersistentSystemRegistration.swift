@@ -33,18 +33,16 @@ public struct PersistedSystemDescriptor: Equatable, Sendable {
     }
 }
 
-/// A current writer and explicit version readers for one stable system type.
+/// A Codable implementation of a system type's optional persistence capability.
 ///
-/// Registrations contain no execution state. Decoders must validate and admit
+/// Attach this capability to a shared `ScenarioSystemType`. It contains no
+/// duplicated system identifier or execution state. Decoders must validate and admit
 /// their already-prepared payload before returning a strict
 /// ``DioramaCore/ScenarioAttachment``.
-public struct PersistentSystemRegistration: Sendable {
+public struct PersistentSystemRegistration: ScenarioSystemPersistence {
     typealias Reader = @Sendable (
         AttachmentKey,
         any Decoder) throws -> ScenarioAttachment
-
-    /// The stable owner and semantic kind handled by this registration.
-    public let systemTypeID: SystemTypeID
 
     /// The schema version emitted by this registration's writer.
     public let currentSchemaVersion: UInt32
@@ -68,19 +66,16 @@ public struct PersistentSystemRegistration: Sendable {
     /// its complete identity matches the persisted descriptor.
     ///
     /// - Parameters:
-    ///   - systemTypeID: Stable identity for the payload owner and semantics.
     ///   - currentSchemaVersion: The version emitted by the current writer.
     ///   - payloadType: The current deliberate `Codable` payload type.
     ///   - encode: Converts one strict semantic attachment into current payload.
     ///   - decode: Validates and admits current payload as one strict attachment.
     public init<Payload: Codable & Sendable>(
-        systemTypeID: SystemTypeID,
         currentSchemaVersion: UInt32,
         payloadType _: Payload.Type = Payload.self,
         encode: @escaping @Sendable (ScenarioAttachment) throws -> Payload,
         decode: @escaping @Sendable (Payload, AttachmentKey) throws -> ScenarioAttachment)
     {
-        self.systemTypeID = systemTypeID
         self.currentSchemaVersion = currentSchemaVersion
         writer = { attachment, encoder in
             try encode(attachment).encode(to: encoder)
@@ -93,14 +88,12 @@ public struct PersistentSystemRegistration: Sendable {
     }
 
     private init(
-        systemTypeID: SystemTypeID,
         currentSchemaVersion: UInt32,
         writer: @escaping @Sendable (
             ScenarioAttachment,
             any Encoder) throws -> Void,
         readers: [UInt32: Reader])
     {
-        self.systemTypeID = systemTypeID
         self.currentSchemaVersion = currentSchemaVersion
         self.writer = writer
         self.readers = readers
@@ -116,7 +109,7 @@ public struct PersistentSystemRegistration: Sendable {
     ///   - payloadType: Its deliberate `Decodable` representation.
     ///   - decode: Validates and admits historical payload as one current attachment.
     /// - Returns: A new immutable registration with the additional reader.
-    /// - Throws: ``PersistenceRegistrationError/duplicateReader(systemTypeID:version:)``
+    /// - Throws: ``PersistenceRegistrationError/duplicateReader(version:)``
     ///   if the version already has a reader.
     public func addingReader<Payload: Decodable & Sendable>(
         for version: UInt32,
@@ -125,38 +118,39 @@ public struct PersistentSystemRegistration: Sendable {
         throws(PersistenceRegistrationError) -> PersistentSystemRegistration
     {
         guard readers[version] == nil else {
-            throw .duplicateReader(systemTypeID: systemTypeID, version: version)
+            throw .duplicateReader(version: version)
         }
         var readers = readers
         readers[version] = { key, decoder in
             try decode(Payload(from: decoder), key)
         }
         return PersistentSystemRegistration(
-            systemTypeID: systemTypeID,
             currentSchemaVersion: currentSchemaVersion,
             writer: writer,
             readers: readers)
     }
 
-    func encode(
+    /// Encodes prepared attachment content using the current writer.
+    public func encode(
         _ attachment: ScenarioAttachment,
         to encoder: any Encoder) throws
     {
         try writer(attachment, encoder)
     }
 
-    func decode(
-        key: AttachmentKey,
+    /// Decodes and validates one supported payload for the requested identity.
+    public func decode(
+        attachmentID: AttachmentID,
         version: UInt32,
         from decoder: any Decoder) throws -> ScenarioAttachment
     {
         guard let reader = readers[version] else {
             throw PersistenceDispatchError.unsupportedSchemaVersion(
-                systemTypeID: systemTypeID,
+                systemTypeID: attachmentID.systemTypeID,
                 declared: version,
                 supported: supportedSchemaVersions)
         }
-        return try reader(key, decoder)
+        return try reader(attachmentID.key, decoder)
     }
 }
 
@@ -165,6 +159,9 @@ public enum PersistenceRegistrationError: Error, Equatable, Sendable {
     /// More than one registry entry claims the same stable system type.
     case duplicateSystemType(SystemTypeID)
 
+    /// A system descriptor supplies no persistence capability.
+    case missingPersistence(SystemTypeID)
+
     /// More than one reader claims the same system-payload version.
-    case duplicateReader(systemTypeID: SystemTypeID, version: UInt32)
+    case duplicateReader(version: UInt32)
 }

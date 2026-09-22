@@ -14,7 +14,7 @@ struct ConcurrentFinalizationTests {
         let journal = ExecutionFixtures.Journal()
         let execution = try ScenarioExecution.start(
             definition: ExecutionFixtures.definition(["a", "b"]),
-            configuration: ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay),
+            scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [ExecutionFixtures.system("a", journal: journal), blockingSystem(gate: gate, journal: journal)])
         let lease = try execution.dependency(
             ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self))
@@ -73,7 +73,7 @@ struct ConcurrentFinalizationTests {
         }
         let execution = try ScenarioExecution.start(
             definition: ExecutionFixtures.definition(["a"]),
-            configuration: ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay),
+            scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [
                 ExecutionFixtures.system("a", journal: ExecutionFixtures.Journal()),
             ],
@@ -112,9 +112,8 @@ struct ConcurrentFinalizationTests {
         let gate = FinalizationGate()
         defer { gate.release() }
         let execution = try ScenarioExecution.start(
-            definition: ExecutionFixtures.definition(["a"]), configuration: ScenarioConfiguration(
-                id: ScenarioID(rawValue: "execution"),
-                defaultMode: .record), systems: [
+            definition: ExecutionFixtures.definition(["a"]),
+            scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .record, systems: [
                 ExecutionFixtures.system("a", journal: ExecutionFixtures.Journal()),
             ])
         let lease = try execution.dependency(
@@ -143,8 +142,13 @@ struct ConcurrentFinalizationTests {
         #expect(await execution.finish() == result)
     }
 
-    private func blockingSystem(gate: FinalizationGate, journal: ExecutionFixtures.Journal) -> AnyScenarioSystem {
-        let system = ScenarioSystem(attachment: ScenarioAttachment(id: ExecutionFixtures.attachment("b"))) { context in
+    private func blockingSystem(gate: FinalizationGate,
+                                journal: ExecutionFixtures.Journal) throws -> AnyScenarioSystem
+    {
+        let system = try ScenarioSystem(
+            type: ExecutionFixtures.type,
+            attachment: ScenarioAttachment(id: ExecutionFixtures.attachment("b")))
+        { context in
             let lease = try context.lease(for: ExecutionFixtures.track("b"), preparation: ValuePreparation<Int>())
             return PreparedSystem {
                 ActivatedSystem(dependency: lease) {

@@ -6,8 +6,9 @@ import Foundation
 /// Associated errors preserve codec and backend evidence for inspection. Custom
 /// errors must be made safe before rendering; this type never renders them.
 public enum ScenarioLoadResult: Sendable {
-    /// Fully decoded and prepared content, including a valid empty scenario.
-    case loaded(ScenarioDefinition)
+    /// Prepared content and headers of any unknown types deliberately omitted.
+    /// A strict standalone load always has an empty skipped-systems list.
+    case loaded(ScenarioDefinition, skippedSystems: [PersistedSystemDescriptor] = [])
 
     /// Storage contains no document at the configured destination.
     case missing
@@ -58,6 +59,10 @@ public struct JSONScenarioRepository: Sendable {
     ///
     /// - Returns: The exact load outcome; invalid content is never treated as empty.
     public func load() -> ScenarioLoadResult {
+        load(unknownSystems: .reject)
+    }
+
+    package func load(unknownSystems: UnknownSystemPolicy) -> ScenarioLoadResult {
         let data: Data
         do {
             guard let loaded = try storage.load() else { return .missing }
@@ -66,7 +71,8 @@ public struct JSONScenarioRepository: Sendable {
             return .unreadable(error)
         }
         do {
-            return try .loaded(codec.decode(data))
+            let decoded = try codec.decode(data, unknownSystems: unknownSystems)
+            return .loaded(decoded.scenario, skippedSystems: decoded.skippedSystems)
         } catch let error as PersistenceDispatchError {
             return .incompatibleSystem(error)
         } catch let error as PersistedScenarioCodingError {
@@ -85,7 +91,8 @@ public struct JSONScenarioRepository: Sendable {
     ///
     /// Validation happens without reading or writing storage. Every active
     /// attachment, including an ignored one, requires registration. Loading
-    /// separately validates every payload before discarding unmatched content.
+    /// validates every registered payload. Startup may omit unregistered types;
+    /// standalone loading remains strict.
     ///
     /// - Parameter definition: Semantic content or an empty typed startup layout.
     /// - Throws: The first missing persistent-system registration.

@@ -15,13 +15,9 @@ struct ScenarioUsageTests {
             .adding(SequentialTrack(id: ExecutionFixtures.track("record"), values: preparedValues([99])))
         let pass = try ScenarioAttachment(id: ExecutionFixtures.attachment("pass"))
             .adding(SequentialTrack(id: ExecutionFixtures.track("pass"), values: preparedValues([99])))
-        let definitionConfiguration = ScenarioConfiguration(
-            id: ScenarioID(rawValue: "mixed"),
-            defaultMode: .replay,
-            modeOverrides: [record.id.key: .record, pass.id.key: .passthrough])
         let definition = try ScenarioDefinition(attachments: [replay, record, pass])
         let journal = ExecutionFixtures.Journal()
-        let replayInstance = ScenarioSystem(attachment: replay) { context in
+        let replayInstance = try ScenarioSystem(type: ExecutionFixtures.type, attachment: replay) { context in
             // Lease request order deliberately differs from declaration order.
             let secondLease = try context.lease(for: second, preparation: ValuePreparation<Int>())
             let firstLease = try context.lease(for: first, preparation: ValuePreparation<Int>())
@@ -29,10 +25,11 @@ struct ScenarioUsageTests {
         }
         let execution = try ScenarioExecution.start(
             definition: definition,
-            configuration: definitionConfiguration,
+            scenarioID: ScenarioID(rawValue: "mixed"), defaultMode: .replay,
             systems: [
-                ExecutionFixtures.system("pass", journal: journal), AnyScenarioSystem(replayInstance),
-                ExecutionFixtures.system("record", journal: journal),
+                ExecutionFixtures.system("pass", journal: journal, mode: .passthrough),
+                AnyScenarioSystem(replayInstance),
+                ExecutionFixtures.system("record", journal: journal, mode: .record),
             ])
         let leases = try execution.dependency(replayInstance)
         #expect(try leases[0].claimNext().value == 11)
@@ -60,16 +57,13 @@ struct ScenarioUsageTests {
 
     @Test
     func `ignoring active usage preserves preparation health and operation diagnostics`() async throws {
-        let id = ExecutionFixtures.attachment("a")
-        let baseConfiguration = ScenarioConfiguration(id: ScenarioID(rawValue: "execution"), defaultMode: .replay)
         let base = try ExecutionFixtures.definition(["a"])
-        let definitionConfiguration = ScenarioConfiguration(
-            id: baseConfiguration.id,
-            defaultMode: .replay,
-            ignoredAttachments: [id.key])
         let definition = try ScenarioDefinition(attachments: base.attachments)
         let preparations = Mutex(0)
-        let instance = ScenarioSystem(attachment: definition.attachments[0]) { context in
+        let instance = try ScenarioSystem(type: ExecutionFixtures.type,
+                                          attachment: definition.attachments[0],
+                                          allowsUnusedReplayRecords: true)
+        { context in
             let lease = try context.lease(
                 for: ExecutionFixtures.track("a"), preparation: ValuePreparation<Int>(validate: { _ in
                     preparations.withLock { $0 += 1 }
@@ -77,7 +71,7 @@ struct ScenarioUsageTests {
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
         let execution = try ScenarioExecution.start(
-            definition: definition, configuration: definitionConfiguration,
+            definition: definition, scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [AnyScenarioSystem(instance)])
         let lease = try execution.dependency(instance)
         #expect(throws: SequentialOperationFailure.self) {
@@ -90,14 +84,5 @@ struct ScenarioUsageTests {
         #expect(result.evaluate(.allRecordingsUsed).isSatisfied)
         #expect(!result.evaluate(.healthyRecording).isSatisfied)
         #expect(!result.evaluate(.noUnexpectedOperations).isSatisfied)
-    }
-
-    @Test
-    func `configuration rejects unknown ignore keys in lexical order`() throws {
-        #expect(throws: ScenarioConfigurationError.unknownIgnoredAttachment(AttachmentKey(rawValue: "a"))) {
-            try ScenarioConfiguration(id: ScenarioID(rawValue: "inventory"), defaultMode: .replay,
-                                      ignoredAttachments: [AttachmentKey(rawValue: "z"), AttachmentKey(rawValue: "a")])
-                .validate(against: ScenarioDefinition())
-        }
     }
 }

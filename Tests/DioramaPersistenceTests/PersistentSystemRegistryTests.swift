@@ -45,8 +45,8 @@ struct PersistentSystemRegistryTests {
     func `dispatches heterogeneous and repeated system attachments`() throws {
         let current: UInt32 = 2
         let registry = try PersistentSystemRegistry([
-            Self.numberRegistration(current: current),
-            Self.labelRegistration(current: 4),
+            ScenarioSystemType(id: Self.numberType, persistence: Self.numberRegistration(current: current)),
+            ScenarioSystemType(id: Self.labelType, persistence: Self.labelRegistration(current: 4)),
         ])
         let first = try Self.numberAttachment(key: "first", values: [1, 2])
         let second = try Self.numberAttachment(key: "second", values: [3])
@@ -75,7 +75,9 @@ struct PersistentSystemRegistryTests {
         { payload, key in
             try Self.numberAttachment(key: key.rawValue, values: [payload.value])
         }
-        let registry = try PersistentSystemRegistry([registration])
+        let registry = try PersistentSystemRegistry([
+            ScenarioSystemType(id: Self.numberType, persistence: registration),
+        ])
         let descriptor = PersistedSystemDescriptor(
             attachmentKey: AttachmentKey(rawValue: "legacy"),
             systemTypeID: Self.numberType,
@@ -96,12 +98,12 @@ struct PersistentSystemRegistryTests {
         let registration = Self.numberRegistration(current: current)
 
         #expect(throws: PersistenceRegistrationError.duplicateSystemType(Self.numberType)) {
-            _ = try PersistentSystemRegistry([registration, registration])
+            _ = try PersistentSystemRegistry([
+                ScenarioSystemType(id: Self.numberType, persistence: registration),
+                ScenarioSystemType(id: Self.numberType, persistence: registration),
+            ])
         }
-        #expect(throws: PersistenceRegistrationError.duplicateReader(
-            systemTypeID: Self.numberType,
-            version: current))
-        {
+        #expect(throws: PersistenceRegistrationError.duplicateReader(version: current)) {
             _ = try registration.addingReader(for: current, payloadType: NumberPayload.self) { payload, key in
                 try Self.numberAttachment(key: key.rawValue, values: payload.values)
             }
@@ -112,7 +114,9 @@ struct PersistentSystemRegistryTests {
     func `distinguishes unknown types from unsupported versions`() throws {
         let current: UInt32 = 2
         let unsupported: UInt32 = 7
-        let registry = try PersistentSystemRegistry([Self.numberRegistration(current: current)])
+        let registry = try PersistentSystemRegistry([
+            ScenarioSystemType(id: Self.numberType, persistence: Self.numberRegistration(current: current)),
+        ])
         let unknown = SystemTypeID(rawValue: "test.unknown")
         let unknownDescriptor = PersistedSystemDescriptor(
             attachmentKey: AttachmentKey(rawValue: "unknown"),
@@ -145,14 +149,15 @@ struct PersistentSystemRegistryTests {
     func `rejects a reader returning an incompatible attachment identity`() throws {
         let current: UInt32 = 1
         let registration = PersistentSystemRegistration(
-            systemTypeID: Self.numberType,
             currentSchemaVersion: current,
             payloadType: NumberPayload.self,
             encode: { _ in NumberPayload(values: []) },
             decode: { payload, _ in
                 try Self.numberAttachment(key: "wrong", values: payload.values)
             })
-        let registry = try PersistentSystemRegistry([registration])
+        let registry = try PersistentSystemRegistry([
+            ScenarioSystemType(id: Self.numberType, persistence: registration),
+        ])
         let descriptor = PersistedSystemDescriptor(
             attachmentKey: AttachmentKey(rawValue: "expected"),
             systemTypeID: Self.numberType,

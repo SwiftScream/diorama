@@ -26,13 +26,16 @@ final class StartupProbe: Sendable {
     }
 
     func system(
-        key: String) throws -> ScenarioSystem<SequentialTrackLease<UInt64>>
+        key: String, allowsUnusedReplayRecords: Bool = false)
+        throws -> ScenarioSystem<SequentialTrackLease<UInt64>>
     {
         let attachmentKey = AttachmentKey(rawValue: key)
         let trackID = DioramaRandomSystem.trackID(for: attachmentKey)
         let attachment = try ScenarioAttachment(
             id: DioramaRandomSystem.attachmentID(for: attachmentKey)).adding(SequentialTrack<UInt64>(id: trackID))
-        return ScenarioSystem(attachment: attachment) { [self] context in
+        return try ScenarioSystem(type: DioramaRandomSystem.type, attachment: attachment,
+                                  allowsUnusedReplayRecords: allowsUnusedReplayRecords)
+        { [self] context in
             state.withLock { $0.preparations += 1 }
             let preparation = ValuePreparation<UInt64>(validate: { [failValidation] _ in
                 if failValidation {
@@ -87,16 +90,10 @@ final class StartupStorage: ScenarioDocumentStorage, Sendable {
 
 struct StartupFault: Error {}
 
-func definition(
-    systems: [ScenarioSystem<SequentialTrackLease<UInt64>>]) throws -> ScenarioDefinition
-{
-    try ScenarioDefinition(attachments: systems.map(\.attachment))
-}
-
 func randomRepository(storage: any ScenarioDocumentStorage) throws -> JSONScenarioRepository {
     try JSONScenarioRepository(
         codec: JSONScenarioCodec(registry: PersistentSystemRegistry([
-            DioramaRandomPersistence.registration,
+            DioramaRandomSystem.type,
         ])),
         storage: storage)
 }
@@ -107,18 +104,7 @@ func failureStorage(_ kind: String) throws -> StartupStorage {
     case "unreadable": StartupStorage(readError: true)
     case "invalid": StartupStorage(document: Data())
     case "envelope": try StartupStorage(document: persistedFixture("unsupported-envelope-version"))
-    default:
-        StartupStorage(document: Data(#"""
-        {
-          "diorama" : { "schemaVersion" : 1 },
-          "systems" : [{
-            "attachmentKey" : "unknown",
-            "payload" : {},
-            "schemaVersion" : 1,
-            "type" : "consumer.unknown"
-          }]
-        }
-        """#.utf8))
+    default: try StartupStorage(document: persistedFixture("unsupported-random-version"))
     }
 }
 

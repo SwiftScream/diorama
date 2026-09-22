@@ -8,7 +8,6 @@ public enum DioramaRandomPersistence {
 
     /// The first-party random system's current writer and reader.
     public static let registration = PersistentSystemRegistration(
-        systemTypeID: DioramaRandomSystem.systemTypeID,
         currentSchemaVersion: schemaVersion,
         payloadType: RandomPayload.self,
         encode: { attachment in

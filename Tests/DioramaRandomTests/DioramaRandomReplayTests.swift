@@ -5,6 +5,19 @@ import Testing
 
 struct DioramaRandomReplayTests {
     @Test
+    func `factory may allow unused replay values without discarding their usage facts`() async throws {
+        let key = AttachmentKey(rawValue: "optional-random")
+        let instance = try DioramaRandomSystem.instance(for: key, allowsUnusedReplayRecords: true)
+        let execution = try replayExecution(key: key, values: [7, 11], instance: instance)
+        var generator = try execution.dependency(instance)
+        #expect(generator.next() == 7)
+        let result = await execution.finish()
+        #expect(result.usage[0].tracks[0].unusedRecords.count == 1)
+        #expect(result.evaluate(.allRecordingsUsed).isSatisfied)
+        #expect(result.report.diagnostics.isEmpty)
+    }
+
+    @Test
     func `replay returns raw boundary values without constructing a source`() async throws {
         let key = AttachmentKey(rawValue: "replay-boundaries")
         let probe = ReplaySourceProbe()
@@ -94,14 +107,12 @@ struct DioramaRandomReplayTests {
         let values = Array(1...100).map(UInt64.init)
         let probe = ReplaySourceProbe()
         let instance = try DioramaRandomSystem.instance(for: key) { probe.makeSource() }
-        let definitionConfiguration = ScenarioConfiguration(
-            id: ScenarioID(rawValue: "random-replay-concurrent"),
-            defaultMode: .replay)
+
         let definition = try ScenarioDefinition(attachments: [replayAttachment(key: key, values: values)])
 
         let firstExecution = try ScenarioExecution.start(
             definition: definition,
-            configuration: definitionConfiguration,
+            scenarioID: ScenarioID(rawValue: "random-replay-concurrent"), defaultMode: .replay,
             systems: [AnyScenarioSystem(instance)])
         let firstGenerator = try firstExecution.dependency(instance)
         let observed = await withTaskGroup(of: UInt64.self, returning: [UInt64].self) { group in
@@ -121,7 +132,7 @@ struct DioramaRandomReplayTests {
         #expect(await (firstExecution.finish()).report.diagnostics.isEmpty)
 
         let secondExecution = try ScenarioExecution.start(
-            definition: definition, configuration: definitionConfiguration,
+            definition: definition, scenarioID: ScenarioID(rawValue: "random-replay-concurrent"), defaultMode: .replay,
             systems: [AnyScenarioSystem(instance)])
         var secondGenerator = try secondExecution.dependency(instance.dependencyKey)
         #expect(secondGenerator.next() == 1)
@@ -145,12 +156,11 @@ private func assertClosedGenerator(
     let key = AttachmentKey(rawValue: "closed-" + String(describing: mode))
     let probe = ReplaySourceProbe()
     let instance = try DioramaRandomSystem.instance(for: key) { probe.makeSource() }
-    let definitionConfiguration = ScenarioConfiguration(
-        id: ScenarioID(rawValue: "random-closed-" + String(describing: mode)),
-        defaultMode: mode)
+
     let definition = try ScenarioDefinition(attachments: [replayAttachment(key: key, values: [51, 52])])
     let execution = try ScenarioExecution.start(
-        definition: definition, configuration: definitionConfiguration,
+        definition: definition,
+        scenarioID: ScenarioID(rawValue: "random-closed-" + String(describing: mode)), defaultMode: mode,
         systems: [AnyScenarioSystem(instance)])
     var generator = try execution.dependency(instance)
 
@@ -171,13 +181,10 @@ private func replayExecution(
     instance: ScenarioSystem<any RandomNumberGenerator & Sendable>,
     sink: DiagnosticSink? = nil) throws -> ScenarioExecution
 {
-    let definitionConfiguration = ScenarioConfiguration(
-        id: ScenarioID(rawValue: "random-" + key.rawValue),
-        defaultMode: .replay)
     let definition = try ScenarioDefinition(attachments: [replayAttachment(key: key, values: values)])
     return try ScenarioExecution.start(
         definition: definition,
-        configuration: definitionConfiguration,
+        scenarioID: ScenarioID(rawValue: "random-" + key.rawValue), defaultMode: .replay,
         systems: [AnyScenarioSystem(instance)],
         sink: sink)
 }
@@ -190,11 +197,9 @@ private func replayAttachment(key: AttachmentKey, values: [UInt64]) throws -> Sc
 }
 
 private func preparedValues(_ values: [UInt64]) throws -> [PreparedValue<UInt64>] {
-    let definitionConfiguration = ScenarioConfiguration(
-        id: ScenarioID(rawValue: "random-replay-test-values"),
-        defaultMode: .replay)
     let definition = try ScenarioDefinition()
-    let reporter = DiagnosticReporter(scenarioID: definitionConfiguration.id, definition: definition)
+    let reporter = DiagnosticReporter(scenarioID: ScenarioID(rawValue: "random-replay-test-values"),
+                                      definition: definition)
     let preparation = ValuePreparation<UInt64>()
     return try values.map { value in
         try preparation.prepare(

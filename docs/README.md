@@ -124,6 +124,9 @@ the earlier decisions explicitly.
 - [Semantic model and codec migration evidence](evidence/003-C04A-semantic-model-and-codec-migration.md)
   records data/policy separation, the direct definition codec boundary, and
   unchanged JSON compatibility and execution behavior.
+- [Reusable typed setup evidence](evidence/003-C04B-reusable-typed-setup.md)
+  records the consumer `Diorama` module, direct run and scoped result API, shared
+  optional capabilities, baseline constructors, and registry-based omission.
 
 ## Historical boundary
 
