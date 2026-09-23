@@ -62,6 +62,9 @@ The repository includes an in-memory and file-backed random record/replay exampl
 swift run --package-path Examples DioramaRandomUsage
 ```
 
+See the [Examples guide](Examples/README.md) for the runnable workflow and a
+compiled consumer-system persistence registration.
+
 It passes the recording's resulting definition directly into in-memory replay
 and prints matching values. It also records and replays a temporary scenario
 file, removing that example file afterward. Ordinary setup uses `Diorama` and
