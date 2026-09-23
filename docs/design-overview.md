@@ -3,7 +3,7 @@
 - Status: Accepted
 - Created: 2026-09-05
 - Approved by owner: 2026-09-07
-- Last reviewed: 2026-09-21
+- Last reviewed: 2026-09-24
 - Scope: Decisions 1 through 18
 - Derived from: [Accepted design decisions](design-decisions/README.md)
 
@@ -41,6 +41,10 @@ Decision 12's owner-approved
 permits provisional production task planning before URLProtocol spikes run;
 their results must be reviewed and the affected breakdown confirmed or revised
 before production work depends on that boundary. The owner-approved
+2026-09-24 [routing amendment](design-decisions/12-urlsession-scope.md#task-ownership-routing-amendment--2026-09-24)
+selects native task ownership for per-session execution routing, replacing the
+unsuccessful configuration-header route without changing the later capability
+and lifecycle gates. The owner-approved
 2026-09-09 [deployment-policy amendment](quality-gates-and-ci.md#apple-deployment-minima--owner-approved-amendment-2026-09-09)
 sets iOS 18 and macOS 15 minima so the core can use `Synchronization.Mutex`
 directly on Apple and Linux. It supersedes the 2026-09-06 clock-driven floors

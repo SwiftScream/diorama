@@ -136,6 +136,9 @@ the earlier decisions explicitly.
 - [Persisted consumer and random conformance evidence](evidence/003-C07-persisted-consumer-and-random-conformance.md)
   records the external-module codec, complete random file workflow, example
   execution, and cross-platform verification.
+- [URLSession interception spike evidence](evidence/003-D01-urlsession-interception.md)
+  records the bodyless GET matrix across macOS, iOS Simulator, and Linux,
+  including the Linux routing gaps and request-field collision observation.
 
 ## Historical boundary
 

@@ -45,7 +45,9 @@ C07's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-09-23.
 Its implementation and local macOS, iOS Simulator, and Linux verification are
 complete; owner review is the next checkpoint. See its
 [persisted conformance evidence](../evidence/003-C07-persisted-consumer-and-random-conformance.md).
-003-D01 and later units have not started.
+003-D01 is complete; task ownership is the approved production routing choice.
+The owner authorizes PR preparation on 2026-09-26. Later D units remain separate
+review units.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -859,10 +861,20 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-D01 — Bodyless GET interception and routing spike
 
+- Status: Complete. The owner authorized D01 to run concurrently with C07 and
+  selects task ownership as the production routing choice on 2026-09-24.
+  The pinned Linux bridge fails the original configuration-header route and
+  request-property forwarding controls. A task-ownership follow-up routes
+  bodyless GETs across macOS, iOS Simulator, and Linux without request metadata;
+  the owner approves continuation to D02 and PR preparation on 2026-09-26.
+  The original Linux controls execute as known issues; task-ownership checks
+  remain mandatory. Later capability and lifecycle gates
+  remain required. See the [DD12 routing amendment](../design-decisions/12-urlsession-scope.md#task-ownership-routing-amendment--2026-09-24) and
+  [D01 interception evidence](../evidence/003-D01-urlsession-interception.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Establish controlled native interception and route isolation experiments across Apple Foundation and FoundationNetworking.
 - Prerequisites: 003-C07, 003-A01; DD12, DD17, Q1.
 - Scope: Prove per-session interception and routing for a bodyless GET, first on macOS and Linux, then an iOS simulator, using a controlled protocol/server.
-- Expected files/modules: `Spikes/URLSessionInterception/` executable tests and `docs/evidence/urlsession-interception.md` with exact Swift/libcurl/runtime data.
+- Expected files/modules: `Spikes/URLSessionInterception/` executable tests and `docs/evidence/003-D01-urlsession-interception.md` with exact Swift/libcurl/runtime data.
 - Public behavior: None; evidence for configuration-copying, isolated routes, self-interception prevention, and no live access in simulated replay.
 - Tests/verification: V-spike; two sessions/executions, existing protocol order, cache disabling, absent/unknown/expired routing, reserved-field collision and stripping before forwarding, uninstrumented sessions unaffected.
 - Exclusions: Production URLSession target, global registerClass, adopting POC routing, claiming full API/platform parity from source compatibility.
