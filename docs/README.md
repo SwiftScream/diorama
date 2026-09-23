@@ -17,6 +17,7 @@ The owner approved the consolidated design and implementation plan on
 5. [Dependency approval policy](dependency-policy.md)
 6. [Quality gates and CI policy](quality-gates-and-ci.md)
 7. [JSON persistence schema version 1](persistence-schema-v1.md)
+8. [Execution logical time](execution-time-service.md)
 
 Read the individual decisions referenced by an implementation-plan item before
 working on it. The design overview summarizes their combined architecture but
@@ -160,6 +161,9 @@ the earlier decisions explicitly.
 - [URLSession native quiescence and feasibility evidence](evidence/003-D05-native-quiescence.md)
   records replay drainage, detached live forwarding, native invalidation,
   and the consolidated platform boundary for production implementation.
+- [Execution logical-time capture evidence](evidence/003-E01-logical-time-capture.md)
+  records the shared startup origin, capture service contract, and platform
+  verification.
 
 ## Historical boundary
 
