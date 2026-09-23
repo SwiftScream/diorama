@@ -1,0 +1,37 @@
+{
+  "diorama" : {
+    "schemaVersion" : 1
+  },
+  "systems" : [
+    {
+      "attachmentKey" : "first",
+      "payload" : {
+        "values" : [
+          10
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.random"
+    },
+    {
+      "attachmentKey" : "second",
+      "payload" : {
+        "values" : [
+          100
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.random"
+    },
+    {
+      "attachmentKey" : "consumer",
+      "payload" : {
+        "values" : [
+          7
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "test.consumer-persisted"
+    }
+  ]
+}
