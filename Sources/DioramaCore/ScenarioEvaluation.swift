@@ -1,6 +1,6 @@
 /// A consumer-selected condition, never an implicit test outcome.
 public enum ScenarioEvaluationCondition: Equatable, Sendable {
-    /// No core operation failed because of exhaustion, mode, or invalid access.
+    /// No core operation failed because of exhaustion, mode, time, or invalid access.
     /// System labels have no universal meaning; use `noDiagnostics` to include them.
     case noUnexpectedOperations
     /// No diagnostics of any category occurred before the result froze.
@@ -92,7 +92,7 @@ public extension ScenarioFinalizationResult {
 private extension DiagnosticIssue {
     var isUnexpectedOperation: Bool {
         switch self {
-        case .sequential: true
+        case .sequential, .logicalTime: true
         case let .lifecycle(issue):
             switch issue {
             case .invalidTrackRequest, .preparationClosed, .leaseClosed, .executionClosed, .invalidDependencyRequest:

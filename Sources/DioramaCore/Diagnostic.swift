@@ -71,6 +71,8 @@ public enum DiagnosticIssue: Equatable, Sendable {
     case baseline(ScenarioBaselineIssue)
     /// An invalid or unavailable typed sequential-track operation.
     case sequential(SequentialOperationIssue)
+    /// A logical-time capture or arithmetic fact.
+    case logicalTime(ExecutionTimeIssue)
     /// Safe setup or finalization verification evidence.
     case verification(VerificationIssue)
     /// A system-defined infrastructure or verification fact.

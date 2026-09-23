@@ -92,11 +92,24 @@ enum ReportText {
         case let .lifecycle(fact): lifecycle(fact)
         case let .baseline(fact): baseline(fact)
         case let .system(label): "system-issue \(ReportFieldEscaping.quote(label.text))"
+        case let .logicalTime(fact): logicalTime(fact)
         case .verification(.recordingNotAdmitted): "recording-not-admitted"
         case let .sequential(.wrongMode(expected, actual)):
             "wrong-mode expected=\(mode(expected)) actual=\(mode(actual))"
         case let .sequential(.replayExhausted(availableCount)):
             "replay-exhausted available=\(availableCount)"
+        }
+    }
+
+    private static func logicalTime(_ issue: ExecutionTimeIssue) -> String {
+        switch issue {
+        case .notStarted: "logical-time-not-started"
+        case .executionClosed: "logical-time-execution-closed"
+        case .clockMovedBackward: "logical-time-clock-moved-backward"
+        case .foreignCapture: "logical-time-foreign-capture"
+        case .reversedCaptures: "logical-time-reversed-captures"
+        case .negativeDelay: "logical-time-negative-delay"
+        case .overflow: "logical-time-overflow"
         }
     }
 
