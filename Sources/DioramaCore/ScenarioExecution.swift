@@ -18,6 +18,12 @@ public final class ScenarioExecution: Sendable {
         let cleanup: [AttachmentCleanup]
     }
 
+    private struct StartupServices {
+        let reporter: DiagnosticReporter
+        let admission: ExecutionAdmission
+        let time: ExecutionTime
+    }
+
     private struct FinalizedContents {
         let definition: ScenarioDefinition?
         let cleanup: [AttachmentCleanup]
@@ -27,12 +33,14 @@ public final class ScenarioExecution: Sendable {
     private final class Resources: Sendable {
         private let contents: Mutex<ResourceContents>
         private let usage: ExecutionUsage
+        private let time: ExecutionTime
 
         init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease], usage: ExecutionUsage,
-             definition: ScenarioDefinition)
+             definition: ScenarioDefinition, time: ExecutionTime)
         {
             contents = Mutex(ResourceContents(systems: systems, leases: leases, definition: definition))
             self.usage = usage
+            self.time = time
         }
 
         func dependency<Dependency: Sendable>(for key: DependencyKey<Dependency>) -> Dependency? {
@@ -49,6 +57,7 @@ public final class ScenarioExecution: Sendable {
         }
 
         private func release(reporter: DiagnosticReporter) -> FinalizedContents {
+            time.close()
             let detached = contents.withLock { contents in
                 let detached = contents
                 contents = ResourceContents()
@@ -78,11 +87,12 @@ public final class ScenarioExecution: Sendable {
 
     private init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease],
                  reporter: DiagnosticReporter, admission: ExecutionAdmission, usage: ExecutionUsage,
-                 definition: ScenarioDefinition)
+                 definition: ScenarioDefinition, time: ExecutionTime)
     {
         self.reporter = reporter
         self.admission = admission
-        state = Mutex(.running(Resources(systems: systems, leases: leases, usage: usage, definition: definition)))
+        state = Mutex(.running(Resources(systems: systems, leases: leases, usage: usage,
+                                         definition: definition, time: time)))
     }
 
     /// Prepares and activates a fresh execution from immutable configuration.
@@ -110,6 +120,21 @@ public final class ScenarioExecution: Sendable {
         initialDiagnostics: [Diagnostic] = [],
         sink: DiagnosticSink? = nil) throws(ScenarioStartupFailure) -> ScenarioExecution
     {
+        let clock = ContinuousClock()
+        return try start(definition: definition, scenarioID: scenarioID, defaultMode: defaultMode,
+                         systems: systems, initialDiagnostics: initialDiagnostics, sink: sink,
+                         clockNow: { clock.now })
+    }
+
+    static func start(
+        definition: ScenarioDefinition,
+        scenarioID: ScenarioID,
+        defaultMode: ScenarioMode,
+        systems: [AnyScenarioSystem],
+        initialDiagnostics: [Diagnostic] = [],
+        sink: DiagnosticSink? = nil,
+        clockNow: @escaping @Sendable () -> ContinuousClock.Instant) throws(ScenarioStartupFailure) -> ScenarioExecution
+    {
         let reporter = DiagnosticReporter(scenarioID: scenarioID, definition: definition, sink: sink)
         for diagnostic in initialDiagnostics {
             reporter.record(diagnostic)
@@ -119,13 +144,14 @@ public final class ScenarioExecution: Sendable {
             reporter.record(Diagnostic(issue: .lifecycle(.invalidRegistration)))
             throw ScenarioStartupFailure(report: reporter.freeze())
         }
+        let time = ExecutionTime(clockNow: clockNow, admission: admission, reporter: reporter)
+        let services = StartupServices(reporter: reporter, admission: admission, time: time)
         do {
             return try activate(
                 definition: definition,
                 defaultMode: defaultMode,
                 systems: systems,
-                reporter: reporter,
-                admission: admission)
+                services: services)
         } catch {
             // Prepared systems and activation resources have left their scope;
             // release-time facts therefore precede this immutable boundary too.
@@ -135,9 +161,11 @@ public final class ScenarioExecution: Sendable {
 
     private static func activate(
         definition: ScenarioDefinition, defaultMode: ScenarioMode,
-        systems: [AnyScenarioSystem], reporter: DiagnosticReporter,
-        admission: ExecutionAdmission) throws(StartupRollback) -> ScenarioExecution
+        systems: [AnyScenarioSystem], services: StartupServices) throws(StartupRollback) -> ScenarioExecution
     {
+        let reporter = services.reporter
+        let admission = services.admission
+        let time = services.time
         var prepared: [AnyPreparedSystem] = []
         var leases: [any AnySequentialLease] = []
         var activated: [AnyActivatedSystem] = []
@@ -149,7 +177,7 @@ public final class ScenarioExecution: Sendable {
             let context = SystemPreparationContext(
                 attachment: attachment,
                 mode: system.effectiveMode(defaultMode: defaultMode),
-                reporter: reporter, admission: admission)
+                reporter: reporter, admission: admission, time: time)
             do {
                 let preparedSystem = try system.prepare(context)
                 let completion = context.end()
@@ -165,6 +193,7 @@ public final class ScenarioExecution: Sendable {
                 leases += context.end().leases
                 reporter.record(Diagnostic(issue: .lifecycle(.preparationFailed), context: .attachment(attachment.id)))
                 admission.close()
+                time.close()
                 throw rollback(activated, leases: leases, reporter: reporter)
             }
         }
@@ -175,12 +204,15 @@ public final class ScenarioExecution: Sendable {
             } catch {
                 reporter.record(Diagnostic(issue: .lifecycle(.activationFailed), context: .attachment(attachment.id)))
                 admission.close()
+                time.close()
                 throw rollback(activated, leases: leases, reporter: reporter)
             }
         }
         let usage = ExecutionUsage(definition: definition, defaultMode: defaultMode, systems: systems)
-        return ScenarioExecution(systems: activated, leases: leases, reporter: reporter, admission: admission,
-                                 usage: usage, definition: definition)
+        let execution = ScenarioExecution(systems: activated, leases: leases, reporter: reporter, admission: admission,
+                                          usage: usage, definition: definition, time: time)
+        time.start()
+        return execution
     }
 
     /// Retrieves an activated dependency while the execution remains running.

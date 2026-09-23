@@ -163,7 +163,7 @@ public struct DioramaReport: Equatable, Sendable {
         case .conversionFailed: .conversion
         case let .preparationFailed(stage): .preparation(stage)
         case .lifecycle(.cleanupFailed): .cleanup
-        case .sinkFailed, .lifecycle, .baseline, .sequential, .verification, .system: .recording
+        case .sinkFailed, .lifecycle, .baseline, .sequential, .logicalTime, .verification, .system: .recording
         }
     }
 

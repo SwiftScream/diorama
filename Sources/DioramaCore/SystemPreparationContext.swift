@@ -20,16 +20,20 @@ public final class SystemPreparationContext: Sendable {
     public let mode: ScenarioMode
     /// The independent reporter for this startup attempt and execution.
     public let reporter: DiagnosticReporter
+    /// The execution's shared logical-time and observation-capture service.
+    /// Its origin becomes available after all systems activate.
+    public let time: ExecutionTime
 
     private let state: Mutex<State>
     private let admission: ExecutionAdmission
 
     init(attachment: ScenarioAttachment, mode: ScenarioMode,
-         reporter: DiagnosticReporter, admission: ExecutionAdmission)
+         reporter: DiagnosticReporter, admission: ExecutionAdmission, time: ExecutionTime)
     {
         attachmentID = attachment.id
         self.mode = mode
         self.reporter = reporter
+        self.time = time
         self.admission = admission
         state = Mutex(State(attachment: attachment))
     }
