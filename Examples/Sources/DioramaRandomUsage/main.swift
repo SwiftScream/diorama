@@ -30,6 +30,7 @@ struct DioramaRandomUsage {
         }
         let replayedValues = replay.body
         try requireCleanFinalization(replay.finalization)
+        guard recordedValues == replayedValues else { throw ExampleError.replayMismatch }
 
         print("recorded: \(recordedValues)")
         print("replayed: \(replayedValues)")
@@ -46,8 +47,7 @@ struct DioramaRandomUsage {
         let recording = try await Diorama(file: file, scenarioID: "file-record", mode: .record, systems: random)
             .execute { generator in
                 var generator = generator
-                // The complete recording is returned even when the body returns no observations.
-                _ = generator.next()
+                return generator.next()
             }
         try requireCleanFinalization(recording.finalization)
         guard case .published = recording.publication else { throw ExampleError.publicationFailed }
@@ -57,6 +57,8 @@ struct DioramaRandomUsage {
                 return generator.next()
             }
         try requireCleanFinalization(replay.finalization)
+        guard replay.body == recording.body else { throw ExampleError.replayMismatch }
+        guard case .notRequested = replay.publication else { throw ExampleError.unexpectedPublication }
         print("file replay: \(replay.body)")
     }
 
@@ -73,4 +75,6 @@ private enum ExampleError: Error {
     case unexpectedDiagnostics
     case unavailableDefinition
     case publicationFailed
+    case replayMismatch
+    case unexpectedPublication
 }

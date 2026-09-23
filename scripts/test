@@ -6,3 +6,4 @@ cd "$repository_root"
 run swift test -Xswiftc -warnings-as-errors "$@"
 run swift build -c release -Xswiftc -warnings-as-errors
 run swift build --package-path Examples -c release -Xswiftc -warnings-as-errors
+run swift run --package-path Examples -c release --skip-build DioramaRandomUsage
