@@ -362,6 +362,10 @@ a distinct Diorama infrastructure error and no live fallback. Native values
 outside the stable failure's documented representation are never converted by
 description.
 
+The [native rejection amendment](#native-rejection-errors-amendment--2026-09-24)
+qualifies the error and diagnostic requirements for the named excluded task
+families below.
+
 ## Delegate surface not initially reproduced
 
 The initial adapter does not record or synthesize:
@@ -417,6 +421,44 @@ Every failure enters the execution ledger and diagnostic sink. A task with an
 error channel receives a Diorama infrastructure error. The returned session
 must not fall through to Foundation's built-in HTTP handler after Diorama has
 rejected an operation.
+
+### Native rejection errors amendment — 2026-09-24
+
+The owner approves the following narrow exceptions after reviewing
+[D02's rejection evidence](../evidence/003-D02-task-rejection-and-response-presentation.md).
+They qualify the infrastructure-error and diagnostic requirements in the
+context, failure, delegate, and explicit failure sections for these cases:
+
+- **Apple stream and WebSocket tasks:** The adapter-owned session delegate
+  identifies the excluded task in the synchronous
+  `urlSession(_:didCreateTask:)` callback and cancels it before it can connect.
+  Cancellation precedes invoking the diagnostic sink or other consumer
+  callbacks, so reentry cannot resume an unprotected task. The adapter records
+  a structured unsupported-operation diagnostic for the owning attachment in
+  its diagnostic reporter and notifies the configured sink. Foundation's
+  ordinary cancellation error propagates unchanged through the native task,
+  delegate, and operation error channels.
+- **Linux WebSockets rejected by the runtime:** On a tested
+  FoundationNetworking/libcurl profile that rejects WebSockets before
+  interception and before any network access, the native unsupported-operation
+  error is sufficient. Diorama need not synthesize a replacement error or a
+  diagnostic for a refusal that occurs before it has an interception callback.
+  A runtime profile with WebSocket support needs fresh rejection evidence;
+  the tested unsupported profile does not establish that behavior.
+
+Where Diorama performs the rejection, its diagnostic remains an infrastructure
+fact governed by decisions 5 and 10, including post-finish retention. The
+native cancellation error does not turn that rejection into a recorded
+dependency failure or caller cancellation. These exceptions apply equally in
+record, replay, and passthrough. Every excluded operation must still be stopped
+before live access; a successful operation or a connection bypass is never an
+acceptable rejection result.
+
+This amendment resolves the rejection-error policy question. D02 still must
+verify diagnostic attribution and delivery, safe ordering under sink reentry,
+and the remaining task and response-presentation matrix before completion.
+The existing native cancellation probes establish only the behavior they
+actually exercise; approval of this amendment does not supply missing evidence.
 
 ## Platform support
 

@@ -35,6 +35,11 @@ On 2026-09-24, the owner approved [Decision 12's routing amendment](12-urlsessio
 the production URLSession adapter identifies execution ownership through native
 task identity and the adapter-owned session lease, without HTTP routing fields.
 
+The owner also approved [Decision 12's native rejection amendment](12-urlsession-scope.md#native-rejection-errors-amendment--2026-09-24)
+on 2026-09-24: Apple stream and WebSocket rejection pairs an adapter diagnostic
+with native cancellation, and pre-interception Linux WebSocket refusal may
+retain its native error on a tested profile with no network access.
+
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |
 | 1 | [Common abstraction](01-common-abstraction.md) | `01-common-abstraction.md` | Accepted |

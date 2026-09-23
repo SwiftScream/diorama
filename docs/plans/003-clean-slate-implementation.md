@@ -882,6 +882,13 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-D02 — Task rejection and response-presentation spike
 
+- Status: In progress. On 2026-09-24 the owner resolves the rejection-error
+  policy checkpoint through the [DD12 native rejection amendment](../design-decisions/12-urlsession-scope.md#native-rejection-errors-amendment--2026-09-24).
+  The scope, GPT-6 Astra at `xhigh`, and pushing the review branch are approved.
+  Diagnostic attribution, delivery, and reentry safety still need verification;
+  the remaining task/response-presentation matrix is untested. D02 is not a
+  completed capability gate or permission to begin D03. See the
+  [D02 rejection evidence](../evidence/003-D02-task-rejection-and-response-presentation.md).
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Unknown native rejection points and delegate surfaces can undermine the no-live-replay guarantee.
 - Prerequisites: 003-D01; DD12 response/task/delegate sections, DD17.
 - Scope: Determine reliable rejection points and data-task interception across URL/URLRequest, completion, delegate, async, and task-delegate forms.
