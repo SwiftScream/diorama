@@ -8,13 +8,13 @@ public extension ScenarioFinalizationResult {
     ///
     /// - Returns: A deterministic multiline description of this frozen result.
     func rendered() -> String {
-        var lines = ["Scenario \(ReportText.quote(report.scenarioID.rawValue))"]
+        var lines = ["Scenario \(ReportFieldEscaping.quote(report.scenarioID.rawValue))"]
         for attachment in usage {
             let mode = ReportText.mode(attachment.mode)
             let verification = attachment.allowsUnusedReplayRecords ? "ignored" : "included"
             lines.append("Attachment \(ReportText.attachment(attachment.attachmentID)) \(mode) usage=\(verification)")
             for track in attachment.tracks {
-                let key = ReportText.quote(track.id.key.rawValue)
+                let key = ReportFieldEscaping.quote(track.id.key.rawValue)
                 lines.append("  Track \(key) \(ReportText.activity(track.activity))")
                 for record in track.unusedRecords {
                     lines.append("    Unused record \(record.sequence)")
@@ -34,21 +34,20 @@ public extension ScenarioFinalizationResult {
     }
 }
 
-enum ReportText {
-    static func quote(_ text: String) -> String {
-        var result = "\""
-        for scalar in text.unicodeScalars {
-            switch scalar.value {
-            case 0x22: result += "\\\""
-            case 0x5C: result += "\\\\"
-            case 0...0x1F, 0x7F...0x9F, 0x2028...0x202E, 0x2066...0x2069:
-                result += "\\u{\(String(scalar.value, radix: 16))}"
-            default: result.unicodeScalars.append(scalar)
-            }
+package extension DiagnosticContext {
+    /// Stable, escaped identity fields for a human-readable report.
+    func renderedForReport() -> String {
+        switch self {
+        case .scenario: "scenario"
+        case let .attachment(id): ReportText.attachment(id)
+        case let .track(id):
+            "\(ReportText.attachment(id.attachmentID)) track=\(ReportFieldEscaping.quote(id.key.rawValue))"
+        case let .record(id): "\(DiagnosticContext.track(id.trackID).renderedForReport()) record=\(id.sequence)"
         }
-        return result + "\""
     }
+}
 
+enum ReportText {
     static func mode(_ mode: ScenarioMode) -> String {
         switch mode {
         case .record: "record"
@@ -58,16 +57,8 @@ enum ReportText {
     }
 
     static func attachment(_ id: AttachmentID) -> String {
-        "system=\(quote(id.systemTypeID.rawValue)) key=\(quote(id.key.rawValue))"
-    }
-
-    static func context(_ context: DiagnosticContext) -> String {
-        switch context {
-        case .scenario: "scenario"
-        case let .attachment(id): attachment(id)
-        case let .track(id): "\(attachment(id.attachmentID)) track=\(quote(id.key.rawValue))"
-        case let .record(id): "\(self.context(.track(id.trackID))) record=\(id.sequence)"
-        }
+        "system=\(ReportFieldEscaping.quote(id.systemTypeID.rawValue)) "
+            + "key=\(ReportFieldEscaping.quote(id.key.rawValue))"
     }
 
     static func activity(_ activity: SequentialTrackUsage.Activity) -> String {
@@ -80,12 +71,12 @@ enum ReportText {
 
     static func diagnostic(_ entry: ReportedDiagnostic) -> String {
         let fact = entry.diagnostic
-        var text = "  [\(entry.sequence)] \(context(fact.context)) \(issue(fact.issue))"
+        var text = "  [\(entry.sequence)] \(fact.context.renderedForReport()) \(issue(fact.issue))"
         if !fact.fieldPath.isEmpty {
-            text += " fields=[\(fact.fieldPath.map { quote($0.text) }.joined(separator: ", "))]"
+            text += " fields=[\(fact.fieldPath.map { ReportFieldEscaping.quote($0.text) }.joined(separator: ", "))]"
         }
         if let rule = fact.rule {
-            text += " rule=\(quote(rule.text))"
+            text += " rule=\(ReportFieldEscaping.quote(rule.text))"
         }
         if fact.recordingImpact == .invalidatesCandidate {
             text += " invalidates-recording"
@@ -100,7 +91,7 @@ enum ReportText {
         case .sinkFailed: "sink-failed"
         case let .lifecycle(fact): lifecycle(fact)
         case let .baseline(fact): baseline(fact)
-        case let .system(label): "system-issue \(quote(label.text))"
+        case let .system(label): "system-issue \(ReportFieldEscaping.quote(label.text))"
         case .verification(.recordingNotAdmitted): "recording-not-admitted"
         case let .sequential(.wrongMode(expected, actual)):
             "wrong-mode expected=\(mode(expected)) actual=\(mode(actual))"

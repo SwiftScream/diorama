@@ -4,6 +4,37 @@ import Testing
 
 struct ScenarioReportRenderingTests {
     @Test
+    func `finalization retains earlier facts before notifying the sink of cleanup failure`() async throws {
+        let current = Mutex<DiagnosticReporter?>(nil)
+        defer { current.withLock { $0 = nil } }
+        let notifications = Mutex<[UInt64]>([])
+        let sink = DiagnosticSink { entry in
+            let reporter = try #require(current.withLock { $0 })
+            #expect(reporter.report.diagnostics.contains(entry))
+            #expect(reporter.report.diagnostics.contains {
+                $0.diagnostic.issue == .system(DiagnosticLabel("earlier"))
+            })
+            notifications.withLock { $0.append(entry.sequence) }
+        }
+        let journal = ExecutionFixtures.Journal()
+        let definition = try ExecutionFixtures.definition(["record"])
+        let execution = try ScenarioExecution.start(
+            definition: definition, scenarioID: ScenarioID(rawValue: "ledger-before-sink"),
+            defaultMode: .record,
+            systems: [ExecutionFixtures.system("record", journal: journal, failCleanup: true)],
+            sink: sink)
+        current.withLock { $0 = execution.reporter }
+        execution.reporter.record(Diagnostic(issue: .system(DiagnosticLabel("earlier"))))
+        let result = await execution.finish()
+        #expect(result.report.diagnostics.map(\.diagnostic.issue) == [
+            .system(DiagnosticLabel("earlier")), .lifecycle(.cleanupFailed),
+        ])
+        #expect(notifications.withLock { $0 } == [0, 1])
+        #expect(result.report.recordingHealth.isHealthy)
+        #expect(result.definition != nil)
+    }
+
+    @Test
     func `rendering uses declared order safe labels and an immutable golden report`() async throws {
         let journal = ExecutionFixtures.Journal()
 
