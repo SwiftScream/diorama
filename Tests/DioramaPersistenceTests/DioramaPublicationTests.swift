@@ -46,6 +46,9 @@ struct DioramaPublicationTests {
         #expect(storage.writeCount == 1)
         #expect(try codec.encode(definition) == storage.document)
         guard case .published = result.publication else { Issue.record("Expected a committed candidate"); return }
+        #expect(result.report.disposition == .published)
+        #expect(result.report.preservation == .committedByThisRun)
+        #expect(result.report.issues.isEmpty)
     }
 
     @Test(arguments: [ScenarioMode.replay, .passthrough])
@@ -65,6 +68,9 @@ struct DioramaPublicationTests {
         #expect(storage.document == bytes)
         #expect(storage.writeCount == 0)
         guard case .notRequested = result.publication else { Issue.record("Unexpected write request"); return }
+        #expect(result.report.disposition == .notRequested)
+        #expect(result.report.preservation == .notApplicable)
+        #expect(result.report.priorDocument == .present)
     }
 
     @Test(arguments: [false, true])
@@ -105,6 +111,11 @@ struct DioramaPublicationTests {
             #expect(!failEncoding)
             #expect(cause as? PublicationFixtures.Failure == .storage)
         }
+        #expect(result.report.disposition == .failed)
+        #expect(result.report.priorDocument == .present)
+        #expect(result.report.preservation == .unchangedByThisRun)
+        #expect(result.report.issues.map(\.stage) == [failEncoding ? .encoding : .storage(nil)])
+        #expect(result.report.issues.map(\.cause) == [.unspecified])
         #expect(storage.document == bytes)
         #expect(storage.writeCount == (failEncoding ? 0 : 1))
         let replay = try await Diorama(definition: definition, scenarioID: "retained", mode: .replay, systems: system)

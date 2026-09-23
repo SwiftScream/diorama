@@ -130,6 +130,9 @@ the earlier decisions explicitly.
 - [Candidate replacement and publication evidence](evidence/003-C05-candidate-replacement-and-publication.md)
   describes complete semantic results, mixed-mode preservation, optional atomic
   publication, and the associated verification evidence.
+- [Publication failures and reports evidence](evidence/003-C06-publication-failures-and-reports.md)
+  describes safe stage-specific reports, prior-document preservation evidence,
+  and fault-injection verification.
 
 ## Historical boundary
 

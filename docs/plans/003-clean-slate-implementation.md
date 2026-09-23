@@ -37,6 +37,10 @@ is the next checkpoint. C05's scope and GPT-6 Astra at `high` reasoning were
 confirmed on 2026-09-22. Its implementation and local macOS, iOS Simulator,
 and Linux verification are complete; owner review is the next checkpoint.
 See its [candidate/publication evidence](../evidence/003-C05-candidate-replacement-and-publication.md).
+C06's scope and GPT-5.6 Sol at `high` reasoning were confirmed on 2026-09-22.
+Its implementation and local macOS, iOS Simulator, and Linux verification are
+complete; owner review is the next checkpoint. See its
+[publication report evidence](../evidence/003-C06-publication-failures-and-reports.md).
 Later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
@@ -811,12 +815,16 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C06 — Publication failures and actionable reports
 
+- Status: Complete. Scope and model settings confirmed on 2026-09-22;
+  implementation and local macOS, iOS Simulator, and Linux verification are
+  complete. Owner review is the next checkpoint.
+- Evidence: [Publication failures and reports](../evidence/003-C06-publication-failures-and-reports.md).
 - Recommended model: GPT-5.6 Sol; reasoning: `high`. Fault injection must distinguish committed publication from cleanup failures while retaining safe earlier diagnostics.
 - Prerequisites: 003-C05; DD05–DD10, DD18.
-- Scope: Complete report dispositions and stage-specific fault handling using injected storage, preparation, grouping, validation, and cleanup failures.
+- Scope: Complete report dispositions and stage-specific fault handling using conversion, preparation, storage, and cleanup failures.
 - Expected files/modules: Core/persistence reports and renderers; fault-injection tests and safe report goldens.
 - Public behavior: Published/not-requested/unhealthy-refusal/encoding-storage failure remain programmatically distinct.
-  Reports identify safe destination, stage, affected data, unpublished candidate summary, and preservation outcome.
+  Reports identify stage, affected data, unpublished candidate summary, prior-document evidence, and preservation outcome.
   A valid semantic definition remains inspectable after publication failure;
   diagnostics and renderers do not automatically include its recorded payloads.
 - Tests/verification: V-code; live return preserved on conversion failure, ledger-before-sink at finalization, one unhealthy track blocks all writes, cancellation cannot abandon finalization, post-publication cleanup failure is reported without pretending to undo a committed publication.

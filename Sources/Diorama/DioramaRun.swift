@@ -72,4 +72,10 @@ public struct DioramaResult<Success: Sendable>: Sendable {
 
     /// Optional repository publication, independently of the body's successful value.
     public let publication: DioramaPublication
+
+    /// Safe aggregate of finalization and publication facts, computed on demand
+    /// without inspecting payloads or rendering arbitrary errors.
+    public var report: DioramaReport {
+        DioramaReport(finalization: finalization, publication: publication, loadResult: loadResult)
+    }
 }

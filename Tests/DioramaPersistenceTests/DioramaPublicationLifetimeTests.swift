@@ -7,6 +7,24 @@ import Testing
 /// A synchronous storage gate occupies one worker while the observer suspends.
 @Suite(.serialized)
 struct DioramaPublicationLifetimeTests {
+    @Test
+    func `completed report does not retain repository storage`() async throws {
+        weak var releasedStorage: PublicationStorage?
+        let report: DioramaReport
+        do {
+            let storage = PublicationStorage()
+            releasedStorage = storage
+            let system = try StartupProbe().system(key: "record")
+            let result = try await Diorama(repository: randomRepository(storage: storage),
+                                           scenarioID: "lifetime", mode: .record,
+                                           systems: system).execute { _ in }
+            report = result.report
+        }
+        #expect(releasedStorage == nil)
+        #expect(report.disposition == .published)
+        #expect(report.rendered().contains("scenario=\"lifetime\""))
+    }
+
     @Test(arguments: [false, true])
     func `canceled scoped caller completes its one publication attempt`(fail: Bool) async throws {
         let entered = AsyncStream<Void>.makeStream()
@@ -44,6 +62,9 @@ struct DioramaPublicationLifetimeTests {
         } else {
             guard case .published = result.publication else { Issue.record("Expected publication"); return }
         }
+        #expect(result.report.disposition == (fail ? .failed : .published))
+        #expect(result.report.candidate.isComplete)
+        #expect(result.report.priorDocument == .absent)
         #expect(storage.writeCount == 1)
         #expect(storage.readCount == 1)
         #expect((storage.document == nil) == fail)
