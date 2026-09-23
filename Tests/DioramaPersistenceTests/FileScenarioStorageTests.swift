@@ -237,19 +237,21 @@ struct FileScenarioStorageTests {
         }
         let delayed = FileScenarioStorage(location: fixture.location, operations: operations)
         let failures = Mutex(0)
-        DispatchQueue.concurrentPerform(iterations: 2) { worker in
+        let finished = DispatchSemaphore(value: 0)
+        DispatchQueue(label: "FileScenarioStorageTests.delayedCommit").async {
+            defer { finished.signal() }
             do {
-                if worker == 0 {
-                    _ = try delayed.publish(Data([1]))
-                } else {
-                    defer { allowCommit.signal() }
-                    guard staged.wait(timeout: .now() + 10) == .success else { throw storageFault() }
-                    #expect(try fixture.storage.load() == Data([0]))
-                    _ = try fixture.storage.publish(Data([2]))
-                    #expect(try fixture.storage.load() == Data([2]))
-                }
+                _ = try delayed.publish(Data([1]))
             } catch { failures.withLock { $0 += 1 } }
         }
+        do {
+            guard staged.wait(timeout: .now() + 10) == .success else { throw storageFault() }
+            #expect(try fixture.storage.load() == Data([0]))
+            _ = try fixture.storage.publish(Data([2]))
+            #expect(try fixture.storage.load() == Data([2]))
+        } catch { failures.withLock { $0 += 1 } }
+        allowCommit.signal()
+        #expect(finished.wait(timeout: .now() + 10) == .success)
         #expect(failures.withLock { $0 } == 0)
         #expect(try fixture.storage.load() == Data([1]))
         #expect(try fixture.entries() == ["scenario.json"])
