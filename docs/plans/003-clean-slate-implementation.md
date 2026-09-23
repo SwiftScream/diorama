@@ -45,7 +45,11 @@ C07's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-09-23.
 Its implementation and local macOS, iOS Simulator, and Linux verification are
 complete; owner review is the next checkpoint. See its
 [persisted conformance evidence](../evidence/003-C07-persisted-consumer-and-random-conformance.md).
-003-D01 and later units have not started.
+E01's scope and the recommended GPT-6 Sol, `high` setting were confirmed on
+2026-09-23. The owner authorized E01 while C07 review proceeds concurrently.
+E01's implementation and local macOS, iOS Simulator, and Linux verification
+are complete; owner review is the next checkpoint. See its
+[logical-time capture evidence](../evidence/003-E01-logical-time-capture.md).
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -917,6 +921,8 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E01 — Execution logical-time and capture service
 
+- Status: Complete locally; owner review is the next checkpoint.
+- Evidence: [Execution logical-time capture](../evidence/003-E01-logical-time-capture.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Public logical-time capture must preserve observation order, checked arithmetic, and isolation without exposing host instants.
 - Prerequisites: 003-C07, 003-A01; DD03, DD06, DD14; Q2 resolved.
 - Scope: Establish one execution origin at completed startup and a narrow public system service for logical Duration and monotonic capture tokens.

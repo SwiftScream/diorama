@@ -25,9 +25,9 @@ because its original instructions use future tense.
 | --- | --- | --- | --- | --- | --- | --- |
 | 001 | [Design decision process](001-design-decision-process.md) | Design process | Complete | 2026-09-04 | 2026-09-05 | [Decisions 1-12](../design-decisions/README.md) |
 | 002 | [Follow-up design decisions](002-follow-up-design-decisions.md) | Design process | Complete | 2026-09-05 | 2026-09-06 | [Decisions 13-17](../design-decisions/README.md) |
-| 003 | [Clean-slate implementation](003-clean-slate-implementation.md) | Implementation | Approved | 2026-09-06 | — | [Complete initial implementation](003-clean-slate-implementation.md#completion-criteria) (planned) |
+| 003 | [Clean-slate implementation](003-clean-slate-implementation.md) | Implementation | In progress | 2026-09-06 | — | [Complete initial implementation](003-clean-slate-implementation.md#completion-criteria) (planned) |
 
-Plan 003 was approved by the owner on 2026-09-07; implementation has not started.
+Plan 003 was approved by the owner on 2026-09-07; implementation is in progress.
 It divides the initial product into atomic review units grouped by milestone,
 with explicit prerequisites, verification, exclusions, and owner checkpoints
 before implementation, PR creation, merge, or continuation to another unit.

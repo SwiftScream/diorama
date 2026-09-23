@@ -17,6 +17,7 @@ The owner approved the consolidated design and implementation plan on
 5. [Dependency approval policy](dependency-policy.md)
 6. [Quality gates and CI policy](quality-gates-and-ci.md)
 7. [JSON persistence schema version 1](persistence-schema-v1.md)
+8. [Execution logical time](execution-time-service.md)
 
 Read the individual decisions referenced by an implementation-plan item before
 working on it. The design overview summarizes their combined architecture but
@@ -136,6 +137,9 @@ the earlier decisions explicitly.
 - [Persisted consumer and random conformance evidence](evidence/003-C07-persisted-consumer-and-random-conformance.md)
   records the external-module codec, complete random file workflow, example
   execution, and cross-platform verification.
+- [Execution logical-time capture evidence](evidence/003-E01-logical-time-capture.md)
+  records the shared startup origin, capture service contract, and platform
+  verification.
 
 ## Historical boundary
 
