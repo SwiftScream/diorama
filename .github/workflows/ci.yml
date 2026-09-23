@@ -43,6 +43,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Verify Apple toolchain
         run: scripts/verify-apple-toolchain
+      - name: Run URLSession interception evidence
+        run: Spikes/URLSessionInterception/run swiftpm
       - name: Test and collect coverage
         run: scripts/coverage swiftpm macos
       - name: Upload coverage to Codecov
@@ -67,6 +69,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Verify Apple toolchain
         run: scripts/verify-apple-toolchain
+      - name: Run URLSession interception evidence
+        run: Spikes/URLSessionInterception/run ios
       - name: Build, test, and collect coverage
         run: scripts/coverage ios
       - name: Upload coverage to Codecov
@@ -105,6 +109,8 @@ jobs:
           dpkg --compare-versions "$curl_version" ge 8.5.0-2ubuntu10.13
           dpkg --compare-versions "$curl_version" lt 8.5.0-2ubuntu11
           Spikes/ToolchainAvailability/run linux
+      - name: Run URLSession interception evidence
+        run: Spikes/URLSessionInterception/run swiftpm
       - name: Test and collect coverage
         run: scripts/coverage swiftpm linux
       - name: Install Codecov upload dependency

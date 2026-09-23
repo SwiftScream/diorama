@@ -1,7 +1,7 @@
 # Decision 12: URLSession scope
 
 - Status: Accepted
-- Last updated: 2026-09-06
+- Last updated: 2026-09-24
 - Refined by: [Decision 17: HTTP lifecycle composition](17-http-lifecycle-composition.md)
 - Depends on: [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
   [Decision 5: Consumption and verification](05-consumption-and-verification.md),
@@ -67,6 +67,9 @@ unrelated sessions outside Diorama's interception boundary.
 
 ## Session construction and ownership
 
+The [2026-09-24 routing amendment](#task-ownership-routing-amendment--2026-09-24)
+supersedes the reserved routing field described in this original section.
+
 The preferred setup API should accept a `URLSessionConfiguration`, optional
 delegate, and optional delegate queue, then create and return a new instrumented
 `URLSession` owned by the adapter lease. This is more honest than taking an
@@ -103,6 +106,29 @@ which to obtain the execution. If so, it must:
 
 A narrower mechanism discovered by the implementation spike is preferable, but
 the POC's silent overwrite and permanent strong registry are not acceptable.
+
+### Task-ownership routing amendment — 2026-09-24
+
+The owner selects task ownership as the production implementation choice after
+reviewing [D01's platform evidence](../evidence/003-D01-urlsession-interception.md#task-ownership-routing-follow-up).
+The interceptor obtains its `URLSessionTask` and identifies the owning
+adapter-created session by object identity against that session's outstanding
+tasks. The session's active lease identifies the execution. A task identifier
+alone is insufficient because it is unique only within its session.
+
+This supersedes reserving or injecting an HTTP routing field during session
+construction. The original `httpAdditionalHeaders` route is unsuccessful on
+the tested FoundationNetworking releases and is not the production routing
+method. Requests need no routing metadata or caller cooperation. Missing,
+ambiguous, or expired ownership fails without live fallback, and finalization
+removes the session's routing lease. Production resolution must revalidate the
+lease after asynchronous lookup so expiry cannot publish a stale route.
+
+The selection adopts the routing mechanism, not the spike's callback bridge or
+its `@unchecked Sendable` annotations. D02–D05 still establish supported task
+forms, native presentation, cancellation, and quiescence before the production
+adapter can advertise those capabilities. The separate forwarding-property
+failure and the tested private-session control remain recorded in D01.
 
 The adapter owns the returned session and its private forwarding machinery. At
 the recording horizon it refuses new work, removes execution routing, and uses

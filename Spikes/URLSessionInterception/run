@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/../../scripts/_common"
+cd "$repository_root"
+
+case ${1:-} in
+    swiftpm)
+        run swift test --package-path Spikes/URLSessionInterception \
+            --scratch-path .build/urlsession-spike -Xswiftc -warnings-as-errors
+        ;;
+    ios)
+        cd Spikes/URLSessionInterception
+        run xcodebuild test -quiet -scheme URLSessionInterception-Package \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0' \
+            -derivedDataPath "$repository_root/.build/urlsession-spike-ios" \
+            -collect-test-diagnostics never \
+            IPHONEOS_DEPLOYMENT_TARGET=18.0 SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
+        ;;
+    *)
+        printf '%s\n' 'usage: Spikes/URLSessionInterception/run <swiftpm|ios>' >&2
+        exit 64
+        ;;
+esac

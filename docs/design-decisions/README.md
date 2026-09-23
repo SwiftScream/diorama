@@ -31,6 +31,10 @@ concrete load outcomes and one scoped result API.
 The same review later narrowed the consumer import boundary, replacing
 whole-module re-exports with explicit setup arguments and inferred system values.
 
+On 2026-09-24, the owner approved [Decision 12's routing amendment](12-urlsession-scope.md#task-ownership-routing-amendment--2026-09-24):
+the production URLSession adapter identifies execution ownership through native
+task identity and the adapter-owned session lease, without HTTP routing fields.
+
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |
 | 1 | [Common abstraction](01-common-abstraction.md) | `01-common-abstraction.md` | Accepted |
