@@ -44,7 +44,12 @@ before production work depends on that boundary. The owner-approved
 2026-09-24 [routing amendment](design-decisions/12-urlsession-scope.md#task-ownership-routing-amendment--2026-09-24)
 selects native task ownership for per-session execution routing, replacing the
 unsuccessful configuration-header route without changing the later capability
-and lifecycle gates. The owner-approved
+and lifecycle gates. The same day's
+[native rejection amendment](design-decisions/12-urlsession-scope.md#native-rejection-errors-amendment--2026-09-24)
+permits native cancellation errors for excluded Apple stream and WebSocket
+tasks, accompanied by adapter diagnostics, and native Linux WebSocket refusal
+before interception on a tested profile. Every excluded operation must still
+be stopped before live access. The owner-approved
 2026-09-09 [deployment-policy amendment](quality-gates-and-ci.md#apple-deployment-minima--owner-approved-amendment-2026-09-09)
 sets iOS 18 and macOS 15 minima so the core can use `Synchronization.Mutex`
 directly on Apple and Linux. It supersedes the 2026-09-06 clock-driven floors
