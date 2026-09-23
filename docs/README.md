@@ -133,6 +133,9 @@ the earlier decisions explicitly.
 - [Publication failures and reports evidence](evidence/003-C06-publication-failures-and-reports.md)
   describes safe stage-specific reports, prior-document preservation evidence,
   and fault-injection verification.
+- [Persisted consumer and random conformance evidence](evidence/003-C07-persisted-consumer-and-random-conformance.md)
+  records the external-module codec, complete random file workflow, example
+  execution, and cross-platform verification.
 
 ## Historical boundary
 

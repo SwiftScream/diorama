@@ -41,7 +41,11 @@ C06's scope and GPT-5.6 Sol at `high` reasoning were confirmed on 2026-09-22.
 Its implementation and local macOS, iOS Simulator, and Linux verification are
 complete; owner review is the next checkpoint. See its
 [publication report evidence](../evidence/003-C06-publication-failures-and-reports.md).
-Later units have not started.
+C07's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-09-23.
+Its implementation and local macOS, iOS Simulator, and Linux verification are
+complete; owner review is the next checkpoint. See its
+[persisted conformance evidence](../evidence/003-C07-persisted-consumer-and-random-conformance.md).
+003-D01 and later units have not started.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -833,6 +837,10 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C07 — Persisted consumer-system and random conformance
 
+- Status: Complete locally. Scope and GPT-6 Sol at `high` reasoning confirmed
+  on 2026-09-23; local macOS, iOS Simulator, and Linux verification complete.
+  Owner review is the next checkpoint.
+- Evidence: [Persisted consumer and random conformance](../evidence/003-C07-persisted-consumer-and-random-conformance.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Public-only persistence and random integration prove the first complete vertical path across all platforms.
 - Prerequisites: 003-C06, 003-B05–003-B07; DD13, DD07–DD08.
 - Scope: Prove optional persistent registration from another module and complete random record-to-file-to-new-replay execution through public APIs only.
