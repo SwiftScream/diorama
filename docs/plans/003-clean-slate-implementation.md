@@ -45,9 +45,10 @@ C07's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-09-23.
 Its implementation and local macOS, iOS Simulator, and Linux verification are
 complete; owner review is the next checkpoint. See its
 [persisted conformance evidence](../evidence/003-C07-persisted-consumer-and-random-conformance.md).
-003-D01 is complete; task ownership is the approved production routing choice.
-The owner authorizes PR preparation on 2026-09-26. Later D units remain separate
-review units.
+003-D01 and 003-D02 are complete as isolated investigations. Task ownership is
+the approved production routing choice. The owner authorizes PR preparation
+for both units on 2026-09-26, with the Linux known-failure policy below.
+D03–D05 remain separate, outstanding review units.
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -148,12 +149,35 @@ its upstream repair is optional and it is removed from the handoff. Native
 parity, truthful recording, and rejection of incompatible replay remain
 required. D02's remaining experiments and the D03–D05 reviews still establish
 the evidence and production task breakdown.
+On 2026-09-25 the owner also records FN-08's hidden async delegate path as
+requiring resolution and directs completion of the remaining D02 evidence.
 The D05 review must carry unresolved Linux defects explicitly into that
 breakdown. Subsequent implementation can proceed with those defects tracked,
 but affected Linux behavior cannot be advertised as conformant or the required
 conformance checks declared passed until demonstrated. Required CI, review-unit
 approvals, supported semantics, and no-live-replay guarantees remain in force.
 See the [upstream handoff](../evidence/003-D02-foundationnetworking-handoff.md#plan-boundary-for-the-receiving-investigator).
+
+**Merge and implementation policy — owner direction, 2026-09-26:** Proceed with
+the planned Linux implementation on the assumption that the required
+FoundationNetworking fixes will be made. The affected Linux URLSession
+capabilities are expected to remain broken until the runtime includes those
+repairs and conformance is demonstrated. This does not classify portable core,
+persistence, or random behavior as broken. FN-01 and FN-08 remain required;
+full delegate interception also needs the relevant FN-05/FN-07 mechanics.
+Task ownership remains the production routing choice even with repaired
+configuration headers and request properties.
+
+Tests affected by a documented native Linux defect may use narrowly scoped,
+Linux-only known-issue expectations. Keep the intended assertions executable
+and all unaffected assertions mandatory. Disable an affected test only when
+it cannot safely execute, recording the issue and restoration condition.
+Passing CI with known issues permits merge and continued implementation; it
+does not establish the affected Linux capability. Remove expectations when a
+repaired supported runtime passes the original assertions. The isolated spike
+supports `DIORAMA_VERIFY_FOUNDATION_FIXES=1` to run without known-issue handling.
+See the [quality-policy exception](../quality-gates-and-ci.md#foundationnetworking-known-failures--owner-approved-2026-09-26)
+and the [fix priorities](../evidence/003-D02-foundationnetworking-handoff.md#owner-decisions-and-fix-priorities--2026-09-26).
 
 ### Q2 — Apple clock availability (resolved by owner, 2026-09-06)
 
@@ -903,36 +927,27 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-D02 — Task rejection and response-presentation spike
 
-- Status: In progress. On 2026-09-24 the owner resolves the rejection-error
-  policy checkpoint through the [DD12 native rejection amendment](../design-decisions/12-urlsession-scope.md#native-rejection-errors-amendment--2026-09-24).
-  The scope, GPT-6 Astra at `xhigh`, and pushing the review branch are approved.
-  The resumed probes verify Apple diagnostic attribution, sink delivery, and
-  reentry safety at task creation. Linux custom-protocol responses lose earlier
-  chunks for completion/async consumers and ignore response cancellation.
-  The owner directs continued Linux implementation under Q1's continuation
-  policy and accepts the native disposition limitation through DD12/DD17.
-  Aggregation remains to be corrected; disposition repair is not required.
-  Native HTTP controls now verify ignored cancel/open dispositions and working
-  explicit task cancellation. Constructor probes preserve initial absent,
-  empty, and in-memory bodies through the task's original request. A new Linux
-  defect ignores assignment to `task.delegate` on both native HTTP and custom
-  protocol paths. The owner accepts FN-07 as a native limitation, with no
-  required upstream fix, and resumes the remaining matrix. Diorama must avoid
-  depending internally on the broken setter and preserve native selection.
-  The [extended probes](../evidence/003-D02-delivery-and-delegate-boundaries.md)
-  verify resume rejection, timed delivery, conversion rejection, seeded cache
-  bypass, and Apple delegate protection. Linux exposes a separate hidden async
-  delegate path (FN-08), preventing the tested getter-based guard from detecting
-  it. On 2026-09-25 the owner records FN-08 as requiring resolution and
-  authorizes the remaining D02 work without waiting for an upstream release.
-  The delegate integration gap remains a conformance dependency; remaining
-  experiments are tracked in the evidence. Known limitations are not silently
-  treated as passed capabilities.
-  D02 is not a completed capability gate or permission to begin D03.
-  See the [constructor/native follow-up](../evidence/003-D02-task-rejection-and-response-presentation.md#constructor-and-native-http-follow-up--2026-09-24),
-  [FN-07 handoff](../evidence/003-D02-foundationnetworking-handoff.md#fn-07--assigning-taskdelegate-does-not-select-the-callback-recipient),
-  [response follow-up](../evidence/003-D02-task-rejection-and-response-presentation.md#diagnostic-and-response-follow-up--2026-09-24), and
-  [D02 rejection evidence](../evidence/003-D02-task-rejection-and-response-presentation.md).
+- Status: Complete as an isolated investigation, 2026-09-25. The owner
+  authorizes merge preparation and PR creation on 2026-09-26.
+  The [completed matrix](../evidence/003-D02-completion-and-capability-matrix.md)
+  covers initial-body forwarding, response presentation, rejection across
+  task factories, genuine Apple resume data, cache bypass, and delegate
+  boundaries on macOS, iOS Simulator, stable Linux, and the pinned snapshot.
+  The original matrix records Apple 121 pass/2 fail and each Linux profile
+  94 pass/19 fail. Merge preparation aligns superseded rejection assertions
+  with the accepted native behavior and marks documented Linux defects as
+  known issues; intended body/delegate assertions remain executable.
+  The owner accepts native rejection/disposition behavior under DD12/DD17
+  and FN-07's ignored setter, while requiring FN-01 aggregation and FN-08
+  delegate integration to be addressed. Forwarding must avoid synchronous
+  session reentry (FN-09); D05 must investigate the unisolated task-registry
+  teardown trap (FN-10). These findings are in the
+  [FoundationNetworking handoff](../evidence/003-D02-foundationnetworking-handoff.md).
+  Investigation completion does not declare Linux conformance, resolve D05,
+  or authorize starting D03. The earlier
+  [task/response evidence](../evidence/003-D02-task-rejection-and-response-presentation.md)
+  and [extended evidence](../evidence/003-D02-delivery-and-delegate-boundaries.md)
+  preserve the reviewed checkpoints and accepted exceptions.
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Unknown native rejection points and delegate surfaces can undermine the no-live-replay guarantee.
 - Prerequisites: 003-D01; DD12 response/task/delegate sections, DD17.
 - Scope: Determine reliable rejection points and data-task interception across URL/URLRequest, completion, delegate, async, and task-delegate forms.
@@ -977,8 +992,10 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Tests/verification: V-spike; pending/in-flight callbacks, unanswered decisions, route removal, escaped sessions, no replay delivery after quiescence, minimal live forwarding tails completing without scenario retention/mutation, repeated setup/cleanup without leaks; macOS, Linux and iOS evidence.
 - Exclusions: Canceling consumer-owned live work to pass teardown, timeout-based claims of quiescence, production promotion of the spike, hiding lost phases.
 - Checkpoint: R; confirm or revise H/I decomposition against findings under resolved Q1.
-  Carry the Linux aggregation defect and accepted disposition limitation into
-  the reviewed breakdown under Q1 and DD12/DD17. Other disproved boundaries
+  Carry FN-01 aggregation, FN-08 delegate integration, and the accepted
+  disposition limitation into the reviewed breakdown under Q1 and DD12/DD17.
+  Verify the FN-09 forwarding executor boundary and investigate FN-10's
+  task-registry crash while proving native quiescence. Other disproved boundaries
   still stop affected production work for consideration. Implementation
   progress does not establish conformance on a failing runtime.
 

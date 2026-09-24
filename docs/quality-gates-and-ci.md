@@ -227,6 +227,30 @@ Platform-limited systems remain conditional products or targets. A missing
 Core Location adapter on Linux must not prevent portable core, HTTP, random, or
 clock products from building and testing there.
 
+### FoundationNetworking known failures — owner-approved, 2026-09-26
+
+The owner authorizes Linux implementation and preparing completed evidence
+units for merge while required FoundationNetworking repairs proceed upstream. Affected Linux
+URLSession behavior is expected to remain broken on unpatched runtimes.
+The [Plan 003 continuation policy](plans/003-clean-slate-implementation.md#q1--urlprotocol-evidence-versus-production-task-division-resolved-by-owner-2026-09-06)
+and [FoundationNetworking handoff](evidence/003-D02-foundationnetworking-handoff.md#owner-decisions-and-fix-priorities--2026-09-26)
+identify the accepted limitations and required repairs.
+
+Use Linux-only Swift Testing `withKnownIssue` scopes around the exact assertions
+affected by a documented defect. Retain the intended assertions and identify
+the local FN issue. Do not wrap an entire test when unrelated assertions can
+remain mandatory. An unexpected pass must prompt review of the expectation;
+do not make a deterministic defect intermittent to conceal its repair.
+Disabling a test is permitted only when execution itself is unsafe, with the
+issue, affected runtime, and condition for restoring it documented.
+
+Apple checks, unrelated Linux assertions, strict compilation, coverage uploads,
+and no-live-replay guarantees remain required. A green gate with known issues
+does not prove Linux URLSession conformance. The isolated interception package
+runs in each platform CI job through `Spikes/URLSessionInterception/run`.
+Its `DIORAMA_VERIFY_FOUNDATION_FIXES=1` mode disables known-issue handling for
+patched-runtime verification. No spike package becomes a production dependency.
+
 ## Coverage
 
 Tests should collect LLVM source coverage and upload it to

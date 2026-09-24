@@ -32,7 +32,7 @@ private func extendedRejectionSession(_ delegate: D02TaskDelegate) -> URLSession
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [ExtendedRejectingProtocol.self]
     configuration.urlCache = nil
-    configuration.timeoutIntervalForRequest = 3
+    configuration.timeoutIntervalForRequest = d02WatchdogSeconds
     return URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
 }
 
@@ -304,6 +304,14 @@ struct D02ExtendedRejectionTests {
                 session.downloadTask(withResumeData: data) { _, _, error in observer.completeOperation(error: error) }
             } else {
                 session.downloadTask(withResumeData: data)
+            }
+            // FN-10: this factory queues registry insertion but gives the task
+            // an independent queue. Enumeration observes the session queue
+            // after insertion before resume can report its unsupported-URL error.
+            if ProcessInfo.processInfo.environment["DIORAMA_D02_UNSAFE_RESUME"] != "1" {
+                await withCheckedContinuation { continuation in
+                    session.getAllTasks { _ in continuation.resume() }
+                }
             }
             task.resume()
             try #require(await d02Eventually { observer.outcome.withLock { $0.completed || $0.operationCompleted } })
