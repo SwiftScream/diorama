@@ -3,9 +3,11 @@
 - Date: 2026-09-24
 - Owning unit: [003-D02](../plans/003-clean-slate-implementation.md#003-d02--task-rejection-and-response-presentation-spike)
 - Status: In progress. The owner approves DD12's native rejection amendment on
-  2026-09-24. The resumed diagnostic probes pass, but work stops again for owner
-  consideration after Linux response buffering and disposition failures. The
-  remaining task/response matrix is outstanding.
+  2026-09-24. The resumed diagnostic probes pass. After considering the Linux
+  response buffering and disposition failures, the owner directs continued
+  Linux planning and implementation with those upstream defects tracked.
+  The remaining task/response matrix is outstanding; the affected Linux
+  capabilities do not yet meet the accepted contract.
 - Authority: [DD12](../design-decisions/12-urlsession-scope.md),
   [DD17](../design-decisions/17-http-lifecycle-composition.md), and Plan 003 Q1.
 - Approved model: GPT-6 Astra, `xhigh`.
@@ -239,20 +241,28 @@ behavior:
    supplies a disposition completion handler that ignores its argument. The
    observed `.cancel` therefore does not gate data or successful completion.
 
-These findings concern the custom `URLProtocolClient` path; they do not claim
-that ordinary built-in HTTP transfers have the same defects. An unanswered
-disposition and task-conversion dispositions remain untested.
+These experiments concern the custom `URLProtocolClient` path. Subsequent
+source tracing in the [handoff](003-D02-foundationnetworking-handoff.md#fn-02--response-dispositions-are-ignored-by-the-custom-protocol-client)
+finds that native HTTP also uses the ignored-disposition path; that behavior
+still needs a native-server control. Its aggregate body handling uses a
+separate accumulator. An unanswered disposition and task-conversion
+dispositions remain untested.
 
 Both failures contradict required supported data-task behavior. Unlike the
 approved exception for excluded task families, silently accepting lost bytes or
-ignored cancellation would change DD12/DD17's supported contract. The owner
-must consider whether to investigate upstream FoundationNetworking fixes or
-explore explicit bridge workarounds before D02 continues. Upstream investigation
-is the recommended next step: byte accumulation has a concrete faulty
-assignment, while honoring disposition needs careful task-state and callback
-ordering work. A bridge workaround would need evidence that it preserves both
-complete bodies and incremental delegate delivery. No workaround, platform
-narrowing, upstream patch, or new dependency is adopted here.
+ignored cancellation would change DD12/DD17's supported contract. On
+2026-09-24 the owner resolves the development pause: continue the plan and
+implementation for Linux while a separate investigator explores upstream
+fixes. The [Q1 continuation policy](../plans/003-clean-slate-implementation.md#q1--urlprotocol-evidence-versus-production-task-division-resolved-by-owner-2026-09-06)
+keeps these failures explicit through subsequent reviews and implementation;
+it does not declare the affected Linux capabilities working. Byte accumulation
+has a concrete faulty assignment, while honoring disposition needs careful
+task-state and callback ordering work. A bridge workaround would need evidence
+that it preserves both complete bodies and incremental delegate delivery. No
+workaround, platform narrowing, upstream patch, or new dependency is adopted
+here. The [handoff](003-D02-foundationnetworking-handoff.md) records the proposed
+focused aggregation repair, possible later refactoring, and cancellation
+investigation separately.
 
 ## Remaining investigations
 

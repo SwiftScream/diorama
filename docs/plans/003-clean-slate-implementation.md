@@ -120,7 +120,9 @@ Further interpretations that must survive implementation:
 These entries retain resolved review questions alongside choices awaiting implementation evidence.
 Q1–Q3 have owner-approved resolutions; Q4–Q5 remain gated at their named units.
 Record further owner resolutions in a decision/amendment or policy as appropriate, then update the affected units.
-A failed spike stops the affected branch of work; it is not permission to narrow an accepted contract or silently change APIs.
+A failed spike stops the affected branch of work unless an explicit owner
+continuation decision is recorded, such as the Linux policy under Q1 below.
+It is not permission to narrow an accepted contract or silently change APIs.
 
 ### Q1 — URLProtocol evidence versus production task division (resolved by owner, 2026-09-06)
 
@@ -133,6 +135,20 @@ This is recorded in [DD12's planning-order clarification](../design-decisions/12
 The H/I production breakdown can therefore be reviewed now and remains provisional until 003-D05 confirms or revises it against the evidence.
 The required URLSession capabilities are unchanged.
 Resolving Q1 did not itself approve the plan or execute a spike; plan approval was recorded separately on 2026-09-07.
+
+**Linux continuation policy — owner direction, 2026-09-24:** After reviewing
+D02's FoundationNetworking aggregation and response-disposition defects, the
+owner directs continued planning and implementation for Linux while upstream
+fixes are investigated separately. The known FN-01/FN-02 failures remain
+capability defects to correct; they no longer impose a blanket development
+stop while waiting for an upstream release. D02's remaining experiments and
+the D03–D05 reviews still establish the evidence and production task breakdown.
+The D05 review must carry unresolved Linux defects explicitly into that
+breakdown. Subsequent implementation can proceed with those defects tracked,
+but affected Linux behavior cannot be advertised as conformant or the required
+conformance checks declared passed until demonstrated. Required CI, review-unit
+approvals, supported semantics, and no-live-replay guarantees remain in force.
+See the [upstream handoff](../evidence/003-D02-foundationnetworking-handoff.md#plan-boundary-for-the-receiving-investigator).
 
 ### Q2 — Apple clock availability (resolved by owner, 2026-09-06)
 
@@ -886,10 +902,12 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
   policy checkpoint through the [DD12 native rejection amendment](../design-decisions/12-urlsession-scope.md#native-rejection-errors-amendment--2026-09-24).
   The scope, GPT-6 Astra at `xhigh`, and pushing the review branch are approved.
   The resumed probes verify Apple diagnostic attribution, sink delivery, and
-  reentry safety at task creation. Work stops again for owner consideration:
-  Linux custom-protocol responses lose earlier chunks for completion/async
-  consumers and ignore response cancellation. The remaining matrix is
-  untested. D02 is not a completed capability gate or permission to begin D03.
+  reentry safety at task creation. Linux custom-protocol responses lose earlier
+  chunks for completion/async consumers and ignore response cancellation.
+  After reviewing those failures, the owner directs continued Linux planning
+  and implementation with upstream defects tracked under Q1's continuation
+  policy. The remaining matrix is untested. D02 is not a completed capability
+  gate or permission to begin D03.
   See the [response follow-up](../evidence/003-D02-task-rejection-and-response-presentation.md#diagnostic-and-response-follow-up--2026-09-24) and
   [D02 rejection evidence](../evidence/003-D02-task-rejection-and-response-presentation.md).
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Unknown native rejection points and delegate surfaces can undermine the no-live-replay guarantee.
@@ -933,7 +951,10 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Tests/verification: V-spike; pending/in-flight callbacks, unanswered decisions, route removal, escaped sessions, no replay delivery after quiescence, minimal live forwarding tails completing without scenario retention/mutation, repeated setup/cleanup without leaks; macOS, Linux and iOS evidence.
 - Exclusions: Canceling consumer-owned live work to pass teardown, timeout-based claims of quiescence, production promotion of the spike, hiding lost phases.
 - Checkpoint: R; confirm or revise H/I decomposition against findings under resolved Q1.
-  No affected production work proceeds while a required boundary is disproved.
+  Carry the known Linux FN-01/FN-02 defects into the reviewed breakdown under
+  Q1's owner-approved continuation policy. Other disproved required boundaries
+  still stop affected production work for consideration. Implementation
+  progress does not establish conformance on a failing runtime.
 
 ## Phase E — Scheduler and reusable grouped behavior
 
