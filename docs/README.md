@@ -142,6 +142,9 @@ the earlier decisions explicitly.
 - [URLSession task rejection evidence](evidence/003-D02-task-rejection-and-response-presentation.md)
   records native rejection points, diagnostic delivery, response buffering and
   disposition behavior, and the remaining response-presentation questions.
+- [URLSession delivery and delegate-boundary evidence](evidence/003-D02-delivery-and-delegate-boundaries.md)
+  covers native resume data, timed delivery, cache-policy enforcement, and
+  task-delegate visibility and interception hooks.
 - [FoundationNetworking investigation handoff](evidence/003-D02-foundationnetworking-handoff.md)
   consolidates D01/D02 findings, source locations, reproductions, accepted
   platform limitations, and their effect on the planned URLSession bridge.

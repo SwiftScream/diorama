@@ -11,8 +11,9 @@
   requests. The next probes establish the native disposition baseline and
   initial request-body preservation, then expose ignored task-delegate
   assignment on Linux. The owner accepts FN-07 as another native limitation
-  and directs continued D02 investigation; the remaining task/response matrix
-  is outstanding.
+  and directs continued D02 investigation. The extended probes below then
+  expose FN-08's hidden async delegate path. On 2026-09-25 the owner records
+  FN-08 as requiring resolution and authorizes the remaining D02 work below.
 - Authority: [DD12](../design-decisions/12-urlsession-scope.md),
   [DD17](../design-decisions/17-http-lifecycle-composition.md), and Plan 003 Q1.
 - Approved model: GPT-6 Astra, `xhigh`.
@@ -24,6 +25,9 @@
   and [native HTTP controls](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02NativeHTTPTests.swift).
 - Cross-unit handoff: [FoundationNetworking investigation context](003-D02-foundationnetworking-handoff.md)
   consolidates D01/D02 issues for the owner's separate investigator.
+- Latest follow-up: [Extended delivery and delegate boundaries](003-D02-delivery-and-delegate-boundaries.md)
+  records resume-data rejection, timed delivery, conversion rejection, cache
+  normalization, optional delegate checks, and the FN-08 visibility gap.
 
 ## Finding and review boundary
 
@@ -395,20 +399,26 @@ review pause is resolved, and D02 continues.
 
 ## Remaining investigations
 
-The following D02 cases remain **untested**, after these review checkpoints:
+The [extended follow-up](003-D02-delivery-and-delegate-boundaries.md) now covers
+timed multi-chunk URL/URLRequest/async-delegate delivery, retained response
+decisions and native parity, conversion rejection through an observing proxy,
+file uploads, genuine Apple upload/download resume data, seeded cache bypass,
+FTP/file/HTTPS rejection, and Apple delegate-method/proxy controls.
 
-- multi-chunk responses through URLRequest and task-delegate presentations;
-- forwarding of the recovered in-memory body and classification after native
-  request rewriting (redirect-specific evidence belongs to D03);
-- separately timed response chunks and unanswered/open dispositions;
-- the remaining intercepted/native disposition parity checks; effective
-  cancel/open behavior is required only where that capability is advertised;
-- file uploads, upload/download resume forms, and response-driven conversion;
-- reliable optional delegate capability detection and enforcement around
-  task-delegate overrides, beyond observing their dispatch behavior;
-- cache bypass with seeded responses across those presentations;
-- the remaining non-HTTP and HTTPS paths, with zero live access for rejected
-  operations on the chosen platform profiles.
+The remaining D02 work is:
+
+- carry FN-08 as a required conformance repair: the public getter cannot
+  identify an explicit async delegate and no pre-resume creation hook is
+  available. The owner authorizes completing D02 with this unresolved issue
+  explicitly recorded, without advertising the affected capability;
+- verify forwarding of recovered initial in-memory bodies; redirect-specific
+  rewriting and correlation remain D03 work;
+- finish unsupported-task async convenience variants and native Linux
+  download-resume failure-channel controls; Linux resume absence is currently
+  source evidence, while valid native resume-data experiments are Apple-only;
+- consolidate the reviewed matrix and residual platform limitations before
+  declaring D02 complete. Full proxy lifecycle, finalization, redirects,
+  authentication, and HTTPS default handling remain in their named later units.
 
 These investigations remain isolated spike work. Rejection in an actual
 production record/replay/passthrough adapter is later production conformance

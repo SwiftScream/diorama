@@ -26,6 +26,7 @@ handoff identifiers, not upstream issue numbers.
 | FN-05 | `URLSessionTaskDelegate.didCreateTask` hook is absent | Confirmed API gap | Apple's early rejection mechanism is unavailable on this Linux implementation. |
 | FN-06 | WebSockets fail before custom interception when libcurl lacks support | Tested runtime limitation; accepted native failure | Not a current Diorama blocker on these profiles. |
 | FN-07 | Assigning `task.delegate` before resume does not select that delegate for callbacks | Reproduced native/custom-protocol defect; source explains it | The property setter cannot provide equivalent task-specific delegation on these Linux profiles. |
+| FN-08 | An async-supplied delegate is not reflected in `task.delegate` | Reproduced native/custom-protocol visibility defect; source explains it | A working delegate callback path is hidden from the tested adapter guard; combined with FN-05, proxy installation/rejection is unproven. |
 
 FN-01 blocks correct aggregate results for segmented Linux responses. On
 2026-09-24 the owner directs continued planning and implementation for Linux
@@ -37,6 +38,12 @@ for rejection behavior; they are not requests to add WebSocket support to
 Diorama.
 FN-07 is another focused upstream candidate. It differs from the working
 `data(for:delegate:)` result path and reproduces without Diorama interception.
+The owner accepts FN-07 as a native limitation with no required upstream fix.
+FN-08 exposes a further issue with that working async path: its actual
+delegate cannot be identified through the public getter. On 2026-09-25 the
+owner records it as an issue that needs addressing and authorizes the remaining
+D02 work. It is a required delegate-integration repair, not an accepted native
+limitation that Diorama may silently inherit.
 
 ## Why Diorama encounters these paths
 
@@ -371,6 +378,86 @@ trusting the task delegate getter alone. Keep the working async delegate form
 distinct and do not advertise equivalent property-assigned delegation on an
 unfixed runtime. This finding does not block D02 or require a new architecture.
 
+## FN-08 — Async delegate parameters are not visible through task.delegate
+
+### Reproduction and observed result
+
+The [visibility probes](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02AsyncDelegateVisibilityTests.swift)
+create a session delegate labeled `session`, then pass a different delegate
+labeled `task` to either `data(from:delegate:)` or `data(for:delegate:)`.
+No assignment to the task's delegate property is performed.
+
+| Observation | Apple Foundation | Both Linux profiles |
+| --- | --- | --- |
+| Custom protocol inspects `task.delegate`, explicit async delegate supplied | `task` | **`session`** |
+| Same custom protocol, no explicit async delegate | `nil` | `session` |
+| Linux supplied delegate's response callback inspects `dataTask.delegate` | Apple aggregate convenience does not invoke that response callback in this fixture | **`session`, although `task` is receiving the callback** |
+| Ordinary native Linux HTTP repeats that callback inspection | Linux-specific control | **Same incorrect getter identity** |
+
+Bodies arrive intact in this single-chunk custom control and the native HTTP
+control. The custom-protocol cases make no native connection. Four Apple cases
+pass; Linux has six cases, with the two supplied-delegate custom cases and two
+native cases failing their delegate-identity assertions. These are retained
+ordinary failures, not skipped or expected failures.
+
+### Source diagnosis
+
+In release commit `d29d01ba165f6957141e07ea7fe8144ab491bc24`:
+
+- [`data(for:delegate:)` and `data(from:delegate:)`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSession.swift#L735-L775)
+  put the supplied delegate into `.dataCompletionHandlerWithTaskDelegate`.
+- The [private task factory](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSession.swift#L574-L585)
+  creates the task and registers that behavior without assigning the delegate
+  to the task's `_taskDelegate` field.
+- The [public getter](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L102-L114)
+  therefore falls back to the session delegate, while
+  [callback dispatch](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSession.swift#L663-L682)
+  uses the separately stored async delegate.
+
+This is related to FN-07's disconnected property/dispatch paths but has a
+different consequence: a delegate that does work is hidden by the getter.
+The same getter also participates in protocol-extension fallback logic, so
+upstream should inspect callback fallback as well as identity. That fallback
+impact is a source-based investigation question, not a completed reproducer.
+
+### Diorama impact and repair questions
+
+The planned session-level proxy cannot observe a callback dispatched directly
+to this supplied delegate. A protocol-time guard sees the same delegate value
+with and without the async parameter, so the tested getter-based guard cannot
+reject or validate the hidden path. FN-05 also removes Apple's pre-resume
+creation hook. The setter cannot be used after resume and, as FN-07 shows,
+does not reliably control dispatch before resume either.
+
+Consequently accepting a native live outcome is insufficient evidence that
+Diorama can record its decisions, diagnose an unrepresentable disposition,
+or enforce the required decision boundary. This does not make the native async
+request itself fail. It is an additional integration gap for a working native
+callback path, with a stronger Diorama impact than FN-07 alone.
+
+Investigate keeping the async parameter, public task property, and behavior
+dispatch consistent across constructors. A corrected getter could permit
+reliable rejection of an unsupported explicit delegate at protocol loading.
+Full proxy support also needs a supported pre-resume interception hook and
+dispatch that honors the installed proxy. Review this together with FN-05 and
+FN-07 rather than fixing only `.callDelegate` dispatch. Regression candidates
+include explicit/nil async delegates, session fallback, public getter identity,
+delegate replacement before resume, and response/redirect/challenge callbacks.
+No upstream patch is implemented or claimed sufficient here.
+
+On 2026-09-25 the owner resolves this review checkpoint: FN-08 needs
+addressing, and D02 continues its remaining isolated experiments. Resolution
+must establish reliable detection/rejection or faithful interception of the
+explicit async delegate path, with regression evidence; a getter-only patch
+is not assumed to provide full proxy support. This requirement remains open
+until a repair or separately reviewed solution passes conformance.
+
+The [extended evidence](003-D02-delivery-and-delegate-boundaries.md) records the
+successful Apple hook controls and other completed probes. An upstream release
+is not a prerequisite to continuing D02 under Q1. The current Linux callback
+surface cannot be advertised as conformant, and continued implementation does
+not waive the required repair.
+
 ## Related Apple observations
 
 These are context for the cross-platform design, not FoundationNetworking
@@ -446,6 +533,8 @@ D02 evidence linked below.
 | `D02TaskRejectionTests` | Original pre-amendment assertions: Apple 9 pass/2 fail; Linux 7 pass/1 fail. These historical custom-error assertions do not assess the approved rejection policy. |
 | `D02ConstructorTests` | Initial body forms and delegate selection: Apple 20 pass; Linux 16 pass/4 fail, with only property-assigned task delegation failing. |
 | `D02NativeHTTPTests.*delegate` | FN-07 native HTTP control: Apple 1 pass; Linux 1 fail, independent of custom interception. |
+| `D02AsyncDelegateVisibilityTests` | FN-08: Apple 4 pass; Linux 2 pass/4 fail, including two native HTTP controls. |
+| `D02ControlledDeliveryTests` | Timed aggregate results retain FN-01: Apple 14 pass; Linux 7 pass/6 fail. Conversion stream API is Apple-only. |
 
 The full spike intentionally contains retained failing evidence. A nonzero
 exit is expected for the failing filters. Read the specific assertion rather
@@ -472,9 +561,11 @@ on the tested unpatched runtimes and cannot be advertised as conformant until
 fixes or another separately reviewed solution pass the required evidence.
 This is not a claim that all portable Diorama components are broken on Linux.
 
-D02 remains in progress because its remaining matrix is untested. The owner
-accepts FN-07 as a native limitation and resumes the remaining probes; there
-is no requirement to wait for an upstream release. D03/D04 still follow
+D02 remains in progress. The owner accepts FN-07 as a native limitation and
+resumes the remaining probes; those probes subsequently expose FN-08's hidden
+working delegate path. On 2026-09-25 the owner records FN-08 as requiring
+resolution and resumes D02. There is no requirement to wait for an upstream
+release before completing the remaining isolated evidence. D03/D04 still follow
 D02 review, and D05 still consolidates
 the findings and confirms or revises the production task breakdown. Its review
 must explicitly carry the Linux defects into implementation and conformance
