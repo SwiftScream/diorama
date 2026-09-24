@@ -356,6 +356,35 @@ A recording without the supplement remains usable across supported completion,
 async, and delegate presentation styles. Its absence does not create a hidden
 requirement to reproduce a callback that was never observed.
 
+### FoundationNetworking response-disposition exception — 2026-09-24
+
+The owner approves the [Decision 12 platform exception](12-urlsession-scope.md#foundationnetworking-response-disposition-exception--2026-09-24)
+for native FoundationNetworking behavior that ignores response-disposition
+cancellation or does not gate body delivery on the pending decision. Repairing
+this native limitation is not a prerequisite for other Linux capabilities.
+Record and passthrough preserve the native live outcome; private forwarding
+must avoid relying on the ignored disposition to stop work.
+
+The strict recorded outcomes above remain valid only for interactions that
+actually satisfy them. A consumer's `.cancel` followed by successful body
+delivery is not a cancellation failure. Report that the interaction cannot be
+represented by the supported disposition model and make its candidate
+ineligible for publication under the existing validity rules. Do not invent a
+terminal failure, erase the observed decision, or add a schema variant merely
+to normalize the native defect. This does not turn the diagnostic into a
+replacement error for the live consumer.
+
+Replay continues to require the capabilities implied by the recording.
+Recordings requiring effective cancellation or pending-decision gating are
+rejected during setup on a bridge that has not proved them. A private
+forwarder's immediate `.allow` is implementation machinery and never creates
+a consumer decision supplement. Explicit task cancellation and replay
+quiescence remain required independently of response-disposition support.
+
+This amendment narrows the earlier assumption that every bridge must implement
+all response-disposition outcomes for the initial milestone. The remaining
+scope, strict model, and one-schema platform capability rules are unchanged.
+
 ## URLSession failure representation
 
 Failures are URLSession adapter semantics rather than a premature universal

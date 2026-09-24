@@ -5,9 +5,11 @@
 - Status: In progress. The owner approves DD12's native rejection amendment on
   2026-09-24. The resumed diagnostic probes pass. After considering the Linux
   response buffering and disposition failures, the owner directs continued
-  Linux planning and implementation with those upstream defects tracked.
-  The remaining task/response matrix is outstanding; the affected Linux
-  capabilities do not yet meet the accepted contract.
+  Linux planning and implementation. Response disposition is now an accepted
+  native limitation under the DD12/DD17 amendment below; an upstream repair is
+  not required. Aggregation remains a defect affecting otherwise working
+  requests. The remaining task/response matrix and native baseline control are
+  outstanding.
 - Authority: [DD12](../design-decisions/12-urlsession-scope.md),
   [DD17](../design-decisions/17-http-lifecycle-composition.md), and Plan 003 Q1.
 - Approved model: GPT-6 Astra, `xhigh`.
@@ -168,7 +170,9 @@ delegate does not make FoundationNetworking invoke it.
 The owner asks to continue D02 and pause if an issue requires consideration.
 The new probes first exercise the approved diagnostic path, then a minimal
 multi-chunk response and `.cancel` disposition. They reproduce two further
-FoundationNetworking failures, so exploration stops at this boundary.
+FoundationNetworking failures, so exploration initially stops at this boundary.
+The owner subsequently approves continued Linux work and the disposition
+exception recorded below.
 
 ### Diagnostic result
 
@@ -224,7 +228,7 @@ Linux failures produce five assertion failures. The macOS and iOS commands
 exit 0; both Linux commands exit 1. No failed expectation is suppressed. These
 counts exclude the original rejection tests and D01's historical controls.
 
-### FoundationNetworking diagnosis and consideration needed
+### FoundationNetworking diagnosis and owner resolution
 
 The inspected Swift 6.4.0 release source at
 `d29d01ba165f6957141e07ea7fe8144ab491bc24` explains the observed custom-protocol
@@ -241,28 +245,47 @@ behavior:
    supplies a disposition completion handler that ignores its argument. The
    observed `.cancel` therefore does not gate data or successful completion.
 
-These experiments concern the custom `URLProtocolClient` path. Subsequent
-source tracing in the [handoff](003-D02-foundationnetworking-handoff.md#fn-02--response-dispositions-are-ignored-by-the-custom-protocol-client)
-finds that native HTTP also uses the ignored-disposition path; that behavior
-still needs a native-server control. Its aggregate body handling uses a
-separate accumulator. An unanswered disposition and task-conversion
-dispositions remain untested.
+These experiments concern the custom `URLProtocolClient` path. The native
+[`HTTPURLProtocol.didReceiveResponse()`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/HTTP/HTTPURLProtocol.swift#L515-L546)
+also uses the ignored-disposition path and attributes that choice to unresolved
+transfer pausing. Although
+[`NativeProtocol.swift`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/NativeProtocol.swift#L505-L544)
+contains decision-handling helpers, searching `Sources/` finds no caller of
+`askDelegateHowToProceedAfterCompleteResponse`; the native pause/unpause state
+transitions also contain unfinished `fatalError` paths. Their presence does
+not prove working native disposition handling or a fundamental limitation of
+current libcurl. A native-server control is still needed. Explicit
+[`task.cancel()`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L375-L410)
+uses a separate stop-loading path. Unanswered and task-conversion dispositions
+remain untested. These source findings are retained as historical context, not
+as required upstream repair work.
 
-Both failures contradict required supported data-task behavior. Unlike the
-approved exception for excluded task families, silently accepting lost bytes or
-ignored cancellation would change DD12/DD17's supported contract. On
-2026-09-24 the owner resolves the development pause: continue the plan and
-implementation for Linux while a separate investigator explores upstream
-fixes. The [Q1 continuation policy](../plans/003-clean-slate-implementation.md#q1--urlprotocol-evidence-versus-production-task-division-resolved-by-owner-2026-09-06)
-keeps these failures explicit through subsequent reviews and implementation;
-it does not declare the affected Linux capabilities working. Byte accumulation
-has a concrete faulty assignment, while honoring disposition needs careful
-task-state and callback ordering work. A bridge workaround would need evidence
-that it preserves both complete bodies and incremental delegate delivery. No
-workaround, platform narrowing, upstream patch, or new dependency is adopted
-here. The [handoff](003-D02-foundationnetworking-handoff.md) records the proposed
-focused aggregation repair, possible later refactoring, and cancellation
-investigation separately.
+### Accepted Linux disposition limitation — 2026-09-24
+
+The owner approves preserving the demonstrated native live limitation under
+the [DD12 exception](../design-decisions/12-urlsession-scope.md#foundationnetworking-response-disposition-exception--2026-09-24)
+and [DD17 recording amendment](../design-decisions/17-http-lifecycle-composition.md#foundationnetworking-response-disposition-exception--2026-09-24).
+The former handoff issue FN-02 is removed from the upstream investigation list;
+fixing it is not a Diorama prerequisite. The original probe and failing
+expectation remain evidence of the native difference, not a requirement that
+Diorama repair FoundationNetworking.
+
+The approved implementation must preserve native record/passthrough outcomes,
+avoid depending internally on response-disposition cancellation, and diagnose
+interactions that cannot be represented by the supported recording model.
+Such candidates cannot be published; successful live delivery must not be
+rewritten as a cancellation failure. Replay recordings requiring effective
+cancellation or pending-decision gating are rejected on a bridge lacking that
+capability. Explicit task cancellation, cleanup, and offline replay remain
+required. The native baseline control must verify the claimed parity; a new
+failure introduced by Diorama is outside this exception.
+
+The aggregation failure FN-01 remains a correctness problem for segmented
+completion/async requests. The [Q1 continuation policy](../plans/003-clean-slate-implementation.md#q1--urlprotocol-evidence-versus-production-task-division-resolved-by-owner-2026-09-06)
+allows Linux implementation to continue while that defect is addressed. The
+[handoff](003-D02-foundationnetworking-handoff.md) retains its focused repair
+proposal and possible later refactoring. No upstream patch or production
+implementation is introduced by this documentation update.
 
 ## Remaining investigations
 
@@ -272,6 +295,9 @@ The following D02 cases remain **untested**, after the two review checkpoints:
   the URL-based delegate, completion-handler, and async probes above;
 - in-memory body preservation and absent-versus-empty distinction;
 - separately timed response chunks and unanswered/open dispositions;
+- a native Linux HTTP control for the accepted disposition limitation, followed
+  by parity checks that interception adds no new failure; effective cancel/open
+  behavior is required only where that capability is advertised;
 - file uploads, upload/download resume forms, and response-driven conversion;
 - reliable optional delegate capability detection and task-delegate overrides;
 - cache bypass with seeded responses across those presentations;

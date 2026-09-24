@@ -278,6 +278,48 @@ identifiers, and byte counters are not stable snapshot values. The initial
 adapter should preserve ordinary native control where feasible but does not
 promise deterministic replay of those incidental observations.
 
+### FoundationNetworking response-disposition exception — 2026-09-24
+
+The owner approves a narrow platform exception after reviewing D02's ignored
+response-disposition cancellation. Diorama may preserve a demonstrated native
+FoundationNetworking limitation in record and passthrough; it does not need to
+repair that limitation or require an upstream fix before supporting otherwise
+working Linux operations. A native-session control must establish the relevant
+behavior on each advertised runtime. The current spike reproduces the custom
+protocol failure and traces the native HTTP path in source; that native control
+remains outstanding.
+
+For this exception:
+
+- Preserve the native live outcome when the consumer's response decision is
+  ignored. Do not manufacture cancellation or a wait that the runtime does not
+  enforce. Normal Linux data-task support is not gated on fixing this native
+  response-disposition limitation.
+- Keep private forwarding independent of response-disposition cancellation:
+  answer its response callback with immediate `.allow` and use explicit task
+  cancellation when an owned forwarding task must be stopped. Internal
+  forwarding callbacks do not create consumer disposition phases.
+- If the observed interaction cannot satisfy the supported disposition model,
+  report an infrastructure diagnostic and make the recording candidate
+  ineligible for publication through the existing validity rules. For example,
+  `.cancel` followed by successful delivery must not become a fabricated
+  cancellation failure or a silently omitted decision. The live consumer still
+  receives the native outcome.
+- Advertise effective cancellation and pending-decision gating only on bridges
+  where they pass conformance. Reject replay recordings requiring an
+  unsupported response-decision capability during setup, including recordings
+  originating on Apple. Replay never falls through to live networking.
+
+This exception narrows the earlier unconditional response-disposition and
+unsupported-operation rules for this native limitation. It does not excuse
+failures introduced by interception: the multi-chunk aggregation defect still
+needs a correction or proven workaround because it breaks otherwise working
+completion/async requests. Explicit task cancellation, cleanup, offline replay,
+unsupported task/conversion rejection, and authentication-challenge decisions
+retain their existing requirements. An upstream disposition repair is optional
+for Diorama; a later runtime that fixes the behavior needs fresh capability
+evidence. Decision 17's matching amendment governs recording validity.
+
 ## Redirects
 
 Redirect chains are required initial behavior rather than a later enhancement.

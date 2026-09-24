@@ -40,6 +40,13 @@ on 2026-09-24: Apple stream and WebSocket rejection pairs an adapter diagnostic
 with native cancellation, and pre-interception Linux WebSocket refusal may
 retain its native error on a tested profile with no network access.
 
+On the same date, the owner approved the FoundationNetworking
+response-disposition exception in [Decision 12](12-urlsession-scope.md#foundationnetworking-response-disposition-exception--2026-09-24)
+and [Decision 17](17-http-lifecycle-composition.md#foundationnetworking-response-disposition-exception--2026-09-24).
+Diorama may preserve the demonstrated native live limitation without requiring
+an upstream repair, while keeping recordings truthful and rejecting replay
+that requires unsupported response decisions.
+
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |
 | 1 | [Common abstraction](01-common-abstraction.md) | `01-common-abstraction.md` | Accepted |
