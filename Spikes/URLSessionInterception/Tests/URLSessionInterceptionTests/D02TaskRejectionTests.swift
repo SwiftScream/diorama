@@ -7,7 +7,7 @@ import Testing
 @Suite(.serialized)
 struct D02TaskRejectionTests {
     @Test(arguments: D02TaskKind.allCases)
-    func `protocol rejection precedes any connection`(kind: D02TaskKind) async throws {
+    func `protocol-only rejection records native task family boundaries`(kind: D02TaskKind) async throws {
         D02RejectingProtocol.observations.withLock { $0 = D02RejectionState() }
         let listener = try D02LoopbackListener()
         let delegate = D02TaskDelegate()
@@ -29,9 +29,28 @@ struct D02TaskRejectionTests {
             "checks=\(observation.requestChecks)/\(observation.taskChecks), " +
             "error=\(outcome.errorDomain ?? "nil")/\(outcome.errorCode ?? 0), " +
             "marker=\(outcome.hasRejectionMarker), bodyStreamRequests=\(outcome.bodyStreamRequests)")
-        #expect(listener.connections == 0)
-        #expect(observation.starts.count == 1)
-        #expect(outcome.errorDomain == D02RejectingProtocol.errorDomain)
+        switch kind {
+        #if canImport(Darwin)
+            case .stream:
+                // Native baseline: stream tasks bypass URLProtocol. The creation
+                // cancellation and diagnostic tests below prove offline rejection.
+                #expect(listener.connections == 1)
+                #expect(observation.starts.isEmpty)
+        #endif
+        case .webSocket:
+            #expect(listener.connections == 0)
+            #expect(outcome.errorDomain == NSURLErrorDomain)
+            #if canImport(FoundationNetworking)
+                #expect(observation.starts.isEmpty)
+                #expect(outcome.errorCode == URLError.unsupportedURL.rawValue)
+            #else
+                #expect(observation.starts.count == 1)
+            #endif
+        default:
+            #expect(listener.connections == 0)
+            #expect(observation.starts.count == 1)
+            #expect(outcome.errorDomain == D02RejectingProtocol.errorDomain)
+        }
     }
 
     #if canImport(Darwin)

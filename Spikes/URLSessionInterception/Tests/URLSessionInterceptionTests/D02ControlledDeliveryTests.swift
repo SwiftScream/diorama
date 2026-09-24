@@ -71,7 +71,11 @@ struct D02ControlledDeliveryTests {
         let result = consumer.result.withLock { $0 }
         print("D02 controlled \(presentation): chunks=\(result.chunks.map(\.count)), " +
             "body=\(String(data: result.body, encoding: .utf8) ?? "invalid"), connections=\(listener.connections)")
-        #expect(result.body == Data("first-second".utf8))
+        withKnownLinuxIssue("FN-01: custom-protocol aggregates retain only the last chunk",
+                            affected: !presentation.hasPrefix("delegate"))
+        {
+            #expect(result.body == Data("first-second".utf8))
+        }
         #expect(result.errorDomain == nil)
         #expect(listener.connections == 0)
     }

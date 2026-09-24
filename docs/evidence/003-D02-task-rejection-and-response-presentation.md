@@ -2,7 +2,10 @@
 
 - Date: 2026-09-24
 - Owning unit: [003-D02](../plans/003-clean-slate-implementation.md#003-d02--task-rejection-and-response-presentation-spike)
-- Status: In progress. The owner approves DD12's native rejection amendment on
+- Status: Complete as an isolated investigation on 2026-09-25; see the
+  [final matrix](003-D02-completion-and-capability-matrix.md) for the current
+  capability boundary. The following record preserves the earlier checkpoints.
+  The owner approves DD12's native rejection amendment on
   2026-09-24. The resumed diagnostic probes pass. After considering the Linux
   response buffering and disposition failures, the owner directs continued
   Linux planning and implementation. Response disposition is now an accepted
@@ -80,7 +83,7 @@ This resolves the policy blocker and allows the remaining D02 investigations.
 At that checkpoint, the probes verify early cancellation and native error
 propagation, but do not verify diagnostic attribution, delivery, or reentry
 safety. The follow-up below supplies native-hook evidence for those checks;
-D02 remains incomplete.
+D02 was still incomplete at that checkpoint.
 
 ## Original experiment design
 
@@ -397,38 +400,27 @@ for task-delegate forms applies; this clarification adds no production
 workaround or claim of equivalent property-assigned delegation. The initial
 review pause is resolved, and D02 continues.
 
-## Remaining investigations
+## D02 completion and later requirements
 
-The [extended follow-up](003-D02-delivery-and-delegate-boundaries.md) now covers
-timed multi-chunk URL/URLRequest/async-delegate delivery, retained response
-decisions and native parity, conversion rejection through an observing proxy,
-file uploads, genuine Apple upload/download resume data, seeded cache bypass,
-FTP/file/HTTPS rejection, and Apple delegate-method/proxy controls.
+The [final follow-up](003-D02-completion-and-capability-matrix.md) completes
+D02's isolated matrix on 2026-09-25. It adds native/private forwarding of
+recovered initial bodies, stream rejection across presentations, unsupported
+async task constructors, Apple async download resumption, and native Linux
+resume failure channels. The earlier extended follow-up covers timed response
+segments, response decisions, conversion rejection, seeded caches, genuine
+Apple resume data, schemes, and Apple optional-method/proxy controls.
 
-The remaining D02 work is:
+FN-01 and FN-08 remain required conformance repairs. The owner explicitly
+authorizes completion of this investigation while recording those issues;
+the affected Linux behavior is not declared conformant. FN-09 requires an
+independent forwarding executor, and FN-10's unisolated registry trap remains
+in D05's lifecycle audit. D03 owns redirect rewriting/correlation, D04 owns
+authentication and HTTPS default handling, and D05 owns quiescence and the
+consolidated production breakdown.
 
-- carry FN-08 as a required conformance repair: the public getter cannot
-  identify an explicit async delegate and no pre-resume creation hook is
-  available. The owner authorizes completing D02 with this unresolved issue
-  explicitly recorded, without advertising the affected capability;
-- verify forwarding of recovered initial in-memory bodies; redirect-specific
-  rewriting and correlation remain D03 work;
-- finish unsupported-task async convenience variants and native Linux
-  download-resume failure-channel controls; Linux resume absence is currently
-  source evidence, while valid native resume-data experiments are Apple-only;
-- consolidate the reviewed matrix and residual platform limitations before
-  declaring D02 complete. Full proxy lifecycle, finalization, redirects,
-  authentication, and HTTPS default handling remain in their named later units.
-
-These investigations remain isolated spike work. Rejection in an actual
-production record/replay/passthrough adapter is later production conformance
-work; D02 does not add that adapter. Linux's missing task-creation hook no
-longer blocks the accepted native WebSocket refusal on the tested profiles.
-Any profile that supports WebSockets still requires fresh rejection evidence.
-
-D01 task ownership remains useful for supported intercepted tasks. This result
-does not reopen that routing choice. D03 and production URLSession work must
-not depend on D02 as a passed capability gate.
+D01 task ownership remains the routing choice. No production adapter is added,
+and this unit's completion does not authorize starting D03 or bypass the
+later capability and review gates.
 
 ## Environment and reproduction
 
