@@ -912,9 +912,17 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
   The owner directs continued Linux implementation under Q1's continuation
   policy and accepts the native disposition limitation through DD12/DD17.
   Aggregation remains to be corrected; disposition repair is not required.
-  The remaining matrix and native parity control are untested. D02 is not a
-  completed capability gate or permission to begin D03.
-  See the [response follow-up](../evidence/003-D02-task-rejection-and-response-presentation.md#diagnostic-and-response-follow-up--2026-09-24) and
+  Native HTTP controls now verify ignored cancel/open dispositions and working
+  explicit task cancellation. Constructor probes preserve initial absent,
+  empty, and in-memory bodies through the task's original request. A new Linux
+  defect ignores assignment to `task.delegate` on both native HTTP and custom
+  protocol paths. The owner accepts FN-07 as a native limitation, with no
+  required upstream fix, and resumes the remaining matrix. Diorama must avoid
+  depending internally on the broken setter and preserve native selection.
+  D02 is not a completed capability gate or permission to begin D03.
+  See the [constructor/native follow-up](../evidence/003-D02-task-rejection-and-response-presentation.md#constructor-and-native-http-follow-up--2026-09-24),
+  [FN-07 handoff](../evidence/003-D02-foundationnetworking-handoff.md#fn-07--assigning-taskdelegate-does-not-select-the-callback-recipient),
+  [response follow-up](../evidence/003-D02-task-rejection-and-response-presentation.md#diagnostic-and-response-follow-up--2026-09-24), and
   [D02 rejection evidence](../evidence/003-D02-task-rejection-and-response-presentation.md).
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Unknown native rejection points and delegate surfaces can undermine the no-live-replay guarantee.
 - Prerequisites: 003-D01; DD12 response/task/delegate sections, DD17.
