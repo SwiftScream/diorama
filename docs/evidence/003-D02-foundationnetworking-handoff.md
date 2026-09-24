@@ -20,16 +20,15 @@ handoff identifiers, not upstream issue numbers.
 | ID | Finding | Classification | Effect on Diorama |
 | --- | --- | --- | --- |
 | FN-01 | Custom-protocol completion/async responses retain only the last data chunk | Reproduced defect; source explains it | Blocks correct aggregate results for segmented responses. |
-| FN-02 | Custom-protocol response-disposition handler ignores `.cancel` | Reproduced defect; source explains it | Blocks required response-decision behavior. |
 | FN-03 | `URLProtocol` request properties disappear during request bridging/copying | Reproduced defect candidate with a concrete copy omission | Original forwarding marker fails; an isolated private-session control works. |
 | FN-04 | Configuration `httpAdditionalHeaders` are absent at custom interception | Reproduced parity difference; whether this violates the API contract remains open | Original routing method fails; task ownership is now the approved replacement. |
 | FN-05 | `URLSessionTaskDelegate.didCreateTask` hook is absent | Confirmed API gap | Apple's early rejection mechanism is unavailable on this Linux implementation. |
 | FN-06 | WebSockets fail before custom interception when libcurl lacks support | Tested runtime limitation; accepted native failure | Not a current Diorama blocker on these profiles. |
 
-FN-01 and FN-02 block the affected Linux response capabilities from meeting
-the accepted contract. On 2026-09-24 the owner directs continued planning and
-implementation for Linux while these defects are investigated separately;
-see the [continuation boundary](#plan-boundary-for-the-receiving-investigator).
+FN-01 blocks correct aggregate results for segmented Linux responses. On
+2026-09-24 the owner directs continued planning and implementation for Linux
+while upstream defects are investigated separately; see the
+[continuation boundary](#plan-boundary-for-the-receiving-investigator).
 FN-03 is a focused candidate for upstream correction. FN-04 needs contract
 investigation before calling it an upstream bug. FN-05/FN-06 provide context
 for rejection behavior; they are not requests to add WebSocket support to
@@ -47,13 +46,11 @@ directly and imports no production Diorama code.
 The approved routing method identifies a protocol's native task by object
 identity in adapter-owned sessions' outstanding-task lists. The owning active
 lease identifies the execution. It requires no HTTP routing field. This choice
-does not repair Foundation's response buffering or disposition handling.
+does not repair Foundation's response buffering.
 
 The executable response probes exercise the **custom `URLProtocolClient`
 path**. Ordinary libcurl HTTP completion handlers use a separate body
-accumulator. The source follow-up under FN-02 finds that native HTTP also
-disregards response dispositions; it distinguishes this from explicit task
-cancellation. Native HTTP response behavior has not been probed here.
+accumulator. Native HTTP response behavior has not been probed here.
 
 ## FN-01 — Earlier response chunks are lost for completion and async consumers
 
@@ -196,79 +193,6 @@ cumulative bodies would duplicate bytes for delegates. Neither is an approved
 general workaround. The shared body schema, matching, persistence, and
 task-ownership route do not need to change to fix the demonstrated defect.
 
-## FN-02 — Response dispositions are ignored by the custom protocol client
-
-### Required behavior and independence from FN-01
-
-The response-disposition callback gives the data delegate the response head
-and asks how loading should proceed. The handler it receives takes a
-`URLSession.ResponseDisposition`; it is not the task's final data completion
-handler. `.allow` permits delivery, `.cancel` cancels the load, and a pending
-decision requires the session to withhold consumer body delivery until the
-decision resolves. Apple's [response-disposition reference](https://developer.apple.com/documentation/foundation/urlsession/responsedisposition)
-describes this as a decision after the initial headers. Its
-[`.cancel` documentation](https://developer.apple.com/documentation/foundation/urlsession/responsedisposition/cancel)
-explicitly equates that disposition with calling `cancel()` on the task.
-
-This decision matters even for a one-chunk response: the consumer may reject
-its status, media type, or declared size before accepting any body. A protocol
-can already have supplied data while the delegate decides; the client must
-coordinate pending delivery and terminal events with that decision. Replacing
-versus appending body bytes is a separate concern. Fixing FN-01 does not make
-an ignored disposition take effect, and no single-chunk assumption explains
-or justifies FN-02.
-
-### Observed failure and source diagnosis
-
-The second test in the same [response probe](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02ResponseTests.swift)
-answers `didReceive response` with `.cancel`. It does not separately invoke
-`task.cancel()`. The protocol emits the same two chunks and finish event.
-
-- Apple: no body callbacks; completion reports `NSURLErrorDomain/-999`.
-- Both Linux profiles: both chunks arrive and completion reports success.
-- No loopback connections occur on either platform.
-
-[`URLSessionTask.swift:1080–1089`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L1080-L1089)
-passes a completion closure to the data delegate that ignores its disposition.
-
-Source follow-up on 2026-09-24 corrects the original handoff's comparison with
-native response-decision handling. Although
-[`NativeProtocol.swift:505–544`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/NativeProtocol.swift#L505-L544)
-contains helpers for waiting and processing cancel/allow, searching `Sources/`
-finds no caller of `askDelegateHowToProceedAfterCompleteResponse`. Its presence
-does not establish that native HTTP honors dispositions. The actual
-[`HTTPURLProtocol.didReceiveResponse()`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/HTTP/HTTPURLProtocol.swift#L515-L546)
-calls the same client path and explicitly describes disregarding the
-completion handler because transfer pausing is unresolved. Native HTTP thus
-appears to share the disposition defect; a native-server control is still
-needed to verify its observable behavior.
-
-That source comment records an implementation difficulty with libcurl
-pausing; it is not evidence that current libcurl fundamentally cannot pause.
-The native state's
-[pause/unpause transitions](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/NativeProtocol.swift#L75-L93)
-still contain `fatalError` placeholders. Merely connecting the unused helper
-is therefore not a complete repair. The active client handler ignores the
-disposition argument and logs a debug warning; it makes no cancel transition.
-In the probe, already queued body and finish events consequently reach the
-delegate despite its `.cancel` answer.
-
-Explicit [`URLSessionTask.cancel()`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L375-L410)
-uses a separate path that stops loading and reports a cancellation error. FN-02
-does not establish that explicit task cancellation is broken. Cancellation
-races and native transfer cleanup still need their own conformance evidence.
-
-Only `.allow` and `.cancel` have been exercised by these response probes.
-Unanswered/open decisions and `.becomeDownload`/`.becomeStream` remain untested.
-The source raises questions about those cases but is not experimental proof.
-A fix needs to consider queued data/finish callbacks, asynchronous decisions,
-single terminal completion, and cancellation races. An adapter workaround
-would also need to preserve DD12/DD17's observable decision and timing behavior.
-No such workaround is selected. Suggested upstream checks include zero, one,
-and multiple chunks; delayed `.allow` and `.cancel`; a pending decision;
-explicit task cancellation during the wait; and data/finish events already
-submitted by a custom protocol. These are proposed checks, not new results.
-
 ## FN-03 — Forwarding request property is lost during bridging
 
 The D01 test `URLProtocol property bypasses the interceptor when forwarding`
@@ -410,12 +334,12 @@ selected amd64 image:
 Pinned snapshot:
 `swiftlang/swift@sha256:15ae709b1d8eb1f8691b300f5721499d007e944694f2c0e9929a55580c9bf1a5`.
 
-Run FN-01/FN-02 directly from the repository root on macOS:
+Run FN-01's body aggregation cases from the repository root on macOS:
 
 ```sh
 swift test --package-path Spikes/URLSessionInterception \
   --scratch-path .build/d02-spike -Xswiftc -warnings-as-errors \
-  --filter D02ResponseTests
+  --filter 'D02ResponseTests.*two'
 ```
 
 Using Apple Container from the repository root:
@@ -424,18 +348,17 @@ Using Apple Container from the repository root:
 container run --rm --arch x86_64 --cpus 2 --memory 4G \
   --mount type=bind,source="$PWD",target=/source,readonly --workdir /work \
   swift:6.4.0-noble \
-  bash -lc 'cp -R /source/Spikes/URLSessionInterception /work/ && cd /work/URLSessionInterception && swift --version && dpkg-query -W libcurl4-openssl-dev && swift test -Xswiftc -warnings-as-errors --filter D02ResponseTests'
+  bash -lc 'cp -R /source/Spikes/URLSessionInterception /work/ && cd /work/URLSessionInterception && swift --version && dpkg-query -W libcurl4-openssl-dev && swift test -Xswiftc -warnings-as-errors --filter "D02ResponseTests.*two"'
 ```
 
-Substitute the snapshot image above for the second Linux profile. To reproduce
-the exact combined follow-up, replace the filter with
-`"D02(Diagnostic|Response)Tests"` inside the container shell command, or
-`'D02(Diagnostic|Response)Tests'` for the host command. The same SwiftPM test
-command works inside a Linux development environment without Apple Container.
+Substitute the snapshot image above for the second Linux profile. The same
+SwiftPM test command works inside a Linux development environment without
+Apple Container. The complete historical follow-up commands remain in the
+D02 evidence linked below.
 
 | Filter | Relevant evidence and expected baseline |
 | --- | --- |
-| `D02ResponseTests` | FN-01/FN-02: four parameter cases; Apple 4 pass, Linux 1 pass/3 fail. |
+| `D02ResponseTests.*two` | FN-01: three parameter cases; Apple 3 pass, Linux 1 pass/2 fail in the recorded baseline. |
 | `D02DiagnosticTests` | Apple diagnostic/reentry: two cases pass; Linux native WebSocket refusal: one case passes. |
 | `InterceptionTests` | Original D01: ten tests; Apple 10 pass, Linux 8 pass/2 fail (headers and forwarding property). |
 | `TaskOwnershipTests` | Five routing tests pass on all tested profiles. |
@@ -460,8 +383,8 @@ upstream revision for a reproducible fresh checkout.
 On 2026-09-24 the owner directs Diorama to continue the plan and implementation
 for Linux while FoundationNetworking fixes are investigated separately.
 The [plan's Linux continuation policy](../plans/003-clean-slate-implementation.md#q1--urlprotocol-evidence-versus-production-task-division-resolved-by-owner-2026-09-06)
-records that resolution of the FN-01/FN-02 pause. Linux remains an intended
-implementation target; the affected URLSession response behavior is broken
+records that resolution of the development pause. Linux remains an intended
+implementation target; segmented completion/async body delivery is broken
 on the tested unpatched runtimes and cannot be advertised as conformant until
 fixes or another separately reviewed solution pass the required evidence.
 This is not a claim that all portable Diorama components are broken on Linux.
@@ -478,7 +401,6 @@ live replay fallback remain in force; no failing assertion is suppressed by
 this continuation decision.
 
 FN-01 directly affects I02's aggregate results and I04's shared segmented
-presentation. FN-02 independently affects response decisions. The
-body/persistence model and task-ownership choice remain accepted. This update
-adds no upstream patch or production implementation and does not mark D02 or
-the Linux conformance gate complete.
+presentation. The body/persistence model and task-ownership choice remain
+accepted. This update adds no upstream patch or production implementation and
+does not mark D02 or the Linux conformance gate complete.

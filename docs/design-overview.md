@@ -304,6 +304,15 @@ portable across Apple platforms and Linux only when it uses their common tested
 profile. Platform-specific implementation code does not create a second
 scenario system identity.
 
+The owner-approved [FoundationNetworking response-disposition exception](design-decisions/12-urlsession-scope.md#foundationnetworking-response-disposition-exception--2026-09-24)
+permits record and passthrough to preserve demonstrated native limitations in
+response cancellation and pending-decision gating. An interaction that cannot
+satisfy the supported disposition model produces a diagnostic and an invalid
+recording candidate; the live result remains native. Replay requiring those
+unsupported capabilities is rejected at setup. An upstream repair is optional;
+explicit task cancellation, offline replay, and correct body delivery remain
+required.
+
 ### Attachment keys, system types, and match keys
 
 These identifiers remain distinct:
