@@ -12,7 +12,7 @@ import Testing
 
 /// The test task alone accepts, reads, and writes this one loopback connection.
 /// Foundation runs its ordinary HTTP implementation; no URLProtocol is installed.
-private final class NativeHTTPServer {
+final class NativeHTTPServer {
     static let responseStart = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n" +
         "Content-Type: application/octet-stream\r\nConnection: close\r\n\r\nfirst-"
     let listener: D02LoopbackListener
@@ -46,6 +46,13 @@ private final class NativeHTTPServer {
             request.append(contentsOf: bytes.prefix(count))
         }
         return request.range(of: Data("\r\n\r\n".utf8)) != nil
+    }
+
+    func requestHeader(_ name: String) -> String? {
+        guard let text = String(data: request, encoding: .utf8) else { return nil }
+        return text.components(separatedBy: "\r\n").first { line in
+            line.lowercased().hasPrefix(name.lowercased() + ":")
+        }?.split(separator: ":", maxSplits: 1).last?.trimmingCharacters(in: .whitespaces)
     }
 
     /// A short send is reported to the test instead of silently losing bytes.
