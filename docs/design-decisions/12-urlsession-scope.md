@@ -285,9 +285,10 @@ response-disposition cancellation. Diorama may preserve a demonstrated native
 FoundationNetworking limitation in record and passthrough; it does not need to
 repair that limitation or require an upstream fix before supporting otherwise
 working Linux operations. A native-session control must establish the relevant
-behavior on each advertised runtime. The current spike reproduces the custom
-protocol failure and traces the native HTTP path in source; that native control
-remains outstanding.
+behavior on each advertised runtime. At approval, the spike had reproduced the
+custom protocol failure and traced the native HTTP path in source; the native
+control was still outstanding. Subsequent verification is recorded in the
+[D02 evidence](../evidence/003-D02-task-rejection-and-response-presentation.md#native-response-disposition-baseline).
 
 For this exception:
 

@@ -8,8 +8,11 @@
   Linux planning and implementation. Response disposition is now an accepted
   native limitation under the DD12/DD17 amendment below; an upstream repair is
   not required. Aggregation remains a defect affecting otherwise working
-  requests. The remaining task/response matrix and native baseline control are
-  outstanding.
+  requests. The next probes establish the native disposition baseline and
+  initial request-body preservation, then expose ignored task-delegate
+  assignment on Linux. The owner accepts FN-07 as another native limitation
+  and directs continued D02 investigation; the remaining task/response matrix
+  is outstanding.
 - Authority: [DD12](../design-decisions/12-urlsession-scope.md),
   [DD17](../design-decisions/17-http-lifecycle-composition.md), and Plan 003 Q1.
 - Approved model: GPT-6 Astra, `xhigh`.
@@ -17,6 +20,8 @@
   and [fixtures](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02RejectionFixtures.swift).
   The follow-up adds [diagnostic probes](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02DiagnosticTests.swift)
   and [response probes](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02ResponseTests.swift).
+  The next follow-up adds [request constructor probes](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02ConstructorTests.swift)
+  and [native HTTP controls](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02NativeHTTPTests.swift).
 - Cross-unit handoff: [FoundationNetworking investigation context](003-D02-foundationnetworking-handoff.md)
   consolidates D01/D02 issues for the owner's separate investigator.
 
@@ -254,11 +259,12 @@ contains decision-handling helpers, searching `Sources/` finds no caller of
 `askDelegateHowToProceedAfterCompleteResponse`; the native pause/unpause state
 transitions also contain unfinished `fatalError` paths. Their presence does
 not prove working native disposition handling or a fundamental limitation of
-current libcurl. A native-server control is still needed. Explicit
+current libcurl. At this checkpoint, a native-server control was still needed;
+the later native baseline below supplies it. Explicit
 [`task.cancel()`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L375-L410)
-uses a separate stop-loading path. Unanswered and task-conversion dispositions
-remain untested. These source findings are retained as historical context, not
-as required upstream repair work.
+uses a separate stop-loading path. Unanswered dispositions were untested at
+this checkpoint; task conversion remains untested. These source findings are
+retained as historical context, not as required upstream repair work.
 
 ### Accepted Linux disposition limitation — 2026-09-24
 
@@ -287,19 +293,119 @@ allows Linux implementation to continue while that defect is addressed. The
 proposal and possible later refactoring. No upstream patch or production
 implementation is introduced by this documentation update.
 
+## Constructor and native HTTP follow-up — 2026-09-24
+
+The owner directs continued D02 investigation. This follow-up adds two
+isolated fixtures, with no production imports, dependencies, unsafe sendability,
+or isolation annotations.
+
+### Initial request body and constructor results
+
+The constructor matrix crosses five presentations with four initial body
+forms: absent, empty `Data`, four binary bytes, and a caller-supplied
+`InputStream`. Presentations are the URLRequest delegate, completion-handler,
+async `data(for:)`, async `data(for:delegate:)`, and a data task whose
+`delegate` is assigned before `resume()`. The protocol returns a single
+two-byte response, deliberately avoiding the already demonstrated aggregation
+defect. It records the body/stream fields on its request and on the task's
+original/current requests. An ephemeral loopback listener detects fallback.
+
+Apple normalizes an empty body to absence and a nonempty body to a stream in
+`URLProtocol.request` and `task.currentRequest`. However,
+`task.originalRequest` preserves absent, empty, binary data, and an explicitly
+supplied stream as distinct input forms. Linux preserves those forms on all
+three inspected requests. Thus rejecting every protocol request with a stream
+would incorrectly reject ordinary in-memory bodies on Apple. For an initial
+request, the task's original request provides the tested classification and
+body bytes. This does not establish how to recover a redirect-derived body;
+that remains D03 work. The stream case returns a test response only to observe
+classification; it does not propose supporting streamed bodies in production.
+
+All presentations produce the expected status and complete single-chunk body,
+and every constructor case observes zero connections. Apple delivers explicit
+task overrides to the assigned task delegate. Linux instead delivers to the
+session delegate, even though the task's delegate getter returns the assigned
+object. The four override cases retain failed expectations for the expected
+recipient. The async overload's explicit delegate follows a different path:
+Linux invokes that delegate's response callback and successfully returns the
+body. Apple returns the async body without invoking the supplied delegate's
+response callback in this fixture. Redirect, authentication, and full proxy
+equivalence are not established by this successful-result control.
+
+### Native response-disposition baseline
+
+A nonblocking loopback server accepts one ordinary HTTP request. The session
+installs no custom protocol. The server sends an HTTP head plus `first-`, then
+sends `second` after observing the response callback. The response explicitly
+declares `Content-Type: application/octet-stream`; the earlier fixture without
+that field stalled waiting for Apple's response callback while part of the
+body remained unsent. That fixture issue is corrected before the reported run.
+
+The callback either allows, cancels by disposition, retains its completion
+handler, or explicitly calls `dataTask.cancel()` and answers `.allow`.
+The retained-handler case sends the rest of the response before answering.
+All waits have bounded monotonic deadlines. The server socket and fixture
+state remain owned by the test task, while delegate observations use a mutex.
+
+| Native operation | Apple Foundation | Both tested Linux profiles |
+| --- | --- | --- |
+| `.allow` | Complete `first-second` body | Same |
+| Response `.cancel` | No body; `NSURLErrorDomain/-999` | Both chunks; successful completion |
+| Retained response decision | No body or completion until `.allow` | Both chunks and successful completion before `.allow` |
+| Explicit `task.cancel()` | Native cancellation | Native cancellation; the initial in-flight chunk may arrive first |
+| Assign `task.delegate` before resume | Assigned delegate receives response and completion | Session delegate receives both; assigned delegate receives neither |
+
+This establishes the native Linux basis for the accepted response-disposition
+exception, including ignored pending-decision gating. Explicit task cancellation
+works in this control and remains distinct from answering `.cancel`.
+The prior custom-protocol `.cancel` failure matches this native limitation.
+Timed custom-protocol delivery, an open custom-protocol decision, forwarding
+parity, and finalization/quiescence still need their own evidence. This control
+does not claim that cancellation forbids a chunk already in flight.
+
+The focused follow-up has **25 parameter cases per platform**: 20 constructor
+cases, four native disposition cases, and one native delegate-assignment case.
+All 25 pass on macOS and iOS Simulator. Each Linux profile has **20 pass and
+5 fail**, with 15 failed assertions, all concerning property-assigned delegate
+dispatch. There are no suppressed or expected failures. The macOS and iOS
+commands exit 0; the Linux commands exit 1. All four compile with warnings
+treated as errors. The iOS result bundle reports no runtime warnings.
+
+### New review finding: task delegate assignment
+
+The final native test sets `task.delegate` before resuming an ordinary HTTP
+request and verifies the getter's identity. Both Linux profiles nevertheless
+send response and completion to the session delegate. This reproduces the
+constructor finding without any custom protocol or Diorama involvement.
+It is recorded as [FN-07](003-D02-foundationnetworking-handoff.md#fn-07--assigning-taskdelegate-does-not-select-the-callback-recipient)
+with the release-source dispatch diagnosis. Its failing assertions remain
+visible, while successful response bytes are checked independently.
+
+The owner accepts this as another native Linux limitation and directs continued
+D02 investigation. It is not a prerequisite upstream fix or a blocker to the
+remaining spike. Task-ownership routing does not depend on the setter, and
+private forwarding can use a delegate supplied when creating its session.
+The adapter must preserve effective native delegate selection rather than
+assuming the task's delegate getter identifies the actual callback recipient.
+The tested async delegate overload remains distinct from the property setter
+and must not be disabled by this finding. The existing conformance boundary
+for task-delegate forms applies; this clarification adds no production
+workaround or claim of equivalent property-assigned delegation. The initial
+review pause is resolved, and D02 continues.
+
 ## Remaining investigations
 
-The following D02 cases remain **untested**, after the two review checkpoints:
+The following D02 cases remain **untested**, after these review checkpoints:
 
-- the remaining URLRequest overloads and task-delegate presentations beyond
-  the URL-based delegate, completion-handler, and async probes above;
-- in-memory body preservation and absent-versus-empty distinction;
+- multi-chunk responses through URLRequest and task-delegate presentations;
+- forwarding of the recovered in-memory body and classification after native
+  request rewriting (redirect-specific evidence belongs to D03);
 - separately timed response chunks and unanswered/open dispositions;
-- a native Linux HTTP control for the accepted disposition limitation, followed
-  by parity checks that interception adds no new failure; effective cancel/open
-  behavior is required only where that capability is advertised;
+- the remaining intercepted/native disposition parity checks; effective
+  cancel/open behavior is required only where that capability is advertised;
 - file uploads, upload/download resume forms, and response-driven conversion;
-- reliable optional delegate capability detection and task-delegate overrides;
+- reliable optional delegate capability detection and enforcement around
+  task-delegate overrides, beyond observing their dispatch behavior;
 - cache bypass with seeded responses across those presentations;
 - the remaining non-HTTP and HTTPS paths, with zero live access for rejected
   operations on the chosen platform profiles.
@@ -398,6 +504,39 @@ xcodebuild test -quiet -scheme URLSessionInterception-Package \
 The iOS result bundle reports six passed parameter cases, no skipped or expected
 failures, and no runtime warnings. Its exported test-runner output confirms the
 response bytes and chunk observations in the follow-up matrix.
+
+### Constructor and native HTTP commands
+
+The constructor/native follow-up uses the same four environment profiles.
+From the repository root:
+
+```sh
+swift test --package-path Spikes/URLSessionInterception \
+  --scratch-path .build/d02-spike -Xswiftc -warnings-as-errors \
+  --filter 'D02(NativeHTTP|Constructor)Tests'
+
+container run --rm --arch x86_64 --cpus 2 --memory 4G \
+  --mount type=bind,source="$PWD",target=/source,readonly --workdir /work \
+  swift:6.4.0-noble \
+  bash -lc 'cp -R /source/Spikes/URLSessionInterception /work/ && cd /work/URLSessionInterception && swift --version && swift test -Xswiftc -warnings-as-errors --filter "D02(NativeHTTP|Constructor)Tests"'
+```
+
+The pinned snapshot substitutes the image digest above. From
+`Spikes/URLSessionInterception`:
+
+```sh
+xcodebuild test -quiet -scheme URLSessionInterception-Package \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0' \
+  -derivedDataPath ../../.build/d02-ios-final-derived \
+  -resultBundlePath ../../.build/d02-ios-constructors-native.xcresult \
+  -only-testing:URLSessionInterceptionTests/D02NativeHTTPTests \
+  -only-testing:URLSessionInterceptionTests/D02ConstructorTests \
+  -collect-test-diagnostics never \
+  IPHONEOS_DEPLOYMENT_TARGET=18.0 SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
+```
+
+Use a fresh result-bundle path when repeating the iOS command. The 25-case
+counts above exclude all earlier D01/D02 controls and retained failures.
 
 Compilation passes with warnings treated as errors on all four environments.
 The canonical `scripts/lint` gate passes with zero violations. Documentation

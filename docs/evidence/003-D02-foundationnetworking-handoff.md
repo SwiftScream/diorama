@@ -4,6 +4,7 @@
 - Owning unit: [003-D02](../plans/003-clean-slate-implementation.md#003-d02--task-rejection-and-response-presentation-spike).
 - Evidence baseline: Diorama commit `8574f918c88566497b480eaaf86c05e2890307c7`
   on `003-d02-task-and-response-spike` in `SwiftScream/diorama`.
+  Subsequent D02 commits add the owner decisions and FN-07 controls below.
 - Upstream repository: [swiftlang/swift-corelibs-foundation](https://github.com/swiftlang/swift-corelibs-foundation).
 - Inspected release: `swift-6.4.0-RELEASE`, commit
   `d29d01ba165f6957141e07ea7fe8144ab491bc24`.
@@ -24,6 +25,7 @@ handoff identifiers, not upstream issue numbers.
 | FN-04 | Configuration `httpAdditionalHeaders` are absent at custom interception | Reproduced parity difference; whether this violates the API contract remains open | Original routing method fails; task ownership is now the approved replacement. |
 | FN-05 | `URLSessionTaskDelegate.didCreateTask` hook is absent | Confirmed API gap | Apple's early rejection mechanism is unavailable on this Linux implementation. |
 | FN-06 | WebSockets fail before custom interception when libcurl lacks support | Tested runtime limitation; accepted native failure | Not a current Diorama blocker on these profiles. |
+| FN-07 | Assigning `task.delegate` before resume does not select that delegate for callbacks | Reproduced native/custom-protocol defect; source explains it | The property setter cannot provide equivalent task-specific delegation on these Linux profiles. |
 
 FN-01 blocks correct aggregate results for segmented Linux responses. On
 2026-09-24 the owner directs continued planning and implementation for Linux
@@ -33,6 +35,8 @@ FN-03 is a focused candidate for upstream correction. FN-04 needs contract
 investigation before calling it an upstream bug. FN-05/FN-06 provide context
 for rejection behavior; they are not requests to add WebSocket support to
 Diorama.
+FN-07 is another focused upstream candidate. It differs from the working
+`data(for:delegate:)` result path and reproduces without Diorama interception.
 
 ## Why Diorama encounters these paths
 
@@ -48,9 +52,11 @@ identity in adapter-owned sessions' outstanding-task lists. The owning active
 lease identifies the execution. It requires no HTTP routing field. This choice
 does not repair Foundation's response buffering.
 
-The executable response probes exercise the **custom `URLProtocolClient`
-path**. Ordinary libcurl HTTP completion handlers use a separate body
-accumulator. Native HTTP response behavior has not been probed here.
+The FN-01 response probes exercise the **custom `URLProtocolClient` path**.
+Ordinary libcurl HTTP completion handlers use a separate body accumulator.
+The later [native HTTP controls](003-D02-task-rejection-and-response-presentation.md#native-response-disposition-baseline)
+exercise delegate disposition and task-delegate selection without a custom
+protocol; they do not replace FN-01's aggregate-consumer probes.
 
 ## FN-01 — Earlier response chunks are lost for completion and async consumers
 
@@ -294,6 +300,77 @@ builds lack WebSocket support. A profile enabling it needs fresh rejection
 evidence. Linux stream-task creation is separately marked unavailable in
 [`URLSession.swift:511–514`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSession.swift#L511-L514).
 
+## FN-07 — Assigning task.delegate does not select the callback recipient
+
+### Reproduction and result
+
+The [constructor matrix](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02ConstructorTests.swift)
+creates a session with one delegate, then creates a data task without a
+completion handler and assigns a second delegate before resuming:
+
+```swift
+let task = session.dataTask(with: request)
+task.delegate = taskDelegate
+// The getter returns taskDelegate on every tested platform.
+task.resume()
+```
+
+On Apple, the assigned task delegate receives the response, body, and
+completion. On both Linux profiles, these callbacks instead reach the session
+delegate. The task delegate receives no response or completion. All four body
+forms reproduce the same dispatch result; a single-chunk test response arrives
+intact, and no connection reaches the loopback fallback listener.
+
+The [native HTTP control](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02NativeHTTPTests.swift)
+repeats this with an ordinary session and a real loopback HTTP response, with
+no custom protocol installed. It observes the same platform difference. Thus
+the dispatch defect is inherited from FoundationNetworking rather than caused
+by the interceptor or task-ownership routing.
+
+An explicit delegate passed to async `data(for:delegate:)` follows a different
+path: the Linux constructor probe invokes its response callback and returns
+the expected aggregate result. This finding must not be generalized to all
+task-specific delegate APIs. No redirect or challenge callback equivalence is
+claimed for either form by these response probes.
+
+### Source diagnosis and repair direction
+
+At the pinned Swift 6.4 release source:
+
+- [`URLSessionTask.swift:102–114`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L102-L114)
+  stores the assigned delegate in `_taskDelegate`, and its getter returns that
+  value before falling back to the session delegate. The setter forbids
+  assignment after resume; this probe assigns before resume.
+- [`URLSession.swift:663–682`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSession.swift#L663-L682)
+  selects the **session** delegate for `.callDelegate`, without consulting the
+  task's assigned delegate. Its separate completion-with-task-delegate cases
+  use the delegate stored with that behavior instead.
+- Both the [native HTTP response path](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/HTTP/HTTPURLProtocol.swift#L515-L546)
+  and [custom protocol response path](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L1080-L1089)
+  use this behavior selection, consistent with the two reproductions.
+
+A focused repair should investigate honoring the explicit task delegate while
+retaining session fallback. Check native/custom data delivery, completion and
+async constructors, no session delegate, reassignment before resume, error
+delivery, and redirect/challenge delegation. Those are suggested regressions,
+not completed upstream repair evidence. No source patch has been made here.
+
+### Diorama impact and review status
+
+A Linux caller relying on the property setter already receives callbacks on
+the wrong delegate with native FoundationNetworking. Intercepted requests have
+the same exposure, which can bypass a consumer's intended response or other
+task-specific policy. Preserving complete bytes alone does not prove correct
+delegation. This defect does not invalidate task-ownership routing.
+
+The owner accepts this native limitation and directs continued D02 work.
+An upstream fix is optional for Diorama. Task ownership does not depend on
+the setter, and private forwarding can use the working session delegate.
+The adapter must preserve effective native callback selection rather than
+trusting the task delegate getter alone. Keep the working async delegate form
+distinct and do not advertise equivalent property-assigned delegation on an
+unfixed runtime. This finding does not block D02 or require a new architecture.
+
 ## Related Apple observations
 
 These are context for the cross-platform design, not FoundationNetworking
@@ -309,6 +386,10 @@ defects:
   macOS and iOS; no live connection occurs.
 - Back-to-back response chunks coalesce into one data-delegate callback in the
   minimal probe. Separately timed chunk fidelity remains untested.
+- The initial task's original request retains absent, empty, in-memory, and
+  streamed body distinctions even when the protocol/current request represents
+  in-memory data as a stream. This provides an initial-request classification
+  path; redirect-derived bodies still need D03 evidence.
 
 The authoritative amendments are [task-ownership routing](../design-decisions/12-urlsession-scope.md#task-ownership-routing-amendment--2026-09-24)
 and [native rejection errors](../design-decisions/12-urlsession-scope.md#native-rejection-errors-amendment--2026-09-24).
@@ -363,6 +444,8 @@ D02 evidence linked below.
 | `InterceptionTests` | Original D01: ten tests; Apple 10 pass, Linux 8 pass/2 fail (headers and forwarding property). |
 | `TaskOwnershipTests` | Five routing tests pass on all tested profiles. |
 | `D02TaskRejectionTests` | Original pre-amendment assertions: Apple 9 pass/2 fail; Linux 7 pass/1 fail. These historical custom-error assertions do not assess the approved rejection policy. |
+| `D02ConstructorTests` | Initial body forms and delegate selection: Apple 20 pass; Linux 16 pass/4 fail, with only property-assigned task delegation failing. |
+| `D02NativeHTTPTests.*delegate` | FN-07 native HTTP control: Apple 1 pass; Linux 1 fail, independent of custom interception. |
 
 The full spike intentionally contains retained failing evidence. A nonzero
 exit is expected for the failing filters. Read the specific assertion rather
@@ -389,9 +472,10 @@ on the tested unpatched runtimes and cannot be advertised as conformant until
 fixes or another separately reviewed solution pass the required evidence.
 This is not a claim that all portable Diorama components are broken on Linux.
 
-D02 remains in progress because its remaining matrix is untested. Continue
-that investigation with the known failures recorded, rather than waiting for
-an upstream release. D03/D04 still follow D02 review, and D05 still consolidates
+D02 remains in progress because its remaining matrix is untested. The owner
+accepts FN-07 as a native limitation and resumes the remaining probes; there
+is no requirement to wait for an upstream release. D03/D04 still follow
+D02 review, and D05 still consolidates
 the findings and confirms or revises the production task breakdown. Its review
 must explicitly carry the Linux defects into implementation and conformance
 work instead of treating them as passed capabilities. H/I implementation may
