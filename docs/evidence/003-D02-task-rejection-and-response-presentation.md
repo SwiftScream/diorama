@@ -3,13 +3,16 @@
 - Date: 2026-09-24
 - Owning unit: [003-D02](../plans/003-clean-slate-implementation.md#003-d02--task-rejection-and-response-presentation-spike)
 - Status: In progress. The owner approves DD12's native rejection amendment on
-  2026-09-24, resolving the rejection-error policy checkpoint. Diagnostic
-  verification and the remaining task/response matrix are still outstanding.
+  2026-09-24. The resumed diagnostic probes pass, but work stops again for owner
+  consideration after Linux response buffering and disposition failures. The
+  remaining task/response matrix is outstanding.
 - Authority: [DD12](../design-decisions/12-urlsession-scope.md),
   [DD17](../design-decisions/17-http-lifecycle-composition.md), and Plan 003 Q1.
 - Approved model: GPT-6 Astra, `xhigh`.
 - Experiment: [test matrix](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02TaskRejectionTests.swift)
   and [fixtures](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02RejectionFixtures.swift).
+  The follow-up adds [diagnostic probes](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02DiagnosticTests.swift)
+  and [response probes](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02ResponseTests.swift).
 
 ## Finding and review boundary
 
@@ -59,11 +62,12 @@ callbacks to protect against reentry. The diagnostic follows the existing
 ledger, sink, and post-finish reporter contracts.
 
 This resolves the policy blocker and allows the remaining D02 investigations.
-It does not complete D02: the current probes verify early cancellation and
-native error propagation, but do not verify diagnostic attribution, delivery,
-or reentry safety. Those checks and the rest of the matrix below are required.
+At that checkpoint, the probes verify early cancellation and native error
+propagation, but do not verify diagnostic attribution, delivery, or reentry
+safety. The follow-up below supplies native-hook evidence for those checks;
+D02 remains incomplete.
 
-## Experiment design
+## Original experiment design
 
 The isolated package uses no production imports or added dependencies. A custom
 protocol claims every request and task and immediately fails with an identifiable
@@ -90,7 +94,7 @@ registration, availability increase, or warning suppression. Three-second
 monotonic deadlines bound asynchronous observation; their exact duration is not
 a behavior assertion.
 
-## Executed matrix
+## Original executed matrix
 
 Both Linux columns have the same result; Apple columns were executed separately.
 “Custom error” means the test's supplied error domain reaches task completion.
@@ -126,13 +130,13 @@ with four assertion failures in total. There are **8 cases on each Linux image:
 7 pass, 1 fails**, with two assertions failing for WebSocket rejection.
 The failures are retained as ordinary failing assertions, not marked expected
 or skipped. These are the original protocol-only/custom-error assertions;
-their counts do not assess the subsequently approved rejection policy. The
-amended rejection path still needs its own diagnostic verification. The
+their counts do not assess the subsequently approved rejection policy or the
+new diagnostic probes. The
 focused SwiftPM commands exit 1; the completed iOS test command
 exits 65. These commands do not run D01's separately documented historical
 controls. No replay-safety acceptance claim follows from passing control cases.
 
-## Source diagnosis
+## Original source diagnosis
 
 The Xcode 27 Foundation header `NSURLSession.h`, lines 1692–1699, specifies that
 [`urlSession(_:didCreateTask:)`](https://developer.apple.com/documentation/foundation/urlsessiontaskdelegate/urlsession%28_%3Adidcreatetask%3A%29)
@@ -155,18 +159,107 @@ custom protocol selection. The release's
 has no `didCreateTask` requirement. Declaring a same-named method in the test
 delegate does not make FoundationNetworking invoke it.
 
+## Diagnostic and response follow-up — 2026-09-24
+
+The owner asks to continue D02 and pause if an issue requires consideration.
+The new probes first exercise the approved diagnostic path, then a minimal
+multi-chunk response and `.cancel` disposition. They reproduce two further
+FoundationNetworking failures, so exploration stops at this boundary.
+
+### Diagnostic result
+
+For Apple stream and WebSocket tasks, two adapter-owned delegates identify
+their respective attachment, cancel in `didCreateTask`, append a structured
+test diagnostic, and invoke a sink. The sink checks that its diagnostic is
+already retained, then immediately resumes the same task and attempts a stream
+write or WebSocket receive before the factory returns. Both attachments retain
+and deliver exactly their own diagnostic. The native task, delegate completion,
+and operation completion report cancellation, with zero loopback connections.
+Both task-family cases pass on macOS and iOS Simulator.
+
+This proves that the native callback permits the approved ordering and
+attribution under the exercised reentry. A small mutex-protected test ledger
+stands in for the already separate production diagnostic reporter. The spike
+does not import DioramaCore, reimplement its full reporter, or establish
+production finalization/retention conformance. It adds no unsafe sendability or
+isolation annotations. Native task-state visibility can lag `cancel()`; the
+probe asserts terminal errors and zero connections, not an immediate state
+property transition.
+
+On both Linux profiles, a separate probe confirms native WebSocket refusal:
+no creation callback, no manufactured diagnostic, no connection, and
+`URLError.unsupportedURL` through both task completion and WebSocket receive.
+
+### Response result
+
+The controlled protocol emits a 203 HTTP response with a custom response
+header and content length 12, then two six-byte `didLoad` calls containing
+`first-` and `second`, then finishes. All protocol calls occur synchronously in
+`startLoading`. Each session disables caching and targets a loopback listener
+to detect fallback. The delegate queue is serial. The `.cancel` case answers
+the response callback with `.cancel` without separately calling `task.cancel()`.
+
+| New probe | macOS 27.0 | iOS 27.0 Simulator | Stable Swift 6.4 Linux | Pinned Linux snapshot |
+| --- | --- | --- | --- | --- |
+| Stream diagnostic attribution and reentrant sink | Pass | Pass | API unavailable | API unavailable |
+| WebSocket diagnostic attribution and reentrant sink | Pass | Pass | Native refusal probe passes | Native refusal probe passes |
+| Delegate receives complete body | `first-second`; one 12-byte callback | Same | `first-second`; two 6-byte callbacks | Same |
+| Completion handler receives complete body | `first-second` | Same | **Fail: only `second`** | Same |
+| Async `data(from:)` receives complete body | `first-second` | Same | **Fail: only `second`** | Same |
+| Response `.cancel` prevents body delivery | Empty body; native cancellation | Same | **Fail: both chunks delivered, successful completion** | Same |
+
+All new cases observe zero loopback connections. Response status and the custom
+header survive every successful-response presentation. Apple coalesces the two
+back-to-back chunks for the data delegate; this probe establishes complete
+bytes, not fidelity of separately timed chunk delivery. Linux delegate delivery
+retains both chunks, while its completion and async consumers lose the first.
+
+The focused follow-up has **6 parameter cases on each Apple platform, all
+passing**, and **5 cases on each Linux profile: 2 pass, 3 fail**. The three
+Linux failures produce five assertion failures. The macOS and iOS commands
+exit 0; both Linux commands exit 1. No failed expectation is suppressed. These
+counts exclude the original rejection tests and D01's historical controls.
+
+### FoundationNetworking diagnosis and consideration needed
+
+The inspected Swift 6.4.0 release source at
+`d29d01ba165f6957141e07ea7fe8144ab491bc24` explains the observed custom-protocol
+behavior:
+
+1. [`_ProtocolClient.urlProtocol(_:didLoad:)`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L1314-L1335)
+   assigns each new chunk to `properties[.responseData]`, replacing the previous
+   value. The
+   [completion path](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L1201-L1206)
+   returns that single value. The
+   [async convenience](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSession.swift#L761-L775)
+   uses the same completion behavior.
+2. The [response callback path](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L1080-L1089)
+   supplies a disposition completion handler that ignores its argument. The
+   observed `.cancel` therefore does not gate data or successful completion.
+
+These findings concern the custom `URLProtocolClient` path; they do not claim
+that ordinary built-in HTTP transfers have the same defects. An unanswered
+disposition and task-conversion dispositions remain untested.
+
+Both failures contradict required supported data-task behavior. Unlike the
+approved exception for excluded task families, silently accepting lost bytes or
+ignored cancellation would change DD12/DD17's supported contract. The owner
+must consider whether to investigate upstream FoundationNetworking fixes or
+explore explicit bridge workarounds before D02 continues. Upstream investigation
+is the recommended next step: byte accumulation has a concrete faulty
+assignment, while honoring disposition needs careful task-state and callback
+ordering work. A bridge workaround would need evidence that it preserves both
+complete bodies and incremental delegate delivery. No workaround, platform
+narrowing, upstream patch, or new dependency is adopted here.
+
 ## Remaining investigations
 
-The following D02 cases remain **untested**, because the rejection checkpoint
-was reached first:
+The following D02 cases remain **untested**, after the two review checkpoints:
 
-- diagnostic attribution to the owning attachment, ledger/sink delivery,
-  cancellation before sink reentry, and unchanged native rejection errors
-  through the approved Apple path;
-- successful URL/URLRequest, completion-handler, delegate, async, and
-  task-delegate data presentations;
+- the remaining URLRequest overloads and task-delegate presentations beyond
+  the URL-based delegate, completion-handler, and async probes above;
 - in-memory body preservation and absent-versus-empty distinction;
-- response heads, multiple chunks, and allow/cancel/unanswered dispositions;
+- separately timed response chunks and unanswered/open dispositions;
 - file uploads, upload/download resume forms, and response-driven conversion;
 - reliable optional delegate capability detection and task-delegate overrides;
 - cache bypass with seeded responses across those presentations;
@@ -200,6 +293,8 @@ Both Linux runs use x86_64 Ubuntu 24.04 and
   `sha256:15ae709b1d8eb1f8691b300f5721499d007e944694f2c0e9929a55580c9bf1a5`:
   Swift `6.4.2-dev (LLVM 15622a86b1749a9, Swift d2e983b81b18217)`.
 
+### Original rejection commands
+
 From the repository root:
 
 ```sh
@@ -231,6 +326,40 @@ Automatic simulator diagnostic-archive collection delayed an earlier run after
 all test cases finished. That command was interrupted; the final command above
 disables only the diagnostic archive, retaining the test failures and xcresult.
 Use a fresh result-bundle path on subsequent runs.
+
+### Follow-up diagnostic and response commands
+
+The follow-up uses the same four toolchain/runtime profiles. From the
+repository root:
+
+```sh
+swift test --package-path Spikes/URLSessionInterception \
+  --scratch-path .build/d02-spike -Xswiftc -warnings-as-errors \
+  --filter 'D02(Diagnostic|Response)Tests'
+
+container run --rm --arch x86_64 --cpus 2 --memory 4G \
+  --mount type=bind,source="$PWD",target=/source,readonly --workdir /work \
+  swift:6.4.0-noble \
+  bash -lc 'cp -R /source/Spikes/URLSessionInterception /work/ && cd /work/URLSessionInterception && swift --version && dpkg-query -W libcurl4-openssl-dev && swift test -Xswiftc -warnings-as-errors --filter "D02(Diagnostic|Response)Tests"'
+```
+
+The pinned snapshot run substitutes the same digest given above. From
+`Spikes/URLSessionInterception`:
+
+```sh
+xcodebuild test -quiet -scheme URLSessionInterception-Package \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0' \
+  -derivedDataPath ../../.build/d02-ios-final-derived \
+  -resultBundlePath ../../.build/d02-ios-responses.xcresult \
+  -only-testing:URLSessionInterceptionTests/D02DiagnosticTests \
+  -only-testing:URLSessionInterceptionTests/D02ResponseTests \
+  -collect-test-diagnostics never \
+  IPHONEOS_DEPLOYMENT_TARGET=18.0 SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
+```
+
+The iOS result bundle reports six passed parameter cases, no skipped or expected
+failures, and no runtime warnings. Its exported test-runner output confirms the
+response bytes and chunk observations in the follow-up matrix.
 
 Compilation passes with warnings treated as errors on all four environments.
 The canonical `scripts/lint` gate passes with zero violations. Documentation

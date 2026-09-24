@@ -885,9 +885,12 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Status: In progress. On 2026-09-24 the owner resolves the rejection-error
   policy checkpoint through the [DD12 native rejection amendment](../design-decisions/12-urlsession-scope.md#native-rejection-errors-amendment--2026-09-24).
   The scope, GPT-6 Astra at `xhigh`, and pushing the review branch are approved.
-  Diagnostic attribution, delivery, and reentry safety still need verification;
-  the remaining task/response-presentation matrix is untested. D02 is not a
-  completed capability gate or permission to begin D03. See the
+  The resumed probes verify Apple diagnostic attribution, sink delivery, and
+  reentry safety at task creation. Work stops again for owner consideration:
+  Linux custom-protocol responses lose earlier chunks for completion/async
+  consumers and ignore response cancellation. The remaining matrix is
+  untested. D02 is not a completed capability gate or permission to begin D03.
+  See the [response follow-up](../evidence/003-D02-task-rejection-and-response-presentation.md#diagnostic-and-response-follow-up--2026-09-24) and
   [D02 rejection evidence](../evidence/003-D02-task-rejection-and-response-presentation.md).
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Unknown native rejection points and delegate surfaces can undermine the no-live-replay guarantee.
 - Prerequisites: 003-D01; DD12 response/task/delegate sections, DD17.

@@ -140,8 +140,8 @@ the earlier decisions explicitly.
   records the bodyless GET matrix across macOS, iOS Simulator, and Linux,
   including the Linux routing gaps and request-field collision observation.
 - [URLSession task rejection evidence](evidence/003-D02-task-rejection-and-response-presentation.md)
-  records native rejection points, task error channels, and the remaining
-  response-presentation questions.
+  records native rejection points, diagnostic delivery, response buffering and
+  disposition behavior, and the remaining response-presentation questions.
 
 ## Historical boundary
 
