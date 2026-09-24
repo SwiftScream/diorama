@@ -13,6 +13,8 @@
   and [fixtures](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02RejectionFixtures.swift).
   The follow-up adds [diagnostic probes](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02DiagnosticTests.swift)
   and [response probes](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02ResponseTests.swift).
+- Cross-unit handoff: [FoundationNetworking investigation context](003-D02-foundationnetworking-handoff.md)
+  consolidates D01/D02 issues for the owner's separate investigator.
 
 ## Finding and review boundary
 
