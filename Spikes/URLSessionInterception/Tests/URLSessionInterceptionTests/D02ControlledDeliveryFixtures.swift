@@ -22,22 +22,28 @@ final class D02ControlledDelivery: @unchecked Sendable {
         self.instance = instance
     }
 
-    func head(contentType: String = "application/octet-stream") {
+    func head(contentType: String = "application/octet-stream", response suppliedResponse: URLResponse? = nil) {
         lock.lock()
         defer { lock.unlock() }
         guard let instance, let url = instance.request.url,
               let response = HTTPURLResponse(url: url, statusCode: 203, httpVersion: "HTTP/1.1",
                                              headerFields: ["Content-Length": "12", "Content-Type": contentType])
         else { return }
-        instance.client?.urlProtocol(instance, didReceive: response, cacheStoragePolicy: .notAllowed)
+        instance.client?.urlProtocol(instance, didReceive: suppliedResponse ?? response,
+                                     cacheStoragePolicy: .notAllowed)
     }
 
     @discardableResult
     func bytes(_ text: String) -> Bool {
+        bytes(Data(text.utf8))
+    }
+
+    @discardableResult
+    func bytes(_ data: Data) -> Bool {
         lock.lock()
         defer { lock.unlock() }
         guard let instance else { return false }
-        instance.client?.urlProtocol(instance, didLoad: Data(text.utf8))
+        instance.client?.urlProtocol(instance, didLoad: data)
         return true
     }
 

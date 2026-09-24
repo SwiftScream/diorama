@@ -18,6 +18,7 @@ final class NativeHTTPServer {
     let listener: D02LoopbackListener
     private var connection: Int32 = -1
     private var request = Data()
+    private(set) var acceptedConnections = 0
 
     init() throws {
         listener = try D02LoopbackListener()
@@ -33,6 +34,7 @@ final class NativeHTTPServer {
         if connection < 0 {
             connection = accept(listener.descriptor, nil, nil)
             guard connection >= 0 else { return false }
+            acceptedConnections += 1
             _ = fcntl(connection, F_SETFL, O_NONBLOCK)
             #if canImport(Darwin)
                 var enabled: Int32 = 1
@@ -49,10 +51,22 @@ final class NativeHTTPServer {
     }
 
     func requestHeader(_ name: String) -> String? {
-        guard let text = String(data: request, encoding: .utf8) else { return nil }
+        guard let boundary = request.range(of: Data("\r\n\r\n".utf8)),
+              let text = String(data: request[..<boundary.lowerBound], encoding: .utf8)
+        else { return nil }
         return text.components(separatedBy: "\r\n").first { line in
             line.lowercased().hasPrefix(name.lowercased() + ":")
         }?.split(separator: ":", maxSplits: 1).last?.trimmingCharacters(in: .whitespaces)
+    }
+
+    var requestBody: Data? {
+        guard let boundary = request.range(of: Data("\r\n\r\n".utf8)) else { return nil }
+        return Data(request[boundary.upperBound...])
+    }
+
+    var requestLine: String? {
+        guard let boundary = request.range(of: Data("\r\n".utf8)) else { return nil }
+        return String(data: request[..<boundary.lowerBound], encoding: .utf8)
     }
 
     /// A short send is reported to the test instead of silently losing bytes.
