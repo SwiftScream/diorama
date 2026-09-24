@@ -919,6 +919,15 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
   protocol paths. The owner accepts FN-07 as a native limitation, with no
   required upstream fix, and resumes the remaining matrix. Diorama must avoid
   depending internally on the broken setter and preserve native selection.
+  The [extended probes](../evidence/003-D02-delivery-and-delegate-boundaries.md)
+  verify resume rejection, timed delivery, conversion rejection, seeded cache
+  bypass, and Apple delegate protection. Linux exposes a separate hidden async
+  delegate path (FN-08), preventing the tested getter-based guard from detecting
+  it. On 2026-09-25 the owner records FN-08 as requiring resolution and
+  authorizes the remaining D02 work without waiting for an upstream release.
+  The delegate integration gap remains a conformance dependency; remaining
+  experiments are tracked in the evidence. Known limitations are not silently
+  treated as passed capabilities.
   D02 is not a completed capability gate or permission to begin D03.
   See the [constructor/native follow-up](../evidence/003-D02-task-rejection-and-response-presentation.md#constructor-and-native-http-follow-up--2026-09-24),
   [FN-07 handoff](../evidence/003-D02-foundationnetworking-handoff.md#fn-07--assigning-taskdelegate-does-not-select-the-callback-recipient),
