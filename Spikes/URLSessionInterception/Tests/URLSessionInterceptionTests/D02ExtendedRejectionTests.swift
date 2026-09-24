@@ -41,6 +41,18 @@ private final class ResumeCapture: Sendable {
 }
 
 #if canImport(Darwin)
+    private final class UploadResumeObserver: NSObject, URLSessionTaskDelegate {
+        let acknowledged = Mutex(false)
+
+        func urlSession(_: URLSession, task _: URLSessionTask,
+                        didReceiveInformationalResponse response: HTTPURLResponse)
+        {
+            if response.statusCode == 104 {
+                acknowledged.withLock { $0 = true }
+            }
+        }
+    }
+
     /// Keep callback capture synchronous so the test can bound its wait.
     private func cancelForResume(_ task: URLSessionDownloadTask) -> ResumeCapture {
         let capture = ResumeCapture()
@@ -65,7 +77,8 @@ private final class ResumeCapture: Sendable {
     }
 
     private func nativeUploadResumeData(server: NativeHTTPServer, file: URL) async throws -> Data {
-        let session = URLSession(configuration: .ephemeral)
+        let observer = UploadResumeObserver()
+        let session = URLSession(configuration: .ephemeral, delegate: observer, delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         let url = try #require(URL(string: "http://127.0.0.1:\(server.listener.port)/upload"))
         var request = URLRequest(url: url)
@@ -80,7 +93,7 @@ private final class ResumeCapture: Sendable {
         try #require(server.send("HTTP/1.1 104 Upload Resumption Supported\r\n" +
                 "Upload-Draft-Interop-Version: \(version)\r\n" +
                 "Location: http://127.0.0.1:\(server.listener.port)/upload/resource\r\n\r\n"))
-        try await Task.sleep(for: .milliseconds(150))
+        try #require(await d02Eventually { observer.acknowledged.withLock { $0 } })
         let capture = cancelUploadForResume(task)
         try #require(await d02Eventually { capture.value.withLock { $0.completed } })
         return try #require(capture.value.withLock { $0.data })
@@ -108,6 +121,34 @@ private final class ResumeCapture: Sendable {
 
 @Suite(.serialized)
 struct D02ExtendedRejectionTests {
+    @Test(arguments: ["fileUpload", "dataUpload", "downloadRequest", "downloadURL"], [false, true])
+    func `async excluded factories throw before connection`(kind: String, suppliedDelegate: Bool) async throws {
+        ExtendedRejectingProtocol.starts.withLock { $0 = [] }
+        let listener = try D02LoopbackListener()
+        let url = try #require(URL(string: "http://127.0.0.1:\(listener.port)/async"))
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try Data("file-body".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+        let observer = D02TaskDelegate()
+        let session = extendedRejectionSession(observer)
+        defer { session.invalidateAndCancel() }
+        var request = URLRequest(url: url)
+        request.httpMethod = kind.hasSuffix("Upload") ? "POST" : "GET"
+        var failure: NSError?
+        do {
+            try await runAsyncExcluded(kind, session: session, request: request, file: file,
+                                       delegate: suppliedDelegate ? observer : nil)
+            Issue.record("An excluded async operation unexpectedly succeeded")
+        } catch {
+            failure = error as NSError
+        }
+        listener.poll()
+        #expect(failure?.domain == D02RejectingProtocol.errorDomain)
+        #expect(ExtendedRejectingProtocol.starts.withLock { $0 } == [kind.hasSuffix("Upload") ? "upload" : "download"])
+        #expect(listener.connections == 0)
+        print("D02 async rejection \(kind)/delegate=\(suppliedDelegate): error=\(failure?.domain ?? "nil")")
+    }
+
     @Test(arguments: ["fileUpload", "dataUpload", "downloadRequest", "downloadURL"], [false, true])
     func `remaining task factories reject before connection`(kind: String, completion: Bool) async throws {
         ExtendedRejectingProtocol.starts.withLock { $0 = [] }
@@ -158,6 +199,29 @@ struct D02ExtendedRejectionTests {
     }
 
     #if canImport(Darwin)
+        @Test(arguments: [false, true])
+        func `async download resume throws before another connection`(suppliedDelegate: Bool) async throws {
+            ExtendedRejectingProtocol.starts.withLock { $0 = [] }
+            let server = try NativeHTTPServer()
+            let resumeData = try await nativeResumeData(server: server)
+            let observer = D02TaskDelegate()
+            let session = extendedRejectionSession(observer)
+            defer { session.invalidateAndCancel() }
+            var failure: NSError?
+            do {
+                let (file, _) = try await session.download(resumeFrom: resumeData,
+                                                           delegate: suppliedDelegate ? observer : nil)
+                try? FileManager.default.removeItem(at: file)
+                Issue.record("An excluded async resumed download unexpectedly succeeded")
+            } catch {
+                failure = error as NSError
+            }
+            server.listener.poll()
+            #expect(failure?.domain == D02RejectingProtocol.errorDomain)
+            #expect(ExtendedRejectingProtocol.starts.withLock { $0 } == ["download"])
+            #expect(server.listener.connections == 0)
+        }
+
         @Test(arguments: [false, true])
         func `real upload resume data still reaches rejection`(completion: Bool) async throws {
             ExtendedRejectingProtocol.starts.withLock { $0 = [] }
@@ -220,7 +284,58 @@ struct D02ExtendedRejectionTests {
             #expect(ExtendedRejectingProtocol.starts.withLock { $0 } == ["download"])
             #expect(domain == D02RejectingProtocol.errorDomain)
         }
+    #else
+        @Test(arguments: ["nativeDelegate", "nativeCompletion", "interceptedDelegate", "interceptedCompletion"])
+        func `resume constructors preserve native Linux failure channels`(presentation: String) async throws {
+            ExtendedRejectingProtocol.starts.withLock { $0 = [] }
+            let listener = try D02LoopbackListener()
+            let observer = D02TaskDelegate()
+            let configuration = URLSessionConfiguration.ephemeral
+            if presentation.hasPrefix("intercepted") {
+                configuration.protocolClasses = [ExtendedRejectingProtocol.self]
+            }
+            let session = URLSession(configuration: configuration, delegate: observer, delegateQueue: nil)
+            defer { session.invalidateAndCancel() }
+            // Release source ignores every resume blob. This deliberately
+            // invalid input tests its native failure channels, not resumption.
+            let data = Data("http://127.0.0.1:\(listener.port)/ignored-resume".utf8)
+            let completion = presentation.hasSuffix("Completion")
+            let task: URLSessionDownloadTask = if completion {
+                session.downloadTask(withResumeData: data) { _, _, error in observer.completeOperation(error: error) }
+            } else {
+                session.downloadTask(withResumeData: data)
+            }
+            task.resume()
+            try #require(await d02Eventually { observer.outcome.withLock { $0.completed || $0.operationCompleted } })
+            try #require(await d02Eventually { task.state == .completed })
+            listener.poll()
+            let result = observer.outcome.withLock { $0 }
+            let domain = completion ? result.operationErrorDomain : result.errorDomain
+            let code = completion ? result.operationErrorCode : result.errorCode
+            #expect(domain == NSURLErrorDomain)
+            #expect(code == URLError.unsupportedURL.rawValue)
+            #expect((task.error as NSError?)?.code == code)
+            #expect(task.originalRequest == nil)
+            #expect(ExtendedRejectingProtocol.starts.withLock { $0.isEmpty })
+            #expect(listener.connections == 0)
+            print("D02 Linux resume \(presentation): error=\(domain ?? "nil")/\(code ?? 0), starts=0")
+        }
     #endif
+}
+
+private func runAsyncExcluded(_ kind: String, session: URLSession, request: URLRequest,
+                              file: URL, delegate: D02TaskDelegate?) async throws
+{
+    switch kind {
+    case "fileUpload": _ = try await session.upload(for: request, fromFile: file, delegate: delegate)
+    case "dataUpload": _ = try await session.upload(for: request, from: Data("data-body".utf8), delegate: delegate)
+    case "downloadRequest":
+        let (file, _) = try await session.download(for: request, delegate: delegate)
+        try? FileManager.default.removeItem(at: file)
+    default:
+        let (file, _) = try await session.download(from: request.url!, delegate: delegate)
+        try? FileManager.default.removeItem(at: file)
+    }
 }
 
 private func makeExcludedTask(_ kind: String, completion: Bool, session: URLSession,
