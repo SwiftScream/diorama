@@ -139,10 +139,15 @@ Resolving Q1 did not itself approve the plan or execute a spike; plan approval w
 **Linux continuation policy — owner direction, 2026-09-24:** After reviewing
 D02's FoundationNetworking aggregation and response-disposition defects, the
 owner directs continued planning and implementation for Linux while upstream
-fixes are investigated separately. The known FN-01/FN-02 failures remain
-capability defects to correct; they no longer impose a blanket development
-stop while waiting for an upstream release. D02's remaining experiments and
-the D03–D05 reviews still establish the evidence and production task breakdown.
+fixes are investigated separately. The aggregation defect FN-01 remains to be
+corrected, without a blanket development stop while waiting for an upstream
+release. The owner subsequently accepts the native response-disposition
+limitation through the [DD12 exception](../design-decisions/12-urlsession-scope.md#foundationnetworking-response-disposition-exception--2026-09-24)
+and [DD17 amendment](../design-decisions/17-http-lifecycle-composition.md#foundationnetworking-response-disposition-exception--2026-09-24):
+its upstream repair is optional and it is removed from the handoff. Native
+parity, truthful recording, and rejection of incompatible replay remain
+required. D02's remaining experiments and the D03–D05 reviews still establish
+the evidence and production task breakdown.
 The D05 review must carry unresolved Linux defects explicitly into that
 breakdown. Subsequent implementation can proceed with those defects tracked,
 but affected Linux behavior cannot be advertised as conformant or the required
@@ -904,10 +909,11 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
   The resumed probes verify Apple diagnostic attribution, sink delivery, and
   reentry safety at task creation. Linux custom-protocol responses lose earlier
   chunks for completion/async consumers and ignore response cancellation.
-  After reviewing those failures, the owner directs continued Linux planning
-  and implementation with upstream defects tracked under Q1's continuation
-  policy. The remaining matrix is untested. D02 is not a completed capability
-  gate or permission to begin D03.
+  The owner directs continued Linux implementation under Q1's continuation
+  policy and accepts the native disposition limitation through DD12/DD17.
+  Aggregation remains to be corrected; disposition repair is not required.
+  The remaining matrix and native parity control are untested. D02 is not a
+  completed capability gate or permission to begin D03.
   See the [response follow-up](../evidence/003-D02-task-rejection-and-response-presentation.md#diagnostic-and-response-follow-up--2026-09-24) and
   [D02 rejection evidence](../evidence/003-D02-task-rejection-and-response-presentation.md).
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Unknown native rejection points and delegate surfaces can undermine the no-live-replay guarantee.
@@ -916,6 +922,9 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Expected files/modules: Isolated interception tests and findings matrix.
 - Public behavior: None; identify which surfaces can be safely advertised.
 - Tests/verification: V-spike; httpBody versus body streams, response heads and multiple chunks, allow/cancel/open disposition, unsupported task families, resume/conversion/non-HTTP operations, optional delegate detection, cache bypass prevention, and zero unintended network access on each bridge.
+  For the accepted Linux disposition exception, verify native versus
+  intercepted behavior and scope the capability; do not require an upstream
+  repair to complete the evidence matrix.
 - Exclusions: Documenting a replay leak as an acceptable platform limitation, silently allowing unsupported operations in passthrough, production code.
 - Checkpoint: R; stop if the native session boundary cannot enforce a required exclusion; reopen the smallest affected DD12 boundary before depending on it.
 
@@ -951,8 +960,8 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Tests/verification: V-spike; pending/in-flight callbacks, unanswered decisions, route removal, escaped sessions, no replay delivery after quiescence, minimal live forwarding tails completing without scenario retention/mutation, repeated setup/cleanup without leaks; macOS, Linux and iOS evidence.
 - Exclusions: Canceling consumer-owned live work to pass teardown, timeout-based claims of quiescence, production promotion of the spike, hiding lost phases.
 - Checkpoint: R; confirm or revise H/I decomposition against findings under resolved Q1.
-  Carry the known Linux FN-01/FN-02 defects into the reviewed breakdown under
-  Q1's owner-approved continuation policy. Other disproved required boundaries
+  Carry the Linux aggregation defect and accepted disposition limitation into
+  the reviewed breakdown under Q1 and DD12/DD17. Other disproved boundaries
   still stop affected production work for consideration. Implementation
   progress does not establish conformance on a failing runtime.
 
@@ -1454,6 +1463,8 @@ Every intermediate profile rejects both permanently excluded and not-yet-built o
 A unit passes only for capabilities proved on its declared platforms.
 Temporary differences are documented; the complete milestone is not delivered while required surfaces remain unimplemented or unresolved.
 Narrowing the milestone requires an approved decision amendment.
+The approved DD12/DD17 FoundationNetworking disposition exception is part of
+the accepted Linux milestone profile; its upstream repair is not required.
 
 ### 003-I01 — Instrumented session and bodyless GET vertical path
 
@@ -1502,7 +1513,13 @@ Narrowing the milestone requires an approved decision amendment.
 - Expected files/modules: URLSession delegate proxy/delivery paths and conformance tests across delegate, completion and async presentation.
 - Public behavior: Replay allocated segments through URLProtocolClient; Foundation chooses presentation.
   Record a disposition only when observed; allow anchors body timing, cancel emits its resulting failure once, open waits.
+  Apply the DD12/DD17 Linux exception: preserve native live behavior, avoid
+  internal reliance on ignored disposition cancellation, diagnose and refuse
+  publication of unrepresentable interactions, and reject replay requiring
+  unsupported response decisions. Explicit task cancellation remains required.
 - Tests/verification: V-code; segment shape/edited lengths, empty deliveries, response-before-body, allow/cancel/unanswered/mismatch, no synthetic decision in completion/async records, task conversion rejection, cancellation/finish during handoff, declared delivery contexts and zero late replay callbacks.
+  Include native parity and candidate invalidation for the accepted Linux
+  limitation; require effective response-decision gating where advertised.
 - Exclusions: Callback queue/task identity promises, progress/KVO/metrics, download/stream conversion, advertising native trailers without evidence.
 - Checkpoint: R; review observable delegate symmetry for each bridge.
 
@@ -1562,6 +1579,8 @@ Narrowing the milestone requires an approved decision amendment.
 - Expected files/modules: URLSession shared conformance fixtures, platform CI selection and evidence, supported-capability and rejection documentation.
 - Public behavior: One system and persisted schema; Apple/Linux portability covers the tested intersection.
   Unsupported or unimplemented nodes/tasks fail at the earliest reliable point in every mode with no built-in HTTP fallback.
+  The DD12/DD17 native-disposition exception permits its documented live
+  behavior while refusing invalid publication and incompatible replay.
 - Tests/verification: V-code complete matrix: all data-task presentations, bodies/segments, failures, redirects, Basic/Digest, disposition, open horizons, timing overrides/re-records, resource edits, mode isolation and cleanup.
   Exercise excluded configurations/tasks/decision delegates and record exact Linux Swift/libcurl support; distinguish observation-only exclusions such as unavailable metrics from detectable decision-bearing setup failures.
 - Exclusions: Claiming the milestone complete on GET-only Linux, silently narrowing failed requirements, cross-client replay, unvalidated Apple platforms, watchOS URLProtocol support or optional native trailers without conformance.
