@@ -46,7 +46,7 @@ private func seededConfiguration(ephemeral: Bool, url: URL) throws -> URLSession
                               for: URLRequest(url: url))
     #expect(cache.cachedResponse(for: URLRequest(url: url))?.data == Data("cached".utf8))
     configuration.urlCache = cache
-    configuration.timeoutIntervalForRequest = 3
+    configuration.timeoutIntervalForRequest = d02WatchdogSeconds
     return configuration
 }
 

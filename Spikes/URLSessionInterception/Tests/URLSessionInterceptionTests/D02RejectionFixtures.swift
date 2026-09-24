@@ -136,7 +136,7 @@ func d02RejectingSession(delegate: D02TaskDelegate) -> URLSession {
     configuration.protocolClasses = [D02RejectingProtocol.self]
     configuration.urlCache = nil
     configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-    configuration.timeoutIntervalForRequest = 3
+    configuration.timeoutIntervalForRequest = d02WatchdogSeconds
     return URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
 }
 
@@ -179,8 +179,12 @@ func d02StartOperation(_ task: URLSessionTask, delegate: D02TaskDelegate) {
     #endif
 }
 
+/// A deadlock watchdog, not a response-timing requirement. Hosted simulator
+/// callback scheduling can exceed three seconds while the native result is valid.
+let d02WatchdogSeconds: TimeInterval = 30
+
 func d02Eventually(_ condition: () -> Bool) async -> Bool {
-    let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+    let deadline = ContinuousClock.now.advanced(by: .seconds(d02WatchdogSeconds))
     while !condition() {
         guard ContinuousClock.now < deadline else { return false }
         try? await Task.sleep(for: .milliseconds(10))

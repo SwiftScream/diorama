@@ -191,9 +191,11 @@ struct D02ConstructorTests {
         #expect(observations.count == 1)
         #expect(listener.connections == 0)
         if presentation == "taskOverride" {
-            #expect(sessionResult.heads == 0)
-            #expect(taskResult.heads == 1)
-            #expect(taskResult.completed)
+            withKnownLinuxIssue("FN-07: assigning task.delegate does not select the callback recipient") {
+                #expect(sessionResult.heads == 0)
+                #expect(taskResult.heads == 1)
+                #expect(taskResult.completed)
+            }
         }
     }
 }

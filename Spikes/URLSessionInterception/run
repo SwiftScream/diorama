@@ -10,12 +10,22 @@ case ${1:-} in
             --scratch-path .build/urlsession-spike -Xswiftc -warnings-as-errors
         ;;
     ios)
+        result_bundle="$repository_root/.build/urlsession-spike-ios.xcresult"
+        if [[ -e "$result_bundle" ]]; then
+            run rm -rf "$result_bundle"
+        fi
         cd Spikes/URLSessionInterception
+        test_status=0
         run xcodebuild test -quiet -scheme URLSessionInterception-Package \
             -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0' \
             -derivedDataPath "$repository_root/.build/urlsession-spike-ios" \
+            -resultBundlePath "$result_bundle" \
             -collect-test-diagnostics never \
-            IPHONEOS_DEPLOYMENT_TARGET=18.0 SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
+            IPHONEOS_DEPLOYMENT_TARGET=18.0 SWIFT_TREAT_WARNINGS_AS_ERRORS=YES || test_status=$?
+        if [[ -d "$result_bundle" ]]; then
+            run xcrun xcresulttool get test-results summary --path "$result_bundle"
+        fi
+        exit "$test_status"
         ;;
     *)
         printf '%s\n' 'usage: Spikes/URLSessionInterception/run <swiftpm|ios>' >&2

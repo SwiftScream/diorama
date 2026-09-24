@@ -5,7 +5,9 @@
 - Approved model: GPT-6 Astra, `xhigh`.
 - Status: Evidence recorded; the owner resolves the FN-08 review checkpoint
   on 2026-09-25 and authorizes the remaining D02 experiments. FN-08 requires
-  resolution before claiming conformant Linux delegate interception.
+  resolution before claiming conformant Linux delegate interception. The
+  [final D02 matrix](003-D02-completion-and-capability-matrix.md) records the
+  completed remaining experiments.
 - Earlier findings, accepted exceptions, and environments:
   [D02 task and response evidence](003-D02-task-rejection-and-response-presentation.md).
 - Cross-agent investigation: [FoundationNetworking handoff](003-D02-foundationnetworking-handoff.md).
@@ -175,8 +177,9 @@ FN-08 as an issue that needs addressing and resumes the remaining D02 work.
 The defect remains an explicit conformance dependency; its resolution is not
 a prerequisite to finishing the isolated spike under the existing Linux
 continuation policy. No capability is silently narrowed and no new session
-facade is adopted. Remaining investigations are tracked
-in the [owning D02 evidence](003-D02-task-rejection-and-response-presentation.md#remaining-investigations).
+facade is adopted. The remaining experiments are completed in the
+[final matrix](003-D02-completion-and-capability-matrix.md); later conformance
+requirements remain explicit.
 
 ## Reproduction and verification
 

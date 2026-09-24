@@ -145,6 +145,9 @@ the earlier decisions explicitly.
 - [URLSession delivery and delegate-boundary evidence](evidence/003-D02-delivery-and-delegate-boundaries.md)
   covers native resume data, timed delivery, cache-policy enforcement, and
   task-delegate visibility and interception hooks.
+- [URLSession task and response capability matrix](evidence/003-D02-completion-and-capability-matrix.md)
+  consolidates constructor, body-forwarding, rejection, and delegate findings
+  with the bridge requirements they establish.
 - [FoundationNetworking investigation handoff](evidence/003-D02-foundationnetworking-handoff.md)
   consolidates D01/D02 findings, source locations, reproductions, accepted
   platform limitations, and their effect on the planned URLSession bridge.

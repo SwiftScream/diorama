@@ -4,14 +4,14 @@
 - Owning unit: [003-D02](../plans/003-clean-slate-implementation.md#003-d02--task-rejection-and-response-presentation-spike).
 - Evidence baseline: Diorama commit `8574f918c88566497b480eaaf86c05e2890307c7`
   on `003-d02-task-and-response-spike` in `SwiftScream/diorama`.
-  Subsequent D02 commits add the owner decisions and FN-07 controls below.
+  Subsequent D02 commits add the owner decisions and FN-07–FN-10 observations below.
 - Upstream repository: [swiftlang/swift-corelibs-foundation](https://github.com/swiftlang/swift-corelibs-foundation).
 - Inspected release: `swift-6.4.0-RELEASE`, commit
   `d29d01ba165f6957141e07ea7fe8144ab491bc24`.
-- No upstream issue or PR has been filed, and no FoundationNetworking patch has
-  been applied by this investigation. Current upstream issue/PR status has not
-  been searched. This is a handoff of existing evidence, not a new platform
-  capability decision.
+- This investigation does not apply FoundationNetworking patches or file
+  upstream issues/PRs. On 2026-09-26 the owner reports local FN-03/FN-04 fixes
+  and begins upstream contribution work separately. Those patches have not
+  been tested by this branch; upstream issue/PR status has not been rechecked.
 
 ## Summary and priority
 
@@ -27,6 +27,8 @@ handoff identifiers, not upstream issue numbers.
 | FN-06 | WebSockets fail before custom interception when libcurl lacks support | Tested runtime limitation; accepted native failure | Not a current Diorama blocker on these profiles. |
 | FN-07 | Assigning `task.delegate` before resume does not select that delegate for callbacks | Reproduced native/custom-protocol defect; source explains it | The property setter cannot provide equivalent task-specific delegation on these Linux profiles. |
 | FN-08 | An async-supplied delegate is not reflected in `task.delegate` | Reproduced native/custom-protocol visibility defect; source explains it | A working delegate callback path is hidden from the tested adapter guard; combined with FN-05, proxy installation/rejection is unproven. |
+| FN-09 | Synchronously creating a forwarding task inside `startLoading` traps in libdispatch | Reproduced on stable Linux; shared queue reentry explains it | Forwarding task creation and teardown need an independent executor; this does not require changing the native-session boundary. |
+| FN-10 | Task behavior lookup traps while registration or teardown is incomplete | Local crash plus hosted snapshot recurrence; the hosted stack identifies the invalid-resume error path | The resume fixture orders registration before resume; D05 still audits native lifetime. |
 
 FN-01 blocks correct aggregate results for segmented Linux responses. On
 2026-09-24 the owner directs continued planning and implementation for Linux
@@ -44,6 +46,64 @@ delegate cannot be identified through the public getter. On 2026-09-25 the
 owner records it as an issue that needs addressing and authorizes the remaining
 D02 work. It is a required delegate-integration repair, not an accepted native
 limitation that Diorama may silently inherit.
+FN-09 is an implementation constraint with a queue-isolation approach, tracked
+separately from FN-08's unresolved delegate visibility. See its reproduction
+and the final matrix below before depending on the workaround.
+
+## Owner decisions and fix priorities — 2026-09-26
+
+Proceed with the planned Linux adapter on the assumption that the required
+FoundationNetworking fixes will be made. Affected Linux URLSession behavior
+is expected to remain broken until those fixes are present in the runtime and
+verified. Implementation and merge preparation need not wait for an upstream
+release. Passing checks with known issues is not a Linux conformance claim.
+
+| ID | Upstream priority for Diorama | Decision and implementation consequence |
+| --- | --- | --- |
+| FN-01 | **Required** | Correct segmented completion/async aggregation. No simple workaround preserves the intended delivery semantics. Prioritize this repair first. |
+| FN-08 | **Required** | Make the working explicit async delegate path observable for faithful interception or reliable rejection. A getter-only fix does not establish full proxy support. |
+| FN-05 | **Required capability for full delegate interception; repair mechanism to investigate** | FN-08's full proxy solution needs a supported pre-resume hook, such as the missing creation callback or an equivalent. The hook is not independently required for the currently accepted native unsupported-task refusals. |
+| FN-07 | **Nice to have as a standalone fix; conditionally part of FN-08** | Preserve the accepted native limitation for consumer property assignment. If proxy installation uses that property, dispatch must honor the proxy, including async behavior variants. Investigate this with FN-05/FN-08. |
+| FN-03 | **Not essential: simple avoidance** | Exclude Diorama's protocol from the private forwarding session; no forwarding property is needed. Fixing property preservation remains useful upstream. The owner reports a local fix. |
+| FN-04 | **Not essential: simple avoidance** | Task ownership removes the routing-header dependency and remains the production choice. The owner reports a local header fix; its intended API contract still belongs in upstream review. |
+| FN-06 | **Not essential: accepted native refusal** | Preserve the tested offline WebSocket error. Diorama does not require Linux WebSocket support. Recheck exclusion enforcement if a future runtime supports it. |
+| FN-09 | **Not essential if the demonstrated workaround passes lifecycle conformance** | Create and tear down forwarding tasks on an independent owned serial executor. The D02 fixture works; D05 still proves races and lifetime. |
+| FN-10 | **Fixture workaround for the identified path; broader impact remains unclassified** | Hosted CI identifies invalid-resume error delivery racing registration. The fixture waits for session enumeration before resume. Upstream should correct native queue/registration ordering; D05 still determines whether supported Diorama operations need a repair. |
+
+The former FN-02 response-disposition issue remains removed from the requested
+upstream work. Its repair is optional under DD12/DD17. Private forwarding uses
+immediate `.allow` and explicit task cancellation; recording validity and
+rejection of incompatible replay remain required.
+
+FN-01 and FN-08 are the current required repairs, not an exhaustive promise
+about D03–D05 findings. Review FN-08 with FN-05/FN-07 as one delegate-integration
+problem. Correct getter identity may enable rejection; full support additionally
+requires early proxy installation and coherent callback dispatch.
+
+Task ownership remains approved even if FN-03/FN-04 are fixed. It derives the
+route from the actual session, avoids caller-header overrides and private HTTP
+metadata, and already works on tested stock runtimes. D03/D05 still need to
+validate redirects, asynchronous lookup races, and lifetime. Add patched-runtime
+results to the evidence when tested without replacing the original results.
+
+### Executable known issues
+
+Merge preparation retains the intended assertions in Linux-only
+`withKnownIssue` scopes for FN-01, FN-03, FN-04, FN-07, FN-08, and the historical
+response-disposition comparison. Unrelated assertions, all task-ownership
+checks, and offline rejection guarantees remain mandatory. Superseded
+protocol-only stream/WebSocket expectations now assert the accepted native
+baseline; creation-hook cancellation and diagnostic tests still prove the
+adapter's required exclusion behavior.
+
+An unexpected pass fails the gate so repaired runtimes cannot silently retain
+stale expectations. Set `DIORAMA_VERIFY_FOUNDATION_FIXES=1` when running
+`Spikes/URLSessionInterception/run swiftpm` on a patched build to check the
+original assertions directly. Optional unfixed defects still fail in that mode;
+use a focused `swift test --filter` when verifying an individual repair.
+No tests are disabled by this merge preparation. FN-09's inline forwarding and
+FN-10's unguarded resume remain explicitly opt-in crash investigations;
+FN-10 has no known-issue suppression.
 
 ## Why Diorama encounters these paths
 
@@ -397,8 +457,9 @@ No assignment to the task's delegate property is performed.
 Bodies arrive intact in this single-chunk custom control and the native HTTP
 control. The custom-protocol cases make no native connection. Four Apple cases
 pass; Linux has six cases, with the two supplied-delegate custom cases and two
-native cases failing their delegate-identity assertions. These are retained
-ordinary failures, not skipped or expected failures.
+native cases failing their delegate-identity assertions. The original run
+retains ordinary failures; merge preparation keeps these same assertions in
+Linux-only known-issue scopes under the policy above.
 
 ### Source diagnosis
 
@@ -457,6 +518,143 @@ successful Apple hook controls and other completed probes. An upstream release
 is not a prerequisite to continuing D02 under Q1. The current Linux callback
 surface cannot be advertised as conformant, and continued implementation does
 not waive the required repair.
+
+## FN-09 — Synchronous forwarding reentry traps on the shared session queue
+
+### Reproduction and source diagnosis
+
+The initial body-forwarding fixture calls another session's
+`dataTask(with:).resume()` directly inside `URLProtocol.startLoading`.
+On stable Swift 6.4 Linux, the first intercepted case terminates the process
+with signal 4 in `__DISPATCH_WAIT_FOR_QUEUE__` / `_dispatch_sync_f_slow`.
+The same fixture works on Apple. Isolating the Linux body suite reproduces
+the trap independently of the async-rejection and response suites.
+
+The inspected release explains the dependency cycle:
+
+- [`resume()` schedules `startLoading` on the task work queue](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L471-L488).
+- [Each session's work queue targets one shared serial queue](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSession.swift#L220-L254).
+- [Creating a new task synchronously enters the new session's work queue](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSession.swift#L560-L585).
+
+That synchronous call waits for the serial target already executing the outer
+protocol callback. Task resume/cancel and session invalidation also contain
+synchronous queue entry points, so an implementation must examine teardown as
+well as task creation. The observed trap and source diagnosis establish a
+platform reentry hazard; this handoff does not assert a documented universal
+guarantee that every URLSession API is callable synchronously from that callback.
+
+### Diorama handling and reproduction
+
+The final [body-forwarding fixture](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D02BodyForwardingTests.swift)
+enqueues forwarding creation and cancellation on an owned serial queue that
+does not target FoundationNetworking's internal queue. It returns from
+`startLoading` without waiting. Start/stop jobs share that queue; an already
+processed stop prevents a later start. The existing test-only synchronized
+client-delivery wrapper relays responses. This introduces no additional unsafe
+sendability or production dependency.
+
+The final matrix and limits are in the
+[D02 completion evidence](003-D02-completion-and-capability-matrix.md).
+D05 still owns a full proof of cancellation races, callback quiescence, and
+forwarding-tail lifetime. Task ownership remains the routing method. An
+upstream repair is not required if the isolated execution approach passes
+production conformance; this is a different resolution from accepting missed
+callbacks or changed bytes.
+
+The fixture retains an explicit process-crash reproducer. Inside the Linux
+spike directory, run it separately from the normal matrix:
+
+```sh
+DIORAMA_D02_INLINE_FORWARDING=1 \
+  SWIFT_BACKTRACE=enable=yes,interactive=no,threads=crashed \
+  swift test -Xswiftc -warnings-as-errors --filter D02BodyForwardingTests
+```
+
+Expect process termination on the tested stable Linux release. The environment
+switch only selects inline task creation for this experiment. Normal tests
+exercise the isolated queue; no assertion is skipped or marked expected.
+`threads=crashed` also avoids an unrelated crash of the Swift backtrace helper
+while enumerating threads under this container environment.
+
+## FN-10 — Task-registry lookup trap during the concurrent matrix
+
+### Hosted recurrence and registration diagnosis — 2026-09-26
+
+The first [D02 hosted Linux job](https://github.com/SwiftScream/diorama/actions/runs/36219227231/job/108341191719)
+also traps on the pinned snapshot. This time the backtrace succeeds:
+
+```text
+URLSession.behaviour(for:)
+_ProtocolClient.urlProtocol(task:didFailWithError:)
+closure #1 in closure #1 in closure #1 in URLSessionTask.resume()
+```
+
+The immediately preceding test starts the `nativeDelegate` invalid-resume
+control. The inspected release source provides a concrete registration race:
+
+- [`invalidDownloadTask`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSession.swift#L623-L635)
+  constructs a task with the public default initializer, then queues registry
+  insertion asynchronously on the session work queue.
+- [The default initializer](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L248-L276)
+  gives that task an independent queue; ordinary tasks instead target the
+  session queue. An immediate `resume()` can therefore report unsupported URL
+  and look up behavior before registration finishes. The registry may be
+  **not yet populated**, rather than already cleared.
+
+The fixture now awaits a `getAllTasks` completion before `resume()`. The lookup
+is queued after registration, so its completion supplies an observable ordering
+barrier without sleeping. Its returned list is not used: this Linux method
+filters out never-resumed tasks. Existing completed-state observation before
+teardown remains. This workaround changes the native unsupported-resume
+control, not Diorama's production routing or cancellation contract.
+
+Set `DIORAMA_D02_UNSAFE_RESUME=1` and run the Linux
+`D02ExtendedRejectionTests.*resume` filter to restore immediate resume for
+investigation. The race is scheduling-dependent; the switch is not a guaranteed
+crash reproducer. Upstream should investigate initialization, registration, and
+registry-queue confinement together. The stack/source diagnosis does not prove
+every earlier crash shares this cause, nor establish general callback quiescence.
+D05 retains that audit. Current Linux merging need not suppress the whole
+matrix or claim that FoundationNetworking itself is repaired.
+
+### Original local observation — 2026-09-25
+
+One stable Swift 6.4 run of the full `--filter D02` matrix terminates with:
+
+```text
+FoundationNetworking/TaskRegistry.swift:118:
+Fatal error: Trying to access a behaviour for a task that in not in the registry.
+```
+
+The concurrent log includes body forwarding and invalid-resume completion at
+that point. The stack backtracer itself then fails, so the exact caller of the
+registry lookup is not identified. The snapshot run of the same revision
+finishes. No deterministic standalone reproducer or upstream patch is claimed.
+
+The [native completion paths](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L1189-L1217)
+invoke consumer completion before setting task state to completed and scheduling
+registry removal. Meanwhile [cancellation](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L381-L410)
+schedules further protocol/error work. A completion/teardown race is a plausible
+source-based explanation, not a proven attribution of this crash. Investigation
+should identify every late lookup and its registry-lifetime assumptions.
+
+The final body fixture marks private completion before forwarding the terminal
+callback and uses graceful invalidation for an already completed forwarder.
+It also separates async return bytes from delegate observations; mixing those
+two fixture collectors had produced a spurious doubled-body assertion. The
+Linux invalid-resume control now observes `task.state == .completed` before
+teardown. These changes prevent avoidable fixture races; a subsequent passing
+run is not proof that the native registry race is repaired.
+
+Keep this observation in D05's lifecycle audit. Diorama must establish owned
+callback quiescence and safe forwarding-tail release, and should not recancel
+work already reported terminal. This concern is distinct from the accepted
+ignored response-disposition behavior, whose upstream repair remains optional
+and which has not been restored as an issue in this handoff.
+
+The initial local artifact is `.build/d02-complete-linux-stable.log` (not
+committed); the final matrix is documented in
+[D02 completion evidence](003-D02-completion-and-capability-matrix.md).
 
 ## Related Apple observations
 
@@ -535,10 +733,15 @@ D02 evidence linked below.
 | `D02NativeHTTPTests.*delegate` | FN-07 native HTTP control: Apple 1 pass; Linux 1 fail, independent of custom interception. |
 | `D02AsyncDelegateVisibilityTests` | FN-08: Apple 4 pass; Linux 2 pass/4 fail, including two native HTTP controls. |
 | `D02ControlledDeliveryTests` | Timed aggregate results retain FN-01: Apple 14 pass; Linux 7 pass/6 fail. Conversion stream API is Apple-only. |
+| `D02BodyForwardingTests` | Sixteen cases pass on each final profile using isolated forwarding. Set `DIORAMA_D02_INLINE_FORWARDING=1` separately to reproduce FN-09 on stable Linux. |
+| `D02ExtendedRejectionTests` | Final task/async/scheme/resume matrix: Apple 25 pass; Linux 23 pass. |
 
-The full spike intentionally contains retained failing evidence. A nonzero
-exit is expected for the failing filters. Read the specific assertion rather
-than treating every original failure as an unresolved product requirement.
+The table records the original failing evidence. The current merge gate keeps
+documented Linux defects executable as known issues and expects a zero exit.
+Prefix a focused command with `DIORAMA_VERIFY_FOUNDATION_FIXES=1` to restore
+ordinary failures when investigating or validating an upstream repair. Read
+the specific assertion rather than treating every original failure as an
+unresolved product requirement.
 No upstream patch has been tested against this baseline. The diagnostic probes
 use a minimal test ledger; they do not import the production reporter.
 
@@ -561,21 +764,28 @@ on the tested unpatched runtimes and cannot be advertised as conformant until
 fixes or another separately reviewed solution pass the required evidence.
 This is not a claim that all portable Diorama components are broken on Linux.
 
-D02 remains in progress. The owner accepts FN-07 as a native limitation and
+D02 is complete as an isolated investigation on 2026-09-25; the
+[final matrix](003-D02-completion-and-capability-matrix.md) retains all native
+defect assertions. The owner accepts FN-07 as a native limitation and
 resumes the remaining probes; those probes subsequently expose FN-08's hidden
 working delegate path. On 2026-09-25 the owner records FN-08 as requiring
 resolution and resumes D02. There is no requirement to wait for an upstream
-release before completing the remaining isolated evidence. D03/D04 still follow
+release before completing the remaining isolated evidence. Those experiments now
+finish, with FN-09's executor constraint and FN-10's lifecycle observation
+carried forward. D03/D04 still follow
 D02 review, and D05 still consolidates
 the findings and confirms or revises the production task breakdown. Its review
 must explicitly carry the Linux defects into implementation and conformance
 work instead of treating them as passed capabilities. H/I implementation may
 then proceed under that reviewed breakdown while the known upstream fixes are
 pending. Normal review-unit approvals, required checks, and the prohibition on
-live replay fallback remain in force; no failing assertion is suppressed by
-this continuation decision.
+live replay fallback remain in force. The owner's 2026-09-26 merge policy above
+supersedes the original requirement to leave all defect assertions as ordinary
+failures: documented Linux assertions now use explicit known-issue scopes.
 
 FN-01 directly affects I02's aggregate results and I04's shared segmented
 presentation. The body/persistence model and task-ownership choice remain
-accepted. This update adds no upstream patch or production implementation and
-does not mark D02 or the Linux conformance gate complete.
+accepted. FN-08 additionally requires a delegate-integration solution before
+claiming that capability. This update adds no upstream patch or production
+implementation. Completing the investigation does not pass the Linux
+conformance gate or D05's lifecycle review.
