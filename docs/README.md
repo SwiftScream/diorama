@@ -149,8 +149,11 @@ the earlier decisions explicitly.
   consolidates constructor, body-forwarding, rejection, and delegate findings
   with the bridge requirements they establish.
 - [FoundationNetworking investigation handoff](evidence/003-D02-foundationnetworking-handoff.md)
-  consolidates D01/D02 findings, source locations, reproductions, accepted
+  consolidates D01–D03 findings, source locations, reproductions, accepted
   platform limitations, and their effect on the planned URLSession bridge.
+- [URLSession redirect correlation evidence](evidence/003-D03-redirect-correlation.md)
+  covers task ownership across redirect instances, native request derivation,
+  current redirect decisions, forwarding, timing, and upstream redirect gaps.
 
 ## Historical boundary
 

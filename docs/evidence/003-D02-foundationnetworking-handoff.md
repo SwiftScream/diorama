@@ -1,10 +1,13 @@
-# FoundationNetworking investigation handoff: D01 and D02
+# FoundationNetworking investigation handoff: D01–D03
 
 - Prepared: 2026-09-24, at the owner's request for a separate investigating agent.
 - Owning unit: [003-D02](../plans/003-clean-slate-implementation.md#003-d02--task-rejection-and-response-presentation-spike).
 - Evidence baseline: Diorama commit `8574f918c88566497b480eaaf86c05e2890307c7`
   on `003-d02-task-and-response-spike` in `SwiftScream/diorama`.
   Subsequent D02 commits add the owner decisions and FN-07–FN-10 observations below.
+- D03 extension: The owner requests upstream findings during the approved
+  redirect spike on 2026-09-26. [Redirect evidence](003-D03-redirect-correlation.md)
+  adds FN-11–FN-14 and another FN-01 regression, based on D02 commit `7fb3558`.
 - Upstream repository: [swiftlang/swift-corelibs-foundation](https://github.com/swiftlang/swift-corelibs-foundation).
 - Inspected release: `swift-6.4.0-RELEASE`, commit
   `d29d01ba165f6957141e07ea7fe8144ab491bc24`.
@@ -29,6 +32,10 @@ handoff identifiers, not upstream issue numbers.
 | FN-08 | An async-supplied delegate is not reflected in `task.delegate` | Reproduced native/custom-protocol visibility defect; source explains it | A working delegate callback path is hidden from the tested adapter guard; combined with FN-05, proxy installation/rejection is unproven. |
 | FN-09 | Synchronously creating a forwarding task inside `startLoading` traps in libdispatch | Reproduced on stable Linux; shared queue reentry explains it | Forwarding task creation and teardown need an independent executor; this does not require changing the native-session boundary. |
 | FN-10 | Task behavior lookup traps while registration or teardown is incomplete | Local crash plus hosted snapshot recurrence; the hosted stack identifies the invalid-resume error path | The resume fixture orders registration before resume; D05 still audits native lifetime. |
+| FN-11 | Custom-protocol redirect notification traps | Reproduced fatal error in the URLProtocol client | Required repair for live interception and replay redirects. |
+| FN-12 | Path-relative redirect resolves against the origin root | Reproduced native HTTP defect; source explains it | Native proposal is already incorrect before Diorama observes it. |
+| FN-13 | 307/308 redirects discard the outgoing body | Reproduced native HTTP defect; source explains it | Native request and wire bytes disagree; retest private-hop forwarding after FN-11 is repaired. |
+| FN-14 | Explicit Authorization survives a cross-host redirect | Reproduced native HTTP security-sensitive difference from Apple | The native proposal already contains the header; recommend upstream credential-handling review. |
 
 FN-01 blocks correct aggregate results for segmented Linux responses. On
 2026-09-24 the owner directs continued planning and implementation for Linux
@@ -49,6 +56,10 @@ limitation that Diorama may silently inherit.
 FN-09 is an implementation constraint with a queue-isolation approach, tracked
 separately from FN-08's unresolved delegate visibility. See its reproduction
 and the final matrix below before depending on the workaround.
+D03 adds FN-11 as a required custom-redirect repair. FN-12–FN-14 are native
+HTTP findings recommended for upstream work; their separate
+[priority discussion](#d03-fix-priorities--2026-09-26) preserves the owner's
+distinction between interception requirements and inherited native defects.
 
 ## Owner decisions and fix priorities — 2026-09-26
 
@@ -75,8 +86,9 @@ upstream work. Its repair is optional under DD12/DD17. Private forwarding uses
 immediate `.allow` and explicit task cancellation; recording validity and
 rejection of incompatible replay remain required.
 
-FN-01 and FN-08 are the current required repairs, not an exhaustive promise
-about D03–D05 findings. Review FN-08 with FN-05/FN-07 as one delegate-integration
+At the D02 review, FN-01 and FN-08 are the required repairs; D03 adds FN-11
+below. These are not an exhaustive promise about later findings.
+Review FN-08 with FN-05/FN-07 as one delegate-integration
 problem. Correct getter identity may enable rejection; full support additionally
 requires early proxy installation and coherent callback dispatch.
 
@@ -101,7 +113,9 @@ stale expectations. Set `DIORAMA_VERIFY_FOUNDATION_FIXES=1` when running
 `Spikes/URLSessionInterception/run swiftpm` on a patched build to check the
 original assertions directly. Optional unfixed defects still fail in that mode;
 use a focused `swift test --filter` when verifying an individual repair.
-No tests are disabled by this merge preparation. FN-09's inline forwarding and
+No tests are disabled by D01/D02 merge preparation. D03 separately disables
+the FN-11 crash paths on stock Linux, with restoration controls below.
+FN-09's inline forwarding and
 FN-10's unguarded resume remain explicitly opt-in crash investigations;
 FN-10 has no known-issue suppression.
 
@@ -753,6 +767,170 @@ used in this workspace is `/private/tmp/d01-foundation-6.4`; it is not a
 committed dependency and may be absent in another workspace. Use the pinned
 upstream revision for a reproducible fresh checkout.
 
+## D03 fix priorities — 2026-09-26
+
+The owner authorizes D03 and asks to add upstream issues to this document.
+These priorities apply the existing continuation policy; they do not amend
+DD12/DD17 or assert that a patched runtime has passed conformance.
+
+| ID | Upstream priority for Diorama | Rationale |
+| --- | --- | --- |
+| FN-11 | **Required** | The public custom redirect callback crashes, although ordinary HTTP redirects work. Both intercepted forwarding and replay require this path. No simple workaround preserves the accepted native URLSession decision boundary. |
+| FN-01 extension | **Existing required repair** | Native refused redirect bodies expose the same replacement behavior. Include this regression when moving aggregation into the client. Private data delegates receive the body. |
+| FN-12 | **Recommended upstream; native limitation rather than a new interception requirement** | A plain URLSession already chooses the wrong relative destination. Preserve and diagnose native behavior; do not add a second redirect-policy implementation inside Diorama. Correct portable target semantics require a repaired runtime. |
+| FN-13 | **Recommended upstream; private-hop workaround remains to verify on Linux** | Plain URLSession loses a body that its own proposal still contains. Apple's isolated per-hop forwarding preserves the body. FN-11 currently prevents testing the same Linux path; do not claim that workaround proved. |
+| FN-14 | **Strongly recommended upstream for credential handling; native limitation** | Plain URLSession sends the synthetic Authorization value to another host. This is not introduced by Diorama. Repair upstream rather than silently inventing a live credential policy in the adapter. |
+
+FN-12–FN-14 fit the owner's distinction between an interception defect and
+behavior already incorrect in native Foundation. They remain visible in
+capability evidence and upstream work. They are not additional reasons to stop
+Linux implementation pending a release. FN-14 deserves upstream review even
+though it is not a Diorama-specific compatibility blocker.
+
+## FN-11 — Custom-protocol redirect notification traps
+
+### Reproduction and observed result
+
+The [D03 custom redirect tests](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D03RedirectTests.swift)
+create an ordinary ephemeral URLSession with a custom URLProtocol. It presents
+a 302 response and proposed request through
+`client.urlProtocol(_:wasRedirectedTo:redirectResponse:)`.
+
+Apple follows or invokes the native redirect delegate, depending on consumer
+policy. Stable Swift 6.4 Linux traps at `URLSessionTask.swift:1403`, before any
+decision can occur. The backtrace contains the `_ProtocolClient` witness for
+the redirect callback, called by the fixture's synchronized delivery wrapper.
+The pinned CI snapshot reproduces the same fatal callback in a standalone
+minimal protocol. No Diorama production code is involved.
+
+The exact inspected implementation is an unconditional `fatalError` in
+[`_ProtocolClient`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L1402).
+Native HTTP works through
+[`_HTTPURLProtocol.redirectFor`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/HTTP/HTTPURLProtocol.swift#L453),
+which invokes delegates and starts another transfer without using that generic
+client callback. Consequently, ordinary networking success does not cover the
+custom-protocol surface required by Diorama.
+
+### Impact, repair scope, and verification
+
+Keep request derivation in the HTTP protocol where appropriate, but implement
+the generic client's redirect transition and delegate decision. Review native
+task/current-request updates, protocol selection/recreation, pending decisions,
+refusal-body delivery, limits, cancellation, and callback ordering together.
+Avoid independent redirect chains in the forwarding task and outer task.
+The Apple experiments demonstrate that task ownership can retain one group
+through this transition without HTTP correlation metadata.
+
+Presenting only the final response would discard required redirect decisions.
+Directly calling the consumer delegate and emulating the entire native
+redirect lifecycle would require a separate architecture review; it is not a
+simple workaround for the approved boundary.
+
+The 45 replay/forwarding cases in `D03RedirectTests` (eight test declarations)
+are disabled only on stock Linux because execution terminates the process.
+After an upstream repair, run the original assertions with:
+
+```sh
+DIORAMA_VERIFY_FOUNDATION_FIXES=1 swift test \
+  --package-path Spikes/URLSessionInterception \
+  --scratch-path .build/urlsession-spike -Xswiftc -warnings-as-errors \
+  --filter D03RedirectTests
+```
+
+`DIORAMA_D03_UNSAFE_REDIRECT=1` also enables the suite for an intentional crash
+reproduction in an isolated process. Do not enable either flag on an
+unpatched runtime in the ordinary shared test job. Remove the disable condition
+when supported repaired runtimes pass the assertions. The native D03 controls
+continue running on Linux.
+
+## FN-01 extension — Native refused redirect body is overwritten
+
+D03's ordinary completion task receives a 302 response with a seven-byte body
+and a delegate returns `nil` to refuse the redirect. Apple returns the body;
+both Linux profiles return empty Data with no error. An otherwise equivalent
+data-delegate control receives the seven bytes on Linux.
+
+[`_NativeProtocol.didReceive(data:)`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/NativeProtocol.swift#L107)
+collects redirect bytes in `lastRedirectBody`, bypassing the normal body drain.
+On refusal,
+[`didCompleteRedirectCallback`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/HTTP/HTTPURLProtocol.swift#L718)
+emits those bytes with `didLoad`, then `completeTask()` emits the empty
+in-memory drain with another `didLoad`. FN-01's client replaces the first
+payload with the empty one. This is a native HTTP manifestation of the same
+aggregation design, not a new cancellation issue.
+
+Include refusal bodies in FN-01's aggregation migration/regression tests.
+Simply appending in the client can repair this path, but native protocols that
+emit accumulated data still need the previously discussed audit to avoid
+duplicating bytes. Diorama's private data delegate receives these bytes and is
+not blocked by this particular aggregate-consumer path.
+
+## FN-12 — Path-relative redirects resolve at the wrong directory
+
+The native D03 control requests `/directory/start`. Its 302 response contains
+`Location: next`. Apple proposes and sends `/directory/next`; stable Linux
+and the snapshot propose and send `/next`. Root-relative redirects and the
+tested absolute targets work.
+
+[`redirectRequest(for:fromRequest:)`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/HTTP/HTTPURLProtocol.swift#L552)
+replaces the path with `"/" + targetURL.path` when the target has no leading
+slash. It does not resolve a relative reference against the current request
+directory. Use standard URL reference resolution and add regressions for
+directory-relative, parent, query-only, fragment, root-relative, and network-path
+references; only the directory-relative failure is demonstrated here.
+
+This changes the actual live target before any Diorama preparation. It is a
+native HTTP bug, so an upstream repair is desirable for all consumers.
+Reimplementing target selection inside Diorama would alter native policy and
+is not adopted. The exact target assertion remains a Linux known issue.
+
+## FN-13 — Native 307/308 redirects discard request bodies
+
+A seven-byte POST followed through 307 or 308 sends POST with zero body bytes
+on both Linux profiles. This occurs with automatic following and explicit
+session-delegate following. The delegate's proposed request still has the
+seven-byte `httpBody`. Apple retains seven bytes on the second wire request.
+The tested 301/302/303 bodyless-GET rewriting passes on both platforms.
+
+Both automatic
+[`redirectFor`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/HTTP/HTTPURLProtocol.swift#L496)
+and delegate
+[`didCompleteRedirectCallback`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/HTTP/HTTPURLProtocol.swift#L713)
+set `task.knownBody = .none` before starting the next transfer.
+[`URLSessionTask.getBody`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L218)
+then uses that known empty body. Recompute the effective body from the accepted
+redirect request, while preserving the correct method/body rewriting rules.
+Include delegate-replaced bodies and repeated redirects in upstream tests.
+
+This is already incorrect in native URLSession. Diorama's tested Apple
+forwarder creates a new private task for the next effective request, with
+explicit body context, and preserves the bytes. FN-11 prevents the equivalent
+Linux proof; do not depend on that as a verified Linux workaround yet.
+
+## FN-14 — Explicit Authorization survives a cross-host redirect
+
+The native control supplies only a synthetic test credential, then redirects
+from `127.0.0.1` to `localhost` on a second loopback listener. On Apple the
+proposed request and second wire request omit Authorization. Both Linux
+profiles retain and send it. An unrelated public header survives on both.
+An explicitly supplied Cookie header also survives on both platforms; do not
+generalize Apple's Authorization behavior to all credential fields.
+
+The same
+[`redirectRequest(for:fromRequest:)`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/HTTP/HTTPURLProtocol.swift#L552)
+copies the request and replaces its URL without filtering this header when
+the host changes. The observed result is a security-sensitive native behavior
+difference, regardless of whether it is treated as a strict API contract bug.
+Review explicit Authorization handling alongside origin changes, URL
+credentials, credential storage, and transport downgrades. Those other cases
+have not been tested by D03; this finding concerns one explicitly supplied
+header over loopback HTTP and does not claim a general authentication audit.
+
+Diorama encounters the already prepared native proposal. DD12 defers
+cross-origin construction to Foundation plus Diorama's preparation rules; this
+spike adds no separate live credential policy. Upstream correction is strongly
+recommended, with a narrow known issue preserving the expected wire assertion.
+
 ## Plan boundary for the receiving investigator
 
 On 2026-09-24 the owner directs Diorama to continue the plan and implementation
@@ -772,8 +950,10 @@ working delegate path. On 2026-09-25 the owner records FN-08 as requiring
 resolution and resumes D02. There is no requirement to wait for an upstream
 release before completing the remaining isolated evidence. Those experiments now
 finish, with FN-09's executor constraint and FN-10's lifecycle observation
-carried forward. D03/D04 still follow
-D02 review, and D05 still consolidates
+carried forward. On 2026-09-26 the owner authorizes D03 while D01/D02 remain
+under review. Its [completed investigation](003-D03-redirect-correlation.md)
+adds FN-11 as a required redirect-client repair and FN-12–FN-14 as native HTTP
+findings. D04 still requires its own authorization, and D05 still consolidates
 the findings and confirms or revises the production task breakdown. Its review
 must explicitly carry the Linux defects into implementation and conformance
 work instead of treating them as passed capabilities. H/I implementation may
@@ -786,6 +966,7 @@ failures: documented Linux assertions now use explicit known-issue scopes.
 FN-01 directly affects I02's aggregate results and I04's shared segmented
 presentation. The body/persistence model and task-ownership choice remain
 accepted. FN-08 additionally requires a delegate-integration solution before
-claiming that capability. This update adds no upstream patch or production
+claiming that capability. FN-11 blocks generic redirect presentation for both
+record/passthrough and replay. This update adds no upstream patch or production
 implementation. Completing the investigation does not pass the Linux
 conformance gate or D05's lifecycle review.
