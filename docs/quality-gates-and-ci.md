@@ -1,7 +1,7 @@
 # Quality gates and CI policy
 
 - Status: Accepted
-- Last updated: 2026-09-09
+- Last updated: 2026-09-26
 - Reference project: [SwiftScream/URITemplate](https://github.com/SwiftScream/URITemplate)
 
 ## Purpose
@@ -73,7 +73,7 @@ package inputs into the container's writable working directory:
 container run --rm --arch x86_64 --cpus 2 --memory 4G \
   --mount type=bind,source="$PWD",target=/source,readonly \
   --workdir /work \
-  swiftlang/swift@sha256:15ae709b1d8eb1f8691b300f5721499d007e944694f2c0e9929a55580c9bf1a5 \
+  swift@sha256:64bab762bc73a3fda6d9ebc559258bd6d7660c10a705bb25ecacad2f99d066f9 \
   bash -lc 'mkdir -p /work && cp -R /source/Package.swift /source/Sources /source/Tests /source/scripts /source/Examples /work/ && scripts/coverage swiftpm linux'
 ```
 
@@ -89,9 +89,13 @@ code during every local check.
 Diorama uses the latest stable Xcode and Apple Swift releases selected when the
 clean implementation is bootstrapped. The Apple selection is Xcode 27.0, build
 `27A266a`, with Apple Swift 6.4 (`swiftlang-6.4.0.34.1`,
-`clang-2100.3.34.1`). The separately pinned Linux Swift 6.4 development snapshot
-and the complete platform selections are recorded in
-[003-A01's evidence](evidence/003-A01-toolchain-and-availability.md).
+`clang-2100.3.34.1`). Linux uses the
+[official Swift 6.4 release image](https://www.swift.org/install/linux/ubuntu/24_04/)
+for Ubuntu 24.04, `swift:6.4.0-noble`, pinned to the digest above. The image
+reports `Swift version 6.4 (swift-6.4-RELEASE)` on x86_64 and includes
+`libcurl4-openssl-dev 8.5.0-2ubuntu10.13`, within the approved bounds.
+[003-A01's evidence](evidence/003-A01-toolchain-and-availability.md) records
+the original development snapshot and platform feasibility checks.
 
 The selected versions should be explicit in CI configuration and recorded in
 the repository. Floating runner labels alone are insufficient because their
