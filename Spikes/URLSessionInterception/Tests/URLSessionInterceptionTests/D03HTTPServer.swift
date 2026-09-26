@@ -16,17 +16,21 @@ struct D03HTTPReply {
     var status = 200
     var location: String?
     var body = "final"
+    var headers: [String: String] = [:]
+    var keepAlive = false
 
     var wire: Data {
         let location = location.map { "Location: \($0)\r\n" } ?? ""
-        return Data(("HTTP/1.1 \(status) Probe\r\n\(location)" +
-                "Content-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)").utf8)
+        let connection = keepAlive ? "keep-alive" : "close"
+        let fields = headers.keys.sorted().map { "\($0): \(headers[$0]!)\r\n" }.joined()
+        return Data(("HTTP/1.1 \(status) Probe\r\n\(location)\(fields)" +
+                "Content-Length: \(body.utf8.count)\r\nConnection: \(connection)\r\n\r\n\(body)").utf8)
     }
 }
 
-/// Test-task-owned, nonblocking loopback fixture. Each response closes its
-/// connection so the next redirect attempt is observable as a new request.
-/// This intentionally supports only Content-Length requests used by D03.
+/// Test-task-owned, nonblocking loopback fixture. Responses close by default
+/// so each redirect attempt uses a new connection. D04 may retain a connection
+/// for proxy authentication. Only Content-Length request bodies are supported.
 final class D03HTTPServer {
     let listener: D02LoopbackListener
     private var connection: Int32 = -1
@@ -65,7 +69,8 @@ final class D03HTTPServer {
         }
         guard let request = parsedRequest() else { return }
         requests.append(request)
-        let response = reply(request).wire
+        let reply = reply(request)
+        let response = reply.wire
         #if canImport(Darwin)
             let flags: Int32 = 0
         #else
@@ -79,8 +84,10 @@ final class D03HTTPServer {
             #endif
         }
         sendsSucceeded = sendsSucceeded && written == response.count
-        close(connection)
-        connection = -1
+        if !reply.keepAlive {
+            close(connection)
+            connection = -1
+        }
         buffer = Data()
     }
 

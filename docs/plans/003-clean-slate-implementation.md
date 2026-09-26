@@ -168,6 +168,9 @@ full delegate interception also needs the relevant FN-05/FN-07 mechanics.
 D03 subsequently identifies FN-11's crashing custom redirect callback as
 another required upstream repair. Its native FN-12–FN-14 findings remain
 explicit platform limitations and upstream recommendations in the handoff.
+D04 adds FN-15 as a required custom-authentication repair. The owner accepts
+FN-16's native Digest limitation through the DD12/DD17 exception; FN-17 proxy
+configuration and FN-18 error mapping remain native upstream recommendations.
 Task ownership remains the production routing choice even with repaired
 configuration headers and request properties.
 
@@ -991,6 +994,16 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-D04 — Basic and Digest challenge spike
 
+- Status: Complete as an isolated investigation on 2026-09-26; ready for owner
+  review. [Challenge evidence](../evidence/003-D04-authentication-challenges.md)
+  records the successful Apple delegate-completion bridge, unsuccessful
+  automatic sender approach, native 401/407 controls, and Linux FN-15–FN-18.
+  DD12/DD17 record the owner-approved native Digest exception. Local macOS and
+  iOS gates pass 265 cases each; stable and pinned-snapshot Linux pass 171 each
+  with 61 known assertions, including earlier units. These counts include four
+  opt-in HTTPS controls. Linux custom authentication still requires FN-15;
+  passing with known issues does not establish that capability. No production
+  code is introduced. D05 retains native quiescence and lifetime proof.
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Native Basic/Digest challenge behavior, repeated continuations, and safe credentials require careful cross-bridge experiments.
 - Prerequisites: 003-D02; DD12/DD17 authentication and credential contracts.
 - Scope: Prove task-level 401/407 challenge presentation, native sender/decision bridging, and repeated continuations with safe credential metadata.
@@ -1010,9 +1023,13 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Tests/verification: V-spike; pending/in-flight callbacks, unanswered decisions, route removal, escaped sessions, no replay delivery after quiescence, minimal live forwarding tails completing without scenario retention/mutation, repeated setup/cleanup without leaks; macOS, Linux and iOS evidence.
 - Exclusions: Canceling consumer-owned live work to pass teardown, timeout-based claims of quiescence, production promotion of the spike, hiding lost phases.
 - Checkpoint: R; confirm or revise H/I decomposition against findings under resolved Q1.
-  Carry FN-01 aggregation, FN-08 delegate integration, FN-11 custom redirects, and the accepted
+  Carry FN-01 aggregation, FN-08 delegate integration, FN-11 custom redirects,
+  FN-15 custom authentication, and the accepted
   disposition limitation into the reviewed breakdown under Q1 and DD12/DD17.
   Retain D03's FN-12–FN-14 native redirect findings in the platform matrix.
+  Retain D04's native Digest exception (FN-16), proxy configuration finding
+  (FN-17), error-mapping finding (FN-18), and tested delegate-completion
+  authentication bridge.
   Verify the FN-09 forwarding executor boundary and investigate FN-10's
   task-registry crash while proving native quiescence. Other disproved boundaries
   still stop affected production work for consideration. Implementation

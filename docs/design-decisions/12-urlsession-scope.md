@@ -1,7 +1,7 @@
 # Decision 12: URLSession scope
 
 - Status: Accepted
-- Last updated: 2026-09-24
+- Last updated: 2026-09-26
 - Refined by: [Decision 17: HTTP lifecycle composition](17-http-lifecycle-composition.md)
 - Depends on: [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
   [Decision 5: Consumption and verification](05-consumption-and-verification.md),
@@ -381,6 +381,27 @@ from a portable snapshot and must not be serialized by description.
 Default TLS validation needed for ordinary HTTPS forwarding remains live
 transport behavior. The exclusion concerns application-observable custom
 challenge handling and replay, not use of HTTPS itself.
+
+### FoundationNetworking Digest exception — 2026-09-26
+
+The owner approves preserving the native Linux Digest limitation found by
+[D04](../evidence/003-D04-authentication-challenges.md). The tested native HTTP
+implementation does not present Digest challenges and returns the challenged
+401 response. Record and passthrough may preserve that native outcome; Diorama
+does not implement Digest authentication or require upstream Digest support
+before advertising otherwise conforming Linux capabilities.
+
+The advertised capability profile must exclude unsupported Digest challenge
+handling. Reject replay requiring that capability during setup, including
+recordings made on Apple. A native response with no observed challenge does
+not acquire a fabricated challenge phase. A later native implementation needs
+fresh conformance evidence before enabling Digest support.
+
+This exception does not relax Basic challenge semantics, unsupported-capability
+diagnostics, cancellation, or offline replay. In particular, FoundationNetworking
+starting native HTTP after a custom protocol's credential challenge (FN-15)
+is an interception defect requiring repair, not an inherited native limitation
+that replay may preserve. Decision 17 records the matching lifecycle boundary.
 
 ## Failures
 

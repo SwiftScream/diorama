@@ -74,6 +74,16 @@ final class D02ControlledDelivery: @unchecked Sendable {
         guard let instance else { return }
         instance.client?.urlProtocol(instance, wasRedirectedTo: request, redirectResponse: response)
     }
+
+    /// D04 presents a protocol-owned challenge through the native client.
+    /// Its delegate proxy observes the ordinary native completion decision;
+    /// consumer code never calls the protocol's custom sender.
+    func challenge(_ challenge: URLAuthenticationChallenge) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let instance else { return }
+        instance.client?.urlProtocol(instance, didReceive: challenge)
+    }
 }
 
 final class D02ControlledProtocol: URLProtocol {

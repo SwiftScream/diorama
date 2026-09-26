@@ -1,4 +1,4 @@
-# FoundationNetworking investigation handoff: D01–D03
+# FoundationNetworking investigation handoff: D01–D04
 
 - Prepared: 2026-09-24, at the owner's request for a separate investigating agent.
 - Owning unit: [003-D02](../plans/003-clean-slate-implementation.md#003-d02--task-rejection-and-response-presentation-spike).
@@ -8,6 +8,9 @@
 - D03 extension: The owner requests upstream findings during the approved
   redirect spike on 2026-09-26. [Redirect evidence](003-D03-redirect-correlation.md)
   adds FN-11–FN-14 and another FN-01 regression, based on D02 commit `7fb3558`.
+- D04 extension: [Authentication evidence](003-D04-authentication-challenges.md)
+  adds FN-15–FN-18, based on D03 commit `7cd15aa`. The owner approves preserving
+  the native Digest limitation on 2026-09-26; this does not permit live replay.
 - Upstream repository: [swiftlang/swift-corelibs-foundation](https://github.com/swiftlang/swift-corelibs-foundation).
 - Inspected release: `swift-6.4.0-RELEASE`, commit
   `d29d01ba165f6957141e07ea7fe8144ab491bc24`.
@@ -36,6 +39,10 @@ handoff identifiers, not upstream issue numbers.
 | FN-12 | Path-relative redirect resolves against the origin root | Reproduced native HTTP defect; source explains it | Native proposal is already incorrect before Diorama observes it. |
 | FN-13 | 307/308 redirects discard the outgoing body | Reproduced native HTTP defect; source explains it | Native request and wire bytes disagree; retest private-hop forwarding after FN-11 is repaired. |
 | FN-14 | Explicit Authorization survives a cross-host redirect | Reproduced native HTTP security-sensitive difference from Apple | The native proposal already contains the header; recommend upstream credential-handling review. |
+| FN-15 | Accepting a custom authentication challenge replaces the protocol with native HTTP | Reproduced interception defect; source explains it | Required repair: an offline Basic replay can make a real request. |
+| FN-16 | Native Digest challenges are not presented; the Digest retry handler is unimplemented | Reproduced native limitation plus source evidence | Owner-approved native exception; optional upstream capability work. |
+| FN-17 | A configured HTTP/HTTPS proxy is not reached | Reproduced native configuration gap; source does not consume the property | Recommend upstream native proxy support; no additional interception failure is established. |
+| FN-18 | Certificate rejection maps to `URLError.unknown` | Reproduced native error-mapping gap; source has no TLS-specific case | Nice to have; Diorama can preserve the native domain/code. |
 
 FN-01 blocks correct aggregate results for segmented Linux responses. On
 2026-09-24 the owner directs continued planning and implementation for Linux
@@ -931,6 +938,162 @@ cross-origin construction to Foundation plus Diorama's preparation rules; this
 spike adds no separate live credential policy. Upstream correction is strongly
 recommended, with a narrow known issue preserving the expected wire assertion.
 
+## D04 fix priorities — 2026-09-26
+
+| ID | Priority | Decision and consequence |
+| --- | --- | --- |
+| FN-15 | **Required** | Custom challenge answers must preserve the protocol boundary. Accepting a replay credential must never start native HTTP. Continue planned implementation while the upstream repair is outstanding, without advertising conformance. |
+| FN-16 | **Not essential; native capability improvement** | The owner explicitly approves preserving the native Digest limitation. Exclude unsupported Digest handling from the Linux capability profile and reject incompatible replay during setup. An upstream implementation would enable future support after conformance. |
+| FN-17 | **Recommended native fix; not an additional interception prerequisite** | The configured native proxy path already fails without Diorama. Preserve the observed native outcome; do not claim working proxy authentication on this runtime. Proxy replay still requires the FN-15 correction and capability evidence. |
+| FN-18 | **Nice to have** | Improve the native error mapping. Default trust validation still rejects the certificate; Diorama preserves the existing unknown code under DD12's typed failure contract. |
+
+### FN-15 — Custom challenge decisions bypass their sender and start HTTP
+
+Reproduced on stable Swift 6.4 Linux and the pinned D04 snapshot with a
+synthetic Basic challenge issued by
+`URLProtocolClient.urlProtocol(_:didReceive:)`. The ordinary URLSession task
+delegate answers `.useCredential` through its completion handler. Instead of
+returning to the supplied custom sender, FoundationNetworking makes one real
+HTTP request to the request URL and returns its response:
+
+```text
+challenges=1, sender=0, liveRequests=1, bodyBytes=24
+```
+
+The controlled loopback response is `unexpected-live-response`; the custom
+protocol's intended body is `authorized`. No external destination or real
+credential is used. The executable case is
+`custom credential choice must return to the sender without live networking`
+in `D04LinuxChallengeTests.swift`. Three narrowly scoped known assertions
+retain the intended sender, network, and response requirements. Set
+`DIORAMA_VERIFY_FOUNDATION_FIXES=1` and filter that exact test name to verify a
+full sender repair without enabling unrelated unsafe experiments.
+
+Source at the pinned `swift-6.4.0-RELEASE` commit:
+
+- [`URLSessionTask.swift`, `_ProtocolClient.didReceive challenge`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L1247):
+  `proceed(using:)` suspends the task, applies the HTTP authentication handler,
+  replaces its protocol with `_HTTPURLProtocol`, then resumes. It does not
+  dispatch the credential decision to the custom challenge sender.
+- The same method handles default behavior by directly completing the task
+  when it has no usable proposed credential. Reject falls through to task
+  cancellation. These source paths also need sender/continuation review; the
+  minimal Linux runtime reproduction above focuses on `.useCredential`.
+
+This differs from ordinary native Basic authentication, whose challenge/retry
+path works in the control. It is an interception defect affecting replay and
+private-session forwarding, not permission to inherit an already broken live
+operation. Keeping the original protocol and routing its answer back through
+an appropriate continuation is essential. Native `_HTTPURLProtocol` retries
+must continue working when the client/HTTP responsibilities are separated.
+
+The minimum Diorama requirement is to preserve the custom protocol and its
+pending continuation when the consumer answers, without starting HTTP or
+prematurely completing its task. Automatic sender dispatch is a natural full
+URLProtocol repair, but the demonstrated delegate-completion bridge can provide
+the decision path without it, as on Apple. The raw sender reproducer describes
+the fuller API expectation. If a repair deliberately provides Apple-like
+sender behavior, verify Diorama with the delegate-bridge replay/forwarding
+cases; its failure of that raw sender assertion alone does not prove Diorama
+is still blocked. No live request is acceptable in either approach.
+Coordinate the repair with FN-01's client-versus-protocol division of work and
+FN-08's delegate dispatch boundary. Do not replace it with a Diorama live retry,
+hand-written HTTP authentication, or a replay network fallback.
+
+Apple also fails the tested automatic sender round trip, but its native task
+stays offline. An explicit delegate completion observer successfully drives
+both a synthetic continuation and a private native request. D04 tests that
+bridge separately; it does not compensate for Linux replacing the protocol
+inside the native completion handler.
+
+### FN-16 — Native Digest authentication is unimplemented
+
+The native HTTP control sends a valid Digest challenge with realm, fixed nonce,
+MD5, and `qop="auth"`. On stable Linux, all five consumer modes (use, default,
+reject, cancel, repeated failure) receive the 401 body, with no task-level
+challenge and no retry. Apple presents the challenge and invokes native Digest
+retry behavior. The fixture checks header presence and lifecycle; it does not
+implement or validate the cryptographic Digest response.
+
+Source explains the native result:
+
+- [`HTTPMessage.swift`, challenge parser](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/HTTP/HTTPMessage.swift#L138)
+  explicitly accepts only Basic. The Digest challenge is not presented.
+- [`URLSessionTask.swift`, `digestAuth`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L1427)
+  is an unconditional `fatalError`. This is source evidence, not a claim that
+  the native HTTP control reaches the trap. A custom Digest challenge can
+  reach this separate path; stock Linux replay must not attempt it.
+
+On 2026-09-26 the owner selects: “Preserve the native Digest limitation;
+document a narrow platform exception.” See the matching
+[DD12 amendment](../design-decisions/12-urlsession-scope.md#foundationnetworking-digest-exception--2026-09-26)
+and [DD17 amendment](../design-decisions/17-http-lifecycle-composition.md#foundationnetworking-digest-exception--2026-09-26).
+Do not fabricate a challenge for the native 401. Upstream Digest support is
+optional for otherwise working Linux operations. FN-15 remains required for
+custom Basic handling and the no-live-replay invariant.
+
+### FN-17 — Configured HTTP and HTTPS proxies are not reached
+
+The D04 fixture configures `connectionProxyDictionary` with HTTP/HTTPS enable,
+proxy host, and proxy port keys, and uses a reserved `.invalid` origin. A local
+proxy supplies the entire exchange; it never opens an origin connection. Apple
+reaches it, receives an HTTP 407, and, for HTTPS CONNECT, presents a task-level
+Basic or Digest challenge with the associated 407 response. Accepting that
+challenge causes a credential-bearing CONNECT retry. The proxy then sends a
+deliberate 502 to prove a failure continuation without a TLS tunnel.
+
+Stable Linux and the pinned snapshot make zero requests to the configured proxy, presents no challenge,
+and fails the native operation. This uses an uninstrumented URLSession; it is
+not caused by Diorama's forwarding or routing. A source search of the pinned
+release finds `connectionProxyDictionary` declared and copied in
+[`URLSessionConfiguration.swift`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionConfiguration.swift),
+and copied into the internal `URLSession/Configuration.swift` value,
+but no use by the transport. This supports the inference that these settings
+are not implemented on this profile.
+
+Further source context, not additional runtime claims: `_ProtocolClient` only
+synthesizes authentication for status 401; `URLProtectionSpace.create` reads
+WWW-Authenticate and builds an origin protection space. Merely routing through
+a proxy may therefore expose further 407 work. The spike has not investigated
+libcurl environment-variable proxy configuration or implemented a substitute
+proxy stack. Upstream should verify those paths independently.
+
+Reproduction: filter `native proxy authentication presents a response owned
+challenge` in the D04 suite. Linux uses four native cases (Basic/Digest ×
+HTTP/HTTPS) with precise known assertions for the missing proxy behavior;
+Apple additionally runs the private-forwarding variants. Origin-access guards
+stay unconditional. The native Digest exception remains separate from this
+configuration finding; fixing proxy routing does not implement Digest.
+
+The upstream recommendation is to implement the native configuration/407 path.
+Unlike FN-15, this fixture establishes no additional failure introduced by
+interception. Until it works, the capability matrix must not advertise native
+Linux proxy authentication. Do not substitute an origin 407 response for a
+real configured proxy experiment.
+
+### FN-18 — Certificate rejection loses its specific URL error code
+
+The opt-in HTTPS control succeeds against `https://example.com/` and rejects
+`https://self-signed.badssl.com/` using default native validation. On stable
+Linux and the pinned snapshot, both native and privately forwarded failures report
+`NSURLErrorDomain/-1` (`URLError.unknown`). Apple reports `-1202`
+(`serverCertificateUntrusted`). No trust bypass or custom acceptance is used.
+
+[`MultiHandle.swift`, `urlErrorCode(for:)`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/libcurl/MultiHandle.swift#L359)
+has no certificate-validation-specific case; unmapped libcurl failures become
+`NSURLErrorUnknown`. The receiving investigator should add appropriate mappings
+with certificate and connection-level controls. This is a native fidelity
+improvement, not a Diorama blocker: DD12 preserves domain/code, including unknown
+codes, and the tested validation still fails. Do not parse native description
+text into a replacement production error code.
+
+Reproduce by setting `DIORAMA_D04_HTTPS=1` and filtering
+`ordinary HTTPS uses native default trust handling`. These external endpoints
+are not part of the default deterministic gate. The probe asserts the native
+error and an in-memory Boolean indicating a certificate-related description;
+it does not persist or print the description. A changed mapping needs fresh
+baseline evidence; no known-issue scope suppresses trust acceptance.
+
 ## Plan boundary for the receiving investigator
 
 On 2026-09-24 the owner directs Diorama to continue the plan and implementation
@@ -953,8 +1116,10 @@ finish, with FN-09's executor constraint and FN-10's lifecycle observation
 carried forward. On 2026-09-26 the owner authorizes D03 while D01/D02 remain
 under review. Its [completed investigation](003-D03-redirect-correlation.md)
 adds FN-11 as a required redirect-client repair and FN-12–FN-14 as native HTTP
-findings. D04 still requires its own authorization, and D05 still consolidates
-the findings and confirms or revises the production task breakdown. Its review
+findings. The owner subsequently authorizes D04 and approves its native Digest
+exception. D04 adds required FN-15, optional native FN-16–FN-18, and the tested
+Apple delegate-completion bridge. D05 still consolidates these findings and
+confirms or revises the production task breakdown. Its review
 must explicitly carry the Linux defects into implementation and conformance
 work instead of treating them as passed capabilities. H/I implementation may
 then proceed under that reviewed breakdown while the known upstream fixes are
@@ -967,6 +1132,7 @@ FN-01 directly affects I02's aggregate results and I04's shared segmented
 presentation. The body/persistence model and task-ownership choice remain
 accepted. FN-08 additionally requires a delegate-integration solution before
 claiming that capability. FN-11 blocks generic redirect presentation for both
-record/passthrough and replay. This update adds no upstream patch or production
-implementation. Completing the investigation does not pass the Linux
+record/passthrough and replay. FN-15 additionally blocks custom authentication
+without a native HTTP escape. The Digest exception does not relax that boundary.
+This update adds no upstream patch or production implementation. Completing the investigation does not pass the Linux
 conformance gate or D05's lifecycle review.
