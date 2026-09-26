@@ -352,10 +352,19 @@ Their intended assertions remain available through the documented controls.
 The 61 known assertions are inherited from D01–D04; D05 adds no blanket expected
 failure. Passing this gate does not claim that stock Linux is fully compatible.
 
-`scripts/lint` passes with zero violations across 138 Swift files. Changed documents' local
-Markdown file targets resolve and `git diff --check` passes. No hosted D05 CI,
-external HTTPS rerun, deployment-floor runtime run, or patched Foundation build
-is claimed. D04's separately recorded HTTPS evidence remains historical.
+`scripts/lint` passes with zero violations across 138 Swift files. Changed
+documents' local Markdown file targets resolve and `git diff --check` passes.
+The table records local runs. The combined Phase D PR runs the required Quality,
+macOS, iOS, and Linux jobs, including production coverage and the isolated spike.
+It preserves master's official Swift 6.4 release image; the earlier snapshot
+remains additional investigation evidence. No external HTTPS rerun,
+deployment-floor runtime run, or patched Foundation build is claimed. D04's
+separately recorded HTTPS evidence remains historical.
+
+The owner authorizes one Phase D PR on 2026-09-27, replacing the D01–D03 PRs.
+Both review fixups are squashed with owner approval. The combined branch is
+rebased onto `master` commit `501ea71`; the executable spike is identical to the
+locally verified D05 tree, and the new base contributes the stable Linux CI pin.
 
 Local artifacts: `.build/d05-gate-macos-final.log`, `.build/d05-gate-ios.log`,
 `.build/urlsession-spike-ios.xcresult`, `.build/d05-gate-linux-stable.log`,

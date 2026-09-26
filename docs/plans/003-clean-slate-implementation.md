@@ -911,6 +911,14 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ## Phase D — Isolated URLProtocol evidence
 
+**Combined review — owner direction, 2026-09-27:** D01–D05 are complete as
+isolated investigations and are submitted together in one PR against `master`.
+This supersedes the separate D01, D02, and D03 PRs. The combined review accepts
+the consolidated feasibility boundary and the H/I constraints below; merging
+it does not authorize starting the next implementation unit. Linux work
+continues under the approved upstream-fix policy, with affected conformance
+explicitly unproved until a repaired runtime passes the retained assertions.
+
 These are experiments, not a second implementation to promote into production.
 The complete matrix answers DD12's six spike questions; a successful GET alone does not approve redirect, challenge, or rejection behavior.
 Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown against reviewed evidence before production work depends on the proposed boundary.
