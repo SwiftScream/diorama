@@ -136,6 +136,32 @@ session invalidation consistent with decision 10. It does not invalidate a
 separately consumer-owned session. A minimal forwarding tail for an already
 running live task may finish without retaining or mutating the scenario.
 
+### Session invalidation amendment — 2026-09-26
+
+After reviewing [D05's native lifetime evidence](../evidence/003-D05-native-quiescence.md),
+the owner directs Diorama to invalidate the adapter-owned session and document
+that it is usable only during its scenario execution. Creating new tasks after
+the execution ends is invalid native API use and crashes on the tested Apple
+and Linux runtimes. Diorama does not promise a recoverable infrastructure error
+or diagnostic when native task creation rejects the call before interception.
+
+This supersedes DD17's earlier escaped-session error promise and narrows the
+generic post-finish reporting rules in DD05/DD10 only for calls that cannot
+reach the invalidated native adapter. Keep ordinary `URLSession` as the returned
+surface; do not retain an open session solely to diagnose later misuse.
+
+Finalization closes admission and removes execution routing. Replay-owned work
+is stopped and native callbacks must be drained before reporting quiescence.
+Already running live work may finish through graceful invalidation and a
+minimal forwarding tail, detached from scenario observation and ownership.
+Finalization must not cancel live work merely because recording ends or wait
+for its eventual completion. The returned session's lifetime is not extended
+for new requests by those live tails. Separately consumer-owned sessions remain
+outside Diorama's invalidation authority.
+
+This amendment does not authorize live replay fallback, post-horizon recording,
+or persisted terminal events invented by runtime cleanup.
+
 ## Supported initial session configurations
 
 The initial adapter should support copied default and ephemeral configurations

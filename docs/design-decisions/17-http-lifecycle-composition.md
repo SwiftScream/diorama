@@ -505,10 +505,23 @@ scenario finalization. Finalization:
 - prevents later Diorama-owned callbacks;
 - reports open or not-yet-concluded claimed interactions.
 
-An escaped instrumented session becomes inert after finalization. A later
+The following escaped-session promise is superseded by the 2026-09-26
+invalidation amendment below. An escaped instrumented session becomes inert after finalization. A later
 request produces a deterministic infrastructure failure and never contacts the
 live dependency. Finalization does not invent a persisted cancellation or
 successful completion for an open recording.
+
+### Session invalidation amendment — 2026-09-26
+
+The owner approves invalidating the adapter-owned native session at the end of
+scenario execution, as specified in the [DD12 amendment](12-urlsession-scope.md#session-invalidation-amendment--2026-09-26).
+The session is usable only during that execution. Creating new tasks afterward
+crashes on the tested runtimes before interception; no recoverable Diorama error
+or post-finish diagnostic is promised for that invalid native call. This replaces
+the preceding escaped-session failure promise, without changing open recordings,
+replay quiescence, offline replay, or the detached completion of live tasks
+already running at the horizon. Runtime cleanup does not invent a persisted
+cancellation or success.
 
 ## Adapter composition and capabilities
 

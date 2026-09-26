@@ -11,6 +11,9 @@
 - D04 extension: [Authentication evidence](003-D04-authentication-challenges.md)
   adds FN-15–FN-18, based on D03 commit `7cd15aa`. The owner approves preserving
   the native Digest limitation on 2026-09-26; this does not permit live replay.
+- D05 checkpoint: [Native lifetime evidence](003-D05-native-quiescence.md)
+  identifies a Diorama contract conflict around use after session invalidation.
+  It does not add an upstream repair requirement; see the distinction below.
 - Upstream repository: [swiftlang/swift-corelibs-foundation](https://github.com/swiftlang/swift-corelibs-foundation).
 - Inspected release: `swift-6.4.0-RELEASE`, commit
   `d29d01ba165f6957141e07ea7fe8144ab491bc24`.
@@ -125,6 +128,25 @@ the FN-11 crash paths on stock Linux, with restoration controls below.
 FN-09's inline forwarding and
 FN-10's unguarded resume remain explicitly opt-in crash investigations;
 FN-10 has no known-issue suppression.
+
+## D05 lifecycle checkpoint: native invalidation is not a new Linux repair
+
+The [D05 lifetime probe](003-D05-native-quiescence.md) exposes a conflict in
+Diorama's escaped-session promise. A raw native session cannot create new
+tasks after invalidation: the tested macOS call raises `NSGenericException`,
+and FoundationNetworking's data-task factory explicitly traps at
+[`Session invalidated`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSession.swift#L573-L583).
+The interceptor never gets the opportunity to return Diorama's promised
+recoverable infrastructure error. Leaving the session open also fails to
+establish the tested Apple native cleanup boundary.
+
+This is documented native API use outside its lifetime, not an additional
+interception defect or a prerequisite upstream repair. No FN-19 is assigned.
+The owner resolves the checkpoint by approving native session invalidation:
+the returned session is usable only during scenario execution, and creating
+new tasks afterward crashes. DD12/DD17 record the amendment. D05 continues
+its remaining lifecycle experiments before establishing the full boundary. Existing FN-01, FN-08, FN-11, and FN-15 priorities
+are unchanged; the remaining FN-09/FN-10 lifecycle investigation is still open.
 
 ## Why Diorama encounters these paths
 
