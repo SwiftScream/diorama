@@ -217,7 +217,13 @@ context's lifetime, not promise to change an already completed test. The
 owner-approved amendments in
 [Decision 5](design-decisions/05-consumption-and-verification.md#post-finish-diagnostic-retention--2026-09-06)
 and [Decision 10](design-decisions/10-lifecycle-and-ownership.md#post-finish-reporting-lifetime--2026-09-06)
-define this boundary.
+define this boundary. The owner-approved
+[URLSession invalidation exception](design-decisions/12-urlsession-scope.md#session-invalidation-amendment--2026-09-26)
+narrows this promise for native sessions: they are usable only during scenario
+execution and are invalidated at finalization. Creating new tasks afterward
+crashes on tested runtimes before interception, so no recoverable Diorama error
+or diagnostic is promised for that call. Already running live work may finish
+through detached forwarding without retaining the execution.
 
 ### Strict semantic values and tolerant files
 

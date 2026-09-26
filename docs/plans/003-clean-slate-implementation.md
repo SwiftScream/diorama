@@ -211,7 +211,9 @@ evidence remains historical; subsequent units use the new deployment floors.
 The owner approved a small, separately retained diagnostic reporter.
 `finish()` freezes one immutable result, and repeated calls return that result.
 Later misuse of escaped dependencies enters a separately inspectable log, whether or not a sink is installed.
-Any configured sink is notified afterward.
+Any configured sink is notified afterward. The later DD12/DD17 native
+URLSession invalidation exception excludes calls that crash before interception;
+that returned session must not be used beyond execution.
 These facts do not reopen the execution ledger or alter the returned report.
 
 Escaped dependencies retain only reporting context and their required frozen state, not sessions, scheduling machinery, recordings, or live sources.
@@ -1015,6 +1017,12 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-D05 — Native quiescence and consolidated feasibility gate
 
+- Status: In progress on 2026-09-26, with owner direction to review and merge
+  Phase D as one unit. The initial [lifetime checkpoint](../evidence/003-D05-native-quiescence.md)
+  finds a conflict resolved by the owner-approved DD12/DD17 invalidation
+  amendment: the returned session is usable only during execution; new task
+  creation afterward crashes on tested runtimes. Continue the remaining
+  quiescence experiments; the consolidated feasibility gate is not complete.
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Prove native quiescence and forwarding-tail ownership, then reconcile all spike results with the production boundary.
 - Prerequisites: 003-D01–003-D04; DD10, DD12, DD14, DD17.
 - Scope: Prove shutdown/cancellation/routing ownership and consolidate all six spike questions into a reviewed per-platform capability matrix.
@@ -1544,7 +1552,7 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Expected files/modules: `DioramaURLSession` setup/routing/protocol and Apple/ FoundationNetworking bridge files, GET fixtures and capability documentation.
 - Public behavior: Copy default/ephemeral configurations, reject background and detectable unsupported delegates, disable cache, preserve supported settings and custom protocol order.
   Strip/reject reserved routing collisions, prevent forwarding reentry, validate active route, and never fall back during replay.
-- Tests/verification: V-code; bodyless GET first on macOS/Linux then iOS, all modes, configuration immutability, two sessions/executions, routing stripped before preparation/diagnostics/network, unknown/expired routes, zero live replay access, startup rollback, basic cancellation/finish/escaped-session failure.
+- Tests/verification: V-code; bodyless GET first on macOS/Linux then iOS, all modes, configuration immutability, two sessions/executions, routing stripped before preparation/diagnostics/network, unknown/expired routes, zero live replay access, startup rollback, basic cancellation/finish and the approved native invalidation boundary.
 - Exclusions: Global protocol registration, shared/existing-session mutation, advertising bodies/delegate decisions/redirects/auth before their units, live bypass for unsupported tasks or non-HTTP schemes.
 - Checkpoint: R; review the smallest safe native vertical path and its precise temporary profile.
   Any failed rejection guarantee stops adapter rollout.
@@ -1636,7 +1644,7 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Expected files/modules: URLSession ownership/race conformance tests and documented forwarding-tail topology; focused fixes only as evidence requires.
 - Public behavior: Horizon stops recording immediately and permits necessary live forwarding tails without scenario retention; replay callbacks quiesce.
   Open before-head, partial-body and unanswered decisions never get invented terminal events.
-  Escaped sessions fail deterministically and remain offline.
+  Returned sessions are invalidated; new task creation after execution is invalid native use and crashes on tested runtimes, as approved in DD12/DD17.
 - Tests/verification: V-code; finish at every phase, repeated/concurrent/canceled finish waiters, no replay callbacks after quiescence, late live results forwarded without candidate mutation, source/session ownership, routing/lease release, used/incomplete facts and healthy explicit-open persistence.
 - Exclusions: Canceling live work merely to reach a horizon, leak masking through global strong registries, recording caller cancellation, new timeout policy.
 - Checkpoint: R; review production shutdown evidence independently from happy paths.

@@ -54,6 +54,15 @@ Preserve the demonstrated native 401 response without manufacturing a Digest
 challenge. Reject replay requiring unsupported Digest capability at setup;
 custom Basic challenge decisions and offline replay still require conformance.
 
+On 2026-09-26 the owner approves the native session invalidation amendment in
+[Decision 12](12-urlsession-scope.md#session-invalidation-amendment--2026-09-26)
+and [Decision 17](17-http-lifecycle-composition.md#session-invalidation-amendment--2026-09-26),
+reconciled with [Decision 10](10-lifecycle-and-ownership.md#native-urlsession-lifetime-exception--2026-09-26).
+The returned URLSession is usable only during scenario execution; creating new
+tasks afterward crashes on the tested native runtimes. No recoverable error or
+diagnostic is promised before interception can run. Existing live tasks may
+finish through detached forwarding; replay still requires native quiescence.
+
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |
 | 1 | [Common abstraction](01-common-abstraction.md) | `01-common-abstraction.md` | Accepted |

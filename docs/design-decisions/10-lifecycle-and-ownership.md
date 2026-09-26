@@ -266,6 +266,17 @@ outlive it. Exact synchronization and ownership types remain reviewable
 implementation choices; the retained log must remain observable without
 keeping the completed execution's machinery alive.
 
+### Native URLSession lifetime exception — 2026-09-26
+
+The owner-approved [DD12 invalidation amendment](12-urlsession-scope.md#session-invalidation-amendment--2026-09-26)
+narrows post-finish reporting for the native URLSession adapter. Its returned
+session is invalidated and must not be used to create tasks after execution
+ends; that call crashes before interception on the tested runtimes. No
+recoverable error or diagnostic is promised where native task creation prevents
+the adapter from running. The general reporter lifetime remains unchanged for
+other dependencies and for calls that reach an adapter. Already running live
+URLSession work retains only the minimal detached forwarding continuation.
+
 ## Ergonomic lifecycle APIs
 
 The authoritative primitive is an explicitly retained execution with an
