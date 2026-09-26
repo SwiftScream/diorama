@@ -6,8 +6,12 @@ cd "$repository_root"
 
 case ${1:-} in
     swiftpm)
+        # These experiments deliberately stall native callbacks and create many
+        # sessions. Isolate experiments from each other; individual race tests
+        # still create their own concurrent tasks and native delegate queues.
         run swift test --package-path Spikes/URLSessionInterception \
-            --scratch-path .build/urlsession-spike -Xswiftc -warnings-as-errors
+            --scratch-path .build/urlsession-spike -Xswiftc -warnings-as-errors \
+            --no-parallel
         ;;
     ios)
         result_bundle="$repository_root/.build/urlsession-spike-ios.xcresult"
@@ -18,12 +22,17 @@ case ${1:-} in
         test_status=0
         run xcodebuild test -quiet -scheme URLSessionInterception-Package \
             -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0' \
+            -parallel-testing-enabled NO \
             -derivedDataPath "$repository_root/.build/urlsession-spike-ios" \
             -resultBundlePath "$result_bundle" \
             -collect-test-diagnostics never \
             IPHONEOS_DEPLOYMENT_TARGET=18.0 SWIFT_TREAT_WARNINGS_AS_ERRORS=YES || test_status=$?
         if [[ -d "$result_bundle" ]]; then
             run xcrun xcresulttool get test-results summary --path "$result_bundle"
+            if (( test_status != 0 )); then
+                run xcrun xcresulttool get test-results tests --path "$result_bundle" || true
+                run xcrun xcresulttool get log --path "$result_bundle" --type action || true
+            fi
         fi
         exit "$test_status"
         ;;

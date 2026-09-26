@@ -59,10 +59,15 @@ final class D02ControlledDelivery: @unchecked Sendable {
         }
     }
 
-    func stop() {
+    /// Return whether delivery was still open, so cleanup need not cancel a
+    /// task whose terminal callback is already draining through Foundation.
+    @discardableResult
+    func stop() -> Bool {
         lock.lock()
         defer { lock.unlock() }
+        let wasOpen = instance != nil
         instance = nil
+        return wasOpen
     }
 
     /// D03 uses the same callback/stop lock for a native redirect notification.

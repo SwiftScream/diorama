@@ -75,6 +75,9 @@ struct D05ReplayTests {
         #expect(await closer.value)
         #expect(task.state == .completed)
         #expect(observer.events.withLock { $0.completions } == 1)
+        let expectedError = boundary == "body" ? URLError.cancelled.rawValue : nil
+        #expect(observer.events.withLock { $0.errorCode } == expectedError)
+        #expect(observer.events.withLock { $0.body } == Data("first-".utf8))
         #expect(!operation.delivery.bytes("late"))
         let events = observer.events.withLock { $0.sequence }
         let callbackReturn = try #require(events.firstIndex(of: "\(boundary)Returned"))

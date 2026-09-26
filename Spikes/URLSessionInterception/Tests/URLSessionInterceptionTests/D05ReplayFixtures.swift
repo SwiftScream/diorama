@@ -215,9 +215,10 @@ final class D05ReplayOperation: Sendable {
         self.task = task
     }
 
-    func stop() {
+    @discardableResult
+    func stop() -> Bool {
         stopped.withLock { $0 = true }
-        delivery.stop()
+        return delivery.stop()
     }
 }
 
@@ -265,12 +266,6 @@ func d05QueueBarrier(_ queue: OperationQueue) async {
     }
 }
 
-func d05Tasks(_ session: URLSession) async -> [URLSessionTask] {
-    await withCheckedContinuation { continuation in
-        session.getAllTasks { continuation.resume(returning: $0) }
-    }
-}
-
 /// No consumer-owned live task uses this path. Foundation APIs are invoked from
 /// the test's async context, outside startLoading/stopLoading (FN-09).
 func d05CloseReplay(_ session: URLSession, observer: D05NativeObserver) async -> Bool {
@@ -278,12 +273,11 @@ func d05CloseReplay(_ session: URLSession, observer: D05NativeObserver) async ->
         defer { state = [:] }
         return Array(state.values)
     }
-    for operation in operations {
-        operation.stop()
-    }
-    let tasks = await d05Tasks(session)
-    for task in tasks {
-        task.cancel()
+    // Admission already owns these tasks. Enumerating Foundation's registry
+    // during completion races an unsynchronized read on Linux (FN-19).
+    // A delivered terminal event drains normally; only open replay is canceled.
+    for operation in operations where operation.stop() {
+        operation.task.cancel()
     }
     await observer.abortDecisions()
     session.finishTasksAndInvalidate()
