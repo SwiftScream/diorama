@@ -1,7 +1,7 @@
 # Decision 17: HTTP lifecycle composition
 
 - Status: Accepted
-- Last updated: 2026-09-06
+- Last updated: 2026-09-26
 - Depends on: [Decision 2: Shared and system-specific semantics](02-shared-vs-system-semantics.md),
   [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
   [Decision 4: Replay selection](04-replay-selection.md),
@@ -334,6 +334,16 @@ the caller canceling a `URLSessionTask`. Server trust, client certificates,
 identities, and challenges without a representable HTTP response remain
 unsupported.
 
+### FoundationNetworking Digest exception — 2026-09-26
+
+The owner approves the [Decision 12 Digest exception](12-urlsession-scope.md#foundationnetworking-digest-exception--2026-09-26).
+A native Linux 401 response without an observed Digest challenge remains an
+ordinary response. Do not manufacture a challenge, credential decision, or
+retry. Record and passthrough preserve the demonstrated native outcome.
+Replay requiring an unsupported Digest challenge capability fails setup rather
+than attempting live authentication. The portable challenge model and Apple
+Digest requirements remain unchanged.
+
 ## URLSession response disposition
 
 The URLSession adapter may attach a typed response-disposition phase immediately
@@ -355,6 +365,35 @@ persisted; body timing starts from the allow decision.
 A recording without the supplement remains usable across supported completion,
 async, and delegate presentation styles. Its absence does not create a hidden
 requirement to reproduce a callback that was never observed.
+
+### FoundationNetworking response-disposition exception — 2026-09-24
+
+The owner approves the [Decision 12 platform exception](12-urlsession-scope.md#foundationnetworking-response-disposition-exception--2026-09-24)
+for native FoundationNetworking behavior that ignores response-disposition
+cancellation or does not gate body delivery on the pending decision. Repairing
+this native limitation is not a prerequisite for other Linux capabilities.
+Record and passthrough preserve the native live outcome; private forwarding
+must avoid relying on the ignored disposition to stop work.
+
+The strict recorded outcomes above remain valid only for interactions that
+actually satisfy them. A consumer's `.cancel` followed by successful body
+delivery is not a cancellation failure. Report that the interaction cannot be
+represented by the supported disposition model and make its candidate
+ineligible for publication under the existing validity rules. Do not invent a
+terminal failure, erase the observed decision, or add a schema variant merely
+to normalize the native defect. This does not turn the diagnostic into a
+replacement error for the live consumer.
+
+Replay continues to require the capabilities implied by the recording.
+Recordings requiring effective cancellation or pending-decision gating are
+rejected during setup on a bridge that has not proved them. A private
+forwarder's immediate `.allow` is implementation machinery and never creates
+a consumer decision supplement. Explicit task cancellation and replay
+quiescence remain required independently of response-disposition support.
+
+This amendment narrows the earlier assumption that every bridge must implement
+all response-disposition outcomes for the initial milestone. The remaining
+scope, strict model, and one-schema platform capability rules are unchanged.
 
 ## URLSession failure representation
 
@@ -466,10 +505,23 @@ scenario finalization. Finalization:
 - prevents later Diorama-owned callbacks;
 - reports open or not-yet-concluded claimed interactions.
 
-An escaped instrumented session becomes inert after finalization. A later
+The following escaped-session promise is superseded by the 2026-09-26
+invalidation amendment below. An escaped instrumented session becomes inert after finalization. A later
 request produces a deterministic infrastructure failure and never contacts the
 live dependency. Finalization does not invent a persisted cancellation or
 successful completion for an open recording.
+
+### Session invalidation amendment — 2026-09-26
+
+The owner approves invalidating the adapter-owned native session at the end of
+scenario execution, as specified in the [DD12 amendment](12-urlsession-scope.md#session-invalidation-amendment--2026-09-26).
+The session is usable only during that execution. Creating new tasks afterward
+crashes on the tested runtimes before interception; no recoverable Diorama error
+or post-finish diagnostic is promised for that invalid native call. This replaces
+the preceding escaped-session failure promise, without changing open recordings,
+replay quiescence, offline replay, or the detached completion of live tasks
+already running at the horizon. Runtime cleanup does not invent a persisted
+cancellation or success.
 
 ## Adapter composition and capabilities
 

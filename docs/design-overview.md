@@ -3,7 +3,7 @@
 - Status: Accepted
 - Created: 2026-09-05
 - Approved by owner: 2026-09-07
-- Last reviewed: 2026-09-21
+- Last reviewed: 2026-09-24
 - Scope: Decisions 1 through 18
 - Derived from: [Accepted design decisions](design-decisions/README.md)
 
@@ -41,6 +41,15 @@ Decision 12's owner-approved
 permits provisional production task planning before URLProtocol spikes run;
 their results must be reviewed and the affected breakdown confirmed or revised
 before production work depends on that boundary. The owner-approved
+2026-09-24 [routing amendment](design-decisions/12-urlsession-scope.md#task-ownership-routing-amendment--2026-09-24)
+selects native task ownership for per-session execution routing, replacing the
+unsuccessful configuration-header route without changing the later capability
+and lifecycle gates. The same day's
+[native rejection amendment](design-decisions/12-urlsession-scope.md#native-rejection-errors-amendment--2026-09-24)
+permits native cancellation errors for excluded Apple stream and WebSocket
+tasks, accompanied by adapter diagnostics, and native Linux WebSocket refusal
+before interception on a tested profile. Every excluded operation must still
+be stopped before live access. The owner-approved
 2026-09-09 [deployment-policy amendment](quality-gates-and-ci.md#apple-deployment-minima--owner-approved-amendment-2026-09-09)
 sets iOS 18 and macOS 15 minima so the core can use `Synchronization.Mutex`
 directly on Apple and Linux. It supersedes the 2026-09-06 clock-driven floors
@@ -208,7 +217,13 @@ context's lifetime, not promise to change an already completed test. The
 owner-approved amendments in
 [Decision 5](design-decisions/05-consumption-and-verification.md#post-finish-diagnostic-retention--2026-09-06)
 and [Decision 10](design-decisions/10-lifecycle-and-ownership.md#post-finish-reporting-lifetime--2026-09-06)
-define this boundary.
+define this boundary. The owner-approved
+[URLSession invalidation exception](design-decisions/12-urlsession-scope.md#session-invalidation-amendment--2026-09-26)
+narrows this promise for native sessions: they are usable only during scenario
+execution and are invalidated at finalization. Creating new tasks afterward
+crashes on tested runtimes before interception, so no recoverable Diorama error
+or diagnostic is promised for that call. Already running live work may finish
+through detached forwarding without retaining the execution.
 
 ### Strict semantic values and tolerant files
 
@@ -294,6 +309,22 @@ profiles describe what each bridge has proved it can reproduce. A scenario is
 portable across Apple platforms and Linux only when it uses their common tested
 profile. Platform-specific implementation code does not create a second
 scenario system identity.
+
+The owner-approved [FoundationNetworking response-disposition exception](design-decisions/12-urlsession-scope.md#foundationnetworking-response-disposition-exception--2026-09-24)
+permits record and passthrough to preserve demonstrated native limitations in
+response cancellation and pending-decision gating. An interaction that cannot
+satisfy the supported disposition model produces a diagnostic and an invalid
+recording candidate; the live result remains native. Replay requiring those
+unsupported capabilities is rejected at setup. An upstream repair is optional;
+explicit task cancellation, offline replay, and correct body delivery remain
+required.
+
+The [FoundationNetworking Digest exception](design-decisions/12-urlsession-scope.md#foundationnetworking-digest-exception--2026-09-26)
+also preserves native Linux behavior when Digest authentication is unimplemented.
+An ordinary 401 with no observed challenge stays an ordinary response; replay
+requiring an unsupported Digest challenge is rejected at setup. Native Digest
+support is optional for other Linux capabilities. This does not permit custom
+authentication replay to escape to live networking.
 
 ### Attachment keys, system types, and match keys
 

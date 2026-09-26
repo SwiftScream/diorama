@@ -136,6 +136,30 @@ the earlier decisions explicitly.
 - [Persisted consumer and random conformance evidence](evidence/003-C07-persisted-consumer-and-random-conformance.md)
   records the external-module codec, complete random file workflow, example
   execution, and cross-platform verification.
+- [URLSession interception spike evidence](evidence/003-D01-urlsession-interception.md)
+  records the bodyless GET matrix across macOS, iOS Simulator, and Linux,
+  including the Linux routing gaps and request-field collision observation.
+- [URLSession task rejection evidence](evidence/003-D02-task-rejection-and-response-presentation.md)
+  records native rejection points, diagnostic delivery, response buffering and
+  disposition behavior, and the remaining response-presentation questions.
+- [URLSession delivery and delegate-boundary evidence](evidence/003-D02-delivery-and-delegate-boundaries.md)
+  covers native resume data, timed delivery, cache-policy enforcement, and
+  task-delegate visibility and interception hooks.
+- [URLSession task and response capability matrix](evidence/003-D02-completion-and-capability-matrix.md)
+  consolidates constructor, body-forwarding, rejection, and delegate findings
+  with the bridge requirements they establish.
+- [FoundationNetworking investigation handoff](evidence/003-D02-foundationnetworking-handoff.md)
+  consolidates URLSession spike findings, source locations, reproductions, accepted
+  platform limitations, and their effect on the planned URLSession bridge.
+- [URLSession redirect correlation evidence](evidence/003-D03-redirect-correlation.md)
+  covers task ownership across redirect instances, native request derivation,
+  current redirect decisions, forwarding, timing, and upstream redirect gaps.
+- [URLSession authentication challenge evidence](evidence/003-D04-authentication-challenges.md)
+  records native authentication controls, custom challenge decision bridging,
+  and FoundationNetworking authentication findings.
+- [URLSession native quiescence and feasibility evidence](evidence/003-D05-native-quiescence.md)
+  records replay drainage, detached live forwarding, native invalidation,
+  and the consolidated platform boundary for production implementation.
 
 ## Historical boundary
 

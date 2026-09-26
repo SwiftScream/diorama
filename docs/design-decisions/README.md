@@ -31,6 +31,38 @@ concrete load outcomes and one scoped result API.
 The same review later narrowed the consumer import boundary, replacing
 whole-module re-exports with explicit setup arguments and inferred system values.
 
+On 2026-09-24, the owner approved [Decision 12's routing amendment](12-urlsession-scope.md#task-ownership-routing-amendment--2026-09-24):
+the production URLSession adapter identifies execution ownership through native
+task identity and the adapter-owned session lease, without HTTP routing fields.
+
+The owner also approved [Decision 12's native rejection amendment](12-urlsession-scope.md#native-rejection-errors-amendment--2026-09-24)
+on 2026-09-24: Apple stream and WebSocket rejection pairs an adapter diagnostic
+with native cancellation, and pre-interception Linux WebSocket refusal may
+retain its native error on a tested profile with no network access.
+
+On the same date, the owner approved the FoundationNetworking
+response-disposition exception in [Decision 12](12-urlsession-scope.md#foundationnetworking-response-disposition-exception--2026-09-24)
+and [Decision 17](17-http-lifecycle-composition.md#foundationnetworking-response-disposition-exception--2026-09-24).
+Diorama may preserve the demonstrated native live limitation without requiring
+an upstream repair, while keeping recordings truthful and rejecting replay
+that requires unsupported response decisions.
+
+On 2026-09-26 the owner approved the FoundationNetworking Digest exception in
+[Decision 12](12-urlsession-scope.md#foundationnetworking-digest-exception--2026-09-26)
+and [Decision 17](17-http-lifecycle-composition.md#foundationnetworking-digest-exception--2026-09-26).
+Preserve the demonstrated native 401 response without manufacturing a Digest
+challenge. Reject replay requiring unsupported Digest capability at setup;
+custom Basic challenge decisions and offline replay still require conformance.
+
+On 2026-09-26 the owner approves the native session invalidation amendment in
+[Decision 12](12-urlsession-scope.md#session-invalidation-amendment--2026-09-26)
+and [Decision 17](17-http-lifecycle-composition.md#session-invalidation-amendment--2026-09-26),
+reconciled with [Decision 10](10-lifecycle-and-ownership.md#native-urlsession-lifetime-exception--2026-09-26).
+The returned URLSession is usable only during scenario execution; creating new
+tasks afterward crashes on the tested native runtimes. No recoverable error or
+diagnostic is promised before interception can run. Existing live tasks may
+finish through detached forwarding; replay still requires native quiescence.
+
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |
 | 1 | [Common abstraction](01-common-abstraction.md) | `01-common-abstraction.md` | Accepted |

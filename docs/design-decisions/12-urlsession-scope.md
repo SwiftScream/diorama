@@ -1,7 +1,7 @@
 # Decision 12: URLSession scope
 
 - Status: Accepted
-- Last updated: 2026-09-06
+- Last updated: 2026-09-26
 - Refined by: [Decision 17: HTTP lifecycle composition](17-http-lifecycle-composition.md)
 - Depends on: [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
   [Decision 5: Consumption and verification](05-consumption-and-verification.md),
@@ -67,6 +67,9 @@ unrelated sessions outside Diorama's interception boundary.
 
 ## Session construction and ownership
 
+The [2026-09-24 routing amendment](#task-ownership-routing-amendment--2026-09-24)
+supersedes the reserved routing field described in this original section.
+
 The preferred setup API should accept a `URLSessionConfiguration`, optional
 delegate, and optional delegate queue, then create and return a new instrumented
 `URLSession` owned by the adapter lease. This is more honest than taking an
@@ -104,11 +107,60 @@ which to obtain the execution. If so, it must:
 A narrower mechanism discovered by the implementation spike is preferable, but
 the POC's silent overwrite and permanent strong registry are not acceptable.
 
+### Task-ownership routing amendment — 2026-09-24
+
+The owner selects task ownership as the production implementation choice after
+reviewing [D01's platform evidence](../evidence/003-D01-urlsession-interception.md#task-ownership-routing-follow-up).
+The interceptor obtains its `URLSessionTask` and identifies the owning
+adapter-created session by object identity against that session's outstanding
+tasks. The session's active lease identifies the execution. A task identifier
+alone is insufficient because it is unique only within its session.
+
+This supersedes reserving or injecting an HTTP routing field during session
+construction. The original `httpAdditionalHeaders` route is unsuccessful on
+the tested FoundationNetworking releases and is not the production routing
+method. Requests need no routing metadata or caller cooperation. Missing,
+ambiguous, or expired ownership fails without live fallback, and finalization
+removes the session's routing lease. Production resolution must revalidate the
+lease after asynchronous lookup so expiry cannot publish a stale route.
+
+The selection adopts the routing mechanism, not the spike's callback bridge or
+its `@unchecked Sendable` annotations. D02–D05 still establish supported task
+forms, native presentation, cancellation, and quiescence before the production
+adapter can advertise those capabilities. The separate forwarding-property
+failure and the tested private-session control remain recorded in D01.
+
 The adapter owns the returned session and its private forwarding machinery. At
 the recording horizon it refuses new work, removes execution routing, and uses
 session invalidation consistent with decision 10. It does not invalidate a
 separately consumer-owned session. A minimal forwarding tail for an already
 running live task may finish without retaining or mutating the scenario.
+
+### Session invalidation amendment — 2026-09-26
+
+After reviewing [D05's native lifetime evidence](../evidence/003-D05-native-quiescence.md),
+the owner directs Diorama to invalidate the adapter-owned session and document
+that it is usable only during its scenario execution. Creating new tasks after
+the execution ends is invalid native API use and crashes on the tested Apple
+and Linux runtimes. Diorama does not promise a recoverable infrastructure error
+or diagnostic when native task creation rejects the call before interception.
+
+This supersedes DD17's earlier escaped-session error promise and narrows the
+generic post-finish reporting rules in DD05/DD10 only for calls that cannot
+reach the invalidated native adapter. Keep ordinary `URLSession` as the returned
+surface; do not retain an open session solely to diagnose later misuse.
+
+Finalization closes admission and removes execution routing. Replay-owned work
+is stopped and native callbacks must be drained before reporting quiescence.
+Already running live work may finish through graceful invalidation and a
+minimal forwarding tail, detached from scenario observation and ownership.
+Finalization must not cancel live work merely because recording ends or wait
+for its eventual completion. The returned session's lifetime is not extended
+for new requests by those live tails. Separately consumer-owned sessions remain
+outside Diorama's invalidation authority.
+
+This amendment does not authorize live replay fallback, post-horizon recording,
+or persisted terminal events invented by runtime cleanup.
 
 ## Supported initial session configurations
 
@@ -252,6 +304,49 @@ identifiers, and byte counters are not stable snapshot values. The initial
 adapter should preserve ordinary native control where feasible but does not
 promise deterministic replay of those incidental observations.
 
+### FoundationNetworking response-disposition exception — 2026-09-24
+
+The owner approves a narrow platform exception after reviewing D02's ignored
+response-disposition cancellation. Diorama may preserve a demonstrated native
+FoundationNetworking limitation in record and passthrough; it does not need to
+repair that limitation or require an upstream fix before supporting otherwise
+working Linux operations. A native-session control must establish the relevant
+behavior on each advertised runtime. At approval, the spike had reproduced the
+custom protocol failure and traced the native HTTP path in source; the native
+control was still outstanding. Subsequent verification is recorded in the
+[D02 evidence](../evidence/003-D02-task-rejection-and-response-presentation.md#native-response-disposition-baseline).
+
+For this exception:
+
+- Preserve the native live outcome when the consumer's response decision is
+  ignored. Do not manufacture cancellation or a wait that the runtime does not
+  enforce. Normal Linux data-task support is not gated on fixing this native
+  response-disposition limitation.
+- Keep private forwarding independent of response-disposition cancellation:
+  answer its response callback with immediate `.allow` and use explicit task
+  cancellation when an owned forwarding task must be stopped. Internal
+  forwarding callbacks do not create consumer disposition phases.
+- If the observed interaction cannot satisfy the supported disposition model,
+  report an infrastructure diagnostic and make the recording candidate
+  ineligible for publication through the existing validity rules. For example,
+  `.cancel` followed by successful delivery must not become a fabricated
+  cancellation failure or a silently omitted decision. The live consumer still
+  receives the native outcome.
+- Advertise effective cancellation and pending-decision gating only on bridges
+  where they pass conformance. Reject replay recordings requiring an
+  unsupported response-decision capability during setup, including recordings
+  originating on Apple. Replay never falls through to live networking.
+
+This exception narrows the earlier unconditional response-disposition and
+unsupported-operation rules for this native limitation. It does not excuse
+failures introduced by interception: the multi-chunk aggregation defect still
+needs a correction or proven workaround because it breaks otherwise working
+completion/async requests. Explicit task cancellation, cleanup, offline replay,
+unsupported task/conversion rejection, and authentication-challenge decisions
+retain their existing requirements. An upstream disposition repair is optional
+for Diorama; a later runtime that fixes the behavior needs fresh capability
+evidence. Decision 17's matching amendment governs recording validity.
+
 ## Redirects
 
 Redirect chains are required initial behavior rather than a later enhancement.
@@ -313,6 +408,27 @@ Default TLS validation needed for ordinary HTTPS forwarding remains live
 transport behavior. The exclusion concerns application-observable custom
 challenge handling and replay, not use of HTTPS itself.
 
+### FoundationNetworking Digest exception — 2026-09-26
+
+The owner approves preserving the native Linux Digest limitation found by
+[D04](../evidence/003-D04-authentication-challenges.md). The tested native HTTP
+implementation does not present Digest challenges and returns the challenged
+401 response. Record and passthrough may preserve that native outcome; Diorama
+does not implement Digest authentication or require upstream Digest support
+before advertising otherwise conforming Linux capabilities.
+
+The advertised capability profile must exclude unsupported Digest challenge
+handling. Reject replay requiring that capability during setup, including
+recordings made on Apple. A native response with no observed challenge does
+not acquire a fabricated challenge phase. A later native implementation needs
+fresh conformance evidence before enabling Digest support.
+
+This exception does not relax Basic challenge semantics, unsupported-capability
+diagnostics, cancellation, or offline replay. In particular, FoundationNetworking
+starting native HTTP after a custom protocol's credential challenge (FN-15)
+is an interception defect requiring repair, not an inherited native limitation
+that replay may preserve. Decision 17 records the matching lifecycle boundary.
+
 ## Failures
 
 Supported URL loading failures should be recorded and replayed as a typed
@@ -335,6 +451,10 @@ A replay miss, ambiguity, expired execution, or unsupported operation produces
 a distinct Diorama infrastructure error and no live fallback. Native values
 outside the stable failure's documented representation are never converted by
 description.
+
+The [native rejection amendment](#native-rejection-errors-amendment--2026-09-24)
+qualifies the error and diagnostic requirements for the named excluded task
+families below.
 
 ## Delegate surface not initially reproduced
 
@@ -391,6 +511,44 @@ Every failure enters the execution ledger and diagnostic sink. A task with an
 error channel receives a Diorama infrastructure error. The returned session
 must not fall through to Foundation's built-in HTTP handler after Diorama has
 rejected an operation.
+
+### Native rejection errors amendment — 2026-09-24
+
+The owner approves the following narrow exceptions after reviewing
+[D02's rejection evidence](../evidence/003-D02-task-rejection-and-response-presentation.md).
+They qualify the infrastructure-error and diagnostic requirements in the
+context, failure, delegate, and explicit failure sections for these cases:
+
+- **Apple stream and WebSocket tasks:** The adapter-owned session delegate
+  identifies the excluded task in the synchronous
+  `urlSession(_:didCreateTask:)` callback and cancels it before it can connect.
+  Cancellation precedes invoking the diagnostic sink or other consumer
+  callbacks, so reentry cannot resume an unprotected task. The adapter records
+  a structured unsupported-operation diagnostic for the owning attachment in
+  its diagnostic reporter and notifies the configured sink. Foundation's
+  ordinary cancellation error propagates unchanged through the native task,
+  delegate, and operation error channels.
+- **Linux WebSockets rejected by the runtime:** On a tested
+  FoundationNetworking/libcurl profile that rejects WebSockets before
+  interception and before any network access, the native unsupported-operation
+  error is sufficient. Diorama need not synthesize a replacement error or a
+  diagnostic for a refusal that occurs before it has an interception callback.
+  A runtime profile with WebSocket support needs fresh rejection evidence;
+  the tested unsupported profile does not establish that behavior.
+
+Where Diorama performs the rejection, its diagnostic remains an infrastructure
+fact governed by decisions 5 and 10, including post-finish retention. The
+native cancellation error does not turn that rejection into a recorded
+dependency failure or caller cancellation. These exceptions apply equally in
+record, replay, and passthrough. Every excluded operation must still be stopped
+before live access; a successful operation or a connection bypass is never an
+acceptable rejection result.
+
+This amendment resolves the rejection-error policy question. D02 still must
+verify diagnostic attribution and delivery, safe ordering under sink reentry,
+and the remaining task and response-presentation matrix before completion.
+The existing native cancellation probes establish only the behavior they
+actually exercise; approval of this amendment does not supply missing evidence.
 
 ## Platform support
 
