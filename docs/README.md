@@ -157,9 +157,9 @@ the earlier decisions explicitly.
 - [URLSession authentication challenge evidence](evidence/003-D04-authentication-challenges.md)
   records native authentication controls, custom challenge decision bridging,
   and FoundationNetworking authentication findings.
-- [URLSession native lifetime evidence](evidence/003-D05-native-quiescence.md)
-  records session invalidation, native lifetime controls, and the conflict with
-  recoverable failures from escaped sessions.
+- [URLSession native quiescence and feasibility evidence](evidence/003-D05-native-quiescence.md)
+  records replay drainage, detached live forwarding, native invalidation,
+  and the consolidated platform boundary for production implementation.
 
 ## Historical boundary
 

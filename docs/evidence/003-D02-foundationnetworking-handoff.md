@@ -1,4 +1,4 @@
-# FoundationNetworking investigation handoff: D01–D04
+# FoundationNetworking investigation handoff: D01–D05
 
 - Prepared: 2026-09-24, at the owner's request for a separate investigating agent.
 - Owning unit: [003-D02](../plans/003-clean-slate-implementation.md#003-d02--task-rejection-and-response-presentation-spike).
@@ -11,9 +11,10 @@
 - D04 extension: [Authentication evidence](003-D04-authentication-challenges.md)
   adds FN-15–FN-18, based on D03 commit `7cd15aa`. The owner approves preserving
   the native Digest limitation on 2026-09-26; this does not permit live replay.
-- D05 checkpoint: [Native lifetime evidence](003-D05-native-quiescence.md)
-  identifies a Diorama contract conflict around use after session invalidation.
-  It does not add an upstream repair requirement; see the distinction below.
+- D05 extension: [Native lifetime and feasibility evidence](003-D05-native-quiescence.md)
+  records the approved session-invalidation amendment and a second FN-10
+  reproducer: concurrent terminal callbacks can remove a task twice. The
+  production constraint is serial native delegate queues; see the audit below.
 - Upstream repository: [swiftlang/swift-corelibs-foundation](https://github.com/swiftlang/swift-corelibs-foundation).
 - Inspected release: `swift-6.4.0-RELEASE`, commit
   `d29d01ba165f6957141e07ea7fe8144ab491bc24`.
@@ -37,7 +38,7 @@ handoff identifiers, not upstream issue numbers.
 | FN-07 | Assigning `task.delegate` before resume does not select that delegate for callbacks | Reproduced native/custom-protocol defect; source explains it | The property setter cannot provide equivalent task-specific delegation on these Linux profiles. |
 | FN-08 | An async-supplied delegate is not reflected in `task.delegate` | Reproduced native/custom-protocol visibility defect; source explains it | A working delegate callback path is hidden from the tested adapter guard; combined with FN-05, proxy installation/rejection is unproven. |
 | FN-09 | Synchronously creating a forwarding task inside `startLoading` traps in libdispatch | Reproduced on stable Linux; shared queue reentry explains it | Forwarding task creation and teardown need an independent executor; this does not require changing the native-session boundary. |
-| FN-10 | Task behavior lookup traps while registration or teardown is incomplete | Local crash plus hosted snapshot recurrence; the hosted stack identifies the invalid-resume error path | The resume fixture orders registration before resume; D05 still audits native lifetime. |
+| FN-10 | Task registry ordering and concurrent terminal delivery can trap | Hosted invalid-resume registration diagnosis; D05 stable-Linux double-completion/removal reproducer | Keep the excluded-resume fixture barrier and serial native delegate queues. The concurrent terminal crash remains an upstream recommendation. |
 | FN-11 | Custom-protocol redirect notification traps | Reproduced fatal error in the URLProtocol client | Required repair for live interception and replay redirects. |
 | FN-12 | Path-relative redirect resolves against the origin root | Reproduced native HTTP defect; source explains it | Native proposal is already incorrect before Diorama observes it. |
 | FN-13 | 307/308 redirects discard the outgoing body | Reproduced native HTTP defect; source explains it | Native request and wire bytes disagree; retest private-hop forwarding after FN-11 is repaired. |
@@ -88,8 +89,8 @@ release. Passing checks with known issues is not a Linux conformance claim.
 | FN-03 | **Not essential: simple avoidance** | Exclude Diorama's protocol from the private forwarding session; no forwarding property is needed. Fixing property preservation remains useful upstream. The owner reports a local fix. |
 | FN-04 | **Not essential: simple avoidance** | Task ownership removes the routing-header dependency and remains the production choice. The owner reports a local header fix; its intended API contract still belongs in upstream review. |
 | FN-06 | **Not essential: accepted native refusal** | Preserve the tested offline WebSocket error. Diorama does not require Linux WebSocket support. Recheck exclusion enforcement if a future runtime supports it. |
-| FN-09 | **Not essential if the demonstrated workaround passes lifecycle conformance** | Create and tear down forwarding tasks on an independent owned serial executor. The D02 fixture works; D05 still proves races and lifetime. |
-| FN-10 | **Fixture workaround for the identified path; broader impact remains unclassified** | Hosted CI identifies invalid-resume error delivery racing registration. The fixture waits for session enumeration before resume. Upstream should correct native queue/registration ordering; D05 still determines whether supported Diorama operations need a repair. |
+| FN-09 | **Not essential: demonstrated executor separation** | Create and tear down forwarding tasks on an independent owned serial executor. D05 verifies startup cancellation, live completion, and detached forwarding lifetime for the available native paths. Custom redirect/auth paths still require FN-11/FN-15 on Linux. |
+| FN-10 | **Recommended upstream; avoid the demonstrated failing paths** | Keep the registration barrier for the excluded invalid-resume fixture. D05 additionally reproduces duplicate completion and removal on a concurrent native delegate queue; use serial native queues for the adapter. This does not prove every native registry race repaired. |
 
 The former FN-02 response-disposition issue remains removed from the requested
 upstream work. Its repair is optional under DD12/DD17. Private forwarding uses
@@ -104,9 +105,10 @@ requires early proxy installation and coherent callback dispatch.
 
 Task ownership remains approved even if FN-03/FN-04 are fixed. It derives the
 route from the actual session, avoids caller-header overrides and private HTTP
-metadata, and already works on tested stock runtimes. D03/D05 still need to
-validate redirects, asynchronous lookup races, and lifetime. Add patched-runtime
-results to the evidence when tested without replacing the original results.
+metadata, and already works on tested stock runtimes. D03/D05 validate Apple
+redirect continuity, asynchronous lookup revalidation, and the tested lifetime
+boundaries. Linux custom redirect/auth paths retain
+their required upstream fixes. Add patched-runtime results to the evidence when tested without replacing the original results.
 
 ### Executable known issues
 
@@ -127,9 +129,12 @@ No tests are disabled by D01/D02 merge preparation. D03 separately disables
 the FN-11 crash paths on stock Linux, with restoration controls below.
 FN-09's inline forwarding and
 FN-10's unguarded resume remain explicitly opt-in crash investigations;
-FN-10 has no known-issue suppression.
+FN-10 has no known-issue suppression. D05 disables only its crashing concurrent
+terminal investigation on stock Linux and restores it with
+`DIORAMA_D05_UNSAFE_TERMINAL_RACE=1` or `DIORAMA_VERIFY_FOUNDATION_FIXES=1`;
+the serial cancellation race and normal lifecycle checks remain mandatory.
 
-## D05 lifecycle checkpoint: native invalidation is not a new Linux repair
+## D05 native invalidation is not a new Linux repair
 
 The [D05 lifetime probe](003-D05-native-quiescence.md) exposes a conflict in
 Diorama's escaped-session promise. A raw native session cannot create new
@@ -144,9 +149,10 @@ This is documented native API use outside its lifetime, not an additional
 interception defect or a prerequisite upstream repair. No FN-19 is assigned.
 The owner resolves the checkpoint by approving native session invalidation:
 the returned session is usable only during scenario execution, and creating
-new tasks afterward crashes. DD12/DD17 record the amendment. D05 continues
-its remaining lifecycle experiments before establishing the full boundary. Existing FN-01, FN-08, FN-11, and FN-15 priorities
-are unchanged; the remaining FN-09/FN-10 lifecycle investigation is still open.
+new tasks afterward crashes. DD12/DD17 record the amendment. D05 separately
+proves the covered replay drainage and detached live forwarding cases. Existing
+FN-01, FN-08, FN-11, and FN-15 priorities remain unchanged. Its additional
+FN-10 finding and queue constraint are recorded below.
 
 ## Why Diorama encounters these paths
 
@@ -657,8 +663,8 @@ investigation. The race is scheduling-dependent; the switch is not a guaranteed
 crash reproducer. Upstream should investigate initialization, registration, and
 registry-queue confinement together. The stack/source diagnosis does not prove
 every earlier crash shares this cause, nor establish general callback quiescence.
-D05 retains that audit. Current Linux merging need not suppress the whole
-matrix or claim that FoundationNetworking itself is repaired.
+D05 adds the terminal-race audit below. Current Linux merging need not suppress
+the whole matrix or claim that FoundationNetworking itself is repaired.
 
 ### Original local observation — 2026-09-25
 
@@ -689,7 +695,7 @@ Linux invalid-resume control now observes `task.state == .completed` before
 teardown. These changes prevent avoidable fixture races; a subsequent passing
 run is not proof that the native registry race is repaired.
 
-Keep this observation in D05's lifecycle audit. Diorama must establish owned
+The D05 audit below retains this observation. Diorama must establish owned
 callback quiescence and safe forwarding-tail release, and should not recancel
 work already reported terminal. This concern is distinct from the accepted
 ignored response-disposition behavior, whose upstream repair remains optional
@@ -698,6 +704,63 @@ and which has not been restored as an issue in this handoff.
 The initial local artifact is `.build/d02-complete-linux-stable.log` (not
 committed); the final matrix is documented in
 [D02 completion evidence](003-D02-completion-and-capability-matrix.md).
+
+### D05 terminal-race audit — 2026-09-27
+
+The isolated [D05 cancellation tests](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D05CancellationRaceTests.swift)
+now provide a second concrete registry failure, separate from invalid resume.
+On `swift:6.4.0-noble`, the width-four native delegate queue test records two
+completion callbacks for one data task, then terminates with signal 4:
+
+```text
+FoundationNetworking/TaskRegistry.swift:85:
+Fatal error: Trying to remove task, but it's not in the registry.
+```
+
+The test races ordinary `task.cancel()` with a custom protocol's head, one
+body chunk, and successful finish, repeating up to 50 times. The existing
+synchronized delivery wrapper emits at most one terminal event and clears its
+protocol before invoking it. No subsequent `didLoad` or finish is delivered
+after `stopLoading`. Foundation nevertheless adds its own failure callback:
+
+- [`cancel()`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L381-L410)
+  enqueues `stopLoading()` and then calls the protocol client with cancellation.
+- [Success completion](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L1197-L1217)
+  and [failure completion](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSessionTask.swift#L1363-L1380)
+  each check `task.state`, call the consumer, then mark completion and enqueue
+  registry removal. The check/callback/state transition is not an atomic claim.
+- [`remove`](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/TaskRegistry.swift#L81-L99)
+  traps on the second removal. Concurrent completion closures explain the
+  observed duplicate callback and double removal; no native patch is claimed.
+
+This fixture reproduces on stable Linux. The disabled concurrent test is not
+claimed to reproduce on the snapshot. Apple passes its 50 concurrent-queue
+iterations in the macOS check. Serial queue runs are recorded in the final
+[D05 matrix](003-D05-native-quiescence.md#final-executable-gate), including the
+1,000-iteration audit; bounded success does not rule out all other races.
+
+**Impact and priority:** recommend upstream exactly-once terminal arbitration
+and registry lifetime review. It is not an additional required fix for the
+chosen serial native queue implementation. Apple [recommends a serial delegate queue](https://developer.apple.com/documentation/foundation/urlsession/init(configuration:delegate:delegatequeue:))
+for callback ordering, and DD12 promises no native callback-queue identity.
+The adapter owns both native sessions, so it can use serial queues directly.
+Reassess this classification if a supported serial path fails or concurrent
+native delegate queues become an advertised capability. The invalid-resume
+registration race has a different cause and retains its existing fixture barrier.
+
+Run the crash investigation alone on unpatched Linux:
+
+```sh
+DIORAMA_D05_UNSAFE_TERMINAL_RACE=1 swift test \
+  --package-path Spikes/URLSessionInterception \
+  --scratch-path .build/urlsession-spike -Xswiftc -warnings-as-errors \
+  --filter 'D05ReplayTests.*concurrent'
+```
+
+`DIORAMA_VERIFY_FOUNDATION_FIXES=1` also restores it. The ordinary serial race
+continues to execute without a suppression. `DIORAMA_D05_STRESS_SERIAL=1`
+with the `D05ReplayTests.*extended` filter runs 1,000 serial iterations.
+The original fatal run is `.build/d05-all-linux.log` (local artifact).
 
 ## Related Apple observations
 
@@ -1140,9 +1203,10 @@ under review. Its [completed investigation](003-D03-redirect-correlation.md)
 adds FN-11 as a required redirect-client repair and FN-12–FN-14 as native HTTP
 findings. The owner subsequently authorizes D04 and approves its native Digest
 exception. D04 adds required FN-15, optional native FN-16–FN-18, and the tested
-Apple delegate-completion bridge. D05 still consolidates these findings and
-confirms or revises the production task breakdown. Its review
-must explicitly carry the Linux defects into implementation and conformance
+Apple delegate-completion bridge. D05 consolidates these findings and revises
+the production task constraints in its feasibility review, including serial
+native queues and the approved invalidation boundary. The combined Phase D
+owner review must carry the Linux defects into implementation and conformance
 work instead of treating them as passed capabilities. H/I implementation may
 then proceed under that reviewed breakdown while the known upstream fixes are
 pending. Normal review-unit approvals, required checks, and the prohibition on

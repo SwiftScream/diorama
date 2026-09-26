@@ -133,8 +133,11 @@ Evidence contradicting accepted behavior requires reopening the affected decisio
 This is recorded in [DD12's planning-order clarification](../design-decisions/12-urlsession-scope.md#planning-order-clarification--2026-09-06).
 
 003-D01–003-D05 cover all six required spike questions.
-The H/I production breakdown can therefore be reviewed now and remains provisional until 003-D05 confirms or revises it against the evidence.
-The required URLSession capabilities are unchanged.
+D05 consolidates the evidence and revises the H/I implementation constraints in
+[its feasibility review](../evidence/003-D05-native-quiescence.md#production-plan-review).
+The owner reviews Phase D together before production depends on that boundary.
+Required capabilities retain the explicitly approved platform exceptions and
+native session invalidation amendment; an expected Linux failure is not conformance.
 Resolving Q1 did not itself approve the plan or execute a spike; plan approval was recorded separately on 2026-09-07.
 
 **Linux continuation policy — owner direction, 2026-09-24:** After reviewing
@@ -1017,12 +1020,17 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-D05 — Native quiescence and consolidated feasibility gate
 
-- Status: In progress on 2026-09-26, with owner direction to review and merge
-  Phase D as one unit. The initial [lifetime checkpoint](../evidence/003-D05-native-quiescence.md)
-  finds a conflict resolved by the owner-approved DD12/DD17 invalidation
-  amendment: the returned session is usable only during execution; new task
-  creation afterward crashes on tested runtimes. Continue the remaining
-  quiescence experiments; the consolidated feasibility gate is not complete.
+- Status: Complete as an isolated investigation on 2026-09-27, ready for the
+  combined Phase D owner review. [Consolidated evidence](../evidence/003-D05-native-quiescence.md)
+  covers all six DD12 questions and revises the H/I implementation constraints.
+  The full gate passes 306 expanded cases on each Apple profile and 201 on
+  each Linux profile with 61 documented known assertions. Linux remains
+  incompatible for the capabilities requiring FN-01/FN-08/FN-11/FN-15 repairs.
+  The owner approves native invalidation: new task creation on the returned
+  session after execution is invalid native use and crashes on tested runtimes.
+  FN-09 uses an independent forwarding executor. FN-10 adds a concurrent
+  terminal-callback crash; serial native queues pass the ordinary races and
+  1,000-iteration Linux audits. The concurrent Linux test stays opt-in.
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Prove native quiescence and forwarding-tail ownership, then reconcile all spike results with the production boundary.
 - Prerequisites: 003-D01–003-D04; DD10, DD12, DD14, DD17.
 - Scope: Prove shutdown/cancellation/routing ownership and consolidate all six spike questions into a reviewed per-platform capability matrix.
@@ -1038,10 +1046,13 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
   Retain D04's native Digest exception (FN-16), proxy configuration finding
   (FN-17), error-mapping finding (FN-18), and tested delegate-completion
   authentication bridge.
-  Verify the FN-09 forwarding executor boundary and investigate FN-10's
-  task-registry crash while proving native quiescence. Other disproved boundaries
-  still stop affected production work for consideration. Implementation
-  progress does not establish conformance on a failing runtime.
+  Carry the verified FN-09 executor separation and FN-10 serial native queue
+  constraint into production. Retain the excluded-resume registration barrier
+  and the concurrent terminal crash as distinct upstream investigations. Other
+  newly disproved boundaries still stop affected production work for
+  consideration. Implementation progress does not establish conformance on a
+  failing runtime. Phase D requires the combined owner review before production
+  depends on its feasibility boundary.
 
 ## Phase E — Scheduler and reusable grouped behavior
 
@@ -1551,8 +1562,13 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Scope: Implement configuration-first adapter-owned sessions and private forwarding machinery, routing leases, rejection boundary, and minimal supported GET record/replay/passthrough from stable scenario to native result.
 - Expected files/modules: `DioramaURLSession` setup/routing/protocol and Apple/ FoundationNetworking bridge files, GET fixtures and capability documentation.
 - Public behavior: Copy default/ephemeral configurations, reject background and detectable unsupported delegates, disable cache, preserve supported settings and custom protocol order.
-  Strip/reject reserved routing collisions, prevent forwarding reentry, validate active route, and never fall back during replay.
-- Tests/verification: V-code; bodyless GET first on macOS/Linux then iOS, all modes, configuration immutability, two sessions/executions, routing stripped before preparation/diagnostics/network, unknown/expired routes, zero live replay access, startup rollback, basic cancellation/finish and the approved native invalidation boundary.
+  Identify tasks by object identity in owned sessions; revalidate the lease
+  after asynchronous lookup. Install no routing header or forwarding property.
+  Exclude Diorama from private transport protocols, preserve consumer protocol
+  order, and never fall back during replay. Own serial native delegate queues
+  and a separate forwarding executor (FN-09); close admission, detach live
+  observation, and establish replay callback drainage from the first slice.
+- Tests/verification: V-code; bodyless GET first on macOS/Linux then iOS, all modes, configuration immutability, two sessions/executions, no private routing metadata in preparation/diagnostics/network, absent/ambiguous/expired ownership, late lookup after cancellation, zero live replay access, startup rollback, basic cancellation/finish and the approved native invalidation boundary.
 - Exclusions: Global protocol registration, shared/existing-session mutation, advertising bodies/delegate decisions/redirects/auth before their units, live bypass for unsupported tasks or non-HTTP schemes.
 - Checkpoint: R; review the smallest safe native vertical path and its precise temporary profile.
   Any failed rejection guarantee stops adapter rollout.
@@ -1570,6 +1586,9 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Tests/verification: V-code; all supported constructors/overloads, empty versus absent bodies, JSON and binary resources, default HTTPS forwarding, cookie/ credential settings, derived/literal length cases, total timing, record and passthrough forwarding, replay cancellation and no live access.
 - Exclusions: Upload/download/body streams, form/multipart/JSON semantic matching, fabricating lost native distinctions or response fields, wire-byte guarantees.
 - Checkpoint: R; review exact bytes and presentation coverage per bridge.
+  FN-01 remains required for segmented aggregate results. Mark only affected
+  Linux assertions as known issues until a repaired runtime passes them; do not
+  merge chunks merely to hide the defect.
 
 ### 003-I03 — Native failure record/replay
 
@@ -1598,6 +1617,11 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Tests/verification: V-code; segment shape/edited lengths, empty deliveries, response-before-body, allow/cancel/unanswered/mismatch, no synthetic decision in completion/async records, task conversion rejection, cancellation/finish during handoff, declared delivery contexts and zero late replay callbacks.
   Include native parity and candidate invalidation for the accepted Linux
   limitation; require effective response-decision gating where advertised.
+  FN-08 and its FN-05/FN-07 mechanics must permit faithful proxy installation
+  and decision observation for all advertised delegate forms. An async delegate
+  supplied directly to a spike does not prove transparent interception.
+  Dispose native decision continuations once during replay shutdown, and make
+  retained consumer answers inert after closure.
 - Exclusions: Callback queue/task identity promises, progress/KVO/metrics, download/stream conversion, advertising native trailers without evidence.
 - Checkpoint: R; review observable delegate symmetry for each bridge.
 
@@ -1609,9 +1633,14 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Expected files/modules: URLSession redirect bridge/proxy and conformance suite.
 - Public behavior: Automatic or delegate follow/modification/refusal selects the recorded compatible branch.
   Preserve the response/request ownership from 003-H10; unanswered decisions remain open and mismatches fail without network access.
+  Keep admitted live continuation context across replacement protocol instances
+  after execution routing closes, without retaining scenario state. Dispose the
+  superseded private hop's pending decision independently from the new hop.
 - Tests/verification: V-code; all 003-D03 cases including multi-hop, relative target, method/body rewrite, cross-origin credential preparation, loops/limits, refusal body, open branches, modified-request matching, current-decision timing, canceled/finished redirect and routing continuity without stable route data.
 - Exclusions: Flattened final-response snapshots, overriding native policy, alternate authored continuation paths, redirect data in a companion track.
-- Checkpoint: R; stop with per-platform conformance; revisit DD12 if required native behavior differs from the reviewed spike.
+- Checkpoint: R; require repaired FN-11 before claiming Linux redirect
+  conformance. Carry FN-12–FN-14 native behavior and the unverified Linux body
+  workaround explicitly. Revisit DD12 for other newly disproved boundaries.
 
 ### 003-I06 — Native HTTP Basic authentication
 
@@ -1621,9 +1650,14 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Expected files/modules: URLSession challenge sender/proxy and Basic fixtures.
 - Public behavior: Use/default/reject/cancel/open choose the compatible recorded continuation; raw passwords never enter stable state.
   Shared 401/407 response heads and inherited requests are not duplicated.
+  Observe ordinary delegate completion decisions and resolve the owned private
+  sender; do not rely on Foundation calling a custom sender. Keep each pending
+  private continuation with its transport until answered or explicitly disposed.
 - Tests/verification: V-code; direct/proxy challenge where advertised, safe proposed credentials, previous failure counts, repeated challenges, username/ persistence comparison, replay mismatch, body/failure outcomes, cancellation versus challenge cancel, unanswered finalization, no replay live source.
 - Exclusions: Digest until 003-I07, Security objects, response-less challenges, storing a real password to make native replay work, implementing Basic itself.
 - Checkpoint: R; review Basic end-to-end fidelity and secret-marker tests.
+  FN-15 remains a required Linux repair: challenge handling must never replace
+  replay with native HTTP. FN-17 remains a native proxy limitation.
 
 ### 003-I07 — Native HTTP Digest authentication
 
@@ -1632,6 +1666,9 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Scope: Extend the native challenge path to Digest while preserving the same shared lifecycle, safe metadata and continuation contracts.
 - Expected files/modules: URLSession Digest capability and conformance fixtures; minimal shared challenge-path corrections justified by actual behavior.
 - Public behavior: Replay task-level Digest challenge dispositions and repeated attempts without reconstructing live authentication secrets or contacting a server.
+  Apply the owner-approved DD12/DD17 FN-16 exception on Linux: preserve the
+  native live limitation and reject incompatible replay. Do not implement Digest
+  inside Diorama or infer support from libcurl capability alone.
 - Tests/verification: V-code; Digest challenge forms proved by the bridge, retry/default/reject/cancel/open behavior, volatile challenge field policy, current-decision delays, failure counts, native record/passthrough equivalence, stable repeated-challenge persistence and offline replay on advertised platforms.
 - Exclusions: Other password methods, hand-rolled Digest protocol, automatic sanitization of all challenge fields, parity claims unsupported by libcurl evidence.
 - Checkpoint: R; review the complete initial Basic/Digest capability boundary.
@@ -1645,6 +1682,10 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Public behavior: Horizon stops recording immediately and permits necessary live forwarding tails without scenario retention; replay callbacks quiesce.
   Open before-head, partial-body and unanswered decisions never get invented terminal events.
   Returned sessions are invalidated; new task creation after execution is invalid native use and crashes on tested runtimes, as approved in DD12/DD17.
+  Await native invalidation acknowledgement and owned delivery drainage for
+  replay; gracefully invalidate live sessions without waiting for open consumer
+  work. A live continuation has weak task/owner backreferences and no scenario
+  retention. Key decision disposal per task so cancellation stays local.
 - Tests/verification: V-code; finish at every phase, repeated/concurrent/canceled finish waiters, no replay callbacks after quiescence, late live results forwarded without candidate mutation, source/session ownership, routing/lease release, used/incomplete facts and healthy explicit-open persistence.
 - Exclusions: Canceling live work merely to reach a horizon, leak masking through global strong registries, recording caller cancellation, new timeout policy.
 - Checkpoint: R; review production shutdown evidence independently from happy paths.
@@ -1657,8 +1698,11 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Expected files/modules: URLSession shared conformance fixtures, platform CI selection and evidence, supported-capability and rejection documentation.
 - Public behavior: One system and persisted schema; Apple/Linux portability covers the tested intersection.
   Unsupported or unimplemented nodes/tasks fail at the earliest reliable point in every mode with no built-in HTTP fallback.
-  The DD12/DD17 native-disposition exception permits its documented live
-  behavior while refusing invalid publication and incompatible replay.
+  The DD12/DD17 native-disposition and Digest exceptions permit their documented
+  live behavior while refusing invalid publication and incompatible replay.
+  FN-01, FN-08 (including the required FN-05/FN-07 integration mechanics),
+  FN-11, and FN-15 remain upstream requirements; FN-10 lifecycle findings must
+  also be assessed against the actual production queue and task ownership.
 - Tests/verification: V-code complete matrix: all data-task presentations, bodies/segments, failures, redirects, Basic/Digest, disposition, open horizons, timing overrides/re-records, resource edits, mode isolation and cleanup.
   Exercise excluded configurations/tasks/decision delegates and record exact Linux Swift/libcurl support; distinguish observation-only exclusions such as unavailable metrics from detectable decision-bearing setup failures.
 - Exclusions: Claiming the milestone complete on GET-only Linux, silently narrowing failed requirements, cross-client replay, unvalidated Apple platforms, watchOS URLProtocol support or optional native trailers without conformance.
