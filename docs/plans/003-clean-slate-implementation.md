@@ -165,6 +165,9 @@ capabilities are expected to remain broken until the runtime includes those
 repairs and conformance is demonstrated. This does not classify portable core,
 persistence, or random behavior as broken. FN-01 and FN-08 remain required;
 full delegate interception also needs the relevant FN-05/FN-07 mechanics.
+D03 subsequently identifies FN-11's crashing custom redirect callback as
+another required upstream repair. Its native FN-12–FN-14 findings remain
+explicit platform limitations and upstream recommendations in the handoff.
 Task ownership remains the production routing choice even with repaired
 configuration headers and request properties.
 
@@ -962,6 +965,21 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-D03 — Redirect correlation spike
 
+- Status: Complete as an isolated investigation, 2026-09-26; the owner
+  authorizes PR preparation stacked on D02. The owner confirms scope and
+  GPT-6 Astra at `xhigh`, authorizes work
+  while D01/D02 remain under review, and requests upstream handoff updates.
+  [Evidence](../evidence/003-D03-redirect-correlation.md) records 66 cases:
+  task ownership retains one operation across Apple redirect instances;
+  native and forwarded decisions, request derivation, pending/canceled
+  decisions, and timing pass on macOS and iOS Simulator. Linux's 21 native
+  cases run with seven known assertions; 45 custom/forwarding cases are
+  disabled because FN-11 traps. The
+  [handoff](../evidence/003-D02-foundationnetworking-handoff.md#d03-fix-priorities--2026-09-26)
+  adds required FN-11, native FN-12–FN-14, and the FN-01 refusal regression.
+  Stable and pinned-snapshot Linux gates pass with those explicit dispositions;
+  this does not establish Linux redirect conformance. No production code or
+  accepted redirect semantics change. D05 retains full native-lifetime proof.
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Correlation across protocol instances, redirect decisions, and cross-origin preparation needs exploratory platform reasoning.
 - Prerequisites: 003-D02; DD12/DD17 redirect contracts.
 - Scope: Prove one operation retains its lifecycle across URLProtocol instances and automatic or delegate-directed redirect decisions.
@@ -992,8 +1010,9 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Tests/verification: V-spike; pending/in-flight callbacks, unanswered decisions, route removal, escaped sessions, no replay delivery after quiescence, minimal live forwarding tails completing without scenario retention/mutation, repeated setup/cleanup without leaks; macOS, Linux and iOS evidence.
 - Exclusions: Canceling consumer-owned live work to pass teardown, timeout-based claims of quiescence, production promotion of the spike, hiding lost phases.
 - Checkpoint: R; confirm or revise H/I decomposition against findings under resolved Q1.
-  Carry FN-01 aggregation, FN-08 delegate integration, and the accepted
+  Carry FN-01 aggregation, FN-08 delegate integration, FN-11 custom redirects, and the accepted
   disposition limitation into the reviewed breakdown under Q1 and DD12/DD17.
+  Retain D03's FN-12–FN-14 native redirect findings in the platform matrix.
   Verify the FN-09 forwarding executor boundary and investigate FN-10's
   task-registry crash while proving native quiescence. Other disproved boundaries
   still stop affected production work for consideration. Implementation
