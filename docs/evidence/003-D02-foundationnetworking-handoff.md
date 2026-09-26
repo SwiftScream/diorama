@@ -15,6 +15,9 @@
   records the approved session-invalidation amendment and a second FN-10
   reproducer: concurrent terminal callbacks can remove a task twice. The
   production constraint is serial native delegate queues; see the audit below.
+- Combined-PR investigation: the iOS CI follow-up exposes FN-19 on stable
+  Linux: task enumeration reads the registry outside its owning work queue.
+  Reliable task-ownership routing requires that upstream repair.
 - Upstream repository: [swiftlang/swift-corelibs-foundation](https://github.com/swiftlang/swift-corelibs-foundation).
 - Inspected release: `swift-6.4.0-RELEASE`, commit
   `d29d01ba165f6957141e07ea7fe8144ab491bc24`.
@@ -47,6 +50,7 @@ handoff identifiers, not upstream issue numbers.
 | FN-16 | Native Digest challenges are not presented; the Digest retry handler is unimplemented | Reproduced native limitation plus source evidence | Owner-approved native exception; optional upstream capability work. |
 | FN-17 | A configured HTTP/HTTPS proxy is not reached | Reproduced native configuration gap; source does not consume the property | Recommend upstream native proxy support; no additional interception failure is established. |
 | FN-18 | Certificate rejection maps to `URLError.unknown` | Reproduced native error-mapping gap; source has no TLS-specific case | Nice to have; Diorama can preserve the native domain/code. |
+| FN-19 | `getAllTasks` enumerates a registry concurrently with mutation | Stable-Linux crash in registry collection mapping; source violates its documented queue confinement | Required for reliable task-ownership lookup while other tasks start or complete. Cleanup can avoid enumeration by using already admitted tasks. |
 
 FN-01 blocks correct aggregate results for segmented Linux responses. On
 2026-09-24 the owner directs continued planning and implementation for Linux
@@ -91,6 +95,7 @@ release. Passing checks with known issues is not a Linux conformance claim.
 | FN-06 | **Not essential: accepted native refusal** | Preserve the tested offline WebSocket error. Diorama does not require Linux WebSocket support. Recheck exclusion enforcement if a future runtime supports it. |
 | FN-09 | **Not essential: demonstrated executor separation** | Create and tear down forwarding tasks on an independent owned serial executor. D05 verifies startup cancellation, live completion, and detached forwarding lifetime for the available native paths. Custom redirect/auth paths still require FN-11/FN-15 on Linux. |
 | FN-10 | **Recommended upstream; avoid the demonstrated failing paths** | Keep the registration barrier for the excluded invalid-resume fixture. D05 additionally reproduces duplicate completion and removal on a concurrent native delegate queue; use serial native queues for the adapter. This does not prove every native registry race repaired. |
+| FN-19 | **Required for task-ownership routing** | Snapshot the registry on its owning work queue before invoking enumeration callbacks. Serial delegate queues do not serialize reads against registry writes. The cleanup fixture can use its own admitted task references, but that does not repair initial routing. |
 
 The former FN-02 response-disposition issue remains removed from the requested
 upstream work. Its repair is optional under DD12/DD17. Private forwarding uses
@@ -105,7 +110,8 @@ requires early proxy installation and coherent callback dispatch.
 
 Task ownership remains approved even if FN-03/FN-04 are fixed. It derives the
 route from the actual session, avoids caller-header overrides and private HTTP
-metadata, and already works on tested stock runtimes. D03/D05 validate Apple
+metadata, and passes the original ownership cases on stock runtimes. FN-19
+qualifies that result: concurrent registry mutation still needs repair. D03/D05 validate Apple
 redirect continuity, asynchronous lookup revalidation, and the tested lifetime
 boundaries. Linux custom redirect/auth paths retain
 their required upstream fixes. Add patched-runtime results to the evidence when tested without replacing the original results.
@@ -146,7 +152,8 @@ recoverable infrastructure error. Leaving the session open also fails to
 establish the tested Apple native cleanup boundary.
 
 This is documented native API use outside its lifetime, not an additional
-interception defect or a prerequisite upstream repair. No FN-19 is assigned.
+interception defect or a prerequisite upstream repair. No issue is assigned
+to native invalidation.
 The owner resolves the checkpoint by approving native session invalidation:
 the returned session is usable only during scenario execution, and creating
 new tasks afterward crashes. DD12/DD17 record the amendment. D05 separately
@@ -1179,6 +1186,72 @@ error and an in-memory Boolean indicating a certificate-related description;
 it does not persist or print the description. A changed mapping needs fresh
 baseline evidence; no known-issue scope suppresses trust acceptance.
 
+## FN-19 — Task enumeration races registry mutation
+
+The combined Phase D CI investigation on 2026-09-27 first reproduces this on
+the official `swift:6.4.0-noble` image while running the spike with
+`--no-parallel`. In D05's blocked completion callback case with native queue
+width four, the old cleanup helper calls `getAllTasks` while completion can
+remove the task. The process terminates with signal 4:
+
+```text
+specialized Collection.map<A, B>(_:) in libFoundationNetworking.so
+closure #1 in closure #1 in URLSession.getAllTasks(completionHandler:)
+BlockOperation.main()
+```
+
+This is separate from FN-10's double removal. The
+[`getAllTasks` implementation](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/URLSession.swift#L407-L414)
+first enqueues work on `workQueue`, then enqueues an operation on
+`delegateQueue`. That second closure reads `taskRegistry.allTasks` and filters
+task state. The
+[`TaskRegistry` contract](https://github.com/swiftlang/swift-corelibs-foundation/blob/d29d01ba165f6957141e07ea7fe8144ab491bc24/Sources/FoundationNetworking/URLSession/TaskRegistry.swift#L36-L40)
+requires access only on the owning session's work queue; `allTasks` maps the
+mutable task dictionary. Task additions and completion removals can run on the
+work queue while the delegate queue maps that dictionary. The source violation
+explains the observed stack; the crash itself does not identify which mutation
+overlapped the read. Audit the sibling `getTasksWithCompletionHandler` path too.
+
+**Repair direction:** form a task snapshot under the registry's owning queue
+and deliver that snapshot to the callback on the documented delegate queue.
+Audit filtering/state access and all other registry access for the same
+confinement violation. Keep callbacks outside the internal registry operation.
+A serial delegate queue alone does not serialize reads against work-queue
+writes.
+
+**Diorama impact:** classify this as required for reliable task-ownership
+routing with overlapping tasks, under the existing policy to continue Linux
+implementation while required fixes proceed upstream. The approved routing
+choice remains task ownership. D05 cleanup
+now stops/cancels its already admitted operations directly and drains an
+already delivered terminal callback without canceling it again. This avoids
+the unnecessary enumeration in cleanup; it does not repair initial ownership
+lookup. Add concurrent task creation/completion versus lookup to I01/I09's
+patched-runtime gate.
+
+The original reproducer is the blocked completion test and old `d05CloseReplay`
+at combined-PR commit `78e9e82`, run with `swift test --no-parallel`. The
+isolated [enumeration audit](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D05TaskEnumerationTests.swift)
+additionally overlaps registry reads with batches of ordinary custom-protocol
+completions on native queue widths one and four. It is opt-in because it can
+terminate an unpatched Linux process; it is a bounded race experiment, not a
+deterministic crash assertion:
+
+```sh
+DIORAMA_D05_TASK_ENUMERATION_STRESS=1 swift test \
+  --package-path Spikes/URLSessionInterception \
+  --scratch-path .build/urlsession-spike -Xswiftc -warnings-as-errors \
+  --no-parallel --filter 'D05ReplayTests.*enumeration'
+```
+
+`DIORAMA_VERIFY_FOUNDATION_FIXES=1` restores the audit too. Restore ordinary
+Linux coverage after an upstream repair passes the concurrent audit and the
+original lifetime cases. Local crash evidence is retained in
+`.build/phase-d-linux-isolated.log`. The separate 20-batch audit passes on
+stock stable Linux at both widths (`.build/phase-d-linux-enumeration.log`);
+that bounded result does not remove the source violation or invalidate the
+original crash. No patched Foundation run is claimed.
+
 ## Plan boundary for the receiving investigator
 
 On 2026-09-24 the owner directs Diorama to continue the plan and implementation
@@ -1220,5 +1293,7 @@ accepted. FN-08 additionally requires a delegate-integration solution before
 claiming that capability. FN-11 blocks generic redirect presentation for both
 record/passthrough and replay. FN-15 additionally blocks custom authentication
 without a native HTTP escape. The Digest exception does not relax that boundary.
+FN-19 additionally requires safe enumeration for concurrent task-ownership
+lookup; avoiding enumeration during cleanup does not establish routing safety.
 This update adds no upstream patch or production implementation. Completing the investigation does not pass the Linux
 conformance gate or D05's lifecycle review.

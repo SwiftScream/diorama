@@ -911,6 +911,14 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ## Phase D — Isolated URLProtocol evidence
 
+**Combined review — owner direction, 2026-09-27:** D01–D05 are complete as
+isolated investigations and are submitted together in one PR against `master`.
+This supersedes the separate D01, D02, and D03 PRs. The combined review accepts
+the consolidated feasibility boundary and the H/I constraints below; merging
+it does not authorize starting the next implementation unit. Linux work
+continues under the approved upstream-fix policy, with affected conformance
+explicitly unproved until a repaired runtime passes the retained assertions.
+
 These are experiments, not a second implementation to promote into production.
 The complete matrix answers DD12's six spike questions; a successful GET alone does not approve redirect, challenge, or rejection behavior.
 Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown against reviewed evidence before production work depends on the proposed boundary.
@@ -1025,12 +1033,15 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
   covers all six DD12 questions and revises the H/I implementation constraints.
   The full gate passes 306 expanded cases on each Apple profile and 201 on
   each Linux profile with 61 documented known assertions. Linux remains
-  incompatible for the capabilities requiring FN-01/FN-08/FN-11/FN-15 repairs.
+  incompatible for the capabilities requiring FN-01/FN-08/FN-11/FN-15/FN-19 repairs.
   The owner approves native invalidation: new task creation on the returned
   session after execution is invalid native use and crashes on tested runtimes.
   FN-09 uses an independent forwarding executor. FN-10 adds a concurrent
   terminal-callback crash; serial native queues pass the ordinary races and
   1,000-iteration Linux audits. The concurrent Linux test stays opt-in.
+  Combined-PR CI feedback adds experiment isolation and detailed iOS failure
+  output. The follow-up finds FN-19's unsafe task enumeration; cleanup now uses
+  admitted task references, while production routing requires upstream repair.
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Prove native quiescence and forwarding-tail ownership, then reconcile all spike results with the production boundary.
 - Prerequisites: 003-D01–003-D04; DD10, DD12, DD14, DD17.
 - Scope: Prove shutdown/cancellation/routing ownership and consolidate all six spike questions into a reviewed per-platform capability matrix.
@@ -1040,7 +1051,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Exclusions: Canceling consumer-owned live work to pass teardown, timeout-based claims of quiescence, production promotion of the spike, hiding lost phases.
 - Checkpoint: R; confirm or revise H/I decomposition against findings under resolved Q1.
   Carry FN-01 aggregation, FN-08 delegate integration, FN-11 custom redirects,
-  FN-15 custom authentication, and the accepted
+  FN-15 custom authentication, FN-19 task enumeration, and the accepted
   disposition limitation into the reviewed breakdown under Q1 and DD12/DD17.
   Retain D03's FN-12–FN-14 native redirect findings in the platform matrix.
   Retain D04's native Digest exception (FN-16), proxy configuration finding
@@ -1568,6 +1579,9 @@ the accepted Linux milestone profile; its upstream repair is not required.
   order, and never fall back during replay. Own serial native delegate queues
   and a separate forwarding executor (FN-09); close admission, detach live
   observation, and establish replay callback drainage from the first slice.
+  FN-19 requires safe Linux registry enumeration during overlapping task
+  creation/completion. Finalization uses admitted task references directly;
+  avoiding enumeration there does not repair the initial routing lookup.
 - Tests/verification: V-code; bodyless GET first on macOS/Linux then iOS, all modes, configuration immutability, two sessions/executions, no private routing metadata in preparation/diagnostics/network, absent/ambiguous/expired ownership, late lookup after cancellation, zero live replay access, startup rollback, basic cancellation/finish and the approved native invalidation boundary.
 - Exclusions: Global protocol registration, shared/existing-session mutation, advertising bodies/delegate decisions/redirects/auth before their units, live bypass for unsupported tasks or non-HTTP schemes.
 - Checkpoint: R; review the smallest safe native vertical path and its precise temporary profile.
@@ -1701,7 +1715,7 @@ the accepted Linux milestone profile; its upstream repair is not required.
   The DD12/DD17 native-disposition and Digest exceptions permit their documented
   live behavior while refusing invalid publication and incompatible replay.
   FN-01, FN-08 (including the required FN-05/FN-07 integration mechanics),
-  FN-11, and FN-15 remain upstream requirements; FN-10 lifecycle findings must
+  FN-11, FN-15, and FN-19 remain upstream requirements; FN-10 lifecycle findings must
   also be assessed against the actual production queue and task ownership.
 - Tests/verification: V-code complete matrix: all data-task presentations, bodies/segments, failures, redirects, Basic/Digest, disposition, open horizons, timing overrides/re-records, resource edits, mode isolation and cleanup.
   Exercise excluded configurations/tasks/decision delegates and record exact Linux Swift/libcurl support; distinguish observation-only exclusions such as unavailable metrics from detectable decision-bearing setup failures.
