@@ -1,7 +1,7 @@
 # Decision 17: HTTP lifecycle composition
 
 - Status: Accepted
-- Last updated: 2026-09-06
+- Last updated: 2026-09-26
 - Depends on: [Decision 2: Shared and system-specific semantics](02-shared-vs-system-semantics.md),
   [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
   [Decision 4: Replay selection](04-replay-selection.md),
@@ -333,6 +333,16 @@ Challenge cancellation is a recorded lifecycle decision and is distinct from
 the caller canceling a `URLSessionTask`. Server trust, client certificates,
 identities, and challenges without a representable HTTP response remain
 unsupported.
+
+### FoundationNetworking Digest exception — 2026-09-26
+
+The owner approves the [Decision 12 Digest exception](12-urlsession-scope.md#foundationnetworking-digest-exception--2026-09-26).
+A native Linux 401 response without an observed Digest challenge remains an
+ordinary response. Do not manufacture a challenge, credential decision, or
+retry. Record and passthrough preserve the demonstrated native outcome.
+Replay requiring an unsupported Digest challenge capability fails setup rather
+than attempting live authentication. The portable challenge model and Apple
+Digest requirements remain unchanged.
 
 ## URLSession response disposition
 

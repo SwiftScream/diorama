@@ -47,6 +47,13 @@ Diorama may preserve the demonstrated native live limitation without requiring
 an upstream repair, while keeping recordings truthful and rejecting replay
 that requires unsupported response decisions.
 
+On 2026-09-26 the owner approved the FoundationNetworking Digest exception in
+[Decision 12](12-urlsession-scope.md#foundationnetworking-digest-exception--2026-09-26)
+and [Decision 17](17-http-lifecycle-composition.md#foundationnetworking-digest-exception--2026-09-26).
+Preserve the demonstrated native 401 response without manufacturing a Digest
+challenge. Reject replay requiring unsupported Digest capability at setup;
+custom Basic challenge decisions and offline replay still require conformance.
+
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |
 | 1 | [Common abstraction](01-common-abstraction.md) | `01-common-abstraction.md` | Accepted |

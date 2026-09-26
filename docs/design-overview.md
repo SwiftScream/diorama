@@ -313,6 +313,13 @@ unsupported capabilities is rejected at setup. An upstream repair is optional;
 explicit task cancellation, offline replay, and correct body delivery remain
 required.
 
+The [FoundationNetworking Digest exception](design-decisions/12-urlsession-scope.md#foundationnetworking-digest-exception--2026-09-26)
+also preserves native Linux behavior when Digest authentication is unimplemented.
+An ordinary 401 with no observed challenge stays an ordinary response; replay
+requiring an unsupported Digest challenge is rejected at setup. Native Digest
+support is optional for other Linux capabilities. This does not permit custom
+authentication replay to escape to live networking.
+
 ### Attachment keys, system types, and match keys
 
 These identifiers remain distinct:
