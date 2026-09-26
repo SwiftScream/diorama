@@ -171,7 +171,8 @@ The executable fixtures establish these separate boundaries:
 1. Close routing/admission and stop the synchronized protocol delivery wrapper.
    A late asynchronous ownership result must revalidate its lease. Expired,
    absent, ambiguous, or canceled ownership cannot start replay or live work.
-2. Cancel owned replay tasks on an executor outside Foundation's work queue.
+2. Cancel owned open replay tasks on an executor outside Foundation's work queue;
+   an already delivered terminal event drains without another cancellation.
    Explicitly dispose outstanding native response/redirect/challenge answers
    once, with their runtime cancellation/refusal cleanup values. A retained
    consumer answer then owns only an inert box. These cleanup calls do not
@@ -270,7 +271,7 @@ implementation or validation of every OS release at the deployment floors.
 
 | DD12 question | Apple macOS/iOS evidence | Stock Linux evidence and implementation constraint |
 | --- | --- | --- |
-| 1. Creation forms, routing, cache/live isolation | D01/D02 prove the covered data-task forms, cache disabling, private forwarding, and task ownership; D05 revalidates delayed ownership and removes expired routes | Task ownership works without FN-03/FN-04 repairs. FN-08 with FN-05/FN-07 still prevents the full transparent delegate-integration claim. |
+| 1. Creation forms, routing, cache/live isolation | D01/D02 prove the covered data-task forms, cache disabling, private forwarding, and task ownership; D05 revalidates delayed ownership and removes expired routes | Task ownership avoids FN-03/FN-04, but FN-19 requires safe enumeration during concurrent registry mutation. FN-08 with FN-05/FN-07 still prevents the full transparent delegate-integration claim. |
 | 2. Early task/body rejection | D02 creation hooks reject excluded tasks with diagnostics and native errors; original-request bodies distinguish data from streams | Preserve demonstrated native refusals, including unsupported WebSockets. Do not advertise missing delegate guards as enforced. |
 | 3. Heads, segments, presentation | D02 controlled delivery covers delegate, completion, and async results; D05 cancels/drains all four presentation categories | FN-01 still breaks segmented aggregate results. Preserve the approved native response-disposition limitation; reject incompatible replay and unrepresentable recordings. |
 | 4. Redirect correlation/decisions | D03 follows/modifies/refuses correlated hops; D05 keeps admitted live redirects working after the horizon without scenario retention | FN-11 is required for custom redirects. FN-12–FN-14 are inherited native findings; the private-hop body workaround remains unproved on Linux. |
@@ -291,6 +292,8 @@ to the owning plan:
   independent forwarding execution, serial native queues, lease revalidation,
   replay drainage, live observation detachment, and native invalidation start
   in the first supported vertical path.
+  Carry FN-19 as a required Linux task-enumeration repair; cleanup uses admitted
+  task references, and initial routing must be tested against registry mutation.
 - **I02/I04:** carry FN-01 aggregation and FN-08 delegate integration as required
   upstream work. Preserve the approved Linux disposition exception. Own and
   dispose per-task native answers; do not synthesize recorded decisions.
@@ -330,6 +333,7 @@ All files below belong to the isolated spike test target:
 | Live redirect/authentication continuation after route removal | [D05DecisionForwardingTests.swift](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D05DecisionForwardingTests.swift) |
 | Completion/async live continuation | [D05AggregateForwardingTests.swift](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D05AggregateForwardingTests.swift) |
 | Terminal races and FN-10 investigation | [D05CancellationRaceTests.swift](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D05CancellationRaceTests.swift) |
+| Opt-in FN-19 task-enumeration audit | [D05TaskEnumerationTests.swift](../../Spikes/URLSessionInterception/Tests/URLSessionInterceptionTests/D05TaskEnumerationTests.swift) |
 
 ## Final executable gate
 
@@ -342,7 +346,7 @@ The final revision passes the canonical V-spike checks with warnings as errors:
 | Stable Linux `swift:6.4.0-noble` | 201 expanded cases pass with 61 existing known-issue assertions | 34 cases | 1,000 additional serial iterations pass |
 | Pinned Swift 6.4.2 Linux snapshot | 201 expanded cases pass with the same 61 known-issue assertions | 34 cases | 1,000 additional serial iterations pass |
 
-The Swift Testing summaries report 81 declarations on Apple (77 run and four
+The original Swift Testing summaries report 81 declarations on Apple (77 run and four
 opt-in probes skipped), and 78 on Linux (58 run and 20 skipped, excluding the
 skipped suite container). The table expands parameterized cases. Xcode reports
 77 passed declarations, four skipped, 50 parameterized declarations containing
@@ -352,7 +356,7 @@ Their intended assertions remain available through the documented controls.
 The 61 known assertions are inherited from D01–D04; D05 adds no blanket expected
 failure. Passing this gate does not claim that stock Linux is fully compatible.
 
-`scripts/lint` passes with zero violations across 138 Swift files. Changed
+The original `scripts/lint` gate passes with zero violations across 138 Swift files. Changed
 documents' local Markdown file targets resolve and `git diff --check` passes.
 The table records local runs. The combined Phase D PR runs the required Quality,
 macOS, iOS, and Linux jobs, including production coverage and the isolated spike.
@@ -398,3 +402,54 @@ DIORAMA_D05_UNSAFE_TERMINAL_RACE=1 swift test \
 and the FN-11/FN-15 decision probes. Native Digest remains outside the stock
 Linux profile. No upstream patch is tested by this branch. D05 adds no known
 issue that conceals an unexpected assertion failure.
+
+## Combined PR CI correction — 2026-09-27
+
+The first [combined PR run](https://github.com/SwiftScream/diorama/actions/runs/36249329143)
+passes Quality, macOS, and stable Linux but fails nine expanded iOS cases
+across eight D02–D04 tests. Eight cases miss callback/body/completion watchdogs;
+one forwarded-body case observes an unexpected URL error. The hosted summary
+does not retain the parameter values or that error's numeric code. D05's cases
+pass. The unchanged revision subsequently passes all 306 cases locally, so the
+hosted result alone does not establish an individual Foundation callback bug.
+
+The harness previously ran unrelated suites concurrently. Swift Testing's
+`.serialized` trait orders a suite's descendants, not its peers. That permits
+the new D05 experiments, which deliberately block native callbacks, to overlap
+unrelated network/delegate experiments on a constrained runner. The canonical
+runner now uses `swift test --no-parallel` and Xcode's
+`-parallel-testing-enabled NO`. Local SwiftPM logs change from 22 simultaneously
+active suites to one. Explicit task groups, overlapping-session cases, and
+serial/concurrent native queue cases still exercise concurrency inside tests.
+Watchdogs and required assertions are unchanged; scheduling interference is
+the working diagnosis for the hosted timeouts, not a reproduced native defect.
+
+On an iOS failure, the runner now prints the expanded test tree and action log
+from the result bundle, as well as its summary, while retaining the failing
+exit code. These commands provide case-level detail even with `xcodebuild
+-quiet`; this bundle does not provide a `console` log.
+
+The isolated Linux rerun separately exposes
+[FN-19](003-D02-foundationnetworking-handoff.md#fn-19--task-enumeration-races-registry-mutation).
+Cleanup now stops its admitted operations directly and cancels only deliveries
+that were still open. It no longer enumerates native tasks while completion
+can remove them. Initial task-ownership routing retains its upstream repair
+requirement. An opt-in enumeration audit preserves an additional concurrent
+regression probe without crashing the ordinary unpatched Linux gate.
+
+The corrected revision passes the complete local gate: macOS and iOS each run
+306 expanded cases; stable Linux runs 201 with the same 61 known assertions.
+There are now 82 declarations on Apple (77 run, five opt-in declarations
+skipped) and 79 on Linux (58 run, 21 skipped). The additional skipped
+declaration is the FN-19 audit. Its separate 20-batch Linux run passes at widths
+one and four; bounded success does not disprove the earlier crash or repair the
+source violation. Lint passes across 139 Swift files, shell syntax and diff
+whitespace checks pass, and no production code or dependency changes.
+The snapshot row above remains evidence from before this CI correction.
+
+Local artifacts: `.build/phase-d-ios-hosted.log`,
+`.build/phase-d-ios-reproduce.log`, `.build/phase-d-macos-final.log`,
+`.build/phase-d-ios-final.log`, `.build/phase-d-linux-final.log`,
+`.build/phase-d-linux-isolated.log`, `.build/phase-d-linux-enumeration.log`, and
+`.build/phase-d-lint-fix.log`. The ordinary iOS result bundle is replaced by
+each canonical run.
