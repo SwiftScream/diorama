@@ -64,6 +64,16 @@ final class D02ControlledDelivery: @unchecked Sendable {
         defer { lock.unlock() }
         instance = nil
     }
+
+    /// D03 uses the same callback/stop lock for a native redirect notification.
+    /// The old instance remains available until Foundation stops it or the
+    /// delegate refuses and the fixture delivers the redirect response body.
+    func redirect(to request: URLRequest, response: HTTPURLResponse) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let instance else { return }
+        instance.client?.urlProtocol(instance, wasRedirectedTo: request, redirectResponse: response)
+    }
 }
 
 final class D02ControlledProtocol: URLProtocol {
