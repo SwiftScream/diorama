@@ -20,7 +20,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Mint
-        uses: irgaly/setup-mint@8566ee44b3a79d20642d1924db21c8ab0402859f # v1
+        uses: irgaly/setup-mint@d82f385e689a86ea68f08bb5c3a9821c0373cb52 # v1
         with:
           mint-directory: .
           mint-executable-directory: /usr/local/bin
