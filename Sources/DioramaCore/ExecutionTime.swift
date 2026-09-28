@@ -45,7 +45,7 @@ public struct ExecutionTimeFailure: Error, Equatable, Sendable {
 /// instants remain private, and capture tokens have no stable encoding.
 public final class ExecutionTime: Sendable {
     private struct State: Sendable {
-        var clockNow: (@Sendable () -> ContinuousClock.Instant)?
+        var clock: ExecutionClock?
         var origin: ContinuousClock.Instant?
         var lastRead: ContinuousClock.Instant?
         var nextOrder: UInt64 = 0
@@ -56,20 +56,20 @@ public final class ExecutionTime: Sendable {
     private let reporter: DiagnosticReporter
     private let owner = CaptureOwner()
 
-    init(clockNow: @escaping @Sendable () -> ContinuousClock.Instant,
+    init(clock: ExecutionClock,
          admission: ExecutionAdmission, reporter: DiagnosticReporter)
     {
-        state = Mutex(State(clockNow: clockNow))
+        state = Mutex(State(clock: clock))
         self.admission = admission
         self.reporter = reporter
     }
 
     func start() {
         state.withLock { state in
-            guard state.origin == nil, let clockNow = state.clockNow else {
+            guard state.origin == nil, let clock = state.clock else {
                 preconditionFailure("Logical time can start only once")
             }
-            let origin = clockNow()
+            let origin = clock.now()
             state.origin = origin
             state.lastRead = origin
         }
@@ -79,8 +79,8 @@ public final class ExecutionTime: Sendable {
         // Drop an injected source outside the lock; its captured values can
         // run arbitrary destruction code.
         let source = state.withLock { state in
-            let source = state.clockNow
-            state.clockNow = nil
+            let source = state.clock
+            state.clock = nil
             state.origin = nil
             state.lastRead = nil
             return source
@@ -134,7 +134,7 @@ public final class ExecutionTime: Sendable {
     {
         guard first.owner === owner, second.owner === owner else { throw failure(.foreignCapture) }
         guard first.order <= second.order else { throw failure(.reversedCaptures) }
-        guard let result = Self.checkedDuration(Self.attoseconds(second.time) - Self.attoseconds(first.time))
+        guard let result = second.time.checkedElapsed(since: first.time)
         else { throw failure(.overflow) }
         return result
     }
@@ -147,20 +147,26 @@ public final class ExecutionTime: Sendable {
     {
         guard anchor.owner === owner else { throw failure(.foreignCapture) }
         guard delay >= .zero else { throw failure(.negativeDelay) }
-        guard let result = Self.checkedDuration(Self.attoseconds(anchor.time) + Self.attoseconds(delay))
+        guard let result = anchor.time.checkedLogicalTime(adding: delay)
         else { throw failure(.overflow) }
         return result
     }
 
-    private func read(reservingCapture: Bool) -> Result<(time: Duration, order: UInt64?), ExecutionTimeIssue> {
+    /// Gives the deadline engine a checked clock snapshot. The engine wraps
+    /// failures as scheduling issues after releasing its own state lock.
+    func schedulingSnapshot() -> Result<ExecutionTimeReading, ExecutionTimeIssue> {
+        read(reservingCapture: false)
+    }
+
+    private func read(reservingCapture: Bool) -> Result<ExecutionTimeReading, ExecutionTimeIssue> {
         state.withLock { state in
             guard !admission.isClosed else { return .failure(.executionClosed) }
-            guard let origin = state.origin, let clockNow = state.clockNow,
+            guard let origin = state.origin, let clock = state.clock,
                   let lastRead = state.lastRead else { return .failure(.notStarted) }
             if reservingCapture, state.nextOrder == UInt64.max {
                 return .failure(.overflow)
             }
-            let instant = clockNow()
+            let instant = clock.now()
             guard instant >= lastRead else { return .failure(.clockMovedBackward) }
             let time = origin.duration(to: instant)
             guard time >= .zero else { return .failure(.clockMovedBackward) }
@@ -168,25 +174,10 @@ public final class ExecutionTime: Sendable {
             if reservingCapture {
                 let order = state.nextOrder
                 state.nextOrder += 1
-                return .success((time, order))
+                return .success(ExecutionTimeReading(time: time, order: order, origin: origin, clock: clock))
             }
-            return .success((time, nil))
+            return .success(ExecutionTimeReading(time: time, order: nil, origin: origin, clock: clock))
         }
-    }
-
-    private static let attosecondsPerSecond = Int128(1_000_000_000_000_000_000)
-
-    private static func attoseconds(_ duration: Duration) -> Int128 {
-        let parts = duration.components
-        return Int128(parts.seconds) * attosecondsPerSecond + Int128(parts.attoseconds)
-    }
-
-    private static func checkedDuration(_ attoseconds: Int128) -> Duration? {
-        guard attoseconds >= 0 else { return nil }
-        let seconds = attoseconds / attosecondsPerSecond
-        guard seconds <= Int128(Int64.max) else { return nil }
-        return Duration(secondsComponent: Int64(seconds),
-                        attosecondsComponent: Int64(attoseconds % attosecondsPerSecond))
     }
 
     private func failure(_ issue: ExecutionTimeIssue) -> ExecutionTimeFailure {
