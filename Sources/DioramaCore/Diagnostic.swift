@@ -73,6 +73,8 @@ public enum DiagnosticIssue: Equatable, Sendable {
     case sequential(SequentialOperationIssue)
     /// A logical-time capture or arithmetic fact.
     case logicalTime(ExecutionTimeIssue)
+    /// A deadline registration or clock-wait fact.
+    case scheduling(SchedulingIssue)
     /// Safe setup or finalization verification evidence.
     case verification(VerificationIssue)
     /// A system-defined infrastructure or verification fact.

@@ -26,5 +26,5 @@ The service rejects new clock reads before completed startup and after execution
 closes. A backward clock source, foreign or reversed captures, negative delay,
 and unrepresentable duration produce typed failures and safe diagnostics.
 Existing tokens can still be inspected after finish; new time observations
-cannot be captured. The deadline engine and timed delivery arrive in later
-Phase E units.
+cannot be captured. Systems register timed handoffs through the separate
+[execution scheduling service](execution-scheduling.md).

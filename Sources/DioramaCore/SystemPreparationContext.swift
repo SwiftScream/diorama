@@ -23,17 +23,22 @@ public final class SystemPreparationContext: Sendable {
     /// The execution's shared logical-time and observation-capture service.
     /// Its origin becomes available after all systems activate.
     public let time: ExecutionTime
+    /// This attachment's ordered handoff registration service.
+    /// Scheduling becomes available when execution startup completes.
+    public let scheduling: SchedulingLease
 
     private let state: Mutex<State>
     private let admission: ExecutionAdmission
 
     init(attachment: ScenarioAttachment, mode: ScenarioMode,
-         reporter: DiagnosticReporter, admission: ExecutionAdmission, time: ExecutionTime)
+         reporter: DiagnosticReporter, admission: ExecutionAdmission, time: ExecutionTime,
+         scheduling: SchedulingLease)
     {
         attachmentID = attachment.id
         self.mode = mode
         self.reporter = reporter
         self.time = time
+        self.scheduling = scheduling
         self.admission = admission
         state = Mutex(State(attachment: attachment))
     }

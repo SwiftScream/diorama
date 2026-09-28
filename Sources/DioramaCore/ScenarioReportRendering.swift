@@ -93,10 +93,26 @@ enum ReportText {
         case let .baseline(fact): baseline(fact)
         case let .system(label): "system-issue \(ReportFieldEscaping.quote(label.text))"
         case let .logicalTime(fact): logicalTime(fact)
+        case let .scheduling(fact): scheduling(fact)
         case .verification(.recordingNotAdmitted): "recording-not-admitted"
-        case let .sequential(.wrongMode(expected, actual)):
+        case let .sequential(fact): sequential(fact)
+        }
+    }
+
+    private static func scheduling(_ issue: SchedulingIssue) -> String {
+        switch issue {
+        case let .logicalTime(fact): "scheduling-\(logicalTime(fact))"
+        case .invalidTrack: "scheduling-invalid-track"
+        case .registrationOverflow: "scheduling-registration-overflow"
+        case .clockWaitFailed: "scheduling-clock-wait-failed"
+        }
+    }
+
+    private static func sequential(_ issue: SequentialOperationIssue) -> String {
+        switch issue {
+        case let .wrongMode(expected, actual):
             "wrong-mode expected=\(mode(expected)) actual=\(mode(actual))"
-        case let .sequential(.replayExhausted(availableCount)):
+        case let .replayExhausted(availableCount):
             "replay-exhausted available=\(availableCount)"
         }
     }
