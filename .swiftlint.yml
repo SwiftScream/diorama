@@ -19,3 +19,8 @@ vertical_whitespace:
 
 nesting:
   type_level: 2
+
+# Keep lease finalization beside its private state and reservation helpers.
+file_length:
+  warning: 600
+  error: 1000

@@ -108,12 +108,26 @@ enum ReportText {
         }
     }
 
+    private static func groupedLifecycle(_ issue: GroupedLifecycleIssue) -> String {
+        switch issue {
+        case .incompleteGroup: "grouped-incomplete"
+        case .captureFailed: "grouped-capture-failed"
+        case .afterConclusion: "grouped-after-conclusion"
+        case .duplicateConclusion: "grouped-duplicate-conclusion"
+        case .unknownPhase: "grouped-unknown-phase"
+        case .duplicateDecision: "grouped-duplicate-decision"
+        case .lateObservation: "grouped-late-observation"
+        case .invalidTiming: "grouped-invalid-timing"
+        }
+    }
+
     private static func sequential(_ issue: SequentialOperationIssue) -> String {
         switch issue {
         case let .wrongMode(expected, actual):
             "wrong-mode expected=\(mode(expected)) actual=\(mode(actual))"
         case let .replayExhausted(availableCount):
             "replay-exhausted available=\(availableCount)"
+        case let .grouped(fact): groupedLifecycle(fact)
         }
     }
 

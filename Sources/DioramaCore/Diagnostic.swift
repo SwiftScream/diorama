@@ -120,6 +120,28 @@ public enum SequentialOperationIssue: Equatable, Sendable {
     case wrongMode(expected: ScenarioMode, actual: ScenarioMode)
     /// No unclaimed record exists at the requested position.
     case replayExhausted(availableCount: UInt64)
+    /// Invalid grouped interaction or subscription behavior.
+    case grouped(GroupedLifecycleIssue)
+}
+
+/// Safe grouped lifecycle facts without captured inputs or native errors.
+public enum GroupedLifecycleIssue: Error, Equatable, Sendable {
+    /// A group still had an unfinished or failed observation at the horizon.
+    case incompleteGroup
+    /// Stable extraction or preparation failed after an observation was reserved.
+    case captureFailed
+    /// An observation was attempted after a terminal conclusion.
+    case afterConclusion
+    /// A second returned, failed, or finished conclusion was attempted.
+    case duplicateConclusion
+    /// A phase handle belongs to another group or is unknown.
+    case unknownPhase
+    /// The same phase received more than one decision.
+    case duplicateDecision
+    /// Observation was attempted after the recording horizon.
+    case lateObservation
+    /// A capture cannot produce a valid relative logical time.
+    case invalidTiming
 }
 
 /// The effect of one infrastructure fact on recording completeness.
