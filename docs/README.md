@@ -168,6 +168,9 @@ the earlier decisions explicitly.
 - [Deadline engine and handoff evidence](evidence/003-E02-deadline-engine-and-handoff.md)
   records timer ownership, deterministic batch handoff, checked deadlines,
   and platform verification.
+- [Cancellation, acknowledgement, and scheduler quiescence evidence](evidence/003-E03-scheduler-quiescence.md)
+  records atomic cancellation, delivery completion, shutdown ownership,
+  and platform verification.
 
 ## Historical boundary
 
