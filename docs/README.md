@@ -165,6 +165,9 @@ the earlier decisions explicitly.
 - [Execution logical-time capture evidence](evidence/003-E01-logical-time-capture.md)
   records the shared startup origin, capture service contract, and platform
   verification.
+- [Deadline engine and handoff evidence](evidence/003-E02-deadline-engine-and-handoff.md)
+  records timer ownership, deterministic batch handoff, checked deadlines,
+  and platform verification.
 
 ## Historical boundary
 
