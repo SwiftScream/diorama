@@ -68,6 +68,12 @@ the implementation commit. A subsequent owner-requested phase-name correction is
 recorded in adjacent unsquashed fixups. Local verification is complete; owner
 review remains the next checkpoint. See its
 [scheduler quiescence evidence](../evidence/003-E03-scheduler-quiescence.md).
+E04's scope and the recommended GPT-6 Sol, `high` setting were confirmed on
+2026-09-29. Its implementation and macOS verification on the branch restacked
+above merged F02 are complete. iOS and Linux checks of this revision
+remain CI gates; owner review is the next checkpoint. The owner authorized a
+remote E04 branch for review. See its
+[grouped lifecycle evidence](../evidence/003-E04-grouped-lifecycle-accumulation.md).
 F01's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-10-01
 for an independent feature branch from `master` while later Phase E units await
 review. F01 was merged on 2026-10-03. See its
@@ -1139,6 +1145,11 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E04 — Strict grouped lifecycle accumulation
 
+- Status: Implementation and macOS verification on the branch restacked after
+  E03's phase-name fixups complete; iOS and Linux checks of this revision remain
+  CI gates. Owner review is the next checkpoint. The owner authorized pushing
+  the E04 branch for remote review on 2026-09-29.
+- Evidence: [Strict grouped lifecycle accumulation](../evidence/003-E04-grouped-lifecycle-accumulation.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Reusable typed accumulators must enforce one horizon conclusion and reject late or conflicting observations.
 - Prerequisites: 003-E01, 003-B04, 003-B08; DD03, DD06, DD10.
 - Scope: Introduce reusable typed interaction/subscription accumulators with correlated phases and a single explicit immutable horizon conclusion.
