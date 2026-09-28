@@ -54,7 +54,12 @@ extension D05ReplayTests {
         #expect(observer.events.withLock { $0.completions } == 1)
         let result = observer.events.withLock { $0 }
         if result.errorCode == nil {
-            #expect(result.body == Data("race".utf8))
+            #if canImport(Darwin)
+                // Caller cancellation can suppress the queued body without an error.
+                #expect(result.body.isEmpty || result.body == Data("race".utf8))
+            #else
+                #expect(result.body == Data("race".utf8))
+            #endif
         } else {
             #expect(result.errorCode == URLError.cancelled.rawValue)
         }

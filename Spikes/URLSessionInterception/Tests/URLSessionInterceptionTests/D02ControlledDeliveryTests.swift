@@ -138,7 +138,12 @@ private func checkDecision(_ result: D02ControlledResult, mode: String) {
     } else if canceled {
         #expect(result.errorDomain == NSURLErrorDomain)
         #expect(result.errorCode == URLError.cancelled.rawValue)
-        #expect(result.body.isEmpty)
+        #if canImport(FoundationNetworking)
+            // The first chunk can already be in flight when task.cancel() runs.
+            #expect(result.body.isEmpty || result.body == Data("first-".utf8))
+        #else
+            #expect(result.body.isEmpty)
+        #endif
     } else {
         #expect(result.errorDomain == nil)
         #expect(result.body == Data("first-second".utf8))
