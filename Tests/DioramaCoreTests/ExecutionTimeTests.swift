@@ -15,6 +15,10 @@ private final class ControlledClock: Sendable {
         return instant.withLock { $0 }
     }
 
+    var source: ExecutionClock {
+        ExecutionClock(now: { self.now() }, sleep: ExecutionClock.continuous().sleep)
+    }
+
     func advance(by duration: Duration) {
         instant.withLock { $0 = $0.advanced(by: duration) }
     }
@@ -75,7 +79,7 @@ struct ExecutionTimeTests {
         }
         return try ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "time"),
-            defaultMode: .record, systems: systems, clockNow: { clock.now() })
+            defaultMode: .record, systems: systems, clock: clock.source)
     }
 
     @Test
@@ -87,10 +91,10 @@ struct ExecutionTimeTests {
         let execution = try ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "time"),
             defaultMode: .record, systems: systems,
-            clockNow: {
+            clock: ExecutionClock(now: {
                 events.append("clock-read")
                 return clock.now()
-            })
+            }, sleep: clock.source.sleep))
         #expect(events.events.withLock { $0 } == [
             "prepare-a", "prepare-b", "activate-a", "activate-b", "clock-read",
         ])
@@ -130,7 +134,7 @@ struct ExecutionTimeTests {
             try ScenarioExecution.start(
                 definition: definition, scenarioID: ScenarioID(rawValue: "time"),
                 defaultMode: .record, systems: [AnyScenarioSystem(system)],
-                clockNow: { clock.now() })
+                clock: clock.source)
         }
         #expect(earlyIssues.issues.withLock { $0 } == [.logicalTime(.notStarted)])
         #expect(clock.reads.withLock { $0 } == 0)

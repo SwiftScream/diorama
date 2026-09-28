@@ -120,10 +120,9 @@ public final class ScenarioExecution: Sendable {
         initialDiagnostics: [Diagnostic] = [],
         sink: DiagnosticSink? = nil) throws(ScenarioStartupFailure) -> ScenarioExecution
     {
-        let clock = ContinuousClock()
-        return try start(definition: definition, scenarioID: scenarioID, defaultMode: defaultMode,
-                         systems: systems, initialDiagnostics: initialDiagnostics, sink: sink,
-                         clockNow: { clock.now })
+        try start(definition: definition, scenarioID: scenarioID, defaultMode: defaultMode,
+                  systems: systems, initialDiagnostics: initialDiagnostics, sink: sink,
+                  clock: .continuous())
     }
 
     static func start(
@@ -133,7 +132,7 @@ public final class ScenarioExecution: Sendable {
         systems: [AnyScenarioSystem],
         initialDiagnostics: [Diagnostic] = [],
         sink: DiagnosticSink? = nil,
-        clockNow: @escaping @Sendable () -> ContinuousClock.Instant) throws(ScenarioStartupFailure) -> ScenarioExecution
+        clock: ExecutionClock) throws(ScenarioStartupFailure) -> ScenarioExecution
     {
         let reporter = DiagnosticReporter(scenarioID: scenarioID, definition: definition, sink: sink)
         for diagnostic in initialDiagnostics {
@@ -144,7 +143,7 @@ public final class ScenarioExecution: Sendable {
             reporter.record(Diagnostic(issue: .lifecycle(.invalidRegistration)))
             throw ScenarioStartupFailure(report: reporter.freeze())
         }
-        let time = ExecutionTime(clockNow: clockNow, admission: admission, reporter: reporter)
+        let time = ExecutionTime(clock: clock, admission: admission, reporter: reporter)
         let services = StartupServices(reporter: reporter, admission: admission, time: time)
         do {
             return try activate(
