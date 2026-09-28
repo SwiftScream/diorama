@@ -58,6 +58,16 @@ E02's scope and the recommended GPT-6 Astra, `xhigh` setting were confirmed on
 implementation and local macOS, iOS Simulator, and Linux verification are
 complete; owner review is the next checkpoint. See its
 [deadline-engine evidence](../evidence/003-E02-deadline-engine-and-handoff.md).
+E03's scope was confirmed on 2026-09-28 after review of its recommended
+GPT-6 Astra, `xhigh` setting. The owner authorized stacked development atop E02.
+E03's implementation and local macOS, iOS Simulator, and Linux verification are
+complete. On 2026-09-29, the owner authorized scoped delivery with automatic
+completion in place of manual acknowledgement. On 2026-09-30, the owner narrowed
+the public delivery API to async-only and authorized folding that revision into
+the implementation commit. A subsequent owner-requested phase-name correction is
+recorded in adjacent unsquashed fixups. Local verification is complete; owner
+review remains the next checkpoint. See its
+[scheduler quiescence evidence](../evidence/003-E03-scheduler-quiescence.md).
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -1106,12 +1116,15 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E03 — Cancellation, acknowledgements, and scheduler quiescence
 
+- Status: Implementation and local macOS, iOS Simulator, and Linux verification complete, including the async-only delivery revision authorized on 2026-09-30; adjacent phase-name fixups await owner review. Scope was confirmed on 2026-09-28 for stacked development atop E02.
+- Evidence: [Cancellation, acknowledgements, and scheduler quiescence](../evidence/003-E03-scheduler-quiescence.md).
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Atomic cancellation versus claim and in-flight acknowledgements must prove no delivery after finalization.
 - Prerequisites: 003-E02, 003-B08; DD10, DD14.
 - Scope: Complete scheduled-item pending/claimed/delivered/canceled state and execution shutdown, including in-flight delivery acknowledgement.
 - Expected files/modules: Core scheduler handles/shutdown and race tests.
 - Public behavior: Cancellation races atomically with claim and is idempotent; finish closes admission, cancels pending work, drains claimed callbacks, and returns only after quiescence.
   Late timer wakes cannot restart delivery.
+  Async delivery scopes acknowledge completion automatically on return; adapters do not manage public acknowledgement tokens. Handoff order does not promise delivery task execution order.
 - Tests/verification: V-code; cancel-before/after-claim, earliest-item cancellation, no double resume, callback reentry, attempted rescheduling during finish, canceled finish waiter, no scheduled delivery after final result on all platforms; new misuse diagnostics do not restart scheduling.
 - Exclusions: Forcefully terminating consumer code, finalization timeout policy, consumer-task quiescence detection, returning selected groups to availability.
 - Checkpoint: R; require ownership/race evidence before timed system delivery.
