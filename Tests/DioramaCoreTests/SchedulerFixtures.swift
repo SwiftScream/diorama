@@ -145,3 +145,22 @@ enum SchedulerFixtures {
         return (execution, dependencies)
     }
 }
+
+/// A controlled suspension inside one delivery, with no elapsed-time inference.
+final class SchedulerDeliveryGate: Sendable {
+    private let entry = AsyncStream<Void>.makeStream()
+    private let releaseSignal = AsyncStream<Void>.makeStream()
+
+    func suspend() async {
+        entry.continuation.finish()
+        for await _ in releaseSignal.stream {}
+    }
+
+    func waitForEntry() async {
+        for await _ in entry.stream {}
+    }
+
+    func release() {
+        releaseSignal.continuation.finish()
+    }
+}
