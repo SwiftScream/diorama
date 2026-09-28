@@ -18,10 +18,9 @@ public struct SchedulingFailure: Error, Equatable, Sendable {
 
 /// An attachment's execution-owned deadline registration service.
 ///
-/// Handoffs run serially outside scheduler isolation, never synchronously inside
-/// registration. The handoff must finish its synchronous work before returning.
-/// This service does not yet track delivery dispatched onto another executor.
-/// Registration order cannot guarantee resumed Swift task execution order.
+/// Handoffs submit delivery tasks serially outside scheduler isolation, never
+/// inside registration. Completion follows the return of the awaited closure.
+/// Submission order does not guarantee delivery task execution order.
 public struct SchedulingLease: Sendable {
     private let engine: DeadlineEngine
     private let attachmentID: AttachmentID
@@ -37,38 +36,50 @@ public struct SchedulingLease: Sendable {
         self.reporter = reporter
     }
 
-    /// Queues a handoff at a logical offset from completed startup.
+    /// Queues scoped async delivery at a logical offset from completed startup.
     ///
-    /// A past deadline, including a negative offset, waits for the next drain.
-    /// Attachment and track
-    /// order come from setup; `record.sequence` supplies stable local order,
-    /// including dynamic positions that need not occur in recorded content.
+    /// Past deadlines, including negative offsets, wait for the next drain.
+    /// Equal deadlines use setup attachment order, track order, record sequence,
+    /// then registration order for task submission.
+    /// The execution owns and joins the delivery task. Completion is automatic
+    /// when the awaited closure returns, including early returns. Suspended
+    /// delivery does not block later deadlines. Task submission follows deadline
+    /// order; async body execution order is not guaranteed.
+    ///
+    /// Await all owned delivery work in this scope. Launching an unstructured
+    /// task and returning would escape completion tracking. Awaiting this
+    /// execution's finish from inside the scope would deadlock.
+    @discardableResult
     public func schedule(at deadline: Duration, for record: RecordIdentity,
-                         handoff: @escaping @Sendable () -> Void) throws(SchedulingFailure)
+                         delivery: @escaping @Sendable () async -> Void)
+        throws(SchedulingFailure) -> ScheduledItemHandle
     {
-        try register(.absolute(deadline), record: record, handoff: handoff)
+        try register(.absolute(deadline), record: record, delivery: delivery)
     }
 
-    /// Queues a handoff after a nonnegative delay from this registration.
+    /// Queues scoped async delivery after a nonnegative delay from registration.
     ///
-    /// Delay addition is checked before admission. Equal deadlines use setup
-    /// attachment order, setup track order, record sequence, then registration
-    /// sequence. Handoffs may register more work for a subsequent drain.
+    /// Delay addition is checked before admission.
+    /// The execution joins the complete async scope at finish. The same awaited
+    /// work and ordering contract applies as for absolute-deadline delivery.
+    @discardableResult
     public func schedule(after delay: Duration, for record: RecordIdentity,
-                         handoff: @escaping @Sendable () -> Void) throws(SchedulingFailure)
+                         delivery: @escaping @Sendable () async -> Void)
+        throws(SchedulingFailure) -> ScheduledItemHandle
     {
-        try register(.relative(delay), record: record, handoff: handoff)
+        try register(.relative(delay), record: record, delivery: delivery)
     }
 
     private func register(_ deadline: SchedulingDeadline, record: RecordIdentity,
-                          handoff: @escaping @Sendable () -> Void) throws(SchedulingFailure)
+                          delivery: @escaping @Sendable () async -> Void)
+        throws(SchedulingFailure) -> ScheduledItemHandle
     {
         guard let trackOrder = tracks.firstIndex(of: record.trackID) else {
             throw failure(.invalidTrack, context: .attachment(attachmentID))
         }
         let order = SchedulingOrder(attachment: attachmentOrder, track: trackOrder, record: record.sequence)
         do {
-            try engine.register(deadline, order: order, handoff: handoff)
+            return try engine.register(deadline, order: order, delivery: delivery)
         } catch {
             throw failure(error, context: .record(record))
         }

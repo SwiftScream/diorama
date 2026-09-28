@@ -2,7 +2,7 @@
 
 A system receives an attachment-scoped `SchedulingLease` through
 `SystemPreparationContext.scheduling`. After startup completes, it can register
-a synchronous handoff at an absolute logical `Duration`, or after a delay from
+a delivery handoff at an absolute logical `Duration`, or after a delay from
 registration. Every attachment uses the same origin as
 [execution logical time](execution-time-service.md).
 
@@ -10,8 +10,8 @@ registration. Every attachment uses the same origin as
 let scheduling = context.scheduling
 
 // Later, after execution startup, with a record identity from this attachment:
-try scheduling.schedule(after: .milliseconds(25), for: record) {
-    deliverSynchronously()
+let handle = try scheduling.schedule(after: .milliseconds(25), for: record) {
+    await adapter.deliver()
 }
 ```
 
@@ -25,9 +25,11 @@ usage; system behavior owns those operations.
 
 Logical delays map one-to-one onto the execution's `ContinuousClock`. One
 worker owns at most one active wait for the earliest deadline. Earlier
-registration replaces that wait; later registration preserves it. Timers
-request zero tolerance. A wake rechecks logical time before claiming work, so
-an early wake cannot cause early handoff. Host load can delay delivery.
+registration replaces that wait; later registration preserves it. Canceling the
+earliest pending item selects the next deadline, or cancels the wait when the
+queue becomes empty. Timers request zero tolerance. A wake rechecks logical time
+before claiming work, so an early wake cannot cause early handoff. Host load can
+delay delivery.
 
 Every drain atomically claims the complete currently due batch, ordered by:
 
@@ -37,36 +39,94 @@ Every drain atomically claims the complete currently due batch, ordered by:
 4. atomic registration sequence.
 
 A late wake preserves this ordering across different deadlines. Work registered
-during a handoff joins a subsequent batch, including work with an earlier
-logical deadline. Handoff order does not impose an execution order on Swift
-tasks resumed by the handoffs.
+while delivery runs joins a subsequent batch, including work with an earlier
+logical deadline. Handoff order determines task submission, not delivery body
+execution or actor arrival order. Independent equally due events may execute
+in either order. An adapter must enforce any causal order its own stream needs.
 
 Zero and already-passed deadlines, including offsets before the execution
 origin, are queued for the next drain.
 Registration never invokes a handoff inline. The worker may run concurrently
 with the registering caller, so shared system state still needs its own
-synchronization. Handoffs run serially on the concurrent executor, outside
-scheduler and execution locks, and may register additional work.
+synchronization. The worker submits tasks serially outside scheduler and
+execution locks. Delivery tasks may register additional work.
 
-## Ownership and failures
+## Cancellation
+
+Registration returns a `ScheduledItemHandle`. Copies share one registration;
+discarding the handle leaves the work scheduled. `cancel()` returns `true` only
+for the call that changes pending work to canceled. Repeated cancellation,
+cancellation after batch claim, and cancellation after shutdown return `false`.
+The engine serializes cancellation with the entire batch claim. A callback
+cannot cancel another item that was claimed in its same due batch.
+
+```mermaid
+stateDiagram-v2
+    pending --> canceled: cancellation, shutdown, or clock failure
+    pending --> claimed: complete due-batch claim
+    claimed --> completed: delivery scope returns
+```
+
+## Scoped delivery
+
+An async `delivery: @Sendable () async -> Void` closure completes automatically
+when it returns. There is no public acknowledgement token or completion method
+to call. Registration is synchronous and immediately returns the cancellation
+handle; the delivery begins later, after the engine claims it.
+
+```swift
+let handle = try scheduling.schedule(after: .milliseconds(25), for: record) {
+    await adapter.deliver()
+}
+```
+
+The execution owns each async delivery as a child task and joins it at finish.
+A suspended delivery does not block later deadlines or handoffs. Early returns
+and handled errors, including handled cancellation, finish the scope normally.
+The callback is nonthrowing; adapters retain responsibility for their own error
+semantics. A canceled finish waiter does not cancel claimed delivery tasks.
+
+Await all owned work within the delivery. An adapter can await a native queue or
+event-loop operation whose return establishes actual delivery completion.
+Enqueuing a callback and returning immediately puts that callback outside the
+scope. The scope does not include arbitrary consumer tasks launched by an
+application callback. Adapters that need FIFO delivery must coordinate it
+explicitly; a serial executor alone does not establish task arrival order.
+
+## Shutdown and ownership
 
 The worker starts with the first accepted registration. Executions that never
 schedule work create no scheduler worker or timer. Finish closes admission,
-drops pending handoff captures, cancels and joins the active wait, and joins
-any claimed synchronous handoffs before system cleanup and report freezing.
-An escaped lease cannot reopen the scheduler. A handoff must return and must
-not synchronously wait for its own execution to finish.
+cancels pending registrations, releases their captures, and cancels and joins
+the active wait. It joins every claimed delivery task before system cleanup and
+report freezing. A claimed delivery may complete during shutdown but cannot
+schedule follow-up work.
 
-This initial service tracks a handoff through its synchronous return. Systems
-must complete the delivered work within that call. Per-item cancellation and
-explicit completion acknowledgements for delivery on another actor or queue
-belong to the subsequent scheduler lifetime API in Plan 003's E03 unit.
+Repeated and concurrent `finish()` callers share one result. Canceling a finish
+waiter does not cancel delivery, abandon cleanup, or return a partial result.
+Late timer wakes cannot reopen scheduling. No scheduled delivery can occur
+after the final result returns. New misuse of an escaped lease may still
+produce a diagnostic in the reporter's post-finish log.
+
+Cancellation, delivery, and finalization resume continuations and release
+callback captures outside scheduler isolation. Terminal handles retain only
+their small registration state, with no callback captures, execution, scheduler,
+clock source, or reporter ownership.
+
+The adapter must not await its execution's finish before completing a claimed
+delivery: finish is waiting for that delivery. An async scope that never
+completes prevents quiescence. There is no forced
+termination or finalization timeout. Cancellation of pending scheduler work
+does not undo a system's replay claim or return a group to availability.
+
+## Failures
 
 Negative relative delays, logical addition overflow, and a future deadline outside the host
 timer's representable range fail before registration. Invalid tracks, calls
 before startup or after closure, backward clock readings, and internal wait
 failures produce safe `SchedulingFailure` or asynchronous scheduling diagnostics.
-A clock failure stops remaining scheduled delivery. Diagnostics participate in
-opt-in `noUnexpectedOperations` evaluation; post-finish facts remain in the
+A clock failure cancels pending work; already claimed deliveries still complete
+before finalization. Diagnostics participate in opt-in `noUnexpectedOperations`
+evaluation; post-finish facts remain in the
 reporter's separate late log. No host instant or underlying clock error enters
 the report or scenario data.

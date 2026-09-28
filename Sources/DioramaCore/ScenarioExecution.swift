@@ -16,8 +16,8 @@ private struct StartupServices {
 /// One independently owned, explicitly finalized in-memory scenario run.
 ///
 /// Startup publishes no execution until every system activates. Finish closes
-/// leases, joins scheduled handoffs, cleans adapters in reverse order, and
-/// retains one immutable result.
+/// leases, joins scheduled handoffs and scoped deliveries, cleans
+/// adapters in reverse order, and retains one immutable result.
 /// Neither cleanup nor diagnostic notification runs under the execution lock.
 /// Correct cleanup requires awaiting ``finish()``; deinitialization is not a
 /// lifecycle substitute. Returned dependencies must honor their lease closure.

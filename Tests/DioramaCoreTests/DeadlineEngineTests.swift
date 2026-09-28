@@ -5,7 +5,24 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 struct DeadlineEngineTests {
     @Test
-    func `equal and overdue deadlines follow every stable ordering key`() async throws {
+    func `handoff keys sort overdue and equal deadlines deterministically`() async throws {
+        let keys: [(ScheduledHandoffOrder, String)] = [
+            (.init(deadline: .seconds(10), position: .init(attachment: 1, track: 0, record: 0), registration: 0), "a"),
+            (.init(deadline: .seconds(10), position: .init(attachment: 0, track: 1, record: 0),
+                   registration: 1), "z-second"),
+            (.init(deadline: .seconds(10), position: .init(attachment: 0, track: 0, record: 3),
+                   registration: 2), "z-3-first"),
+            (.init(deadline: .seconds(10), position: .init(attachment: 0, track: 0, record: 1),
+                   registration: 3), "z-1"),
+            (.init(deadline: .seconds(10), position: .init(attachment: 0, track: 0, record: 3),
+                   registration: 4), "z-3-second"),
+            (.init(deadline: .seconds(5), position: .init(attachment: 1, track: 0, record: 9),
+                   registration: 5), "earliest"),
+        ]
+        #expect(keys.sorted { $0.0 < $1.0 }.map(\.1) == [
+            "earliest", "z-1", "z-3-first", "z-3-second", "z-second", "a",
+        ])
+
         let clock = SchedulerTestClock()
         let (execution, systems) = try SchedulerFixtures.setup(["z", "a"], clock: clock.source)
         let journal = SchedulerJournal()
@@ -25,7 +42,7 @@ struct DeadlineEngineTests {
         }
         // All registrations are admitted before one deliberately late wake.
         clock.advance(to: .seconds(30))
-        #expect(await journal.take(6) == ["earliest", "z-1", "z-3-first", "z-3-second", "z-second", "a"])
+        #expect(await Set(journal.take(6)) == Set(keys.map(\.1)))
         #expect(clock.maximumWaits <= 1)
         #expect(await execution.finish().report.diagnostics.isEmpty)
     }
@@ -48,7 +65,7 @@ struct DeadlineEngineTests {
         #expect(await journal.take(1) == ["10"])
         #expect(try await clock.nextSleep().deadline == .seconds(30))
         clock.advance(to: .seconds(45))
-        #expect(await journal.take(2) == ["30", "40"])
+        #expect(await Set(journal.take(2)) == Set(["30", "40"]))
         _ = await execution.finish()
         #expect(clock.maximumWaits == 1)
         #expect(clock.activeWaits == 0)
@@ -74,12 +91,15 @@ struct DeadlineEngineTests {
     }
 
     @Test
-    func `a complete due batch precedes reentrant past and zero registrations`() async throws {
+    func `a complete due batch is claimed before reentrant registration`() async throws {
         let clock = SchedulerTestClock()
         let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
         let lease = systems[0].scheduling
         let journal = SchedulerJournal()
+        let secondHandle = Mutex<ScheduledItemHandle?>(nil)
         try lease.schedule(at: .seconds(1), for: SchedulerFixtures.record(sequence: 1)) {
+            let phase = secondHandle.withLock { $0 }?.registration.phase
+            #expect(phase == .claimed || phase == .completed)
             journal.append("first-enter")
             do {
                 try lease.schedule(at: .zero, for: SchedulerFixtures.record()) { journal.append("past") }
@@ -90,11 +110,14 @@ struct DeadlineEngineTests {
             } catch { Issue.record(error) }
             journal.append("first-return")
         }
-        try lease.schedule(at: .seconds(1), for: SchedulerFixtures.record(sequence: 2)) {
+        let second = try lease.schedule(at: .seconds(1), for: SchedulerFixtures.record(sequence: 2)) {
             journal.append("second")
         }
+        secondHandle.withLock { $0 = second }
         clock.advance(to: .seconds(1))
-        #expect(await journal.take(6) == ["first-enter", "first-return", "second", "before-origin", "past", "zero"])
+        #expect(await Set(journal.take(6)) == Set([
+            "first-enter", "first-return", "second", "before-origin", "past", "zero",
+        ]))
         _ = await execution.finish()
     }
 
@@ -152,7 +175,7 @@ struct DeadlineEngineTests {
             try await group.waitForAll()
         }
         clock.advance(to: .seconds(1))
-        #expect(await journal.take(64) == (0..<64).map(String.init))
+        #expect(await Set(journal.take(64)) == Set((0..<64).map(String.init)))
         _ = await execution.finish()
     }
 
