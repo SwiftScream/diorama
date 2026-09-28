@@ -1,9 +1,23 @@
 import Synchronization
 
-/// One independently owned, explicitly finalized in-memory sequential run.
+private struct StartupServices {
+    let reporter: DiagnosticReporter
+    let admission: ExecutionAdmission
+    let time: ExecutionTime
+    let scheduler: DeadlineEngine
+
+    func close() {
+        admission.close()
+        _ = scheduler.stop()
+        time.close()
+    }
+}
+
+/// One independently owned, explicitly finalized in-memory scenario run.
 ///
 /// Startup publishes no execution until every system activates. Finish closes
-/// leases, cleans adapters in reverse order, and retains one immutable result.
+/// leases, joins scheduled handoffs, cleans adapters in reverse order, and
+/// retains one immutable result.
 /// Neither cleanup nor diagnostic notification runs under the execution lock.
 /// Correct cleanup requires awaiting ``finish()``; deinitialization is not a
 /// lifecycle substitute. Returned dependencies must honor their lease closure.
@@ -18,12 +32,6 @@ public final class ScenarioExecution: Sendable {
         let cleanup: [AttachmentCleanup]
     }
 
-    private struct StartupServices {
-        let reporter: DiagnosticReporter
-        let admission: ExecutionAdmission
-        let time: ExecutionTime
-    }
-
     private struct FinalizedContents {
         let definition: ScenarioDefinition?
         let cleanup: [AttachmentCleanup]
@@ -34,13 +42,15 @@ public final class ScenarioExecution: Sendable {
         private let contents: Mutex<ResourceContents>
         private let usage: ExecutionUsage
         private let time: ExecutionTime
+        private let scheduler: DeadlineEngine
 
         init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease], usage: ExecutionUsage,
-             definition: ScenarioDefinition, time: ExecutionTime)
+             definition: ScenarioDefinition, time: ExecutionTime, scheduler: DeadlineEngine)
         {
             contents = Mutex(ResourceContents(systems: systems, leases: leases, definition: definition))
             self.usage = usage
             self.time = time
+            self.scheduler = scheduler
         }
 
         func dependency<Dependency: Sendable>(for key: DependencyKey<Dependency>) -> Dependency? {
@@ -49,7 +59,8 @@ public final class ScenarioExecution: Sendable {
             }
         }
 
-        func finish(reporter: DiagnosticReporter) -> ScenarioFinalizationResult {
+        func finish(reporter: DiagnosticReporter) async -> ScenarioFinalizationResult {
+            await scheduler.stop()?.value
             let final = release(reporter: reporter)
             let report = reporter.freeze()
             return ScenarioFinalizationResult(definition: report.recordingHealth.isHealthy ? final.definition : nil,
@@ -87,12 +98,12 @@ public final class ScenarioExecution: Sendable {
 
     private init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease],
                  reporter: DiagnosticReporter, admission: ExecutionAdmission, usage: ExecutionUsage,
-                 definition: ScenarioDefinition, time: ExecutionTime)
+                 definition: ScenarioDefinition, time: ExecutionTime, scheduler: DeadlineEngine)
     {
         self.reporter = reporter
         self.admission = admission
         state = Mutex(.running(Resources(systems: systems, leases: leases, usage: usage,
-                                         definition: definition, time: time)))
+                                         definition: definition, time: time, scheduler: scheduler)))
     }
 
     /// Prepares and activates a fresh execution from immutable configuration.
@@ -144,7 +155,8 @@ public final class ScenarioExecution: Sendable {
             throw ScenarioStartupFailure(report: reporter.freeze())
         }
         let time = ExecutionTime(clock: clock, admission: admission, reporter: reporter)
-        let services = StartupServices(reporter: reporter, admission: admission, time: time)
+        let scheduler = DeadlineEngine(time: time, admission: admission, reporter: reporter)
+        let services = StartupServices(reporter: reporter, admission: admission, time: time, scheduler: scheduler)
         do {
             return try activate(
                 definition: definition,
@@ -165,10 +177,11 @@ public final class ScenarioExecution: Sendable {
         let reporter = services.reporter
         let admission = services.admission
         let time = services.time
+        let scheduler = services.scheduler
         var prepared: [AnyPreparedSystem] = []
         var leases: [any AnySequentialLease] = []
         var activated: [AnyActivatedSystem] = []
-        for attachment in definition.attachments {
+        for (order, attachment) in definition.attachments.enumerated() {
             // Exact one-to-one registration was validated before any callbacks.
             guard let system = systems.first(where: { $0.attachmentID == attachment.id }) else {
                 preconditionFailure("Validated system registration is missing")
@@ -176,7 +189,9 @@ public final class ScenarioExecution: Sendable {
             let context = SystemPreparationContext(
                 attachment: attachment,
                 mode: system.effectiveMode(defaultMode: defaultMode),
-                reporter: reporter, admission: admission, time: time)
+                reporter: reporter, admission: admission, time: time,
+                scheduling: SchedulingLease(engine: scheduler, attachment: attachment,
+                                            order: order, reporter: reporter))
             do {
                 let preparedSystem = try system.prepare(context)
                 let completion = context.end()
@@ -191,8 +206,7 @@ public final class ScenarioExecution: Sendable {
             } catch {
                 leases += context.end().leases
                 reporter.record(Diagnostic(issue: .lifecycle(.preparationFailed), context: .attachment(attachment.id)))
-                admission.close()
-                time.close()
+                services.close()
                 throw rollback(activated, leases: leases, reporter: reporter)
             }
         }
@@ -202,14 +216,13 @@ public final class ScenarioExecution: Sendable {
                 try activated.append(preparedSystem.activate())
             } catch {
                 reporter.record(Diagnostic(issue: .lifecycle(.activationFailed), context: .attachment(attachment.id)))
-                admission.close()
-                time.close()
+                services.close()
                 throw rollback(activated, leases: leases, reporter: reporter)
             }
         }
         let usage = ExecutionUsage(definition: definition, defaultMode: defaultMode, systems: systems)
         let execution = ScenarioExecution(systems: activated, leases: leases, reporter: reporter, admission: admission,
-                                          usage: usage, definition: definition, time: time)
+                                          usage: usage, definition: definition, time: time, scheduler: scheduler)
         time.start()
         return execution
     }
@@ -270,7 +283,7 @@ public final class ScenarioExecution: Sendable {
             case let .running(resources):
                 admission.close()
                 let reporter = reporter
-                let task = Task { resources.finish(reporter: reporter) }
+                let task = Task { await resources.finish(reporter: reporter) }
                 state = .finishing(task)
             case .finishing, .finished: break
             }

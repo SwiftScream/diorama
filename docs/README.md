@@ -18,6 +18,7 @@ The owner approved the consolidated design and implementation plan on
 6. [Quality gates and CI policy](quality-gates-and-ci.md)
 7. [JSON persistence schema version 1](persistence-schema-v1.md)
 8. [Execution logical time](execution-time-service.md)
+9. [Execution scheduling](execution-scheduling.md)
 
 Read the individual decisions referenced by an implementation-plan item before
 working on it. The design overview summarizes their combined architecture but

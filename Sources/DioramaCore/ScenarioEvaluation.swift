@@ -92,7 +92,7 @@ public extension ScenarioFinalizationResult {
 private extension DiagnosticIssue {
     var isUnexpectedOperation: Bool {
         switch self {
-        case .sequential, .logicalTime: true
+        case .sequential, .logicalTime, .scheduling: true
         case let .lifecycle(issue):
             switch issue {
             case .invalidTrackRequest, .preparationClosed, .leaseClosed, .executionClosed, .invalidDependencyRequest:

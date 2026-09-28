@@ -152,10 +152,10 @@ public final class ExecutionTime: Sendable {
         return result
     }
 
-    /// Gives the deadline engine a checked clock snapshot. The engine wraps
-    /// failures as scheduling issues after releasing its own state lock.
-    func schedulingSnapshot() -> Result<ExecutionTimeReading, ExecutionTimeIssue> {
-        read(reservingCapture: false)
+    /// Gives the deadline engine a checked clock snapshot with a scheduling
+    /// issue. The engine reports that issue after releasing its own state lock.
+    func schedulingSnapshot() -> Result<ExecutionTimeReading, SchedulingIssue> {
+        read(reservingCapture: false).mapError { .logicalTime($0) }
     }
 
     private func read(reservingCapture: Bool) -> Result<ExecutionTimeReading, ExecutionTimeIssue> {
