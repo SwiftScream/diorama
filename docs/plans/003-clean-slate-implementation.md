@@ -53,6 +53,11 @@ E01's scope and the recommended GPT-6 Sol, `high` setting were confirmed on
 E01's implementation and local macOS, iOS Simulator, and Linux verification
 are complete; owner review is the next checkpoint. See its
 [logical-time capture evidence](../evidence/003-E01-logical-time-capture.md).
+E02's scope and the recommended GPT-6 Astra, `xhigh` setting were confirmed on
+2026-09-28. The owner authorized E02 above the E01 review branch. E02's
+implementation and local macOS, iOS Simulator, and Linux verification are
+complete; owner review is the next checkpoint. See its
+[deadline-engine evidence](../evidence/003-E02-deadline-engine-and-handoff.md).
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -1087,6 +1092,8 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E02 — One-to-one deadline engine and deterministic handoff
 
+- Status: Complete locally; owner review is the next checkpoint.
+- Evidence: [Deadline engine and deterministic handoff](../evidence/003-E02-deadline-engine-and-handoff.md).
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Earliest-wait replacement, due-batch claims, and non-reentrant deterministic handoff are tightly coupled scheduler rules.
 - Prerequisites: 003-E01; DD14.
 - Scope: Add one active earliest-deadline wait, earlier insertion replacement, due-batch claiming and delivery outside scheduler isolation.
