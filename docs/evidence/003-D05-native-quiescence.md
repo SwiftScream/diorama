@@ -453,3 +453,20 @@ Local artifacts: `.build/phase-d-ios-hosted.log`,
 `.build/phase-d-linux-isolated.log`, `.build/phase-d-linux-enumeration.log`, and
 `.build/phase-d-lint-fix.log`. The ordinary iOS result bundle is replaced by
 each canonical run.
+
+## Apple cancellation-race CI follow-up — 2026-09-28
+
+An [E01 iOS run](https://github.com/SwiftScream/diorama/actions/runs/36417441091)
+and a [standalone test-fix macOS run](https://github.com/SwiftScream/diorama/actions/runs/36418242493)
+each find a successful completion with an empty body in the 50-iteration D05
+serial-queue race. The fixture explicitly races caller `task.cancel()` with one
+body chunk and finish. Other runs observe the full `race` body. The original
+assertion treated every completion without an error as a full-body delivery;
+that condition is not stable when cancellation overlaps delivery on Apple.
+
+The Apple assertion now accepts either an empty or complete body after this
+explicit cancellation. It still rejects a partial body, an unexpected error
+code, duplicate completion, an unfinished task, late delivery, or a retained
+session. Linux retains its full-body assertion for a successful
+completion because its serial audit has not shown this result. Production replay
+semantics remain governed by [DD17](../design-decisions/17-http-lifecycle-composition.md).
