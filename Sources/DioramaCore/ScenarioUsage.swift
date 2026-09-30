@@ -9,20 +9,17 @@ public struct SequentialTrackUsage: Equatable, Sendable {
     public enum Activity: Equatable, Sendable {
         /// Successfully admitted observations and reservations left incomplete.
         case record(recordedCount: UInt64, incompleteCount: UInt64)
-        /// Successful synchronous claims and the remaining unclaimed suffix.
+        /// Successful claims and remaining unclaimed groups or values.
         case replay(usedCount: UInt64, unusedCount: UInt64)
         /// The attachment never accesses track content.
         case passthrough
     }
 
     /// Every unclaimed replay identity, in stable sequence order.
-    ///
-    /// Successful sequential claims complete synchronously. Record and
-    /// passthrough tracks have no replay cursor.
-    public var unusedRecords: [RecordIdentity] {
-        guard case let .replay(used, unused) = activity else { return [] }
-        return (used..<(used + unused)).map { RecordIdentity(trackID: id, sequence: $0) }
-    }
+    public let unusedRecords: [RecordIdentity]
+    /// Selected grouped lifecycles in stable record order. Sequential claims
+    /// complete synchronously and have no separate progress facts.
+    public let selectedGroups: [GroupedClaimUsage]
 }
 
 /// Ordered facts for one active system attachment.

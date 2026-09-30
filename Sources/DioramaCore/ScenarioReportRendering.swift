@@ -19,6 +19,10 @@ public extension ScenarioFinalizationResult {
                 for record in track.unusedRecords {
                     lines.append("    Unused record \(record.sequence)")
                 }
+                for group in track.selectedGroups {
+                    lines.append("    Claimed record \(group.identity.sequence) progress=\(group.progressCount) "
+                        + ReportText.groupedConclusion(group.conclusion))
+                }
             }
         }
         lines.append("Diagnostics \(report.diagnostics.count)")
@@ -66,6 +70,14 @@ enum ReportText {
         case let .record(recorded, incomplete): "record admitted=\(recorded) incomplete=\(incomplete)"
         case let .replay(used, unused): "replay used=\(used) unused=\(unused)"
         case .passthrough: "passthrough"
+        }
+    }
+
+    static func groupedConclusion(_ conclusion: GroupedClaimUsage.Conclusion) -> String {
+        switch conclusion {
+        case .pending: "pending"
+        case .completed: "completed"
+        case .openAtRecordingHorizon: "open-at-recording-horizon"
         }
     }
 
@@ -128,6 +140,18 @@ enum ReportText {
         case let .replayExhausted(availableCount):
             "replay-exhausted available=\(availableCount)"
         case let .grouped(fact): groupedLifecycle(fact)
+        case let .selection(fact): groupedSelection(fact)
+        }
+    }
+
+    private static func groupedSelection(_ issue: GroupedReplaySelectionIssue) -> String {
+        switch issue {
+        case .noMatch: "selection-no-match"
+        case let .exhausted(ids):
+            "selection-exhausted matches=[\(ids.map { String($0.sequence) }.joined(separator: ","))]"
+        case let .ambiguous(ids):
+            "selection-ambiguous candidates=[\(ids.map { String($0.sequence) }.joined(separator: ","))]"
+        case .invalidSelectorResult: "selection-invalid-result"
         }
     }
 

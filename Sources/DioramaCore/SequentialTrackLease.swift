@@ -59,6 +59,8 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
         var pendingHeaderAttempts: UInt64 = 0
         var time: ExecutionTime?
         var nextReplayPosition = 0
+        var claimed: Set<Int> = []
+        var groupedProgress: [Int: GroupedClaimProgress] = [:]
         var closed = false
         var finalUsage: SequentialTrackUsage?
     }
@@ -72,7 +74,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
 
     let state: Mutex<State>
     private let closing = Mutex(())
-    private let admission: ExecutionAdmission
+    let admission: ExecutionAdmission
 
     init(track: SequentialTrack<Value, Header>, baseline: [SequentialRecord<Value>],
          baselineHeader: Header?, mode: ScenarioMode,
@@ -183,6 +185,9 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
                     .wrongMode(expected: .replay, actual: mode),
                     context: .track(id)))
             }
+            while state.claimed.contains(state.nextReplayPosition) {
+                state.nextReplayPosition += 1
+            }
             let requested = state.nextReplayPosition
             state.nextReplayPosition += 1
             guard requested < state.baseline.count else {
@@ -191,6 +196,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
                     .replayExhausted(availableCount: UInt64(state.baseline.count)),
                     context: .record(identity)))
             }
+            state.claimed.insert(requested)
             return .success(state.baseline[requested])
         }
         switch result {
@@ -540,18 +546,7 @@ extension SequentialTrackLease: AnySequentialLease {
                 }
             }.map { RecordIdentity(trackID: id, sequence: UInt64($0)) }
             let admitted = state.recording.compactMap(\.record)
-            let activity: SequentialTrackUsage.Activity
-            switch mode {
-            case .record:
-                activity = .record(recordedCount: UInt64(admitted.count),
-                                   incompleteCount: UInt64(state.recording.count - admitted.count))
-            case .replay:
-                let used = min(state.nextReplayPosition, state.baseline.count)
-                activity = .replay(usedCount: UInt64(used), unusedCount: UInt64(state.baseline.count - used))
-            case .passthrough:
-                activity = .passthrough
-            }
-            let usage = SequentialTrackUsage(id: id, activity: activity)
+            let usage = makeUsage(state, admittedCount: admitted.count)
             state.finalUsage = usage
             let records = state.baseline + admitted
             let baselineHeader = state.baselineHeader
@@ -559,6 +554,8 @@ extension SequentialTrackLease: AnySequentialLease {
             let incompleteHeader = state.pendingHeaderAttempts > 0
             state.baseline = []
             state.recording = []
+            state.claimed = []
+            state.groupedProgress = [:]
             state.time = nil
             let recording = mode == .record
                 ? recordingTrack(header: recordingHeader ?? baselineHeader, records: admitted)
@@ -570,6 +567,31 @@ extension SequentialTrackLease: AnySequentialLease {
                                   baselineHeader: baselineHeader, recordingHeader: recordingHeader,
                                   incomplete: incomplete, incompleteHeader: incompleteHeader,
                                   recording: recording)
+        }
+    }
+
+    private func makeUsage(_ state: State, admittedCount: Int) -> SequentialTrackUsage {
+        switch mode {
+        case .record:
+            return SequentialTrackUsage(
+                id: id,
+                activity: .record(recordedCount: UInt64(admittedCount),
+                                  incompleteCount: UInt64(state.recording.count - admittedCount)),
+                unusedRecords: [], selectedGroups: [])
+        case .replay:
+            let unused = state.baseline.indices.filter { !state.claimed.contains($0) }
+                .map { state.baseline[$0].identity }
+            let selected: [GroupedClaimUsage] = state.groupedProgress.keys.sorted().compactMap { index in
+                guard let progress = state.groupedProgress[index] else { return nil }
+                return GroupedClaimUsage(identity: state.baseline[index].identity,
+                                         progressCount: progress.progressCount,
+                                         conclusion: progress.conclusion)
+            }
+            return SequentialTrackUsage(
+                id: id, activity: .replay(usedCount: UInt64(state.claimed.count), unusedCount: UInt64(unused.count)),
+                unusedRecords: unused, selectedGroups: selected)
+        case .passthrough:
+            return SequentialTrackUsage(id: id, activity: .passthrough, unusedRecords: [], selectedGroups: [])
         }
     }
 }

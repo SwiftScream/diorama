@@ -122,6 +122,8 @@ public enum SequentialOperationIssue: Equatable, Sendable {
     case replayExhausted(availableCount: UInt64)
     /// Invalid grouped interaction or subscription behavior.
     case grouped(GroupedLifecycleIssue)
+    /// A grouped selector could not provide one valid available behavior.
+    case selection(GroupedReplaySelectionIssue)
 }
 
 /// Safe grouped lifecycle facts without captured inputs or native errors.

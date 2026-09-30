@@ -7,6 +7,9 @@ public enum ScenarioEvaluationCondition: Equatable, Sendable {
     case noDiagnostics
     /// All replay records were used, except where their system allows leftovers.
     case allRecordingsUsed
+    /// Every selected group with a terminal recording reached its conclusion.
+    /// Explicitly open-at-horizon groups are satisfied by design.
+    case allSelectedRecordingsCompleted
     /// No selected diagnostic invalidates the recording candidate.
     case healthyRecording
     /// Every selected attachment's cleanup completed successfully.
@@ -21,6 +24,8 @@ public enum ScenarioEvaluationFailure: Equatable, Sendable {
     case diagnostic(ReportedDiagnostic)
     /// A replay record was never claimed.
     case unusedRecord(RecordIdentity)
+    /// A claimed terminal group did not reach its recorded conclusion.
+    case incompleteClaim(RecordIdentity)
     /// An activated attachment's cleanup failed.
     case cleanup(AttachmentCleanup)
 }
@@ -44,8 +49,8 @@ public extension ScenarioFinalizationResult {
     /// unused-replay waiver affects only `allRecordingsUsed`; all other conditions inspect it.
     /// An unknown selected key yields a failure instead of vacuous success.
     /// Late diagnostics stay in the separately retained reporter and cannot
-    /// change this evaluation. Sequential claims complete synchronously, so
-    /// this capability has no separate incomplete replay lifecycle to evaluate.
+    /// change this evaluation. Sequential claims complete synchronously;
+    /// grouped claims can retain pending progress independently of use.
     ///
     /// - Parameters:
     ///   - condition: The policy the caller deliberately chooses to evaluate.
@@ -74,6 +79,13 @@ public extension ScenarioFinalizationResult {
             selected.filter { !$0.allowsUnusedReplayRecords }.flatMap { attachment in
                 attachment.tracks.flatMap { track in
                     track.unusedRecords.map { .unusedRecord($0) }
+                }
+            }
+        case .allSelectedRecordingsCompleted:
+            selected.flatMap { attachment in
+                attachment.tracks.flatMap { track in
+                    track.selectedGroups.filter { $0.conclusion == .pending }
+                        .map { .incompleteClaim($0.identity) }
                 }
             }
         case .healthyRecording:
