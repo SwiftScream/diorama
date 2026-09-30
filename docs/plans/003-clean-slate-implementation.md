@@ -79,6 +79,10 @@ GPT-6 Sol, `high` recommendation. The owner requested stacked development
 while E04 review proceeded. E05's implementation and local macOS, iOS
 Simulator, and Linux verification are complete; owner review is the next
 checkpoint. See its [selector and claim evidence](../evidence/003-E05-system-selectors-and-claims.md).
+E06's scope and the recommended GPT-6 Sol, `high` setting were confirmed on
+2026-09-30. Its implementation and local macOS, iOS Simulator, and Linux
+verification are complete on a branch stacked above E05; owner review is the
+next checkpoint. See its [stream delivery evidence](../evidence/003-E06-sequential-stream-delivery.md).
 F01's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-10-01
 for an independent feature branch from `master` while later Phase E units await
 review. F01 was merged on 2026-10-03. See its
@@ -1184,6 +1188,10 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E06 — Sequential stream delivery over grouped claims
 
+- Status: Implementation and local macOS, iOS Simulator, and Linux verification
+  complete on a branch stacked above E05; owner review is the next checkpoint.
+  Scope was confirmed on 2026-09-30.
+- Evidence: [Sequential stream delivery](../evidence/003-E06-sequential-stream-delivery.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Subscription anchors, open groups, and cancellation races compose already proved scheduler and lifecycle services.
 - Prerequisites: 003-E03–003-E05; DD03–DD05, DD14.
 - Scope: Provide reusable subscription selection and ordered scheduled delivery for values, nonterminal errors, completion/failure, and open groups.

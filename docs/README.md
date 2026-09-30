@@ -185,6 +185,10 @@ decision or an approved implementation unit.
 - [System selectors and grouped claims evidence](evidence/003-E05-system-selectors-and-claims.md)
   records deterministic selection, atomic claims, usage evaluation, and
   platform verification.
+- [Sequential stream replay](sequential-stream-replay.md) describes subscription
+  selection, ordered scheduled delivery, and cancellation semantics.
+- [Sequential stream delivery evidence](evidence/003-E06-sequential-stream-delivery.md)
+  records E06's public helper, lifecycle tests, and local platform gates.
 - [Stable time scalar evidence](evidence/003-F01-stable-time-scalars.md)
   records the shared millisecond and ISO origin codecs, strict fixtures, and
   macOS, iOS Simulator, and Linux verification.
