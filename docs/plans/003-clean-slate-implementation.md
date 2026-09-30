@@ -74,6 +74,11 @@ above merged F02 are complete. iOS and Linux checks of this revision
 remain CI gates; owner review is the next checkpoint. The owner authorized a
 remote E04 branch for review. See its
 [grouped lifecycle evidence](../evidence/003-E04-grouped-lifecycle-accumulation.md).
+E05's scope was confirmed on 2026-09-30 after review of the documented
+GPT-6 Sol, `high` recommendation. The owner requested stacked development
+while E04 review proceeded. E05's implementation and local macOS, iOS
+Simulator, and Linux verification are complete; owner review is the next
+checkpoint. See its [selector and claim evidence](../evidence/003-E05-system-selectors-and-claims.md).
 F01's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-10-01
 for an independent feature branch from `master` while later Phase E units await
 review. F01 was merged on 2026-10-03. See its
@@ -1162,6 +1167,10 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E05 — System selectors and atomic grouped claims
 
+- Status: Implementation and local macOS, iOS Simulator, and Linux verification
+  complete on a branch stacked above E04; owner review is the next checkpoint.
+  Scope was confirmed on 2026-09-30.
+- Evidence: [System selectors and atomic grouped claims](../evidence/003-E05-system-selectors-and-claims.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Pure system selectors, atomic whole-group claims, and distinct failure diagnostics extend the established claim boundary.
 - Prerequisites: 003-E04, 003-B04, 003-B08; DD04–DD05.
 - Scope: Extend atomic claim coordination to deterministic system-selected whole groups, with exact-input and sequential helpers where applicable.
