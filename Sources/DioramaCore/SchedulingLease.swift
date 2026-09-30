@@ -54,7 +54,12 @@ public struct SchedulingLease: Sendable {
                          delivery: @escaping @Sendable () async -> Void)
         throws(SchedulingFailure) -> ScheduledItemHandle
     {
-        try register(.absolute(deadline), record: record, delivery: delivery)
+        guard let handle = try register(.absolute(deadline), record: record, delivery: delivery,
+                                        suppressClosed: false)
+        else {
+            preconditionFailure("Public scheduling cannot silently suppress a closed execution")
+        }
+        return handle
     }
 
     /// Queues scoped async delivery after a nonnegative delay from registration.
@@ -67,12 +72,27 @@ public struct SchedulingLease: Sendable {
                          delivery: @escaping @Sendable () async -> Void)
         throws(SchedulingFailure) -> ScheduledItemHandle
     {
-        try register(.relative(delay), record: record, delivery: delivery)
+        guard let handle = try register(.relative(delay), record: record, delivery: delivery,
+                                        suppressClosed: false)
+        else {
+            preconditionFailure("Public scheduling cannot silently suppress a closed execution")
+        }
+        return handle
+    }
+
+    /// A claimed delivery may finish while execution shutdown closes admission.
+    /// Its normal attempt to register the next stream event then returns nil
+    /// without turning orderly shutdown into an unexpected-operation diagnostic.
+    func scheduleIfOpen(at deadline: Duration, for record: RecordIdentity,
+                        delivery: @escaping @Sendable () async -> Void)
+        throws(SchedulingFailure) -> ScheduledItemHandle?
+    {
+        try register(.absolute(deadline), record: record, delivery: delivery, suppressClosed: true)
     }
 
     private func register(_ deadline: SchedulingDeadline, record: RecordIdentity,
-                          delivery: @escaping @Sendable () async -> Void)
-        throws(SchedulingFailure) -> ScheduledItemHandle
+                          delivery: @escaping @Sendable () async -> Void, suppressClosed: Bool)
+        throws(SchedulingFailure) -> ScheduledItemHandle?
     {
         guard let trackOrder = tracks.firstIndex(of: record.trackID) else {
             throw failure(.invalidTrack, context: .attachment(attachmentID))
@@ -81,6 +101,9 @@ public struct SchedulingLease: Sendable {
         do {
             return try engine.register(deadline, order: order, delivery: delivery)
         } catch {
+            if suppressClosed, error == .logicalTime(.executionClosed) {
+                return nil
+            }
             throw failure(error, context: .record(record))
         }
     }
