@@ -54,6 +54,7 @@ let package = Package(
         .testTarget(
             name: "DioramaCoreTests",
             dependencies: ["DioramaCore"],
+            resources: [.copy("Fixtures")],
             swiftSettings: strictConcurrencySettings),
         .testTarget(
             name: "DioramaRandomTests",

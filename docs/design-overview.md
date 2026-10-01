@@ -360,9 +360,12 @@ cross-track constraints remain deferred.
 Status: Resolved by
 [decision 15](design-decisions/15-clock-system.md). The optional first-party
 clock attachment separates sequentially recorded wall observations from a
-runtime-only monotonic Swift `Clock`. The decision defines ISO 8601 origins,
-successive signed deltas, authored overrides, replay exhaustion, scheduler
-integration, cancellation, finalization, and portable platform behavior.
+runtime-only monotonic Swift `Clock`. Foundation parses ISO 8601 origins into a
+`Date`; a representable trailing numeric offset is retained for formatting,
+with UTC as the fallback under the 2026-10-02 refinement. The decision also
+defines successive signed deltas, authored
+overrides, replay exhaustion, scheduler integration, cancellation,
+finalization, and portable platform behavior.
 
 ### Initial location system contract
 

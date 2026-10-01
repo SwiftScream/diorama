@@ -394,3 +394,50 @@ remain runtime scheduler operations rather than persisted expectations.
 Finalization cancels sleepers, freezes logical time, and makes escaped-handle
 use deterministic and diagnostic. The complete system is portable across the
 initial macOS, iOS, and Linux targets.
+
+## Origin parsing clarification — owner-approved 2026-10-01
+
+During 003-F01 review, the owner selected a Foundation `Date` plus an integer
+number of minutes east of UTC as the decoded origin representation. The offset
+is retained for canonical ISO 8601 writing; replay uses the `Date` alone.
+Foundation's ISO 8601 parser owns calendar interpretation. The reader checks
+the declared text shape, millisecond precision, and numeric offset, then may
+accept a calendar value that Foundation normalizes. Re-encoding writes the
+normalized instant with the retained numeric offset. This clarification
+supersedes the earlier instruction to reject every noncanonical calendar value
+as an invalid ISO 8601 value. Malformed syntax and values Foundation cannot
+parse remain invalid. Cross-platform fixtures must prove the selected
+Foundation behavior before the clock schema depends on it.
+
+## Origin parser and formatter refinement — owner-approved 2026-10-02
+
+The owner further removed the codec's separate date-field grammar check.
+Foundation's ISO 8601 parser decides whether the full origin text denotes a
+`Date`, including any calendar or fractional-second normalization. The codec
+then tries to retain a trailing numeric UTC offset. If the suffix cannot be
+used for safe portable Foundation timezone formatting, the retained offset is
+zero; the parsed absolute `Date` is unchanged and canonical output uses UTC.
+Writing passes the `Date` and fixed `TimeZone` to Foundation's formatter.
+Millisecond rounding and a format/reparse check keep canonical output tied to
+the parsed instant. This refinement supersedes the earlier requirement to
+reject origin text solely for date-field shape or
+submillisecond input precision. The portable retained-offset range is limited
+to `-14:00` through `+14:00` because Linux Foundation crashes when formatting
+some larger fixed zones. Duration syntax remains strict.
+
+## Millisecond Date normalization — owner-approved 2026-10-02
+
+The owner selected a `Date`-to-`Date` nearest-millisecond helper for origin
+normalization and later wall-source recording. Origin parsing returns the
+rounded `Date`; writing rounds a supplied `Date` before formatting. Origins
+do not require an absolute `Int64` millisecond representation. Canonical ISO
+8601 output always includes three fractional-second digits, including `.000`
+for a whole second. Independently rounding each recorded wall observation
+before deriving successive deltas remains required.
+
+## Canonical UTC designator — owner-approved 2026-10-02
+
+The owner selected Foundation's `Z` output for a zero UTC offset. The origin
+reader already accepts `Z` through Foundation's ISO 8601 parser and retains
+zero offset minutes. The writer no longer replaces `Z` with `+00:00`.
+Nonzero supported numeric offsets continue to use Foundation's formatter.
