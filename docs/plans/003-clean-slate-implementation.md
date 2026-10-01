@@ -68,6 +68,11 @@ the implementation commit. A subsequent owner-requested phase-name correction is
 recorded in adjacent unsquashed fixups. Local verification is complete; owner
 review remains the next checkpoint. See its
 [scheduler quiescence evidence](../evidence/003-E03-scheduler-quiescence.md).
+F01's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-10-01
+for an independent feature branch from `master` while later Phase E units await
+review. F01's implementation and local macOS, iOS Simulator, and Linux
+verification are complete; owner review is the next checkpoint. See its
+[stable time scalar evidence](../evidence/003-F01-stable-time-scalars.md).
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -1193,6 +1198,10 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-F01 — Shared millisecond duration and ISO 8601 codecs
 
+- Status: Complete; the owner closed review and authorized PR creation
+  on 2026-10-03. Current-revision macOS verification is recorded in the
+  evidence; the required iOS and Linux jobs run in PR CI.
+- Evidence: [Stable time scalar codecs](../evidence/003-F01-stable-time-scalars.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Strict scalar grammars, independent rounding, numeric offsets, and overflow need precise portable codec tests.
 - Prerequisites: 003-C02; DD08, DD15; 003-A01 selected platform matrix.
 - Scope: Implement strict locale-independent signed ms/seconds grammar, canonical scalar writing, numeric-offset origins, rounding and checked maths.

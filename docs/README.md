@@ -172,6 +172,9 @@ the earlier decisions explicitly.
 - [Cancellation, acknowledgement, and scheduler quiescence evidence](evidence/003-E03-scheduler-quiescence.md)
   records atomic cancellation, delivery completion, shutdown ownership,
   and platform verification.
+- [Stable time scalar evidence](evidence/003-F01-stable-time-scalars.md)
+  records the shared millisecond and ISO origin codecs, strict fixtures, and
+  macOS, iOS Simulator, and Linux verification.
 
 ## Historical boundary
 
