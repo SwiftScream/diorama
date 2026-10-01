@@ -1,0 +1,43 @@
+{
+  "durations": [
+    { "input": "+0ms", "milliseconds": 0, "canonical": "0ms" },
+    { "input": "-1500ms", "milliseconds": -1500, "canonical": "-1500ms" },
+    { "input": "+1.5s", "milliseconds": 1500, "canonical": "1500ms" },
+    { "input": "-0.001s", "milliseconds": -1, "canonical": "-1ms" },
+    { "input": "-2.001s", "milliseconds": -2001, "canonical": "-2001ms" },
+    { "input": "5s", "milliseconds": 5000, "canonical": "5s" },
+    { "input": "9223372036854775807ms", "milliseconds": 9223372036854775807, "canonical": "9223372036854775807ms" },
+    { "input": "-9223372036854775808ms", "milliseconds": -9223372036854775808, "canonical": "-9223372036854775808ms" },
+    { "input": "9223372036854775.807s", "milliseconds": 9223372036854775807, "canonical": "9223372036854775807ms" },
+    { "input": "-9223372036854775.808s", "milliseconds": -9223372036854775808, "canonical": "-9223372036854775808ms" }
+  ],
+  "origins": [
+    { "input": "1970-01-01T00:00:00+00:00", "milliseconds": 0, "offsetMinutes": 0, "canonical": "1970-01-01T00:00:00.000Z" },
+    { "input": "1970-01-01T00:00:00Z", "milliseconds": 0, "offsetMinutes": 0, "canonical": "1970-01-01T00:00:00.000Z" },
+    { "input": "1970-01-01T00:00:00-00:00", "milliseconds": 0, "offsetMinutes": 0, "canonical": "1970-01-01T00:00:00.000Z" },
+    { "input": "1970-01-01T00:00:00+0000", "milliseconds": 0, "offsetMinutes": 0, "canonical": "1970-01-01T00:00:00.000Z" },
+    { "input": "1970-01-01T00:00:00.1234+00:00", "milliseconds": 123, "offsetMinutes": 0, "canonical": "1970-01-01T00:00:00.123Z" },
+    { "input": "1970-01-01T14:00:00+14:00", "milliseconds": 0, "offsetMinutes": 840, "canonical": "1970-01-01T14:00:00.000+14:00" },
+    { "input": "1969-12-31T10:00:00-14:00", "milliseconds": 0, "offsetMinutes": -840, "canonical": "1969-12-31T10:00:00.000-14:00" },
+    { "input": "1970-01-01T14:01:00+14:01", "milliseconds": 0, "offsetMinutes": 0, "canonical": "1970-01-01T00:00:00.000Z" },
+    { "input": "1970-01-01T18:00:00+18:00", "milliseconds": 0, "offsetMinutes": 0, "canonical": "1970-01-01T00:00:00.000Z" },
+    { "input": "1969-12-31T06:00:00-18:00", "milliseconds": 0, "offsetMinutes": 0, "canonical": "1970-01-01T00:00:00.000Z" },
+    { "input": "2030-01-01T09:00:00.125+11:00", "milliseconds": 1893448800125, "offsetMinutes": 660, "canonical": "2030-01-01T09:00:00.125+11:00" },
+    { "input": "2000-02-29T23:59:59.999-05:30", "milliseconds": 951888599999, "offsetMinutes": -330, "canonical": "2000-02-29T23:59:59.999-05:30" },
+    { "input": "1970-01-01T00:00:00.1+00:00", "milliseconds": 100, "offsetMinutes": 0, "canonical": "1970-01-01T00:00:00.100Z" },
+    { "input": "1969-12-31T23:59:59.999+00:00", "milliseconds": -1, "offsetMinutes": 0, "canonical": "1969-12-31T23:59:59.999Z" },
+    { "input": "1970-01-01T01:00:00+01:00", "milliseconds": 0, "offsetMinutes": 60, "canonical": "1970-01-01T01:00:00.000+01:00" },
+    { "input": "1970-01-01T00:30:00-00:30", "milliseconds": 3600000, "offsetMinutes": -30, "canonical": "1970-01-01T00:30:00.000-00:30" },
+    { "input": "1900-03-01T00:00:00+00:00", "milliseconds": -2203891200000, "offsetMinutes": 0, "canonical": "1900-03-01T00:00:00.000Z" },
+    { "input": "1900-02-29T00:00:00+00:00", "milliseconds": -2203891200000, "offsetMinutes": 0, "canonical": "1900-03-01T00:00:00.000Z" },
+    { "input": "2000-02-30T00:00:00+00:00", "milliseconds": 951868800000, "offsetMinutes": 0, "canonical": "2000-03-01T00:00:00.000Z" },
+    { "input": "1970-01-01T24:00:00+00:00", "milliseconds": 86400000, "offsetMinutes": 0, "canonical": "1970-01-02T00:00:00.000Z" },
+    { "input": "2100-03-01T00:00:00+00:00", "milliseconds": 4107542400000, "offsetMinutes": 0, "canonical": "2100-03-01T00:00:00.000Z" },
+    { "input": "2400-02-29T00:00:00+00:00", "milliseconds": 13574563200000, "offsetMinutes": 0, "canonical": "2400-02-29T00:00:00.000Z" },
+    { "input": "0001-01-01T00:00:00+00:00", "milliseconds": -62135769600000, "offsetMinutes": 0, "canonical": "0001-01-01T00:00:00.000Z" },
+    { "input": "9999-12-31T23:59:59.999+00:00", "milliseconds": 253402300799999, "offsetMinutes": 0, "canonical": "9999-12-31T23:59:59.999Z" },
+    { "input": "10000-01-01T00:00:00+00:00", "milliseconds": 253402300800000, "offsetMinutes": 0, "canonical": "10000-01-01T00:00:00.000Z" }
+  ],
+  "invalidDurations": ["", "ms", "1", "1.0ms", "1.s", ".5s", "1.2345s", "1e3ms", " 1ms", "1ms ", "1,5s", "١ms", "9223372036854775808ms", "9223372036854776s", "-9223372036854775809ms"],
+  "invalidOrigins": ["1970-01-01T00:00:00.+00:00", "1970-01-01t00:00:00+00:00", "1970-01-01T00:00:00", "1970-01-01T00:00:00garbage"]
+}
