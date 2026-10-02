@@ -1,0 +1,22 @@
+{
+  "diorama" : {
+    "schemaVersion" : 1
+  },
+  "systems" : [
+    {
+      "attachmentKey" : "clock",
+      "payload" : {
+        "observations" : [
+          "0ms",
+          "5s",
+          "0ms",
+          "2s",
+          "-1s"
+        ],
+        "origin" : "2030-01-01T09:00:00.000+11:00"
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.clock"
+    }
+  ]
+}

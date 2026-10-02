@@ -1,0 +1,17 @@
+{
+  "diorama" : {
+    "schemaVersion" : 1
+  },
+  "systems" : [
+    {
+      "attachmentKey" : "clock",
+      "payload" : {
+        "observations" : [
+
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.clock"
+    }
+  ]
+}
