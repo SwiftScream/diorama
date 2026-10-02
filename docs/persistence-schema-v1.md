@@ -14,8 +14,8 @@ The envelope, header, and system entries are a format-neutral `Codable` object
 model. `JSONScenarioCodec` is the canonical JSON byte transport for that model;
 it does not own the schema structures or their validation rules. Its public
 boundary accepts and returns the core's immutable `ScenarioDefinition` directly.
-The `Codable` envelope and schema helpers are internal to persistence; the core
-model does not require `Codable`. `JSONScenarioCodec.schemaVersion` identifies
+The `Codable` envelope is internal to persistence; the core model does not
+require `Codable`. `JSONScenarioCodec.schemaVersion` identifies
 the envelope version. Runtime `ScenarioConfiguration` is supplied separately at
 startup and has no encoded representation.
 
@@ -63,6 +63,20 @@ Attachment keys must be unique across the document, including attachments with
 different system types. Unknown types, unsupported payload versions, and a
 reader that returns a different attachment identity are rejected through the
 persistence registry.
+
+## Shared overridable field form
+
+Importing `DioramaPersistence` makes `OverridableValue<Value>` conform to
+`Codable` when `Value` does. An ordinary observation writes as the wrapped
+value directly. An authored value writes as an object with one `override` key.
+The reader also accepts an object with one `observed` key or both keys; when
+both are present, the override wins. Tagged objects reject any other keys, and
+an object with neither tag is invalid unless it is a valid raw `Value`.
+
+The top-level `observed` and `override` keys are reserved by this coding form.
+Systems with raw structured values using those keys must define another field
+schema. Each system's payload version still controls whether a field uses this
+form; the conformance does not add override behavior to other fields.
 
 ## Random payload version 1
 

@@ -70,9 +70,12 @@ review remains the next checkpoint. See its
 [scheduler quiescence evidence](../evidence/003-E03-scheduler-quiescence.md).
 F01's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-10-01
 for an independent feature branch from `master` while later Phase E units await
-review. F01's implementation and local macOS, iOS Simulator, and Linux
-verification are complete; owner review is the next checkpoint. See its
+review. F01 was merged on 2026-10-03. See its
 [stable time scalar evidence](../evidence/003-F01-stable-time-scalars.md).
+F02's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-10-03.
+Its implementation and local macOS and iOS Simulator verification are complete;
+the owner authorized pull request creation on 2026-10-03. See its
+[wall-recording evidence](../evidence/003-F02-empty-and-nonempty-wall-recordings.md).
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -1213,6 +1216,8 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-F02 — Empty and nonempty wall recordings
 
+- Status: Complete; the owner authorized pull request creation on 2026-10-03.
+- Evidence: [Empty and nonempty wall recordings](../evidence/003-F02-empty-and-nonempty-wall-recordings.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Empty/nonempty wall schemas and cumulative signed deltas require one validated interpretation and strict rejection fixtures.
 - Prerequisites: 003-F01, 003-C01–003-C02; DD03, DD08, DD15.
 - Core prerequisite: [Typed sequential track headers](../evidence/003-F02-core-track-headers.md)
@@ -1223,10 +1228,10 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
   aliases for those specializations. Recording may replace a header while
   retaining the same record type.
 - Core prerequisite: [Overridable stable values](../evidence/003-F02-core-overridable-values.md)
-  are complete on a separate review branch. They retain one effective value
+  are complete on `master`. They retain one effective value
   and its observed or authored override state without Core persistence policy.
 - Scope: Add strict empty/nonempty wall data, origin and successive signed observations, cumulative validation and deliberate version-one persistence.
-- Expected files/modules: `DioramaClock` stable model/schema, fixtures and builders.
+- Expected files/modules: `DioramaClock` stable model/schema, fixtures and builders; conditional `Codable` conformance in `DioramaPersistence` for the shared observed/override field form.
 - Public behavior: Empty has no origin; nonempty canonical position zero is zero.
   Negative wall deltas change values without introducing replay delays.
   Builders and decoding both produce validated semantic values.

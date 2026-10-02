@@ -20,6 +20,7 @@ The owner approved the consolidated design and implementation plan on
 8. [Execution logical time](execution-time-service.md)
 9. [Execution scheduling](execution-scheduling.md)
 10. [Stable time scalars](stable-time-scalars.md)
+11. [Clock wall payload schema version 1](clock-wall-schema-v1.md)
 
 Read the individual decisions referenced by an implementation-plan item before
 working on it. The design overview summarizes their combined architecture but
@@ -185,6 +186,9 @@ decision or an approved implementation unit.
 - [Core overridable-value prerequisite evidence](evidence/003-F02-core-overridable-values.md)
   records effective-value authorship, conditional equality, and isolated Core
   verification.
+- [Empty and nonempty wall-recording evidence](evidence/003-F02-empty-and-nonempty-wall-recordings.md)
+  records the validated clock wall model, version-one payload schema, fixtures,
+  and local platform verification.
 
 ## Historical boundary
 
