@@ -58,16 +58,41 @@ public final class SystemPreparationContext: Sendable {
     /// - Throws: Safe, already-reported admission or track-request evidence.
     public func lease<Value: Sendable>(
         for id: TrackID,
-        preparation: ValuePreparation<Value>) throws(PreparationFailure) -> SequentialTrackLease<Value>
+        preparation: ValuePreparation<Value>) throws(PreparationFailure) -> HeaderlessSequentialTrackLease<Value>
     {
-        let original: SequentialTrack<Value>
+        try lease(for: id, preparation: preparation, header: Void.self, admitHeader: { $0 })
+    }
+
+    /// Prepares a track with one typed header outside its record sequence.
+    /// Existing header content receives validation-only admission, including
+    /// when its record sequence is empty.
+    public func lease<Value: Sendable, Header: Sendable>(
+        for id: TrackID,
+        preparation: ValuePreparation<Value>,
+        headerPreparation: ValuePreparation<Header>) throws(PreparationFailure) -> SequentialTrackLease<Value, Header>
+    {
+        func admit(_ header: Header) throws(PreparationFailure) -> Header {
+            try headerPreparation.admitPrepared(
+                header, reporter: reporter, context: .track(id)).value
+        }
+        return try lease(for: id, preparation: preparation, header: Header.self, admitHeader: admit)
+    }
+
+    private func lease<Value: Sendable, Header: Sendable>(
+        for id: TrackID,
+        preparation: ValuePreparation<Value>,
+        header: Header.Type,
+        admitHeader: (Header) throws(PreparationFailure) -> Header)
+        throws(PreparationFailure) -> SequentialTrackLease<Value, Header>
+    {
+        let original: SequentialTrack<Value, Header>
         do {
             original = try state.withLock { state in
                 guard let attachment = state.attachment else {
                     throw ScenarioLifecycleIssue.preparationClosed
                 }
                 guard !state.requested.contains(id),
-                      let track = try attachment.track(id, as: Value.self)
+                      let track = try attachment.track(id, as: Value.self, header: header)
                 else {
                     throw ScenarioLifecycleIssue.invalidTrackRequest
                 }
@@ -79,18 +104,26 @@ public final class SystemPreparationContext: Sendable {
             throw failure(issue, context: .track(id))
         }
 
-        let values: [PreparedValue<Value>] = if mode == .passthrough {
+        let admittedHeader: Header? = if mode == .passthrough {
+            nil
+        } else {
+            try admitHeader(original.header)
+        }
+
+        let records: [SequentialRecord<Value>] = if mode == .passthrough {
             []
         } else {
             try original.records.map { record throws(PreparationFailure) in
-                try preparation.admitPrepared(
+                let prepared = try preparation.admitPrepared(
                     record.value,
                     reporter: reporter,
                     context: .record(record.identity))
+                return SequentialRecord(identity: record.identity, value: prepared.value)
             }
         }
         let lease = SequentialTrackLease(
-            track: SequentialTrack(id: id, values: values), mode: mode, reporter: reporter, admission: admission)
+            track: original, baseline: records, baselineHeader: admittedHeader,
+            mode: mode, reporter: reporter, admission: admission)
         let admitted = state.withLock { state in
             guard state.attachment != nil else { return false }
             state.leases.append(lease)

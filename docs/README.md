@@ -179,6 +179,9 @@ decision or an approved implementation unit.
 - [Stable time scalar evidence](evidence/003-F01-stable-time-scalars.md)
   records the shared millisecond and ISO origin codecs, strict fixtures, and
   macOS, iOS Simulator, and Linux verification.
+- [Core track-header prerequisite evidence](evidence/003-F02-core-track-headers.md)
+  records required generic headers, headerless `Never` tracks, and the isolated
+  Core verification before F02 rebasing.
 
 ## Historical boundary
 

@@ -108,7 +108,7 @@ struct ScenarioDefinitionTests {
             attachmentID: attachmentID,
             key: TrackKey(rawValue: "values"))
         let attachment = try ScenarioAttachment(id: attachmentID).adding(
-            SequentialTrack<NonCodableValue>(id: trackID))
+            HeaderlessSequentialTrack<NonCodableValue>(id: trackID))
 
         #expect(attachment.trackIDs == [trackID])
         #expect(
@@ -191,7 +191,7 @@ struct ScenarioDefinitionTests {
     }
 
     @Test
-    func `rejects duplicate and incompatible track identity`() throws {
+    func `rejects duplicate track identity and incompatible typed lookup`() throws {
         let attachmentID = AttachmentID(
             systemTypeID: SystemTypeID(rawValue: "example"),
             key: AttachmentKey(rawValue: "primary"))
@@ -204,10 +204,15 @@ struct ScenarioDefinitionTests {
         #expect(throws: ScenarioDefinitionError.duplicateTrack(trackID)) {
             _ = try attachment.adding(track)
         }
-        #expect(throws: ScenarioDefinitionError.incompatibleTrackRecordType(trackID)) {
+        #expect(throws: ScenarioDefinitionError.duplicateTrack(trackID)) {
             _ = try attachment.adding(SequentialTrack(id: trackID, values: preparedValues(["one"])))
         }
-        #expect(throws: ScenarioDefinitionError.incompatibleTrackRecordType(trackID)) {
+        #expect(throws: ScenarioDefinitionError.duplicateTrack(trackID)) {
+            _ = try attachment.adding(SequentialTrack(
+                id: trackID, header: ValuePreparation<String>().admitPrepared("UTC"),
+                values: [ValuePreparation<Int>().admitPrepared(1)]))
+        }
+        #expect(throws: ScenarioDefinitionError.incompatibleTrackType(trackID)) {
             _ = try attachment.track(trackID, as: String.self)
         }
     }

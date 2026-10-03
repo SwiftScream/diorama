@@ -6,7 +6,7 @@ enum ExecutionFixtures {
 
     final class Journal: Sendable {
         let events = Mutex<[String]>([])
-        let leases = Mutex<[SequentialTrackLease<Int>]>([])
+        let leases = Mutex<[HeaderlessSequentialTrackLease<Int>]>([])
         let descriptions = Mutex(0)
     }
 

@@ -36,7 +36,7 @@ struct ScenarioUsageTests {
         #expect(try leases[1].claimNext().value == 21)
         #expect(throws: SequentialOperationFailure.self) { try leases[1].claimNext() }
         let recording = try execution.dependency(
-            DependencyKey<SequentialTrackLease<Int>>(attachmentID: record.id))
+            DependencyKey<HeaderlessSequentialTrackLease<Int>>(attachmentID: record.id))
         try recording.append(capturing: { 42 }, preparation: ValuePreparation<Int>())
         let result = await execution.finish()
         #expect(result.usage.map(\.attachmentID) == [replay.id, record.id, pass.id])

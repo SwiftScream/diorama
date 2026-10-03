@@ -17,7 +17,7 @@ struct ConcurrentFinalizationTests {
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [ExecutionFixtures.system("a", journal: journal), blockingSystem(gate: gate, journal: journal)])
         let lease = try execution.dependency(
-            ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self))
+            ExecutionFixtures.dependencyKey("a", as: HeaderlessSequentialTrackLease<Int>.self))
         #expect(try lease.claimNext().value == 1)
         let returned = Mutex(0)
         let first = Task {
@@ -120,7 +120,7 @@ struct ConcurrentFinalizationTests {
                 ExecutionFixtures.system("a", journal: ExecutionFixtures.Journal()),
             ])
         let lease = try execution.dependency(
-            ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self))
+            ExecutionFixtures.dependencyKey("a", as: HeaderlessSequentialTrackLease<Int>.self))
         let operation = Task<SequentialOperationFailure?, Never> {
             await withCheckedContinuation { continuation in
                 // A deliberately blocked capture must not occupy a cooperative worker.

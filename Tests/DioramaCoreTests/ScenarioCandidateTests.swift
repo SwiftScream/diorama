@@ -16,7 +16,7 @@ struct ScenarioCandidateTests {
                 ExecutionFixtures.system("passthrough", journal: journal, mode: .passthrough),
             ])
         let recorded = try execution.dependency(
-            ExecutionFixtures.dependencyKey("record", as: SequentialTrackLease<Int>.self))
+            ExecutionFixtures.dependencyKey("record", as: HeaderlessSequentialTrackLease<Int>.self))
         let transformations = Mutex(0)
         let preparation = ValuePreparation<Int>(normalize: { value in
             transformations.withLock { $0 += 1 }
@@ -25,7 +25,7 @@ struct ScenarioCandidateTests {
         try recorded.append(capturing: { 3 }, preparation: preparation)
         try recorded.append(capturing: { 4 }, preparation: preparation)
         let replayed = try execution.dependency(
-            ExecutionFixtures.dependencyKey("replay", as: SequentialTrackLease<Int>.self))
+            ExecutionFixtures.dependencyKey("replay", as: HeaderlessSequentialTrackLease<Int>.self))
         #expect(try replayed.claimNext().value == 1)
         let result = await execution.finish()
         let definition = try #require(result.definition)
@@ -52,9 +52,9 @@ struct ScenarioCandidateTests {
                 ExecutionFixtures.system("failed", journal: journal),
             ])
         let healthy = try execution.dependency(
-            ExecutionFixtures.dependencyKey("healthy", as: SequentialTrackLease<Int>.self))
+            ExecutionFixtures.dependencyKey("healthy", as: HeaderlessSequentialTrackLease<Int>.self))
         let failed = try execution.dependency(
-            ExecutionFixtures.dependencyKey("failed", as: SequentialTrackLease<Int>.self))
+            ExecutionFixtures.dependencyKey("failed", as: HeaderlessSequentialTrackLease<Int>.self))
         try healthy.append(capturing: { 9 }, preparation: ValuePreparation<Int>())
         #expect(throws: SequentialOperationFailure.self) {
             try failed.append(capturing: { 10 }, preparation: ValuePreparation<Int>(validate: { _ in

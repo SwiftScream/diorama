@@ -1,14 +1,26 @@
 /// A successfully prepared semantic value, eligible for generic track storage.
 ///
-/// Only ``ValuePreparation`` can create one. Preparation means compliance with
-/// the selected policy, not comprehensive removal of personal data. Systems
-/// must use stable value semantics; `Sendable` alone does not guarantee that.
+/// Domain values are created through ``ValuePreparation``; the unique `Void`
+/// value can be created directly as a headerless-track marker. Preparation
+/// means compliance with the selected policy, not comprehensive removal of
+/// personal data. Systems must use stable value semantics; `Sendable` alone
+/// does not guarantee that.
 public struct PreparedValue<Value: Sendable>: Sendable {
     /// The value after canonicalization, redaction, normalization, and validation.
     public let value: Value
 
     fileprivate init(_ value: Value) {
         self.value = value
+    }
+}
+
+public extension PreparedValue where Value == Void {
+    /// Creates the unit marker `()` for a headerless track.
+    ///
+    /// `Void` carries no input to capture or transform. This initializer does
+    /// not run a `ValuePreparation<Void>` policy.
+    init() {
+        self.init(())
     }
 }
 

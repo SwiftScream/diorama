@@ -14,8 +14,8 @@ struct ExecutionOwnershipTests {
         var execution: ScenarioExecution? = try makeOwnedExecution(observations)
         weak let weakExecution = execution
         let key = ExecutionFixtures.dependencyKey(
-            "a", as: SequentialTrackLease<ExecutionFixtures.Probe>.self)
-        var lease: SequentialTrackLease<ExecutionFixtures.Probe>? = try execution?.dependency(key)
+            "a", as: HeaderlessSequentialTrackLease<ExecutionFixtures.Probe>.self)
+        var lease: HeaderlessSequentialTrackLease<ExecutionFixtures.Probe>? = try execution?.dependency(key)
         var reporter: DiagnosticReporter? = execution?.reporter
         weak let weakReporter = reporter
         #expect(observations.releases.withLock { $0 } == ["prepared system"])
@@ -171,7 +171,7 @@ struct ExecutionOwnershipTests {
     @Test
     func `rollback releases activation resources and content while escaped leases stay closed`() throws {
         let observations = Observations()
-        let leases = Mutex<[SequentialTrackLease<ExecutionFixtures.Probe>]>([])
+        let leases = Mutex<[HeaderlessSequentialTrackLease<ExecutionFixtures.Probe>]>([])
         let failure: ScenarioStartupFailure
         do {
             let content = ExecutionFixtures.Probe { observations.releases.withLock { $0.append("content") } }

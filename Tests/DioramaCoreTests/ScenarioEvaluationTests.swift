@@ -42,7 +42,7 @@ struct ScenarioEvaluationTests {
                 ExecutionFixtures.system("b", journal: journal, failCleanup: true),
             ])
         let first = try execution.dependency(
-            ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self))
+            ExecutionFixtures.dependencyKey("a", as: HeaderlessSequentialTrackLease<Int>.self))
         #expect(first.report(.system(DiagnosticLabel("custom"))))
         execution.reporter.record(Diagnostic(issue: .conversionFailed, recordingImpact: .invalidatesCandidate))
         let result = await execution.finish()

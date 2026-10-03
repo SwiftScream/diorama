@@ -31,11 +31,11 @@ public final class ConsumerSequentialDependency: Sendable {
         lease.isClosed
     }
 
-    private let lease: SequentialTrackLease<ConsumerStableValue>
+    private let lease: HeaderlessSequentialTrackLease<ConsumerStableValue>
     private let preparation: ValuePreparation<ConsumerStableValue>
 
     init(
-        lease: SequentialTrackLease<ConsumerStableValue>,
+        lease: HeaderlessSequentialTrackLease<ConsumerStableValue>,
         preparation: ValuePreparation<ConsumerStableValue>)
     {
         self.lease = lease

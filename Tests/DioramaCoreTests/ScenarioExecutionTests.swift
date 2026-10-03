@@ -17,7 +17,7 @@ struct ScenarioExecutionTests {
             definition: definition,
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: systems)
-        let key = ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self)
+        let key = ExecutionFixtures.dependencyKey("a", as: HeaderlessSequentialTrackLease<Int>.self)
         let firstLease = try first.dependency(key)
         let secondLease = try second.dependency(key)
         #expect(firstLease !== secondLease)
@@ -93,7 +93,7 @@ struct ScenarioExecutionTests {
             definition: ExecutionFixtures.definition(["a"]),
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [ExecutionFixtures.system("a", journal: journal)], sink: hasSink ? sink : nil)
-        let key = ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self)
+        let key = ExecutionFixtures.dependencyKey("a", as: HeaderlessSequentialTrackLease<Int>.self)
         let lease = try execution.dependency(key)
         #expect(lease.report(.system(DiagnosticLabel("before"))))
         let result = await execution.finish()
@@ -172,7 +172,7 @@ struct ScenarioExecutionTests {
                     let execution = try #require(executionReference.withLock { $0 })
                     #expect(throws: DependencyAccessFailure.self) {
                         try execution.dependency(ExecutionFixtures.dependencyKey(
-                            "a", as: SequentialTrackLease<Int>.self))
+                            "a", as: HeaderlessSequentialTrackLease<Int>.self))
                     }
                 }
             }

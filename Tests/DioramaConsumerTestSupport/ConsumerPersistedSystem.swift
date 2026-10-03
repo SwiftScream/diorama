@@ -35,7 +35,7 @@ public enum ConsumerPersistedSystem {
     public static func instance(key: AttachmentKey) throws -> ScenarioSystem<ConsumerSequentialDependency> {
         let trackID = trackID(for: key)
         let attachment = try ScenarioAttachment(id: attachmentID(for: key)).adding(
-            SequentialTrack<ConsumerStableValue>(id: trackID))
+            HeaderlessSequentialTrack<ConsumerStableValue>(id: trackID))
         return try ScenarioSystem(type: type, attachment: attachment) { context in
             let preparation = ValuePreparation<ConsumerStableValue>()
             let lease = try context.lease(for: trackID, preparation: preparation)
