@@ -195,8 +195,15 @@ check, report that fact precisely rather than claiming verification.
 
 - Prefer small explicit types and existing accepted extension boundaries over
   speculative abstraction.
-- Make invalid states unrepresentable in runtime models and validate edited
-  persistence at one clear boundary.
+- Model runtime data so invalid combinations cannot be constructed. Prefer
+  required fields and explicit enums over independent optionals that need
+  repeated cross-field checks. Validate edited persistence at one clear
+  boundary before creating strict runtime values.
+- Express relationships between values with generics, associated types, and
+  typed APIs. Use `any`, type erasure, runtime type identifiers, and casts only
+  at boundaries that genuinely require heterogeneous data; recover typed
+  values there. Do not rely on runtime checks for an invariant the type system
+  can enforce.
 - Keep native values inside adapters and prepare stable values before matching,
   diagnostics, resources, or persistence.
 - Preserve deterministic ordering and output. Never rely on dictionary order,
