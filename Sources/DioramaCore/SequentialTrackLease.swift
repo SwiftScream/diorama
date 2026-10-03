@@ -348,9 +348,22 @@ public extension SequentialTrackLease {
 extension SequentialTrackLease: AnySequentialLease {
     @discardableResult
     func close() -> ClosedSequentialTrack {
-        // Release stable values outside the lock: their destruction may run
-        // consumer code. The closed lease never retains the detached content.
-        let detached = state.withLock { state -> ClosedContents in
+        let detached = detachClosedContents()
+        if detached.incompleteHeader {
+            reporter.record(Diagnostic(issue: .verification(.recordingNotAdmitted), context: .track(id),
+                                       recordingImpact: .invalidatesCandidate))
+        }
+        for identity in detached.incomplete {
+            reporter.record(Diagnostic(issue: .verification(.recordingNotAdmitted), context: .record(identity),
+                                       recordingImpact: .invalidatesCandidate))
+        }
+        withExtendedLifetime(detached) {}
+        return ClosedSequentialTrack(usage: detached.usage,
+                                     recording: detached.recording.map { SequentialTrackBox(track: $0) })
+    }
+
+    private func detachClosedContents() -> ClosedContents {
+        state.withLock { state -> ClosedContents in
             if let usage = state.finalUsage {
                 return ClosedContents(usage: usage, records: [], baselineHeader: nil, recordingHeader: nil,
                                       incomplete: [], incompleteHeader: false, recording: nil)
@@ -362,9 +375,7 @@ extension SequentialTrackLease: AnySequentialLease {
                 } else {
                     false
                 }
-            }.map {
-                RecordIdentity(trackID: id, sequence: UInt64($0))
-            }
+            }.map { RecordIdentity(trackID: id, sequence: UInt64($0)) }
             let admitted = state.recording.compactMap(\.record)
             let usage = SequentialTrackUsage(id: id, activity: activity(for: state, admittedCount: admitted.count))
             state.finalUsage = usage
@@ -385,16 +396,5 @@ extension SequentialTrackLease: AnySequentialLease {
                                   incomplete: incomplete, incompleteHeader: incompleteHeader,
                                   recording: recording)
         }
-        if detached.incompleteHeader {
-            reporter.record(Diagnostic(issue: .verification(.recordingNotAdmitted), context: .track(id),
-                                       recordingImpact: .invalidatesCandidate))
-        }
-        for identity in detached.incomplete {
-            reporter.record(Diagnostic(issue: .verification(.recordingNotAdmitted), context: .record(identity),
-                                       recordingImpact: .invalidatesCandidate))
-        }
-        withExtendedLifetime(detached) {}
-        return ClosedSequentialTrack(usage: detached.usage,
-                                     recording: detached.recording.map { SequentialTrackBox(track: $0) })
     }
 }
