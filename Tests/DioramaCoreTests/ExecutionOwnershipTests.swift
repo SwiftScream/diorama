@@ -58,6 +58,32 @@ struct ExecutionOwnershipTests {
         #expect(result.report.diagnostics.isEmpty)
     }
 
+    @Test
+    func `closed lease releases its execution time`() async throws {
+        let leaseReference = Mutex<HeaderlessSequentialTrackLease<Int>?>(nil)
+        let timeReference = Mutex<ExecutionTime?>(nil)
+        let definition = try ExecutionFixtures.definition(["a"])
+        let instance = try ScenarioSystem(type: ExecutionFixtures.type,
+                                          attachment: definition.attachments[0])
+        { context in
+            timeReference.withLock { $0 = context.time }
+            let lease = try context.lease(for: ExecutionFixtures.track("a"), preparation: ValuePreparation<Int>())
+            leaseReference.withLock { $0 = lease }
+            return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
+        }
+        var execution: ScenarioExecution? = try ScenarioExecution.start(
+            definition: definition, scenarioID: ScenarioID(rawValue: "time-release"),
+            defaultMode: .record, systems: [AnyScenarioSystem(instance)])
+        weak let weakTime = timeReference.withLock { $0 }
+        timeReference.withLock { $0 = nil }
+        #expect(weakTime != nil)
+
+        _ = await execution?.finish()
+        execution = nil
+        #expect(leaseReference.withLock { $0?.isClosed } == true)
+        #expect(weakTime == nil)
+    }
+
     @Test(arguments: [false, true])
     func `resource destruction diagnostics precede result freeze`(failStartup: Bool) async throws {
         let first = ExecutionFixtures.attachment("a")

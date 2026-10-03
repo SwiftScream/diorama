@@ -51,6 +51,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
         var recordingHeader: HeaderSlot = .empty
         var nextHeaderAttempt: UInt64 = 0
         var pendingHeaderAttempts: UInt64 = 0
+        var time: ExecutionTime?
         var nextReplayPosition = 0
         var closed = false
         var finalUsage: SequentialTrackUsage?
@@ -68,13 +69,13 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
 
     init(track: SequentialTrack<Value, Header>, baseline: [SequentialRecord<Value>],
          baselineHeader: Header?, mode: ScenarioMode,
-         reporter: DiagnosticReporter, admission: ExecutionAdmission)
+         reporter: DiagnosticReporter, admission: ExecutionAdmission, time: ExecutionTime)
     {
         id = track.id
         self.mode = mode
         self.reporter = reporter
         self.admission = admission
-        state = Mutex(State(baseline: baseline, baselineHeader: baselineHeader))
+        state = Mutex(State(baseline: baseline, baselineHeader: baselineHeader, time: time))
     }
 
     /// Whether startup rollback or explicit finish has closed this lease.
@@ -385,6 +386,7 @@ extension SequentialTrackLease: AnySequentialLease {
             let incompleteHeader = state.pendingHeaderAttempts > 0
             state.baseline = []
             state.recording = []
+            state.time = nil
             let recording = mode == .record
                 ? recordingTrack(header: recordingHeader ?? baselineHeader, records: admitted)
                 : nil

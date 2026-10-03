@@ -19,3 +19,7 @@ vertical_whitespace:
 
 nesting:
   type_level: 2
+
+file_length:
+  warning: 750
+  error: 1250
