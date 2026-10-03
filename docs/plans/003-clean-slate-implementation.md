@@ -1216,12 +1216,15 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Recommended model: GPT-6 Sol; reasoning: `high`. Empty/nonempty wall schemas and cumulative signed deltas require one validated interpretation and strict rejection fixtures.
 - Prerequisites: 003-F01, 003-C01–003-C02; DD03, DD08, DD15.
 - Core prerequisite: [Typed sequential track headers](../evidence/003-F02-core-track-headers.md)
-  are complete on a separate review branch.
+  are complete on `master`.
   Headered `SequentialTrack<Value, Header>` requires a prepared header even with
   zero records; `Void` identifies headerless tracks, with public
   `HeaderlessSequentialTrack<Value>` and `HeaderlessSequentialTrackLease<Value>`
   aliases for those specializations. Recording may replace a header while
-  retaining the same record type. F02 rebases after this prerequisite lands.
+  retaining the same record type.
+- Core prerequisite: [Overridable stable values](../evidence/003-F02-core-overridable-values.md)
+  are complete on a separate review branch. They retain one effective value
+  and its observed or authored override state without Core persistence policy.
 - Scope: Add strict empty/nonempty wall data, origin and successive signed observations, cumulative validation and deliberate version-one persistence.
 - Expected files/modules: `DioramaClock` stable model/schema, fixtures and builders.
 - Public behavior: Empty has no origin; nonempty canonical position zero is zero.

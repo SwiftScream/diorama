@@ -180,8 +180,11 @@ decision or an approved implementation unit.
   records the shared millisecond and ISO origin codecs, strict fixtures, and
   macOS, iOS Simulator, and Linux verification.
 - [Core track-header prerequisite evidence](evidence/003-F02-core-track-headers.md)
-  records required generic headers, headerless `Never` tracks, and the isolated
-  Core verification before F02 rebasing.
+  records required generic headers, headerless `Void` tracks, and isolated Core
+  verification.
+- [Core overridable-value prerequisite evidence](evidence/003-F02-core-overridable-values.md)
+  records effective-value authorship, conditional equality, and isolated Core
+  verification.
 
 ## Historical boundary
 
