@@ -61,6 +61,13 @@ public enum PreparationPurpose: Sendable {
 /// idempotent, and avoid logging its input. Defaults intentionally preserve
 /// custom values unchanged. Match projection is a separate system concern.
 public struct ValuePreparation<Value: Sendable>: Sendable {
+    private struct ValidationRequest {
+        let reporter: DiagnosticReporter?
+        let context: DiagnosticContext
+        let fieldPath: [DiagnosticLabel]
+        let rule: DiagnosticLabel?
+    }
+
     private let canonicalize: @Sendable (Value) throws -> Value
     private let redact: @Sendable (Value) throws -> Value
     private let normalize: @Sendable (Value) throws -> Value
@@ -105,12 +112,8 @@ public struct ValuePreparation<Value: Sendable>: Sendable {
         fieldPath: [DiagnosticLabel] = [],
         rule: DiagnosticLabel? = nil) throws(PreparationFailure) -> PreparedValue<Value>
     {
-        try validatePrepared(
-            value,
-            reporter: nil,
-            context: context,
-            fieldPath: fieldPath,
-            rule: rule)
+        try validatePrepared(value, request: ValidationRequest(
+            reporter: nil, context: context, fieldPath: fieldPath, rule: rule))
     }
 
     func admitPrepared(
@@ -120,20 +123,12 @@ public struct ValuePreparation<Value: Sendable>: Sendable {
         fieldPath: [DiagnosticLabel] = [],
         rule: DiagnosticLabel? = nil) throws(PreparationFailure) -> PreparedValue<Value>
     {
-        try validatePrepared(
-            value,
-            reporter: reporter,
-            context: context,
-            fieldPath: fieldPath,
-            rule: rule)
+        try validatePrepared(value, request: ValidationRequest(
+            reporter: reporter, context: context, fieldPath: fieldPath, rule: rule))
     }
 
-    private func validatePrepared(
-        _ value: Value,
-        reporter: DiagnosticReporter?,
-        context: DiagnosticContext,
-        fieldPath: [DiagnosticLabel],
-        rule: DiagnosticLabel?) throws(PreparationFailure) -> PreparedValue<Value>
+    private func validatePrepared(_ value: Value, request: ValidationRequest)
+        throws(PreparationFailure) -> PreparedValue<Value>
     {
         do {
             try validate(value)
@@ -141,11 +136,11 @@ public struct ValuePreparation<Value: Sendable>: Sendable {
         } catch {
             let failure = failure(
                 issue: .preparationFailed(.validation),
-                context: context,
-                fieldPath: fieldPath,
-                rule: rule,
+                context: request.context,
+                fieldPath: request.fieldPath,
+                rule: request.rule,
                 recordingImpact: .none)
-            reporter?.record(failure.diagnostic)
+            request.reporter?.record(failure.diagnostic)
             throw failure
         }
     }
