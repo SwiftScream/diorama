@@ -107,8 +107,8 @@ struct DiagnosticReporterTests {
         let firstTrack = TrackID(attachmentID: first, key: TrackKey(rawValue: "z-track"))
         let secondTrack = TrackID(attachmentID: first, key: TrackKey(rawValue: "a-track"))
         let attachment = try ScenarioAttachment(id: first)
-            .adding(SequentialTrack<Int>(id: firstTrack))
-            .adding(SequentialTrack<Int>(id: secondTrack))
+            .adding(HeaderlessSequentialTrack<Int>(id: firstTrack))
+            .adding(HeaderlessSequentialTrack<Int>(id: secondTrack))
 
         let definition = try ScenarioDefinition(attachments: [attachment, ScenarioAttachment(id: second)])
         let reporter = DiagnosticReporter(scenarioID: ScenarioID(rawValue: "ordered"), definition: definition)

@@ -14,9 +14,9 @@ private enum LiveRandomMode: Sendable {
 
 private protocol LiveRandomSource: Sendable {
     func nextRecording(
-        lease: SequentialTrackLease<UInt64>,
+        lease: HeaderlessSequentialTrackLease<UInt64>,
         preparation: ValuePreparation<UInt64>) -> SourceOperationResult
-    func nextPassthrough(lease: SequentialTrackLease<UInt64>) -> SourceOperationResult
+    func nextPassthrough(lease: HeaderlessSequentialTrackLease<UInt64>) -> SourceOperationResult
     func close()
 }
 
@@ -32,7 +32,7 @@ private final class TypedLiveRandomSource<Source: RandomNumberGenerator & Sendab
     }
 
     func nextRecording(
-        lease: SequentialTrackLease<UInt64>,
+        lease: HeaderlessSequentialTrackLease<UInt64>,
         preparation: ValuePreparation<UInt64>) -> SourceOperationResult
     {
         state.withLock { state in
@@ -60,7 +60,7 @@ private final class TypedLiveRandomSource<Source: RandomNumberGenerator & Sendab
         }
     }
 
-    func nextPassthrough(lease: SequentialTrackLease<UInt64>) -> SourceOperationResult {
+    func nextPassthrough(lease: HeaderlessSequentialTrackLease<UInt64>) -> SourceOperationResult {
         state.withLock { state in
             guard !lease.isClosed, state.source != nil else { return .unavailable }
             return .value(state.source!.next())
@@ -81,13 +81,13 @@ private final class LiveRandomNumberGenerator: RandomNumberGenerator, Sendable {
     private static let closedOperation = DiagnosticLabel("random-operation-after-close")
 
     private let mode: LiveRandomMode
-    private let lease: SequentialTrackLease<UInt64>
+    private let lease: HeaderlessSequentialTrackLease<UInt64>
     private let preparation: ValuePreparation<UInt64>
     private let source: any LiveRandomSource
 
     init(
         mode: LiveRandomMode,
-        lease: SequentialTrackLease<UInt64>,
+        lease: HeaderlessSequentialTrackLease<UInt64>,
         preparation: ValuePreparation<UInt64>,
         source: any LiveRandomSource)
     {
@@ -118,9 +118,9 @@ private final class LiveRandomNumberGenerator: RandomNumberGenerator, Sendable {
 }
 
 private final class ReplayRandomNumberGenerator: RandomNumberGenerator, Sendable {
-    private let lease: SequentialTrackLease<UInt64>
+    private let lease: HeaderlessSequentialTrackLease<UInt64>
 
-    init(lease: SequentialTrackLease<UInt64>) {
+    init(lease: HeaderlessSequentialTrackLease<UInt64>) {
         self.lease = lease
     }
 
@@ -198,7 +198,7 @@ public enum DioramaRandomSystem {
         let trackID = trackID(for: attachmentKey)
         let attachment = try ScenarioAttachment(
             id: attachmentID(for: attachmentKey)).adding(
-            SequentialTrack<UInt64>(id: trackID))
+            HeaderlessSequentialTrack<UInt64>(id: trackID))
         return try ScenarioSystem(type: type, attachment: attachment,
                                   allowsUnusedReplayRecords: allowsUnusedReplayRecords)
         { context in

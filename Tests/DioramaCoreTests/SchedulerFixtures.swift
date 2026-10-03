@@ -123,8 +123,8 @@ enum SchedulerFixtures {
         var systems: [AnyScenarioSystem] = []
         for key in keys {
             let attachment = try ScenarioAttachment(id: ExecutionFixtures.attachment(key))
-                .adding(SequentialTrack<Int>(id: record(key).trackID))
-                .adding(SequentialTrack<Int>(id: record(key, track: "a-second").trackID))
+                .adding(HeaderlessSequentialTrack<Int>(id: record(key).trackID))
+                .adding(HeaderlessSequentialTrack<Int>(id: record(key, track: "a-second").trackID))
             attachments.append(attachment)
             let system = try ScenarioSystem(type: ExecutionFixtures.type, attachment: attachment) { context in
                 _ = try context.lease(for: record(key).trackID, preparation: ValuePreparation<Int>())

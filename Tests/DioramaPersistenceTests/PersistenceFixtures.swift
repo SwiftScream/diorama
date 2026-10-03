@@ -70,7 +70,7 @@ extension PersistentSystemRegistryTests {
 
     static func requiredTrack<Value: Sendable>(
         in attachment: ScenarioAttachment,
-        as type: Value.Type) throws -> SequentialTrack<Value>
+        as type: Value.Type) throws -> HeaderlessSequentialTrack<Value>
     {
         let id = TrackID(
             attachmentID: attachment.id,

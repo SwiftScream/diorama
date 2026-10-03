@@ -99,7 +99,7 @@ struct DioramaSetupTests {
         await #expect(throws: ScenarioStartupFailure.self) { try await missing.execute { _, _ in () } }
         #expect(probe.events.withLock { $0 }.isEmpty)
         let invalidTrack = try ScenarioAttachment(id: second.attachment.id).adding(
-            SequentialTrack<String>(id: DioramaFixtures.track("b")))
+            HeaderlessSequentialTrack<String>(id: DioramaFixtures.track("b")))
         let incompatible = try Diorama(
             definition: ScenarioDefinition(attachments: [first.attachment, invalidTrack]),
             scenarioID: "setup", mode: .replay, systems: first, second)
@@ -130,7 +130,7 @@ final class DioramaSetupProbe: Sendable {
 
     func system(
         _ key: String, values: [Int] = [], allowsUnusedReplayRecords: Bool = false)
-        throws -> ScenarioSystem<SequentialTrackLease<Int>>
+        throws -> ScenarioSystem<HeaderlessSequentialTrackLease<Int>>
     {
         let attachment = try ScenarioAttachment(id: DioramaFixtures.attachment(key)).adding(
             SequentialTrack(id: DioramaFixtures.track(key), values: preparedValues(values)))

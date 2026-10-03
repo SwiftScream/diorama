@@ -12,36 +12,27 @@ public enum ScenarioDefinitionError: Error, Equatable, Sendable {
     /// A track was added to an attachment other than the one in its identity.
     case incompatibleTrackAttachment(track: TrackID, expected: AttachmentID)
 
-    /// The same track was declared more than once with one record type.
+    /// The same track identity was declared more than once.
     case duplicateTrack(TrackID)
 
-    /// The same track identity was used with incompatible record types.
-    case incompatibleTrackRecordType(TrackID)
+    /// A track was requested with incompatible value or header types.
+    case incompatibleTrackType(TrackID)
 }
 
 protocol AnySequentialTrack: Sendable {
     var id: TrackID { get }
-
-    /// Runtime type identity validates in-memory generic compatibility only. It
-    /// is never used as stable or persisted identity.
-    var valueTypeID: ObjectIdentifier { get }
-
     func removingRecords() -> any AnySequentialTrack
 }
 
-struct SequentialTrackBox<Value: Sendable>: AnySequentialTrack {
-    let track: SequentialTrack<Value>
+struct SequentialTrackBox<Value: Sendable, Header: Sendable>: AnySequentialTrack {
+    let track: SequentialTrack<Value, Header>
 
     var id: TrackID {
         track.id
     }
 
-    var valueTypeID: ObjectIdentifier {
-        ObjectIdentifier(Value.self)
-    }
-
     func removingRecords() -> any AnySequentialTrack {
-        SequentialTrackBox(track: SequentialTrack<Value>(id: track.id))
+        SequentialTrackBox(track: track.removingRecords())
     }
 }
 
@@ -80,18 +71,17 @@ public struct ScenarioAttachment: Sendable {
     /// - Returns: A new attachment preserving all previously declared tracks.
     /// - Throws: ``ScenarioDefinitionError`` when the identity belongs to a
     ///   different attachment or collides with an existing track.
-    public func adding<Value: Sendable>(_ track: SequentialTrack<Value>) throws -> ScenarioAttachment {
+    public func adding(
+        _ track: SequentialTrack<some Sendable, some Sendable>) throws -> ScenarioAttachment
+    {
         guard track.id.attachmentID == id else {
             throw ScenarioDefinitionError.incompatibleTrackAttachment(
                 track: track.id,
                 expected: id)
         }
 
-        if let existing = tracks.first(where: { $0.id == track.id }) {
-            if existing.valueTypeID == ObjectIdentifier(Value.self) {
-                throw ScenarioDefinitionError.duplicateTrack(track.id)
-            }
-            throw ScenarioDefinitionError.incompatibleTrackRecordType(track.id)
+        if tracks.contains(where: { $0.id == track.id }) {
+            throw ScenarioDefinitionError.duplicateTrack(track.id)
         }
 
         return ScenarioAttachment(
@@ -99,18 +89,27 @@ public struct ScenarioAttachment: Sendable {
             tracks: tracks + [SequentialTrackBox(track: track)])
     }
 
-    /// Returns typed content for a track in this attachment.
+    /// Returns headerless typed content for a track in this attachment.
     ///
     /// - Parameters:
     ///   - id: The stable track identity to find.
     ///   - as: The expected stable value type.
     /// - Returns: The track, or `nil` when this attachment does not declare the
     ///   identity.
-    /// - Throws: ``ScenarioDefinitionError/incompatibleTrackRecordType(_:)``
-    ///   when the identity exists with another value type, or
+    /// - Throws: ``ScenarioDefinitionError/incompatibleTrackType(_:)`` when
+    ///   the identity exists with another value or header type, or
     ///   ``ScenarioDefinitionError/incompatibleTrackAttachment(track:expected:)``
     ///   when the identity belongs to another attachment.
-    public func track<Value: Sendable>(_ id: TrackID, as _: Value.Type) throws -> SequentialTrack<Value>? {
+    public func track<Value: Sendable>(_ id: TrackID, as _: Value.Type) throws -> HeaderlessSequentialTrack<Value>? {
+        try track(id, as: Value.self, header: Void.self)
+    }
+
+    /// Returns a track with its expected record and header types.
+    /// Headerless tracks use the overload without `header:`. A mismatched
+    /// value or header type throws ``ScenarioDefinitionError/incompatibleTrackType(_:)``.
+    public func track<Value: Sendable, Header: Sendable>(
+        _ id: TrackID, as _: Value.Type, header _: Header.Type) throws -> SequentialTrack<Value, Header>?
+    {
         guard id.attachmentID == self.id else {
             throw ScenarioDefinitionError.incompatibleTrackAttachment(
                 track: id,
@@ -119,8 +118,8 @@ public struct ScenarioAttachment: Sendable {
         guard let track = tracks.first(where: { $0.id == id }) else {
             return nil
         }
-        guard let box = track as? SequentialTrackBox<Value> else {
-            throw ScenarioDefinitionError.incompatibleTrackRecordType(id)
+        guard let box = track as? SequentialTrackBox<Value, Header> else {
+            throw ScenarioDefinitionError.incompatibleTrackType(id)
         }
         return box.track
     }

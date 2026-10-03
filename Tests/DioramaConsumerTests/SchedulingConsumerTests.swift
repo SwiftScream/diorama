@@ -72,7 +72,7 @@ struct SchedulingConsumerTests {
         let type = ScenarioSystemType("scheduled-consumer")
         let id = AttachmentID(systemTypeID: type.id, key: AttachmentKey(rawValue: "consumer"))
         let track = TrackID(attachmentID: id, key: TrackKey(rawValue: "events"))
-        let attachment = try ScenarioAttachment(id: id).adding(SequentialTrack<Int>(id: track))
+        let attachment = try ScenarioAttachment(id: id).adding(HeaderlessSequentialTrack<Int>(id: track))
         let system = try ScenarioSystem(type: type, attachment: attachment) { context in
             _ = try context.lease(for: track, preparation: ValuePreparation<Int>())
             return PreparedSystem { ActivatedSystem(dependency: context.scheduling, deactivate: {}) }

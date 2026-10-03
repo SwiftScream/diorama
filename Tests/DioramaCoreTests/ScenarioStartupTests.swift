@@ -17,7 +17,7 @@ struct ScenarioStartupTests {
             "prepare-a", "prepare-b", "prepare-c", "activate-a", "activate-b", "activate-c",
         ])
         let dependency = try execution.dependency(
-            ExecutionFixtures.dependencyKey("a", as: SequentialTrackLease<Int>.self))
+            ExecutionFixtures.dependencyKey("a", as: HeaderlessSequentialTrackLease<Int>.self))
         #expect(dependency === journal.leases.withLock { $0[0] })
         #expect(!dependency.isClosed)
         let result = await execution.finish()

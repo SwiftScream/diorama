@@ -27,12 +27,13 @@ final class StartupProbe: Sendable {
 
     func system(
         key: String, allowsUnusedReplayRecords: Bool = false)
-        throws -> ScenarioSystem<SequentialTrackLease<UInt64>>
+        throws -> ScenarioSystem<HeaderlessSequentialTrackLease<UInt64>>
     {
         let attachmentKey = AttachmentKey(rawValue: key)
         let trackID = DioramaRandomSystem.trackID(for: attachmentKey)
         let attachment = try ScenarioAttachment(
-            id: DioramaRandomSystem.attachmentID(for: attachmentKey)).adding(SequentialTrack<UInt64>(id: trackID))
+            id: DioramaRandomSystem.attachmentID(for: attachmentKey))
+            .adding(HeaderlessSequentialTrack<UInt64>(id: trackID))
         return try ScenarioSystem(type: DioramaRandomSystem.type, attachment: attachment,
                                   allowsUnusedReplayRecords: allowsUnusedReplayRecords)
         { [self] context in

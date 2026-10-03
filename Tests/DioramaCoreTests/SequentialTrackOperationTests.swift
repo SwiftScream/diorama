@@ -118,7 +118,7 @@ struct SequentialTrackOperationTests {
 
     @Test
     func `operation diagnostics notify reentrant sinks outside the lease lock`() async throws {
-        let leaseReference = Mutex<SequentialTrackLease<Int>?>(nil)
+        let leaseReference = Mutex<HeaderlessSequentialTrackLease<Int>?>(nil)
         defer { leaseReference.withLock { $0 = nil } }
         let observedCounts = Mutex<[Int]>([])
         let sink = DiagnosticSink { _ in
@@ -206,9 +206,9 @@ struct SequentialTrackOperationTests {
                 ExecutionFixtures.system("first", journal: journal),
             ])
         let firstLease = try execution.dependency(
-            DependencyKey<SequentialTrackLease<Int>>(attachmentID: first))
+            DependencyKey<HeaderlessSequentialTrackLease<Int>>(attachmentID: first))
         let secondLease = try execution.dependency(
-            DependencyKey<SequentialTrackLease<Int>>(attachmentID: second))
+            DependencyKey<HeaderlessSequentialTrackLease<Int>>(attachmentID: second))
 
         #expect(try secondLease.claimNext().value == 10)
         #expect(try firstLease.claimNext().value == 1)
@@ -220,7 +220,7 @@ struct SequentialTrackOperationTests {
     private func makeExecution(
         mode: ScenarioMode,
         values: [Int],
-        sink: DiagnosticSink? = nil) throws -> (ScenarioExecution, SequentialTrackLease<Int>)
+        sink: DiagnosticSink? = nil) throws -> (ScenarioExecution, HeaderlessSequentialTrackLease<Int>)
     {
         let attachmentID = ExecutionFixtures.attachment("primary")
         let trackID = ExecutionFixtures.track("primary")
@@ -241,7 +241,7 @@ struct SequentialTrackOperationTests {
     }
 
     private func claimResult(
-        from lease: SequentialTrackLease<Int>) -> Result<SequentialRecord<Int>, SequentialOperationFailure>
+        from lease: HeaderlessSequentialTrackLease<Int>) -> Result<SequentialRecord<Int>, SequentialOperationFailure>
     {
         do {
             return try .success(lease.claimNext())
