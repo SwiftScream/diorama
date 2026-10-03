@@ -52,6 +52,10 @@ model, reusable typed setup, and first-class in-memory recording results. It
 includes the random, URLSession, and location API design example and reconciles
 the earlier decisions explicitly.
 
+The [named checkpoint design notes](checkpoint-design-notes.md) record an
+exploratory usability idea to revisit after 003-F05. They are not an accepted
+decision or an approved implementation unit.
+
 ## Delivery policies
 
 - [Dependency approval policy](dependency-policy.md) requires approval before a

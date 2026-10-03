@@ -1261,6 +1261,13 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Exclusions: Heuristic positional rematching, overriding random values, applying clock deletion policy to every system, sticky setup configuration.
 - Checkpoint: R; review merge results and any public merge service addition.
 
+After F05 review, update the exploratory
+[named checkpoint design notes](../checkpoint-design-notes.md) with its
+insertion/removal and override evidence. Reconsider whether a separate,
+owner-approved checkpoint unit belongs immediately after Phase F, at the end
+of Plan 003, or in a successor plan. This follow-up does not expand F05 or
+authorize checkpoint implementation.
+
 ### 003-F06 — Logical Swift Clock facet and closed-handle behavior
 
 - Recommended model: GPT-6 Astra; reasoning: `high`. Swift Clock conformance combines cancellation, transferred logical instants, frozen horizons, and scheduler lifetime.
