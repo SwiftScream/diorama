@@ -21,6 +21,7 @@ The owner approved the consolidated design and implementation plan on
 9. [Execution scheduling](execution-scheduling.md)
 10. [Stable time scalars](stable-time-scalars.md)
 11. [Clock wall payload schema version 1](clock-wall-schema-v1.md)
+12. [Grouped lifecycle recording](grouped-lifecycle-recording.md)
 
 Read the individual decisions referenced by an implementation-plan item before
 working on it. The design overview summarizes their combined architecture but

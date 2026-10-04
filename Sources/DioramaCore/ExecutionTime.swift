@@ -44,6 +44,10 @@ public struct ExecutionTimeFailure: Error, Equatable, Sendable {
 /// Every attachment in one execution receives the same service and rate. Host
 /// instants remain private, and capture tokens have no stable encoding.
 public final class ExecutionTime: Sendable {
+    var isClosed: Bool {
+        admission.isClosed
+    }
+
     private struct State: Sendable {
         var clock: ExecutionClock?
         var origin: ContinuousClock.Instant?

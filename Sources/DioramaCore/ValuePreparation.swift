@@ -66,6 +66,7 @@ public struct ValuePreparation<Value: Sendable>: Sendable {
         let context: DiagnosticContext
         let fieldPath: [DiagnosticLabel]
         let rule: DiagnosticLabel?
+        let impact: RecordingImpact
     }
 
     private let canonicalize: @Sendable (Value) throws -> Value
@@ -113,7 +114,7 @@ public struct ValuePreparation<Value: Sendable>: Sendable {
         rule: DiagnosticLabel? = nil) throws(PreparationFailure) -> PreparedValue<Value>
     {
         try validatePrepared(value, request: ValidationRequest(
-            reporter: nil, context: context, fieldPath: fieldPath, rule: rule))
+            reporter: nil, context: context, fieldPath: fieldPath, rule: rule, impact: .none))
     }
 
     func admitPrepared(
@@ -124,7 +125,23 @@ public struct ValuePreparation<Value: Sendable>: Sendable {
         rule: DiagnosticLabel? = nil) throws(PreparationFailure) -> PreparedValue<Value>
     {
         try validatePrepared(value, request: ValidationRequest(
-            reporter: reporter, context: context, fieldPath: fieldPath, rule: rule))
+            reporter: reporter, context: context, fieldPath: fieldPath, rule: rule, impact: .none))
+    }
+
+    /// Validates a complete recording assembled from already prepared fields.
+    ///
+    /// This runs only semantic validation. A failure invalidates the recording
+    /// candidate; capture transforms must have run when each field was observed.
+    func validateRecording(
+        _ value: Value,
+        reporter: DiagnosticReporter,
+        context: DiagnosticContext = .scenario,
+        fieldPath: [DiagnosticLabel] = [],
+        rule: DiagnosticLabel? = nil) throws(PreparationFailure) -> PreparedValue<Value>
+    {
+        try validatePrepared(value, request: ValidationRequest(
+            reporter: reporter, context: context, fieldPath: fieldPath,
+            rule: rule, impact: .invalidatesCandidate))
     }
 
     private func validatePrepared(_ value: Value, request: ValidationRequest)
@@ -139,7 +156,7 @@ public struct ValuePreparation<Value: Sendable>: Sendable {
                 context: request.context,
                 fieldPath: request.fieldPath,
                 rule: request.rule,
-                recordingImpact: .none)
+                recordingImpact: request.impact)
             request.reporter?.record(failure.diagnostic)
             throw failure
         }
