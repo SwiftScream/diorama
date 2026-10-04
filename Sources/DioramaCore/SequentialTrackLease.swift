@@ -375,12 +375,29 @@ public extension SequentialTrackLease {
                                        time: time, reporter: reporter)
         }, preparation: preparation, freeze: { $0.freeze() })
     }
+
+    /// Reserves a subscription before capturing its stable input.
+    ///
+    /// Deliveries and nonterminal failures retain their relative timing and
+    /// order. An active subscription becomes explicitly open at finish.
+    func beginSubscription<Input: Sendable, Element: Sendable, Failure: Sendable>(
+        at beganAt: LogicalTimeCapture,
+        preparation: ValuePreparation<Value>,
+        capturing input: () throws -> PreparedValue<Input>)
+        throws(SequentialOperationFailure) -> SubscriptionAccumulator<Input, Element, Failure>
+        where Value == SubscriptionRecording<Input, Element, Failure>
+    {
+        try registerGroup(capturing: { identity, time in
+            try SubscriptionAccumulator(identity: identity, input: input(), beganAt: beganAt,
+                                        time: time, reporter: reporter)
+        }, preparation: preparation, freeze: { $0.freeze() })
+    }
 }
 
 /// Keep reservation and finalization beside the lease state so their helpers stay private.
 private extension SequentialTrackLease {
     /// Reserves the group's track position before its input capture or conversion.
-    /// The concrete interaction builder supplies its strict
+    /// The concrete interaction or subscription builder supplies its strict
     /// immutable value only when the execution reaches its recording horizon.
     func registerGroup<Group: Sendable>(
         capturing make: (RecordIdentity, ExecutionTime) throws -> Group,

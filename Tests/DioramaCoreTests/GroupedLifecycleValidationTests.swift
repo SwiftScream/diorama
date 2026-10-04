@@ -78,6 +78,27 @@ struct GroupedLifecycleValidationTests {
     }
 
     @Test
+    func `subscription rejects a second terminal and delivery after completion`() async throws {
+        let clock = SchedulerTestClock()
+        let (execution, dependency) = try GroupedFixtures.setup(clock: clock)
+        let reporter = dependency.reporter
+        let time = dependency.time
+        let stream = try dependency.subscriptions.beginSubscription(
+            at: time.capture(), preparation: ValuePreparation<GroupedFixtures.Subscription>())
+        { try GroupedFixtures.prepared("stream", reporter: reporter) }
+        try stream.finish(at: time.capture())
+        #expect(throws: GroupedLifecycleFailure.self) { try stream.finish() }
+        #expect(throws: GroupedLifecycleFailure.self) {
+            try stream.deliver(at: time.capture()) { try GroupedFixtures.prepared("late", reporter: reporter) }
+        }
+        let result = await execution.finish()
+        #expect(result.definition == nil)
+        #expect(result.report.diagnostics.map(\.diagnostic.issue) == [
+            .sequential(.grouped(.duplicateConclusion)), .sequential(.grouped(.afterConclusion)),
+        ])
+    }
+
+    @Test
     func `capture from another execution invalidates the group candidate`() async throws {
         let clock = SchedulerTestClock()
         let (execution, dependency) = try GroupedFixtures.setup(clock: clock)
@@ -88,6 +109,26 @@ struct GroupedLifecycleValidationTests {
         let foreign = try other.time.capture()
         #expect(throws: GroupedLifecycleFailure.self) {
             try call.observe(at: foreign) { try GroupedFixtures.prepared("foreign", reporter: dependency.reporter) }
+        }
+        let result = await execution.finish()
+        #expect(result.definition == nil)
+        #expect(result.report.diagnostics.map(\.diagnostic.issue) == [
+            .logicalTime(.foreignCapture), .sequential(.grouped(.invalidTiming)),
+        ])
+        #expect(await (otherExecution.finish()).report.recordingHealth.isHealthy)
+    }
+
+    @Test
+    func `subscription capture from another execution invalidates the group candidate`() async throws {
+        let clock = SchedulerTestClock()
+        let (execution, dependency) = try GroupedFixtures.setup(clock: clock)
+        let (otherExecution, other) = try GroupedFixtures.setup(clock: clock)
+        let stream = try dependency.subscriptions.beginSubscription(
+            at: dependency.time.capture(), preparation: ValuePreparation<GroupedFixtures.Subscription>())
+        { try GroupedFixtures.prepared("stream", reporter: dependency.reporter) }
+        let foreign = try other.time.capture()
+        #expect(throws: GroupedLifecycleFailure.self) {
+            try stream.deliver(at: foreign) { try GroupedFixtures.prepared("foreign", reporter: dependency.reporter) }
         }
         let result = await execution.finish()
         #expect(result.definition == nil)
@@ -174,6 +215,10 @@ struct GroupedLifecycleValidationTests {
             try GroupedFixtures.Interaction(
                 input: "input", phases: [InteractionPhase<String, String>(observation: late)],
                 conclusion: .returned(early))
+        }
+        #expect(throws: GroupedLifecycleValidationIssue.conclusionBeforeObservation) {
+            try GroupedFixtures.Subscription(input: "input", events: [.delivered(late)],
+                                             conclusion: .finished(atTime: .milliseconds(1)))
         }
     }
 }
