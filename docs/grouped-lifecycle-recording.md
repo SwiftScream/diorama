@@ -1,6 +1,6 @@
 # Grouped lifecycle recording
 
-An interaction occupies one typed sequential record. Its
+An interaction or subscription occupies one typed sequential record. Its
 accumulator accepts observations during a recording execution. At `finish()`,
 Diorama freezes it into one immutable group and validates the complete recording
 before the candidate can be returned or published.
@@ -40,9 +40,24 @@ the operation remains active; it does not invent a terminal event. A phase
 handle belongs to one interaction, and each phase can receive at most one
 decision. The enclosing track record provides stable group correlation.
 
+## Subscription
+
+Use `SequentialTrackLease<SubscriptionRecording<Input, Value, Failure>>` for a
+repeated or unsolicited callback source. `beginSubscription(at:preparation:
+capturing:)` reserves its record position. `deliver(at:capturing:)` appends a
+value; `reportNonterminalFailure(at:capturing:)` records an error after which
+delivery may continue. `finish(at:)` and `fail(at:capturing:)` are alternative
+terminal operations. `finish()` without a capture stores no completion offset
+when that timing is not meaningful for the system. An active subscription
+freezes as `openAtRecordingHorizon`.
+
+Caller cancellation controls a live or replay operation. It is not a recorded
+event by default. A dependency-emitted cancellation failure can be a typed
+terminal failure when the owning system defines it as observable behavior.
+
 ## Preparation, time, and order
 
-Every input, phase, decision, output, and failure closure returns a
+Every input, phase, decision, output, emission, and failure closure returns a
 `PreparedValue` produced by the system's `ValuePreparation` at the observation
 boundary. Native values remain in the adapter's capture closure. Call
 `ExecutionTime.capture()` before conversion, then pass that capture to the
@@ -50,9 +65,9 @@ accumulator; offsets are nonnegative logical durations from the group start.
 Do not persist host instants or add timestamps to unrelated sequential tracks.
 
 The lease reserves each group's track position before calling its input closure.
-An accumulator reserves each phase, decision, or conclusion before
+An accumulator reserves each phase, decision, emission, or conclusion before
 calling its field closure. Slow conversion therefore cannot reorder already
-reserved observations. Different interactions may overlap, but each group's phases
+reserved observations. Different groups may overlap, but each group's phases
 and conclusion remain correlated with its own record. Equal offsets preserve
 the reservation order within the group.
 

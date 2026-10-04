@@ -5,6 +5,7 @@ import Testing
 struct GroupedLifecycleFailureTests {
     private enum CaptureError: Error { case failed }
     enum InteractionPoint: CaseIterable, Sendable { case observation, decision, returned, failed }
+    enum SubscriptionPoint: CaseIterable, Sendable { case delivery, reported, failed }
 
     @Test(arguments: InteractionPoint.allCases)
     func `failed interaction field capture invalidates its entire group`(point: InteractionPoint) async throws {
@@ -42,6 +43,37 @@ struct GroupedLifecycleFailureTests {
             .sequential(.grouped(.captureFailed)), .sequential(.grouped(.incompleteGroup)),
         ])
         #expect(result.usage[0].tracks[0].activity == .record(recordedCount: 0, incompleteCount: 1))
+    }
+
+    @Test(arguments: SubscriptionPoint.allCases)
+    func `failed subscription field capture invalidates its entire group`(point: SubscriptionPoint) async throws {
+        let clock = SchedulerTestClock()
+        let (execution, dependency) = try GroupedFixtures.setup(clock: clock)
+        let time = dependency.time
+        let reporter = dependency.reporter
+        let group = try dependency.subscriptions.beginSubscription(
+            at: time.capture(), preparation: ValuePreparation<GroupedFixtures.Subscription>())
+        { try GroupedFixtures.prepared("input", reporter: reporter) }
+        switch point {
+        case .delivery:
+            #expect(throws: GroupedLifecycleFailure.self) {
+                try group.deliver(at: time.capture()) { throw CaptureError.failed }
+            }
+        case .reported:
+            #expect(throws: GroupedLifecycleFailure.self) {
+                try group.reportNonterminalFailure(at: time.capture()) { throw CaptureError.failed }
+            }
+        case .failed:
+            #expect(throws: GroupedLifecycleFailure.self) {
+                try group.fail(at: time.capture()) { throw CaptureError.failed }
+            }
+        }
+        let result = await execution.finish()
+        #expect(result.definition == nil)
+        #expect(result.report.diagnostics.map(\.diagnostic.issue) == [
+            .sequential(.grouped(.captureFailed)), .sequential(.grouped(.incompleteGroup)),
+        ])
+        #expect(result.usage[0].tracks[1].activity == .record(recordedCount: 0, incompleteCount: 1))
     }
 
     @Test
