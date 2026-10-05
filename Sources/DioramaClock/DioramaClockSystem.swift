@@ -1,9 +1,7 @@
 import DioramaCore
 import Foundation
 
-/// Identity and persistence capability for first-party clock attachments.
-///
-/// Source capture and replay services arrive in later clock units.
+/// Setup and persistence capability for first-party clock attachments.
 public enum DioramaClockSystem {
     /// The first-party clock type and its versioned persistence capability.
     public static let type = ScenarioSystemType(
@@ -47,5 +45,68 @@ public enum DioramaClockSystem {
         return try WallRecording(
             offsetMinutes: track.header,
             values: track.records.map(\.value))
+    }
+
+    /// Creates one named wall clock backed by the platform wall source.
+    ///
+    /// Record captures the current encoding timezone at activation.
+    /// Replay behavior is added by the next clock unit.
+    public static func instance(
+        named name: String,
+        allowsUnusedReplayRecords: Bool = false) throws -> ScenarioSystem<any DioramaWallClock>
+    {
+        try instance(named: name,
+                     allowsUnusedReplayRecords: allowsUnusedReplayRecords)
+        {
+            SystemWallDateSource()
+        }
+    }
+
+    /// Creates one named wall clock with an injected live source factory.
+    ///
+    /// The factory runs only after successful preparation. Each attachment
+    /// serializes reads of its source and the corresponding track operations.
+    /// Recording selects the current timezone for origin display at activation;
+    /// it never changes the absolute `Date` returned to the consumer.
+    public static func instance(
+        named name: String,
+        allowsUnusedReplayRecords: Bool = false,
+        sourceFactory: @escaping @Sendable () -> some DioramaWallClock)
+        throws -> ScenarioSystem<any DioramaWallClock>
+    {
+        let key = AttachmentKey(rawValue: name)
+        let trackID = trackID(for: key)
+        let attachment = try attachment(named: name)
+        return try ScenarioSystem(type: type, attachment: attachment,
+                                  allowsUnusedReplayRecords: allowsUnusedReplayRecords)
+        { context in
+            let lease = try context.lease(
+                for: trackID, preparation: ValuePreparation<OverridableValue<Date>>(),
+                headerPreparation: ValuePreparation<Int?>())
+            switch context.mode {
+            case .record:
+                return PreparedSystem {
+                    try lease.setHeader(capturing: { nil }, preparation: ValuePreparation<Int?>())
+                    let mode = LiveWallMode.record(WallRecordingState())
+                    let clock = LiveWallClock(
+                        mode: mode, lease: lease, source: sourceFactory())
+                    return ActivatedSystem(
+                        dependency: clock as any DioramaWallClock,
+                        deactivate: { clock.close() })
+                }
+            case .passthrough:
+                return PreparedSystem {
+                    let clock = LiveWallClock(
+                        mode: .passthrough, lease: lease, source: sourceFactory())
+                    return ActivatedSystem(
+                        dependency: clock as any DioramaWallClock,
+                        deactivate: { clock.close() })
+                }
+            case .replay:
+                return PreparedSystem {
+                    throw ClockActivationError.replayUnavailable
+                }
+            }
+        }
     }
 }

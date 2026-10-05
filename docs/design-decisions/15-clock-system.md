@@ -441,3 +441,19 @@ The owner selected Foundation's `Z` output for a zero UTC offset. The origin
 reader already accepts `Z` through Foundation's ISO 8601 parser and retains
 zero offset minutes. The writer no longer replaces `Z` with `+00:00`.
 Nonzero supported numeric offsets continue to use Foundation's formatter.
+
+## Recording timezone refinement — owner-approved 2026-10-06
+
+During F03 review, the owner removes the setup `TimeZone` parameter. Record
+activation captures `TimeZone.current`; the first new observation resolves its
+numeric offset. Passthrough neither selects nor retains an encoding timezone.
+Re-recording clears the old header and builds a fresh observed origin and
+offset. The clock-specific merge preserves an authored whole-origin override,
+including its date and offset, after calculating deltas from fresh observations.
+An offset is not independently overrideable. A run with no wall observations
+produces the empty payload and drops the obsolete origin and offset, including
+an authored override.
+
+This refinement supersedes the setup-supplied timezone option above. It
+preserves the existing whole-origin override contract. F03 implements fresh
+capture; F05 owns baseline override merging.
