@@ -201,6 +201,9 @@ proposal for discussion, with its review gate recorded in the owning plan.
 - [Empty and nonempty wall-recording evidence](evidence/003-F02-empty-and-nonempty-wall-recordings.md)
   records the validated clock wall model, version-one payload schema, fixtures,
   and local platform verification.
+- [Wall-source recording and passthrough evidence](evidence/003-F03-wall-source-recording-and-passthrough.md)
+  records native Date forwarding, serialized source capture, timezone selection,
+  safe failure behavior, and local platform verification.
 
 ## Historical boundary
 
