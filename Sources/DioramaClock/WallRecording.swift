@@ -149,7 +149,7 @@ struct WallRecording: Equatable, Sendable {
         self.effectiveDates = effectiveDates
     }
 
-    private static func shiftDate(_ origin: Date, by milliseconds: Int64) -> Date? {
+    static func shiftDate(_ origin: Date, by milliseconds: Int64) -> Date? {
         let seconds = origin.timeIntervalSince1970 + Double(milliseconds) / 1000
         guard seconds.isFinite else { return nil }
         return StableTimeCodec.roundedToMillisecond(Date(timeIntervalSince1970: seconds))
@@ -169,7 +169,7 @@ struct WallRecording: Equatable, Sendable {
         return dates
     }
 
-    private static func delta(from earlier: Date, to later: Date) -> Int64? {
+    static func delta(from earlier: Date, to later: Date) -> Int64? {
         let milliseconds = ((later.timeIntervalSince1970 - earlier.timeIntervalSince1970) * 1000).rounded()
         guard milliseconds.isFinite,
               milliseconds >= Double(Int64.min), milliseconds < Double(Int64.max)
