@@ -7,7 +7,7 @@ Core `OverridableValue<Date>` values and a typed header holding the origin's num
 offset. The header is absent for an empty track. Its declared empty track is
 distinct from a missing clock attachment.
 The schema model and its attachment builders are internal to `DioramaClock`.
-`DioramaClockSystem.instance(named:sourceFactory:)` creates a live wall
+`DioramaClockSystem.instance(named:sourceFactory:)` creates a wall
 attachment. Record mode captures native `Date` values in source order, rounds
 each absolute value independently, and selects the origin's numeric timezone
 offset from the first observation using `TimeZone.current` captured at activation.
