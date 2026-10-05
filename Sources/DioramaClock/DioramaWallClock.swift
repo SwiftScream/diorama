@@ -17,10 +17,6 @@ struct SystemWallDateSource: DioramaWallClock {
     }
 }
 
-enum ClockActivationError: Error {
-    case replayUnavailable
-}
-
 enum LiveWallMode: Sendable {
     case record(WallRecordingState)
     case passthrough
@@ -84,5 +80,20 @@ final class LiveWallClock<Source: DioramaWallClock>: DioramaWallClock, Sendable 
             return source
         }
         withExtendedLifetime(detached) {}
+    }
+}
+
+/// Replays effective dates; the lease owns atomic consumption and continuation.
+final class ReplayWallClock: DioramaWallClock, Sendable {
+    static let unixEpoch = Date(timeIntervalSince1970: 0)
+
+    private let lease: SequentialTrackLease<OverridableValue<Date>, Int?>
+
+    init(lease: SequentialTrackLease<OverridableValue<Date>, Int?>) {
+        self.lease = lease
+    }
+
+    var now: Date {
+        (try? lease.consumeNext().value) ?? Self.unixEpoch
     }
 }
