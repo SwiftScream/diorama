@@ -50,7 +50,7 @@ public enum DioramaClockSystem {
     /// Creates one named wall clock backed by the platform wall source.
     ///
     /// Record captures the current encoding timezone at activation.
-    /// Replay behavior is added by the next clock unit.
+    /// Replay consumes the prepared wall track without activating a live source.
     public static func instance(
         named name: String,
         allowsUnclaimedReplayRecords: Bool = false) throws -> ScenarioSystem<any DioramaWallClock>
@@ -82,7 +82,8 @@ public enum DioramaClockSystem {
         { context in
             let lease = try context.lease(
                 for: trackID, preparation: ValuePreparation<OverridableValue<Date>>(),
-                headerPreparation: ValuePreparation<Int?>())
+                headerPreparation: ValuePreparation<Int?>(),
+                continuationPolicy: .replayLast(defaultValue: .observed(ReplayWallClock.unixEpoch)))
             switch context.mode {
             case .record:
                 return PreparedSystem {
@@ -104,7 +105,10 @@ public enum DioramaClockSystem {
                 }
             case .replay:
                 return PreparedSystem {
-                    throw ClockActivationError.replayUnavailable
+                    let clock = ReplayWallClock(lease: lease)
+                    return ActivatedSystem(
+                        dependency: clock as any DioramaWallClock,
+                        deactivate: {})
                 }
             }
         }
