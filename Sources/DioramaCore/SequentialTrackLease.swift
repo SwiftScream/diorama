@@ -1,3 +1,4 @@
+import Foundation
 import Synchronization
 
 /// An execution-owned, reference-semantic lifetime for one typed track.
@@ -59,6 +60,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
         var pendingHeaderAttempts: UInt64 = 0
         var time: ExecutionTime?
         var nextReplayPosition = 0
+        var claimed: IndexSet = []
         var closed = false
         var finalUsage: SequentialTrackUsage?
     }
@@ -183,6 +185,9 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
                     .wrongMode(expected: .replay, actual: mode),
                     context: .track(id)))
             }
+            while state.claimed.contains(state.nextReplayPosition) {
+                state.nextReplayPosition += 1
+            }
             let requested = state.nextReplayPosition
             state.nextReplayPosition += 1
             guard requested < state.baseline.count else {
@@ -191,6 +196,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
                     .replayExhausted(availableCount: UInt64(state.baseline.count)),
                     context: .record(identity)))
             }
+            state.claimed.insert(requested)
             return .success(state.baseline[requested])
         }
         switch result {
@@ -227,19 +233,6 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
 
     func recordedRecords() -> [SequentialRecord<Value>] {
         state.withLock { $0.recording.compactMap(\.record) }
-    }
-
-    private func activity(for state: State, admittedCount: Int) -> SequentialTrackUsage.Activity {
-        switch mode {
-        case .record:
-            .record(recordedCount: UInt64(admittedCount),
-                    incompleteCount: UInt64(state.recording.count - admittedCount))
-        case .replay:
-            .replay(usedCount: UInt64(min(state.nextReplayPosition, state.baseline.count)),
-                    unusedCount: UInt64(max(state.baseline.count - state.nextReplayPosition, 0)))
-        case .passthrough:
-            .passthrough
-        }
     }
 
     private func markRecordingFailed(at index: Int) {
@@ -538,7 +531,7 @@ extension SequentialTrackLease: AnySequentialLease {
                 }
             }.map { RecordIdentity(trackID: id, sequence: UInt64($0)) }
             let admitted = state.recording.compactMap(\.record)
-            let usage = SequentialTrackUsage(id: id, activity: activity(for: state, admittedCount: admitted.count))
+            let usage = makeUsage(state, admittedCount: admitted.count)
             state.finalUsage = usage
             let records = state.baseline + admitted
             let baselineHeader = state.baselineHeader
@@ -546,6 +539,7 @@ extension SequentialTrackLease: AnySequentialLease {
             let incompleteHeader = state.pendingHeaderAttempts > 0
             state.baseline = []
             state.recording = []
+            state.claimed = []
             state.time = nil
             let recording = mode == .record
                 ? recordingTrack(header: recordingHeader ?? baselineHeader, records: admitted)
@@ -557,6 +551,25 @@ extension SequentialTrackLease: AnySequentialLease {
                                   baselineHeader: baselineHeader, recordingHeader: recordingHeader,
                                   incomplete: incomplete, incompleteHeader: incompleteHeader,
                                   recording: recording)
+        }
+    }
+
+    private func makeUsage(_ state: State, admittedCount: Int) -> SequentialTrackUsage {
+        switch mode {
+        case .record:
+            return SequentialTrackUsage(
+                id: id,
+                activity: .record(recordedCount: UInt64(admittedCount),
+                                  incompleteCount: UInt64(state.recording.count - admittedCount)),
+                unusedRecords: [])
+        case .replay:
+            let unused = state.baseline.indices.filter { !state.claimed.contains($0) }
+                .map { state.baseline[$0].identity }
+            return SequentialTrackUsage(
+                id: id, activity: .replay(usedCount: UInt64(state.claimed.count), unusedCount: UInt64(unused.count)),
+                unusedRecords: unused)
+        case .passthrough:
+            return SequentialTrackUsage(id: id, activity: .passthrough, unusedRecords: [])
         }
     }
 }

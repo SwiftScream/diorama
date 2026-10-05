@@ -53,7 +53,8 @@ struct SequentialTrackOperationTests {
 
         let usage = lease.close().usage
         #expect(usage.activity == .replay(usedCount: 1, unusedCount: 1))
-        lease.close()
+        #expect(usage.unusedRecords == [RecordIdentity(trackID: lease.id, sequence: 1)])
+        #expect(lease.close().usage == usage)
 
         let result = await execution.finish()
         #expect(result.usage[0].tracks == [usage])
@@ -80,7 +81,10 @@ struct SequentialTrackOperationTests {
         #expect(claimed.map(\.identity.sequence).sorted() == Array(0..<UInt64(values.count)))
         #expect(claimed.map(\.value).sorted() == values)
         #expect(Set(claimed.map(\.identity)).count == values.count)
-        #expect(await (execution.finish()).report.diagnostics.isEmpty)
+        let result = await execution.finish()
+        #expect(result.report.diagnostics.isEmpty)
+        #expect(result.usage[0].tracks[0].activity == .replay(usedCount: 100, unusedCount: 0))
+        #expect(result.usage[0].tracks[0].unusedRecords.isEmpty)
     }
 
     @Test
@@ -114,6 +118,8 @@ struct SequentialTrackOperationTests {
         #expect(failures.compactMap { $0.diagnostic.context.recordIdentity?.sequence }.sorted() == Array(1..<21))
         let result = await execution.finish()
         #expect(result.report.diagnostics.count == 20)
+        #expect(result.usage[0].tracks[0].activity == .replay(usedCount: 1, unusedCount: 0))
+        #expect(result.usage[0].tracks[0].unusedRecords.isEmpty)
     }
 
     @Test
