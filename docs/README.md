@@ -209,6 +209,8 @@ proposal for discussion, with its review gate recorded in the owning plan.
 - [Replay-continuation preparation evidence](evidence/003-F04-replay-continuation-preparation.md)
   records stored-value replay, opt-in continuation, atomic consumption, and
   escaped-lease lifetime verification.
+- [Sequential wall replay and exhaustion evidence](evidence/003-F04-sequential-wall-replay-and-exhaustion.md)
+  records replay claims, diagnostics, closed handles, and platform verification.
 
 ## Historical boundary
 
