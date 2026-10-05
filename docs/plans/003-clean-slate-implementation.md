@@ -82,6 +82,11 @@ F02's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-10-03.
 Its implementation and local macOS and iOS Simulator verification are complete;
 the owner authorized pull request creation on 2026-10-03. See its
 [wall-recording evidence](../evidence/003-F02-empty-and-nonempty-wall-recordings.md).
+F03's scope and the documented GPT-6 Sol at `high` reasoning were confirmed on
+2026-10-05. Its implementation and local macOS, iOS Simulator, and Linux
+verification are complete. The owner approves squashing its review fixups and
+authorizes PR creation on 2026-10-07. See its
+[wall-source evidence](../evidence/003-F03-wall-source-recording-and-passthrough.md).
 Plan approval establishes the implementation sequence and review boundaries; each selected unit still requires owner scope confirmation under protocol R before work begins.
 The gates below require their own recorded resolution where they affect a unit; plan approval alone does not approve dependencies or amend an accepted decision.
 
@@ -1252,13 +1257,22 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-F03 — Wall-source recording and passthrough
 
+- Status: Complete; local macOS, iOS Simulator, and Linux gates passed on
+  2026-10-05 and again for the timezone review fixup on 2026-10-06.
+  The owner approves squashing the fixups and authorizes PR creation on
+  2026-10-07.
+- Evidence: [Wall-source recording and passthrough](../evidence/003-F03-wall-source-recording-and-passthrough.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Serialized wall capture combines timezone selection, independent rounding, and safe live-value forwarding.
 - Prerequisites: 003-F02, 003-B04; DD06, DD09, DD15.
 - Scope: Vend the synchronous nonthrowing Date wall facet with an injected Sendable source, serialized capture, and startup-selected encoding timezone.
 - Expected files/modules: Clock wall source/live attachment and tests.
 - Public behavior: Live modes return native observations.
   Record independently rounds absolute values before deriving deltas; first observed instant resolves the numeric timezone offset.
-  Passthrough does not touch recordings.
+  The owner-approved 2026-10-06 review removes setup timezone selection:
+  record activation captures `TimeZone.current`, and re-recording clears the
+  old header before selecting a fresh observed offset. Passthrough has no
+  encoding timezone and does not touch recordings. F05 owns whole-origin
+  override preservation, including the authored offset.
 - Tests/verification: V-code; known wall jumps, rounding without accumulated interval error, timezone change/DST, concurrent source-to-track order, multiple independent sources, safe preparation failure and live return.
 - Exclusions: Live fallback in replay, persisting timezone rules or read timing, automatic clock attachment, monotonic source reads as recorded wall values.
 - Checkpoint: R; review source ownership and Date-versus-prepared value behavior.
@@ -1283,6 +1297,9 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Expected files/modules: Clock override codec/merge, necessary public merge hook, baseline-to-candidate fixtures and transient report tests.
 - Public behavior: Override wins over observation; position-zero override folds into an overridden origin and canonical zero.
   Fresh deltas derive from fresh observed values; preserve surviving positional overrides and drop vanished positions or all obsolete values for an empty new recording.
+  Preserve an authored whole-origin override's date and numeric offset;
+  ordinary origins use the fresh offset selected from `TimeZone.current`.
+  There is no independent offset override.
 - Tests/verification: V-code; tolerant forms, canonical override-only output, fresh origin/timezone, insert/remove observations, empty replacement, immutable old baseline and healthy publication after allowed override removal.
 - Exclusions: Heuristic positional rematching, overriding random values, applying clock deletion policy to every system, sticky setup configuration.
 - Checkpoint: R; review merge results and any public merge service addition.
