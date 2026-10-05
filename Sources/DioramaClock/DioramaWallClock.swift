@@ -1,0 +1,88 @@
+import DioramaCore
+import Foundation
+import Synchronization
+
+/// A synchronous, nonthrowing source of civil time.
+///
+/// A clock attachment accepts a source of this type and vends the same small
+/// dependency to application code. Sources need not round their native dates.
+public protocol DioramaWallClock: Sendable {
+    /// The current native or replayed wall observation.
+    var now: Date { get }
+}
+
+struct SystemWallDateSource: DioramaWallClock {
+    var now: Date {
+        Date()
+    }
+}
+
+enum ClockActivationError: Error {
+    case replayUnavailable
+}
+
+enum LiveWallMode: Sendable {
+    case record(WallRecordingState)
+    case passthrough
+}
+
+private enum WallReadResult {
+    case value(Date)
+    case unavailable
+    case alreadyReported
+}
+
+/// The lock keeps one source read and its track operation in one atomic order.
+/// Finish detaches the source so escaped handles cannot read it again.
+final class LiveWallClock<Source: DioramaWallClock>: DioramaWallClock, Sendable {
+    private struct State: Sendable {
+        var source: Source?
+        var lastReturned: Date?
+        var mode: LiveWallMode
+    }
+
+    private let lease: SequentialTrackLease<OverridableValue<Date>, Int?>
+    private let state: Mutex<State>
+
+    init(mode: LiveWallMode, lease: SequentialTrackLease<OverridableValue<Date>, Int?>,
+         source: Source)
+    {
+        self.lease = lease
+        state = Mutex(State(source: source, mode: mode))
+    }
+
+    var now: Date {
+        let result = state.withLock { state -> WallReadResult in
+            guard !lease.isClosed, let source = state.source else { return .unavailable }
+            switch state.mode {
+            case var .record(recording):
+                let native = recording.read(
+                    capturing: { source.now }, lease: lease, lastReturned: &state.lastReturned)
+                state.mode = .record(recording)
+                return native.map(WallReadResult.value) ?? .alreadyReported
+            case .passthrough:
+                let native = source.now
+                state.lastReturned = native
+                return .value(native)
+            }
+        }
+        switch result {
+        case let .value(date):
+            return date
+        case .unavailable:
+            _ = lease.report(.system(DiagnosticLabel("clock-wall-operation-after-close")))
+        case .alreadyReported:
+            break
+        }
+        return state.withLock { $0.lastReturned } ?? Date(timeIntervalSince1970: 0)
+    }
+
+    func close() {
+        let detached = state.withLock { state in
+            let source = state.source
+            state.source = nil
+            return source
+        }
+        withExtendedLifetime(detached) {}
+    }
+}

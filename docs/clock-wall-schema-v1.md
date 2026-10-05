@@ -6,8 +6,18 @@ one `wall` track. In memory, that track stores absolute dated observations as
 Core `OverridableValue<Date>` values and a typed header holding the origin's numeric UTC
 offset. The header is absent for an empty track. Its declared empty track is
 distinct from a missing clock attachment.
-The schema model and its attachment builders are internal to `DioramaClock`;
-consumer-facing clock construction belongs to the later wall-source unit.
+The schema model and its attachment builders are internal to `DioramaClock`.
+`DioramaClockSystem.instance(named:sourceFactory:)` creates a live wall
+attachment. Record mode captures native `Date` values in source order, rounds
+each absolute value independently, and selects the origin's numeric timezone
+offset from the first observation using `TimeZone.current` captured at activation.
+Re-recording clears the old header and produces a fresh observed origin and
+offset. The planned F05 merge preserves an authored whole-origin override, including
+its offset; there is no independent offset override. With no new observations,
+the empty payload drops the old origin and offset.
+Passthrough returns native values without changing the track. Replay consumption belongs to the next clock unit.
+An offset with subminute precision cannot be written in this schema; recording
+reports a conversion failure while the live read still returns its native Date.
 
 The payload has a required `observations` array. An empty array has no `origin`
 field. A nonempty array requires an `origin` and starts with `0ms`:
