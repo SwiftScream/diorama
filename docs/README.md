@@ -21,7 +21,8 @@ The owner approved the consolidated design and implementation plan on
 9. [Execution scheduling](execution-scheduling.md)
 10. [Stable time scalars](stable-time-scalars.md)
 11. [Clock wall payload schema version 1](clock-wall-schema-v1.md)
-12. [Grouped lifecycle recording](grouped-lifecycle-recording.md)
+12. [Typed record services](record-services.md)
+13. [System-owned records and shared services](design-decisions/19-system-owned-records.md)
 
 Read the individual decisions referenced by an implementation-plan item before
 working on it. The design overview summarizes their combined architecture but
@@ -57,6 +58,11 @@ the earlier decisions explicitly.
 The [named checkpoint design notes](checkpoint-design-notes.md) record an
 exploratory usability idea to revisit after 003-F05. They are not an accepted
 decision or an approved implementation unit.
+
+The [interaction primitives design consideration](interaction-primitives-design-consideration.md)
+examines first-party HTTP requirements, shared lifecycle services, and an
+ordered phase alternative to the accepted recursive recording model. It is a
+proposal for discussion, with its review gate recorded in the owning plan.
 
 ## Delivery policies
 
@@ -178,7 +184,7 @@ decision or an approved implementation unit.
 - [Cancellation, acknowledgement, and scheduler quiescence evidence](evidence/003-E03-scheduler-quiescence.md)
   records atomic cancellation, delivery completion, shutdown ownership,
   and platform verification.
-- [Strict grouped lifecycle accumulation evidence](evidence/003-E04-grouped-lifecycle-accumulation.md)
+- [Historical strict grouped lifecycle accumulation evidence](evidence/003-E04-grouped-lifecycle-accumulation.md)
   records typed interaction and subscription accumulation, horizon validation,
   candidate health, and platform verification.
 - [Stable time scalar evidence](evidence/003-F01-stable-time-scalars.md)

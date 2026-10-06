@@ -306,3 +306,12 @@ no fallback mechanism belongs in replay mode.
 Decision 5 established that core verification produces structured replay facts
 without assigning an overall test outcome. Consumers opt into evaluation
 helpers or diagnostic sinks, including optional testing-framework integrations.
+
+## System-owned record amendment — accepted 2026-10-06
+
+The owner accepts [Decision 19](19-system-owned-records.md), which explicitly
+reconciles this record with system-owned lifecycle values, shared record
+selection/capture, and domain-owned delivery. Its reconciliation supersedes
+requirements for generic Core interaction/subscription models or engines while
+preserving the domain invariants specified there. The earlier discussion above
+remains a historical record.

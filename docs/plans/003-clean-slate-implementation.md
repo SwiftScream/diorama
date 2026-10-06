@@ -7,6 +7,16 @@
 - Intended outcome: [Complete initial implementation](#completion-criteria) of the [accepted design](../design-overview.md)
 
 The owner explicitly approved this plan on 2026-09-07, alongside the consolidated design.
+
+On 2026-10-06, the owner accepts
+[Decision 19](../design-decisions/19-system-owned-records.md), its delivery-plan
+revision, and the scope of the combined E04R/revised E05 refactor.
+The implementation units below reflect that accepted boundary. Their ordinary
+per-unit scope checkpoints still apply before new work begins. After this
+refactor merges, E08 is the next remaining Phase E unit; E06/E07's generic
+engines are superseded. The original E05/E06 branches remain historical work,
+not branches to rebase and merge unchanged over this replacement.
+
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
 003-A01 through 003-A04 and 003-B02 are complete.
@@ -68,12 +78,13 @@ the implementation commit. A subsequent owner-requested phase-name correction is
 recorded in adjacent unsquashed fixups. Local verification is complete; owner
 review remains the next checkpoint. See its
 [scheduler quiescence evidence](../evidence/003-E03-scheduler-quiescence.md).
-E04's scope and the recommended GPT-6 Sol, `high` setting were confirmed on
-2026-09-29. Three preparatory commits merged through PR #58. Interaction PR
-#59 and the stacked subscription branch separate the two models; implementation
-and macOS verification on both are complete. iOS and Linux checks of this
-revision remain CI gates; owner review is the next checkpoint. See its
-[grouped lifecycle evidence](../evidence/003-E04-grouped-lifecycle-accumulation.md).
+E04's scope was confirmed on 2026-09-29; its preparatory, interaction, and
+subscription changes are now in the merged baseline. Its
+[historical evidence](../evidence/003-E04-grouped-lifecycle-accumulation.md)
+records those earlier checks. The owner-requested 2026-10-06 review replaces
+its generic lifecycle models through E04R and revises E05 selection. The
+approved scope below includes the claim/consumption amendment; implementation
+and verification evidence follow in the delivery commits.
 F01's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-10-01
 for an independent feature branch from `master` while later Phase E units await
 review. F01 was merged on 2026-10-03. See its
@@ -111,9 +122,9 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [DD01: Common abstraction](../design-decisions/01-common-abstraction.md)                     | Independently ordered typed tracks in a heterogeneous scenario; repeated system instances have separate attachment keys. 003-B01–003-B05, 003-B07A, 003-E04–003-E08, 003-J03.                                                                                                                            |
 | [DD02: Ownership layers](../design-decisions/02-shared-vs-system-semantics.md)               | Whole-attachment mode overrides; public system services; domain and adapter boundaries. 003-B01–003-B07A, 003-C04A–003-C04B, 003-E08, 003-H02–003-H04, 003-I01.                                                                                                                                                      |
-| [DD03: Recorded behaviors](../design-decisions/03-recorded-behaviors.md)                     | Mutually exclusive grouped conclusions, explicit open horizons, capability-specific timing, observed/override normalization. 003-E04–003-E07, 003-F01–003-F05, 003-G03–003-G06, 003-H05–003-H14.                                                                                                                     |
+| [DD03: Recorded behaviors](../design-decisions/03-recorded-behaviors.md)                     | Mutually exclusive grouped conclusions, explicit open horizons, capability-specific timing, observed/override normalization. 003-E04R, revised 003-E05, 003-F01–003-F05, 003-G03–003-G06 (including G03A), 003-H05–003-H14 (including H12A/H12B).                                                                                                                     |
 | [DD04: Selection](../design-decisions/04-replay-selection.md)                                | Stable inputs, deterministic system selectors, FIFO among equivalent candidates, explicit ambiguity and no live replay fallback. 003-B04, 003-E05, 003-H04, 003-H14, 003-I01–003-I09.                                                                                                                        |
-| [DD05: Consumption and verification](../design-decisions/05-consumption-and-verification.md) | Whole groups claimed once at selection; usage differs from completion; retention precedes sink; immutable reports have no test outcome; later diagnostics remain separately inspectable; unmatched loaded attachments are diagnosed then discarded. 003-B02, 003-B04, 003-B08, 003-C04, 003-E05–003-E06, 003-J01–003-J03. DD15 supersedes the old example of persisted clock sleeps. |
+| [DD05: Consumption and verification](../design-decisions/05-consumption-and-verification.md) | Whole groups claimed once at selection; usage differs from completion; retention precedes sink; immutable reports have no test outcome; later diagnostics remain separately inspectable; unmatched loaded attachments are diagnosed then discarded. 003-B02, 003-B04, 003-B08, 003-C04, revised 003-E05, 003-G04–003-G05, 003-H12B, 003-J01–003-J03. DD15 supersedes the old example of persisted clock sleeps. |
 | [DD06: Stable conversion](../design-decisions/06-runtime-to-snapshot-conversion.md)          | Reserve order and needed time at observation; detach native values in their valid isolation; preserve live results on late conversion failure and refuse unhealthy publication. 003-B02–003-B04, 003-C06, 003-G08, 003-I01–003-I08.                                                                          |
 | [DD07: Persistence](../design-decisions/07-persistence-boundary.md)                          | Optional at the core; load once; replace whole healthy candidates; preserve configured untouched baseline tracks while discarding diagnosed unmatched attachments; logical atomicity and last writer wins. 003-C01–003-C07 including 003-C04A–003-C04B, 003-H07.                                                                                                              |
 | [DD08: Schema compatibility](../design-decisions/08-schema-compatibility.md)                 | Independent non-negative `UInt32` envelope/system versions, explicit registration, strict first-party fields, deterministic JSON, no POC importer. 003-C01–003-C04A–003-C04B, 003-F02, 003-G03, 003-H02–003-H13.                                                                                                       |
@@ -128,6 +139,7 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [DD17: HTTP composition](../design-decisions/17-http-lifecycle-composition.md)               | One recursive tree, embedded typed supplements, exact bodies once, weighted delivery, conditional derived length, local delays and timing-only override merge. 003-H05–003-H14, 003-I01–003-I09.                                                                                                     |
 | [DD18: Setup and scenario data](../design-decisions/18-diorama-setup-and-scenario-data.md) | Complete reusable `Diorama` setup; immutable data-only `ScenarioDefinition`; direct codec boundary without public `PersistedScenario`; load per execution; valid in-memory results independent of publication success. 003-C04A–003-C07, 003-H07, 003-J03–003-J04. |
 | [Overview](../design-overview.md)                                                            | Ignoring a configured attachment changes verification only. Every loaded payload still requires persistent registration plus schema and prepared-value validation before unmatched attachments are diagnosed and discarded. 003-C01–003-C06 including 003-C04A–003-C04B, 003-J03.                                                                                                           |
+| [DD19: System-owned records](../design-decisions/19-system-owned-records.md) | Core record capture/selection without lifecycle shape constraints; domain capture and delivery in G03A/G04/G05 and H12A/H12B. E04R and revised E05 deliver the accepted record-services boundary. |
 | [Dependency policy](../dependency-policy.md)                                                 | Candidate status is not adoption approval. Tools and HTTP products need exact reviewed adoption records before use. 003-A02, 003-H01, and any later demonstrated need.                                                                                                                       |
 | [Quality policy](../quality-gates-and-ci.md)                                                 | One complete tooling/CI bootstrap review unit, warning-free strict concurrency, all applicable platforms, required Codecov uploads. 003-A01–003-A04, 003-B10, every subsequent code unit.                                                                                                        |
 
@@ -393,7 +405,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | B     | 003-B01–003-B11 plus 003-B07A | Public sequential core, an in-memory random system, and a compiled usage example. |
 | C     | 003-C01–003-C07 plus 003-C04A–003-C04B | Persisted random and consumer-defined systems; first complete vertical path. |
 | D     | 003-D01–003-D05      | Isolated URLProtocol evidence and reviewed native capability boundaries.     |
-| E     | 003-E01–003-E08      | Shared real-time scheduler and reusable grouped behavior services.           |
+| E     | 003-E01–003-E08      | Shared real-time scheduler and system-owned record services.           |
 | F     | 003-F01–003-F07 plus 003-F03A | Complete portable clock system and shared native capture. |
 | G     | 003-G01–003-G09      | Portable location replay and narrow Apple live/delegate integration.         |
 | H     | 003-H01–003-H14      | Shared HTTP domain, resource publication, strict URLSession lifecycle data.  |
@@ -1098,7 +1110,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
   failing runtime. Phase D requires the combined owner review before production
   depends on its feasibility boundary.
 
-## Phase E — Scheduler and reusable grouped behavior
+## Phase E — Scheduler and system-owned record services
 
 ### 003-E01 — Execution logical-time and capture service
 
@@ -1145,10 +1157,9 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E04 — Strict grouped lifecycle accumulation
 
-- Status: Three preparatory commits merged through PR #58, and interaction
-  PR #59 merged. Subscription PR #60 has complete implementation and macOS
-  verification. iOS and Linux checks of this revision remain CI gates; owner
-  review is the next checkpoint.
+- Status: Historical implementation merged through PRs #58–#60. The generic
+  models are replaced by E04R on this review branch; original evidence remains
+  a record of the implementation then tested.
 - Evidence: [Strict grouped lifecycle accumulation](../evidence/003-E04-grouped-lifecycle-accumulation.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Reusable typed accumulators must enforce one horizon conclusion and reject late or conflicting observations.
 - Prerequisites: 003-E01, 003-B04, 003-B08; DD03, DD06, DD10.
@@ -1160,53 +1171,72 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Exclusions: Universal event enum, HTTP tree shape, flat persisted event format, native object storage, scheduler delivery implementation.
 - Checkpoint: R; review the shared invariant; split interaction and subscription helpers into smaller commits or review subunits if the actual diff warrants it.
 
-### 003-E05 — System selectors and atomic grouped claims
+### 003-E04R — System-owned incremental records
 
-- Recommended model: GPT-6 Sol; reasoning: `high`. Pure system selectors, atomic whole-group claims, and distinct failure diagnostics extend the established claim boundary.
-- Prerequisites: 003-E04, 003-B04, 003-B08; DD04–DD05.
-- Scope: Extend atomic claim coordination to deterministic system-selected whole groups, with exact-input and sequential helpers where applicable.
-- Expected files/modules: Core selection/claim helpers, usage report extensions, consumer selector conformance tests.
-- Public behavior: Earliest available equivalent groups advance once; missing, exhausted, ambiguous, and invalid selector results differ.
-  Cancellation or a failed continuation never rolls a claim back.
-  Progress is separate from use.
-- Tests/verification: V-code; reordered distinct calls, repeated equivalents, concurrent claims, unavailable/out-of-scope selection, open/incomplete claims, scenario/attachment evaluation including opt-in selected-completion checks.
-- Exclusions: HTTP projection, universal match keys, implicit test assertions, reusable groups, cardinality ranges, claim persistence.
-- Checkpoint: R; review selector purity, safe differences, and claim atomicity.
+- Status: Approved; the owner accepts DD19 and the combined refactor scope on
+  2026-10-06. Implementation and verification follow this design update.
+- Prerequisites: Merged E04, E01–E03, B04/B08; DD19.
+- Scope: Expose record reservation/freeze for domain accumulators; remove generic interaction/subscription models and their model-specific diagnostics; retain whole-record validation and detachment.
+- Expected files/modules: Core lease, obsolete helper removal, record-capture and public consumer tests, recording guide.
+- Public behavior: Reserve before factory capture; freeze each constructed accumulator once; domain supplies strict prepared value or failure; incomplete capture blocks the candidate; late registration is detached and rejected.
+- Tests/verification: V-code; overlapping/nested registration, factory/preparation failures, validation without capture transformations, freeze reentry, close-versus-construction race, callback release, domain-owned recursive and open records from a public consumer module.
+- Exclusions: HTTP or location production schemas/adapters, replacement generic model package, new dependencies, imposing universal event timing or domain state transitions.
+- Checkpoint: Combined implementation review with revised E05, followed by required CI and separate owner merge approval.
+
+### 003-E05 — System selectors and atomic record claims
+
+- Status: Approved; adapt the existing E05 claim machinery to DD19, including
+  the approved claim/consumption amendment and API names. Implementation and
+  verification follow this design update.
+- Review gate: Resolved by the owner's 2026-10-06 acceptance of
+  [DD19](../design-decisions/19-system-owned-records.md) and its
+  [comparison](../design-decisions/19-system-owned-records.md#concrete-http-representation-comparison).
+  Original E05/E06 branches remain preserved as historical work; this unit
+  replaces the old E05 delivery branch, while G03A/G04/G05 replace generic E06.
+- Recommended model: GPT-6 Sol; reasoning: `high`.
+- Prerequisites: 003-E04R, 003-B04, 003-B08; DD04–DD05, DD19.
+- Scope: Select any typed record with a deterministic system policy, atomically claim it, and retain independent progress and consumption reporting without a record-conformance requirement.
+- Expected files/modules: Core selection/claim helpers, usage/evaluation/reporting, record and public-consumer tests.
+- Public behavior: Earliest available equivalent record is claimed once; no match, exhaustion, ambiguity, and invalid identities differ. Direct sequential and matcher claims share availability. Cancellation and continuation mismatch never roll claims back. `consumeNext()` atomically claims and consumes a value; explicit claims start unconsumed and systems acknowledge replay with `markConsumed()`. Core has no terminal/open projection.
+- Tests/verification: V-code; reordered distinct calls, equivalent FIFO, concurrent claims, sequential/selected interoperation, invalid/foreign identities, finish racing selection, callbacks outside locks, open records requiring consumption acknowledgement, independent claim/consumption evaluation, plain scalar and recursive record consumers.
+- Exclusions: HTTP matching policy, universal match keys, reusable records, cardinality ranges, claim persistence, domain continuation traversal.
+- Checkpoint: Combined implementation review with E04R, followed by required CI and separate owner merge approval.
 
 ### 003-E06 — Sequential stream delivery over grouped claims
 
-- Recommended model: GPT-6 Sol; reasoning: `high`. Subscription anchors, open groups, and cancellation races compose already proved scheduler and lifecycle services.
-- Prerequisites: 003-E03–003-E05; DD03–DD05, DD14.
-- Scope: Provide reusable subscription selection and ordered scheduled delivery for values, nonterminal errors, completion/failure, and open groups.
-- Expected files/modules: Core stream behavior helper and controlled consumer stream tests with scheduler instrumentation.
-- Public behavior: Each subscription gets its own anchor and private claimed lifecycle; open groups remain active after their last emission.
-  Cancellation removes future work while preserving used/incomplete facts.
-- Tests/verification: V-code; fresh subscription anchors, event order, empty/open groups, nonterminal error recovery, normal/failed conclusion, cancellation and finalization racing delivery, no post-quiescence callback.
-- Exclusions: Location policy, replay matching individual emissions, persisting caller cancellation, independent application-task ordering guarantees.
-- Checkpoint: R; review stream lifecycle before first-party location uses it.
+- Status: Superseded by DD19; replaced by 003-G03–003-G05, including 003-G03A.
+- Historical work: `003-e06-stream-delivery` contains unmerged generic stream
+  delivery and verification. Preserve that branch and its tests as evidence;
+  do not merge its `SubscriptionRecording`-based public engine unchanged.
+- Replacement: G03 owns location's strict session/access records; G03A owns capture;
+  G04 owns update delivery, fresh anchors, ordered batches/nonterminal errors,
+  open sessions, cancellation, and claim progress. G05 owns access barriers.
+  These units retain the relevant ordering, shutdown, and public-consumer tests.
+- No generic stream engine or helper record product is required before location.
 
 ### 003-E07 — Conditional interaction delivery
 
-- Recommended model: GPT-6 Astra; reasoning: `high`. Reachability, decision-relative anchors, overdue delivery, and open continuations interact across several state machines.
-- Prerequisites: 003-E03–003-E05; DD03–DD04, DD14, DD17 timing refinement.
-- Scope: Deliver phases only when their deadlines and system-defined lifecycle prerequisites permit, registering only reachable continuations.
-- Expected files/modules: Core interaction scheduling helpers and synthetic decision-bearing consumer tests.
-- Public behavior: Invocation anchors and current-decision anchors are available to systems.
-  Overdue work queues to the next drain; an incompatible continuation diagnoses without consuming another group; unanswered phases remain open.
-- Tests/verification: V-code; early/late decisions, overdue non-reentrancy, post-decision local delay, unreachable branches, cancellation, acknowledgement, open and failed continuations, immutable usage/progress reports.
-- Exclusions: HTTP matching or delegate policy, multiple authored alternative paths, persisting application decision latency, new public time controls.
-- Checkpoint: R; review the DD14 mechanism and DD17 mapping with explicit examples.
+- Status: Superseded by DD19; replaced by 003-H05–003-H12B.
+- Replacement: HTTP model units own strict construction, H12A owns capture; H12B owns
+  traversal of the observed recursive path, current-decision anchors, reachable
+  registrations, mismatch diagnostics, progress, cancellation, and quiescence.
+- No generic interaction engine is required before HTTP. DD14's existing
+  deadline/acknowledgement service remains shared.
+- The E07A lease-assessment proposal on the E06 stack is resolved by DD19's
+  boundary: retain a typed track lease and put domain behavior in its system.
+  Further internal decomposition is justified by concrete implementation needs.
 
 ### 003-E08 — External scheduling and mixed-mode conformance
 
-- Recommended model: GPT-6 Sol; reasoning: `high`. External actor-aware scheduling and mixed-mode conformance must distinguish handoff order from task execution order.
-- Prerequisites: 003-E06–003-E07; DD02, DD06, DD10, DD14.
-- Scope: Prove scheduling, cancellation, acknowledgement, and capability helpers work from an ordinary external consumer module and across platforms.
-- Expected files/modules: Consumer conformance target and core integration tests; scheduling/ownership documentation.
-- Public behavior: First-party and consumer systems use identical public leases, with adapter-selected delivery isolation and no exposed host-clock instant.
-- Tests/verification: V-code; mixed live capture/replay, slow conversion versus capture time, multi-attachment equal deadlines, independent executions, actor-aware delivery, repeated teardown, real-clock bounds on macOS/iOS/Linux.
-- Exclusions: New behavior engines, custom playback mapping, stronger total order of racing resumed tasks, duplicating native adapters for the test.
-- Checkpoint: R; stop with the complete scheduler/behavior-services milestone.
+- Status: Next remaining Phase E unit after E04R/revised E05 integration; not started.
+- Recommended model: GPT-6 Sol; reasoning: `high`.
+- Prerequisites: 003-E03, 003-E04R, revised 003-E05; DD02, DD06, DD10, DD14, DD19.
+- Scope: Prove public capture/freeze, typed selection, and scheduler services in consumer modules and mixed modes without generic interaction/subscription engines.
+- Expected files/modules: Consumer conformance and Core integration tests; ownership documentation.
+- Public behavior: Systems use identical public leases with adapter-selected delivery isolation and no exposed host instant. Consumption acknowledgement is separate from record shape and exclusive claims.
+- Tests/verification: V-code; first-party-shaped domain fixtures, mixed live capture/replay, slow conversion, decision-relative delay, equal deadlines, independent executions, actor-aware handoff, repeated teardown and real-clock bounds on macOS/iOS/Linux.
+- Exclusions: Claiming synthetic fixtures establish native HTTP/location conformance, introducing speculative behavior engines, changing timing policy or task ordering guarantees.
+- Checkpoint: R; shared-service milestone only. G09, I09, and J03 retain full first-party integration evidence.
 
 ## Phase F — Portable clock system
 
@@ -1386,26 +1416,39 @@ authorize checkpoint implementation.
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Implement an approved geographic contract alongside independent measurement/delivery origins and exact scalar encoding.
 - Prerequisites: 003-G02 approved mapping, 003-C02, 003-F01; DD03, DD08, DD16.
-- Scope: Implement coordinate/time encoding and grouped update/access payloads, including optional cached location and independent vertical origins.
+- Scope: Implement location-owned strict session/access records and coordinate/time codecs, including optional cached location and independent vertical origins.
 - Expected files/modules: Location codec and strict recordings; geographic, numeric, time, failure and schema fixtures.
 - Public behavior: Unit-bearing JSON numbers use finite shortest-round-trip doubles, normalized negative zero and no default quantization.
   One attachment horizontal origin is separate from session measurement origins and successive delivery delays.
   Access-only/empty recordings have no coordinate origins.
+  Access storage uses an initial observation segment followed by one record per request barrier, each owning notifications until the next barrier; this preserves one ordered access state machine and independent unused requests.
 - Tests/verification: V-code; cross-platform goldens, longitude/latitude/course normalization, independent altitude components, cached timestamp, signed measurement versus nonnegative delivery time, malformed/unknown schema, bounds.
 - Exclusions: Default lossy rounding of measurements, native archive payloads, one shared up coordinate, positional event overrides, Linux live capture.
 - Checkpoint: R; review the stable geographic and lifecycle schema before replay.
 
+### 003-G03A — Location-owned incremental capture
+
+- Status: Approved in the DD19 plan revision; not started. Normal unit scope confirmation is required.
+- Recommended model: GPT-6 Sol; reasoning: `high`.
+- Prerequisites: 003-G03, 003-E04R, 003-E01; DD03, DD09, DD16, DD19.
+- Scope: Build strict location sessions/access records from prepared batches, nonterminal failures, access notifications, and authorization markers through Core's record reservation/freeze boundary.
+- Public behavior: Reserve order before conversion; derive successive delivery delays independently of measurement timestamps; stop without dependency completion freezes open; incomplete preparation invalidates the candidate. Freeze detaches runtime state and rejects late observations.
+- Expected files/modules: Location domain accumulators and controlled capture tests, without native Core Location objects.
+- Tests/verification: V-code; interleaved capture, slow conversion, nonterminal error then recovery, stop/restart, empty/open sessions, access barriers, one freeze, late rejection, resource release, prepared-only admission and unhealthy failures.
+- Exclusions: Native recording, origin override merge, replay delivery, generic subscription helpers.
+- Checkpoint: R; domain capture proof before G06/G08 depend on it.
+
 ### 003-G04 — Portable sequential update replay
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. AsyncSequence updates, cached state, open sessions, and iterator cancellation require a coherent portable lifecycle.
-- Prerequisites: 003-G03, 003-E06; DD04–DD05, DD16.
-- Scope: Add AsyncSequence-first update events, ordered batches/nonterminal failures, one active update session, and non-consuming current location.
+- Prerequisites: 003-G03, revised 003-E05, 003-E03; DD04–DD05, DD16.
+- Scope: Add location-owned AsyncSequence-first delivery over record claims and scheduling: ordered batches/nonterminal failures, one active session, non-consuming current location, progress, cancellation, and quiescence. Reuse relevant E06 test cases without adopting its generic schema.
 - Expected files/modules: Location portable service/update state machine and tests.
 - Public behavior: Start inactive selects the next group; repeated active start and inactive stop are idempotent.
   Restart gets a fresh anchor.
   Current location updates before delivery and survives failure.
   Open groups stay active/silent; exhausted start diagnoses and becomes inert if the handler returns.
-- Tests/verification: V-code; batch order, duplicate/cached measurement times, failure then recovery, current reads, start/stop/restart, iterator cancellation, inert-session release, selected/incomplete report, basic shutdown quiescence.
+- Tests/verification: V-code; batch order, duplicate/cached measurement times, failure then recovery, current reads, start/stop/restart, iterator cancellation, inert-session release, claimed/unconsumed report, basic shutdown quiescence.
 - Exclusions: Matching manager configuration, concurrent sessions within one attachment, failure as thrown termination, synthetic completion on mismatch.
 - Checkpoint: R; review the full portable update lifecycle and offline guarantee.
 
@@ -1418,6 +1461,7 @@ authorize checkpoint implementation.
 - Public behavior: Initial state is readable before initial notification; observation begins at sequence/delegate registration.
   Complete state installs before callbacks; duplicates remain visible.
   Matching requests release barriers and re-anchor following delays; mismatches leave the marker untouched.
+  Observation registration claims the initial access segment; a matching request at the reached barrier claims only its next segment. Wrong/early requests cannot skip barriers. Unrequested request segments remain unused Core records; notifications and current-state reads are not separate consumption units.
 - Tests/verification: V-code; no-request external changes, duplicate notifications, callback reads, expected request never made/unused, early/wrong/duplicate requests, independent attachments, no live calls, cancellation and finalization races.
 - Exclusions: Assuming requests caused state changes, comparing request timing, turning disabled services into failure, configuration or state-read consumption.
 - Checkpoint: R; review barrier consumption and nonthrowing mismatch continuation.
@@ -1425,7 +1469,7 @@ authorize checkpoint implementation.
 ### 003-G06 — Location origin policy and re-record replacement
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Origin precedence and surviving-session overrides must preserve fresh derivation while excluding raw sensitive values.
-- Prerequisites: 003-G03–003-G05, 003-F05, 003-C05; DD09, DD16.
+- Prerequisites: 003-G03–003-G05, including 003-G03A, 003-F05, 003-C05; DD09, DD16.
 - Scope: Add preparation and merge for coordinate/measurement origins while replacing other location behavior wholesale on re-record.
 - Expected files/modules: Location origin policy/merge, privacy and file fixtures.
 - Public behavior: Authored origin override wins over re-evaluated setup default, then fresh origin.
@@ -1531,7 +1575,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 ### 003-H05 — Strict response/body/failed/open lifecycle
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Recursive attempt/body results and tolerant persistence must validate to one strict lifecycle without duplicate content.
-- Prerequisites: 003-H02, 003-E04, 003-F01; DD03, DD11, DD17.
+- Prerequisites: 003-H02, 003-F01; DD03, DD11, DD17.
 - Scope: Add one root request and mutually exclusive attempt/body results, with response-owned head/content, partial prefixes and completion-only trailers.
 - Expected files/modules: HTTP recursive lifecycle foundation, validation/builders and owned codecs; synthetic typed failure supplement for focused tests.
 - Public behavior: No extra top-level conclusion can contradict a leaf.
@@ -1602,7 +1646,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Typed redirect branches and inherited requests must retain single ownership through recursive schema validation.
 - Prerequisites: 003-H05–003-H06, 003-H09, 003-D03 reviewed; DD17.
-- Scope: Add typed proposed/followed/modified/refused/open redirect structure, request derivation and its codec/validation.
+- Scope: Add typed proposed/followed/modified/refused/open redirect structure, request derivation, and codec/validation.
 - Expected files/modules: HTTP redirect composition and URLSession supplements; recursive structural fixtures/builders.
 - Public behavior: Store the redirect response/proposed request once; unchanged follow derives the effective request, modified follow stores it only once, refusal owns that response's delivered body, followed body is unavailable.
 - Tests/verification: V-code; multi-hop structure, mutually exclusive branches, current-decision continuation timing, invalid nesting, changed branch mismatch, no duplicate message storage and canonical JSON.
@@ -1633,10 +1677,34 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 - Exclusions: becomeDownload/becomeStream transitions, mandatory decision nodes for every response, native callback implementation.
 - Checkpoint: R; review presence/absence meaning and single-conclusion ownership.
 
+### 003-H12A — HTTP-owned incremental lifecycle capture
+
+- Status: Approved in the DD19 plan revision; not started. Normal unit scope confirmation is required.
+- Recommended model: GPT-6 Astra; reasoning: `high`.
+- Prerequisites: 003-H05–003-H06, 003-H09–003-H12, 003-E04R, 003-E01; DD03, DD09, DD17, DD19.
+- Scope: Construct the strict observed HTTP tree from prepared domain observations using Core's record reservation/freeze service. Keep correlation, transition validation, partial body ownership, and current-decision capture anchors in the domain.
+- Public behavior: One operation reserves one record; mutually exclusive active states admit only compatible observations. Freeze preserves pending decisions and partial prefixes as explicit open leaves; incomplete or failed conversion blocks publication. Duplicate/late events diagnose safely and resources detach once.
+- Expected files/modules: HTTP domain accumulator and controlled lifecycle/capture tests.
+- Tests/verification: V-code; success, repeated auth/redirect, refusal, canceled challenge, disposition allow/cancel/open, failure before head and after prefix, freeze at each phase, overlapping operation order, capture/finalization races, secret preparation failure, and local 50 ms continuation timing excluding application wait.
+- Exclusions: Native callback wiring, alternative histories, new generic interaction records, schema relaxation or new dependencies.
+- Checkpoint: R; capture and freeze reviewed independently of replay traversal.
+
+### 003-H12B — HTTP-owned lifecycle replay
+
+- Status: Approved replacement for generic E07 under DD19; not started. Normal unit scope confirmation is required.
+- Recommended model: GPT-6 Astra; reasoning: `high`.
+- Prerequisites: 003-H04–003-H06, 003-H12A, revised 003-E05, 003-E03; DD14, DD17, DD19.
+- Scope: Traverse one strictly constructed recursive HTTP record through domain delivery hooks using Core claims, logical time, scheduling, and progress reporting.
+- Expected files/modules: HTTP replay state machine, controlled delivery hooks, lifecycle tests.
+- Public behavior: One operation claims one record. Reachable continuations register only after compatible current decisions; post-decision delays start at the current answer, excluding application latency. Failed/open prefixes remain observable; mismatch never selects another record or contacts a live dependency.
+- Tests/verification: V-code; DD19's complete comparison matrix: success, auth then redirect, refusal, canceled challenge, failure before head/during body, open decision/body, response disposition, early/late decisions including 2 s + 50 ms, zero-delay non-reentrancy, edited weights/delays, cancellation, acknowledgement, frozen progress, no post-quiescence delivery. Native hooks remain controlled until I-phase conformance.
+- Exclusions: New generic interaction engine, native interception, alternative possible histories, schema validation bypass, live fallback, resource publication changes.
+- Checkpoint: R; review domain traversal separately before native wiring. H13 still validates whole persisted records and bridge capabilities before production setup permits claims.
+
 ### 003-H13 — Full lifecycle validation, registration, and capability derivation
 
 - Recommended model: GPT-6 Astra; reasoning: `high`. Whole-tree validation and capability derivation integrate all schema families before any playback or claim is allowed.
-- Prerequisites: 003-H08–003-H12, 003-E05/003-E07, 003-C01; DD08, DD11–DD12, DD17.
+- Prerequisites: 003-H08–003-H12B, revised 003-E05, 003-C01; DD08, DD11–DD12, DD17.
 - Scope: Integrate one URLSession persistent system payload using shared HTTP codecs and typed supplements; derive required capabilities from the whole tree.
 - Expected files/modules: HTTP/URLSession validators, registration/builders, capability checker and complete schema fixtures/documentation.
 - Public behavior: Builders and decoders share strict validation.
@@ -1673,7 +1741,7 @@ the accepted Linux milestone profile; its upstream repair is not required.
 ### 003-I01 — Instrumented session and bodyless GET vertical path
 
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. The first native vertical path combines routing, live forwarding, replay isolation, rejection, and basic shutdown.
-- Prerequisites: 003-D05 evidence review, 003-H13–003-H14, 003-E08; DD10, DD12, DD17, resolved Q1.
+- Prerequisites: 003-D05 evidence review, 003-H12B–003-H14, 003-E08; DD10, DD12, DD17, resolved Q1.
 - Scope: Implement configuration-first adapter-owned sessions and private forwarding machinery, routing leases, rejection boundary, and minimal supported GET record/replay/passthrough from stable scenario to native result.
 - Expected files/modules: `DioramaURLSession` setup/routing/protocol and Apple/ FoundationNetworking bridge files, GET fixtures and capability documentation.
 - Public behavior: Copy default/ephemeral configurations, reject background and detectable unsupported delegates, disable cache, preserve supported settings and custom protocol order.
@@ -1804,7 +1872,7 @@ the accepted Linux milestone profile; its upstream repair is not required.
   replay; gracefully invalidate live sessions without waiting for open consumer
   work. A live continuation has weak task/owner backreferences and no scenario
   retention. Key decision disposal per task so cancellation stays local.
-- Tests/verification: V-code; finish at every phase, repeated/concurrent/canceled finish waiters, no replay callbacks after quiescence, late live results forwarded without candidate mutation, source/session ownership, routing/lease release, used/incomplete facts and healthy explicit-open persistence.
+- Tests/verification: V-code; finish at every phase, repeated/concurrent/canceled finish waiters, no replay callbacks after quiescence, late live results forwarded without candidate mutation, source/session ownership, routing/lease release, claimed/unconsumed facts and healthy explicit-open persistence.
 - Exclusions: Canceling live work merely to reach a horizon, leak masking through global strong registries, recording caller cancellation, new timeout policy.
 - Checkpoint: R; review production shutdown evidence independently from happy paths.
 

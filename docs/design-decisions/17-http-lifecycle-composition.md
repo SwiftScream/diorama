@@ -716,3 +716,12 @@ support authored overrides. The same lifecycle normally serves async,
 completion, and delegate URLSession APIs. Structural capability validation
 permits one schema across Apple Foundation and FoundationNetworking without
 silently degrading unsupported behavior or contacting a live dependency.
+
+## System-owned record amendment — accepted 2026-10-06
+
+The owner accepts [Decision 19](19-system-owned-records.md), which explicitly
+reconciles this record with system-owned lifecycle values, shared record
+selection/capture, and domain-owned delivery. Its reconciliation supersedes
+requirements for generic Core interaction/subscription models or engines while
+preserving the domain invariants specified there. The earlier discussion above
+remains a historical record.

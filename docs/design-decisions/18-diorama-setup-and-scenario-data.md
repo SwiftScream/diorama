@@ -465,3 +465,11 @@ the body runs; body failure is rethrown after finalization. A returned
 whose diagnostics remain facts for the consumer or test integration to evaluate.
 Core retains its diagnostic sink and explicit execution lifecycle. This
 supersedes the earlier consumer `Result` body and public sink contract.
+
+## Replay verification naming amendment — accepted 2026-10-06
+
+[DD19's claim/consumption amendment](19-system-owned-records.md#claim-and-consumption-amendment--2026-10-06)
+renames the illustrative `allowsUnusedReplayRecords` policy to
+`allowsUnclaimedReplayRecords` and the synchronous `claimNext()` API to
+`consumeNext()`. The policy only waives unclaimed records; it does not waive
+consumption verification for records that were claimed.

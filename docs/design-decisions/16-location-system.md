@@ -551,3 +551,12 @@ Explicit overrides beat re-evaluated setup defaults, allowing raw origins to be
 relocated or retimed before persistence. Other location behavior is replaced
 wholesale on re-record. Replay mismatches diagnose and remain offline;
 finalization stops owned live resources and leaves escaped handles inert.
+
+## System-owned record amendment — accepted 2026-10-06
+
+The owner accepts [Decision 19](19-system-owned-records.md), which explicitly
+reconciles this record with system-owned lifecycle values, shared record
+selection/capture, and domain-owned delivery. Its reconciliation supersedes
+requirements for generic Core interaction/subscription models or engines while
+preserving the domain invariants specified there. The earlier discussion above
+remains a historical record.
