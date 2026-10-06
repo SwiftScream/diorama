@@ -60,7 +60,7 @@ private final class LiveRandomNumberGenerator<Source: RandomNumberGenerator & Se
             guard var source = state.source else { return .unavailable }
             var liveValue: UInt64?
             do {
-                try lease.append(
+                try lease.record(
                     capturing: {
                         let value = source.next()
                         state.source = source

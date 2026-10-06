@@ -24,7 +24,7 @@ struct DioramaPublicationTests {
                                        scenarioID: "mixed", mode: .record,
                                        systems: record, replay, passthrough, ignored)
             .execute { record, replay, _, _ in
-                try record.append(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
+                try record.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
                 #expect(try replay.claimNext().value == 3)
                 #expect(storage.writeCount == 0)
                 #expect(storage.document == bytes)
@@ -96,7 +96,7 @@ struct DioramaPublicationTests {
         let result = try await Diorama(repository: JSONScenarioRepository(codec: codec, storage: storage),
                                        scenarioID: "failure", mode: .record, systems: system)
             .execute { lease in
-                try lease.append(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
+                try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
                 return "body value"
             }
         #expect(result.body == "body value")
@@ -132,7 +132,7 @@ struct DioramaPublicationTests {
                                 scenarioID: "body-outcome", mode: .record, systems: system)
         let task = Task {
             try await setup.execute { lease in
-                try lease.append(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
+                try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
                 if unhealthy {
                     _ = lease.report(.system(DiagnosticLabel("invalid-recording")),
                                      recordingImpact: .invalidatesCandidate)

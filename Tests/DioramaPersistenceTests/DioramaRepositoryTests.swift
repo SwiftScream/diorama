@@ -64,7 +64,7 @@ struct DioramaRepositoryTests {
                 repository: randomRepository(storage: storage), scenarioID: "repository-setup",
                 mode: .record, systems: system)
             let result = try await setup.execute { lease in
-                try lease.append(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
+                try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
             }
             let baselineProblem = try loadProblem(#require(result.loadResult))
             #expect(baselineProblem == .missing || baselineProblem == .invalidDocument)

@@ -127,7 +127,7 @@ struct ConcurrentFinalizationTests {
                 DispatchQueue.global().async {
                     let failure: SequentialOperationFailure?
                     do {
-                        try lease.append(capturing: { gate.enter(); return 7 }, preparation: ValuePreparation<Int>())
+                        try lease.record(capturing: { gate.enter(); return 7 }, preparation: ValuePreparation<Int>())
                         failure = nil
                     } catch { failure = error as? SequentialOperationFailure }
                     continuation.resume(returning: failure)

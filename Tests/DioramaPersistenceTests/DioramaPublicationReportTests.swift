@@ -26,7 +26,7 @@ struct DioramaPublicationReportTests {
         let failure = try await Diorama(repository: randomRepository(storage: storage),
                                         scenarioID: "safe-error", mode: .record, systems: system)
             .execute { lease in
-                try lease.append(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
+                try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
             }
         #expect(failure.report.disposition == .failed)
         #expect(failure.report.issues.map(\.cause) == [.unspecified])
@@ -35,7 +35,7 @@ struct DioramaPublicationReportTests {
 
         let memory = try await Diorama(scenarioID: "memory", mode: .record, systems: system)
             .execute { lease in
-                try lease.append(capturing: { 7 }, preparation: ValuePreparation<UInt64>())
+                try lease.record(capturing: { 7 }, preparation: ValuePreparation<UInt64>())
             }
         #expect(memory.report.priorDocument == .notApplicable)
         #expect(memory.report.disposition == .notRequested)
@@ -64,7 +64,7 @@ struct DioramaPublicationReportTests {
         let system = try StartupProbe().system(key: "boundaries")
         let result = try await Diorama(repository: repository, scenarioID: "file-report", mode: .record,
                                        systems: system).execute { lease in
-            try lease.append(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
+            try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
         }
         let candidate = try #require(result.definition)
         #expect(try PublicationFixtures.values("boundaries", in: candidate) == [42])
@@ -125,17 +125,17 @@ struct DioramaPublicationReportTests {
         let result = try await Diorama(repository: randomRepository(storage: storage),
                                        scenarioID: "refusal", mode: .record,
                                        systems: first, second).execute { firstLease, secondLease in
-            try firstLease.append(capturing: { 7 }, preparation: ValuePreparation<UInt64>())
+            try firstLease.record(capturing: { 7 }, preparation: ValuePreparation<UInt64>())
             _ = firstLease.report(.system(DiagnosticLabel("earlier")))
             switch fault {
             case "preparation-validation":
                 do {
-                    try secondLease.append(capturing: { 42 }, preparation: ValuePreparation<UInt64>(
+                    try secondLease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>(
                         validate: { _ in throw PublicationFixtures.Failure.body }))
                 } catch { /* Live work continues after failed recording preparation. */ }
             default:
                 do {
-                    try secondLease.append(capturing: { throw PublicationFixtures.Failure.body },
+                    try secondLease.record(capturing: { throw PublicationFixtures.Failure.body },
                                            preparation: ValuePreparation<UInt64>())
                 } catch { /* Live work continues after failed conversion. */ }
             }
@@ -176,7 +176,7 @@ struct DioramaPublicationReportTests {
         let result = try await Diorama(repository: JSONScenarioRepository(
             codec: PublicationFixtures.codec(), storage: storage),
         scenarioID: "double-fault", mode: .record, systems: system).execute { lease in
-            try lease.append(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
+            try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
         }
         #expect(result.report.disposition == .failed)
         #expect(result.report.preservation == .unchangedByThisRun)

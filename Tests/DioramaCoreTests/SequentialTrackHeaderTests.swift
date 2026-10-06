@@ -32,7 +32,7 @@ struct SequentialTrackHeaderTests {
         #expect(recordingLease.baselineHeader() == 660)
         try recordingLease.setHeader(capturing: { 120 }, preparation: preparation)
         try recordingLease.setHeader(capturing: { 240 }, preparation: preparation)
-        try recordingLease.append(capturing: { 2 }, preparation: preparation)
+        try recordingLease.record(capturing: { 2 }, preparation: preparation)
         let result = await recording.finish()
         let candidate = try #require(result.definition)
         let recordedTrack = try #require(try candidate.attachments[0].track(id, as: Int.self, header: Int.self))

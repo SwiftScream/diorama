@@ -42,7 +42,7 @@ struct DioramaPublicationLifetimeTests {
                                 scenarioID: "once", mode: .record, systems: system)
         let task = Task {
             try await setup.execute { lease in
-                try lease.append(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
+                try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
                 return 123
             }
         }

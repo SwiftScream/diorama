@@ -22,8 +22,8 @@ struct ScenarioCandidateTests {
             transformations.withLock { $0 += 1 }
             return value + 10
         })
-        try recorded.append(capturing: { 3 }, preparation: preparation)
-        try recorded.append(capturing: { 4 }, preparation: preparation)
+        try recorded.record(capturing: { 3 }, preparation: preparation)
+        try recorded.record(capturing: { 4 }, preparation: preparation)
         let replayed = try execution.dependency(
             ExecutionFixtures.dependencyKey("replay", as: HeaderlessSequentialTrackLease<Int>.self))
         #expect(try replayed.claimNext().value == 1)
@@ -55,13 +55,13 @@ struct ScenarioCandidateTests {
             ExecutionFixtures.dependencyKey("healthy", as: HeaderlessSequentialTrackLease<Int>.self))
         let failed = try execution.dependency(
             ExecutionFixtures.dependencyKey("failed", as: HeaderlessSequentialTrackLease<Int>.self))
-        try healthy.append(capturing: { 9 }, preparation: ValuePreparation<Int>())
+        try healthy.record(capturing: { 9 }, preparation: ValuePreparation<Int>())
         #expect(throws: SequentialOperationFailure.self) {
-            try failed.append(capturing: { 10 }, preparation: ValuePreparation<Int>(validate: { _ in
+            try failed.record(capturing: { 10 }, preparation: ValuePreparation<Int>(validate: { _ in
                 throw ExecutionFixtures.SecretError(journal: journal)
             }))
         }
-        try failed.append(capturing: { 11 }, preparation: ValuePreparation<Int>())
+        try failed.record(capturing: { 11 }, preparation: ValuePreparation<Int>())
         let result = await execution.finish()
         #expect(result.definition == nil)
         #expect(!result.report.recordingHealth.isHealthy)

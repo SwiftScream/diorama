@@ -71,7 +71,7 @@ struct UnknownSystemDecodingTests {
         } else {
             let result = try await setup.execute { lease in
                 if mode == .record {
-                    try lease.append(capturing: { 9 }, preparation: ValuePreparation<UInt64>())
+                    try lease.record(capturing: { 9 }, preparation: ValuePreparation<UInt64>())
                 }
             }
             let issues: [DiagnosticIssue] = mode == .record ?
