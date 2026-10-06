@@ -11,6 +11,8 @@ The owner explicitly approved this plan on 2026-09-07, alongside the consolidate
 On 2026-10-06, the owner accepts
 [Decision 19](../design-decisions/19-system-owned-records.md), its delivery-plan
 revision, and the scope of the combined E04R/revised E05 refactor.
+On 2026-10-07, the owner requests separate PRs: E04R delivers recording services
+against `master`, and E05 delivers selection/consumption on top of E04R.
 The implementation units below reflect that accepted boundary. Their ordinary
 per-unit scope checkpoints still apply before new work begins. After this
 refactor merges, E08 is the next remaining Phase E unit; E06/E07's generic
@@ -82,9 +84,10 @@ E04's scope was confirmed on 2026-09-29; its preparatory, interaction, and
 subscription changes are now in the merged baseline. Its
 [historical evidence](../evidence/003-E04-grouped-lifecycle-accumulation.md)
 records those earlier checks. The owner-requested 2026-10-06 review replaces
-its generic lifecycle models through E04R and revises E05 selection. The
-approved scope below includes the claim/consumption amendment; implementation
-and verification evidence follow in the delivery commits.
+its generic lifecycle models through E04R and revises E05 selection. E04R's
+independent recording refactor and verification are recorded in the
+[system-owned record evidence](../evidence/003-E04R-system-owned-records.md).
+E05's replay implementation remains a separate stacked review unit.
 F01's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-10-01
 for an independent feature branch from `master` while later Phase E units await
 review. F01 was merged on 2026-10-03. See its
@@ -1173,21 +1176,23 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E04R — System-owned incremental records
 
-- Status: Approved; the owner accepts DD19 and the combined refactor scope on
-  2026-10-06. Implementation and verification follow this design update.
+- Status: Complete; the owner accepts DD19 on 2026-10-06 and authorizes a
+  separate E04R PR on 2026-10-07. Canonical checks and all 267 host tests pass
+  independently of E05; evidence records the exact boundary.
+- Evidence: [System-owned incremental records](../evidence/003-E04R-system-owned-records.md).
 - Prerequisites: Merged E04, E01–E03, B04/B08; DD19.
 - Scope: Expose record reservation/freeze for domain accumulators; remove generic interaction/subscription models and their model-specific diagnostics; retain whole-record validation and detachment.
-- Expected files/modules: Core lease, obsolete helper removal, record-capture and public consumer tests, recording guide.
+- Expected files/modules: Core lease, obsolete helper removal, record-capture tests, immediate-recording consumers, recording guide.
 - Public behavior: Reserve before factory capture; freeze each constructed accumulator once; domain supplies strict prepared value or failure; incomplete capture blocks the candidate; late registration is detached and rejected.
-- Tests/verification: V-code; overlapping/nested registration, factory/preparation failures, validation without capture transformations, freeze reentry, close-versus-construction race, callback release, domain-owned recursive and open records from a public consumer module.
+- Tests/verification: V-code; overlapping/nested registration, factory/preparation failures, validation without capture transformations, freeze reentry, close-versus-construction race, callback release. The public-consumer recursive/open capture-and-selection round trip remains in the stacked E05 unit.
 - Exclusions: HTTP or location production schemas/adapters, replacement generic model package, new dependencies, imposing universal event timing or domain state transitions.
-- Checkpoint: Combined implementation review with revised E05, followed by required CI and separate owner merge approval.
+- Checkpoint: Separate E04R review and required CI; merge requires an explicit owner request. E05 stays stacked above this unit.
 
 ### 003-E05 — System selectors and atomic record claims
 
-- Status: Approved; adapt the existing E05 claim machinery to DD19, including
-  the approved claim/consumption amendment and API names. Implementation and
-  verification follow this design update.
+- Status: Approved for separate delivery on top of E04R. This branch contains
+  E05's accepted design and prerequisites; selection/consumption implementation
+  and completion evidence belong to the stacked E05 PR.
 - Review gate: Resolved by the owner's 2026-10-06 acceptance of
   [DD19](../design-decisions/19-system-owned-records.md) and its
   [comparison](../design-decisions/19-system-owned-records.md#concrete-http-representation-comparison).
@@ -1200,7 +1205,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Public behavior: Earliest available equivalent record is claimed once; no match, exhaustion, ambiguity, and invalid identities differ. Direct sequential and matcher claims share availability. Cancellation and continuation mismatch never roll claims back. `consumeNext()` atomically claims and consumes a value; explicit claims start unconsumed and systems acknowledge replay with `markConsumed()`. Core has no terminal/open projection.
 - Tests/verification: V-code; reordered distinct calls, equivalent FIFO, concurrent claims, sequential/selected interoperation, invalid/foreign identities, finish racing selection, callbacks outside locks, open records requiring consumption acknowledgement, independent claim/consumption evaluation, plain scalar and recursive record consumers.
 - Exclusions: HTTP matching policy, universal match keys, reusable records, cardinality ranges, claim persistence, domain continuation traversal.
-- Checkpoint: Combined implementation review with E04R, followed by required CI and separate owner merge approval.
+- Checkpoint: Separate stacked E05 review; E04R integration, required CI, and explicit owner merge approval precede E05 merge.
 
 ### 003-E06 — Sequential stream delivery over grouped claims
 

@@ -184,6 +184,8 @@ proposal for discussion, with its review gate recorded in the owning plan.
 - [Cancellation, acknowledgement, and scheduler quiescence evidence](evidence/003-E03-scheduler-quiescence.md)
   records atomic cancellation, delivery completion, shutdown ownership,
   and platform verification.
+- [System-owned incremental record evidence](evidence/003-E04R-system-owned-records.md)
+  records ordered capture, freeze, and validation for domain-owned accumulators.
 - [Historical strict grouped lifecycle accumulation evidence](evidence/003-E04-grouped-lifecycle-accumulation.md)
   records typed interaction and subscription accumulation, horizon validation,
   candidate health, and platform verification.
