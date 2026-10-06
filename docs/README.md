@@ -188,6 +188,9 @@ proposal for discussion, with its review gate recorded in the owning plan.
   records ordered capture, freeze, and validation for domain-owned accumulators.
 - [Record selection and consumption evidence](evidence/003-E05-record-selection-and-consumption.md)
   records atomic matching, independent consumption acknowledgement, and public consumers.
+- [External scheduling and mixed-mode conformance evidence](evidence/003-E08-external-scheduling-and-mixed-mode-conformance.md)
+  records public service composition, observation-boundary timing, actor delivery,
+  independent executions, and shutdown verification.
 - [Historical strict grouped lifecycle accumulation evidence](evidence/003-E04-grouped-lifecycle-accumulation.md)
   records typed interaction and subscription accumulation, horizon validation,
   candidate health, and platform verification.

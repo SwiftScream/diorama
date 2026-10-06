@@ -14,10 +14,10 @@ revision, and the scope of the combined E04R/revised E05 refactor.
 On 2026-10-07, the owner requests separate PRs: E04R delivers recording services
 against `master`, and E05 delivers selection/consumption on top of E04R.
 The implementation units below reflect that accepted boundary. Their ordinary
-per-unit scope checkpoints still apply before new work begins. After this
-refactor merges, E08 is the next remaining Phase E unit; E06/E07's generic
-engines are superseded. The original E05/E06 branches remain historical work,
-not branches to rebase and merge unchanged over this replacement.
+per-unit scope checkpoints still apply before new work begins. E04R and revised
+E05 are integrated before E08's owner-confirmed shared-service proof;
+E06/E07's generic engines are superseded. The original E05/E06 branches remain
+historical work, not branches to rebase and merge unchanged over this replacement.
 
 003-A01's scope was confirmed on 2026-09-07, with an explicit owner-approved
 [beta toolchain exception](../quality-gates-and-ci.md#toolchain-policy).
@@ -87,7 +87,12 @@ records those earlier checks. The owner-requested 2026-10-06 review replaces
 its generic lifecycle models through E04R and revises E05 selection. E04R's
 independent recording refactor and verification are recorded in the
 [system-owned record evidence](../evidence/003-E04R-system-owned-records.md).
-E05's replay implementation remains a separate stacked review unit.
+E05's replay implementation is delivered as a separate unit and is now integrated.
+E08's scope was confirmed on 2026-10-07 after review of its documented
+GPT-6 Sol, `high` recommendation. Its consumer proof, Core integration tests,
+and local macOS, iOS Simulator, and Linux verification are complete. The owner
+authorizes PR creation into `master` on 2026-10-07 after F04 merges. See its
+[external scheduling and mixed-mode evidence](../evidence/003-E08-external-scheduling-and-mixed-mode-conformance.md).
 F01's scope and GPT-6 Sol at `high` reasoning were confirmed on 2026-10-01
 for an independent feature branch from `master` while later Phase E units await
 review. F01 was merged on 2026-10-03. See its
@@ -1240,7 +1245,10 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E08 — External scheduling and mixed-mode conformance
 
-- Status: Next remaining Phase E unit after E04R/revised E05 integration; not started.
+- Status: Complete; scope confirmed on 2026-10-07. Consumer conformance,
+  Core integration tests, ownership documentation, and macOS/iOS Simulator/Linux
+  verification pass; the owner authorizes PR creation into `master` on 2026-10-07.
+- Evidence: [External scheduling and mixed-mode conformance](../evidence/003-E08-external-scheduling-and-mixed-mode-conformance.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`.
 - Prerequisites: 003-E03, 003-E04R, revised 003-E05; DD02, DD06, DD10, DD14, DD19.
 - Scope: Prove public capture/freeze, typed selection, and scheduler services in consumer modules and mixed modes without generic interaction/subscription engines.
