@@ -1195,9 +1195,11 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-E05 — System selectors and atomic record claims
 
-- Status: Approved for separate delivery on top of E04R. This branch contains
-  E05's accepted design and prerequisites; selection/consumption implementation
-  and completion evidence belong to the stacked E05 PR.
+- Status: Complete; the owner approves separate stacked delivery on 2026-10-07.
+  E04R is merged in PR #65. E05 now targets `master` at `de6058e` directly,
+  including F03 wall recording migrated to the current Core API names.
+  Canonical checks and all 295 host tests pass.
+- Evidence: [Record selection and consumption](../evidence/003-E05-record-selection-and-consumption.md).
 - Review gate: Resolved by the owner's 2026-10-06 acceptance of
   [DD19](../design-decisions/19-system-owned-records.md) and its
   [comparison](../design-decisions/19-system-owned-records.md#concrete-http-representation-comparison).
@@ -1210,7 +1212,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Public behavior: Earliest available equivalent record is claimed once; no match, exhaustion, ambiguity, and invalid identities differ. Direct sequential and matcher claims share availability. Cancellation and continuation mismatch never roll claims back. `consumeNext()` atomically claims and consumes a value; explicit claims start unconsumed and systems acknowledge replay with `markConsumed()`. Core has no terminal/open projection.
 - Tests/verification: V-code; reordered distinct calls, equivalent FIFO, concurrent claims, sequential/selected interoperation, invalid/foreign identities, finish racing selection, callbacks outside locks, open records requiring consumption acknowledgement, independent claim/consumption evaluation, plain scalar and recursive record consumers.
 - Exclusions: HTTP matching policy, universal match keys, reusable records, cardinality ranges, claim persistence, domain continuation traversal.
-- Checkpoint: Separate stacked E05 review; E04R integration, required CI, and explicit owner merge approval precede E05 merge.
+- Checkpoint: E04R is integrated. Separate E05 review against `master`, required CI, and explicit owner merge approval precede E05 merge.
 
 ### 003-E06 — Sequential stream delivery over grouped claims
 
