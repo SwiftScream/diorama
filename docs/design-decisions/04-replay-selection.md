@@ -371,3 +371,12 @@ and fails the native operation when its API has a failure channel. Diorama's
 core does not itself declare the test failed. Non-failable APIs require an
 explicit deterministic system-specific continuation policy and still never
 contact the live dependency.
+
+## System-owned record amendment — accepted 2026-10-06
+
+The owner accepts [Decision 19](19-system-owned-records.md), which explicitly
+reconciles this record with system-owned lifecycle values, shared record
+selection/capture, and domain-owned delivery. Its reconciliation supersedes
+requirements for generic Core interaction/subscription models or engines while
+preserving the domain invariants specified there. The earlier discussion above
+remains a historical record.

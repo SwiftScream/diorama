@@ -1,5 +1,9 @@
 # 003-E04: Strict grouped lifecycle accumulation
 
+> Historical E04 API/evidence. The 2026-10-06 review refactor replaces these
+> helpers with [system-owned record services](../record-services.md).
+> See [accepted DD19](../design-decisions/19-system-owned-records.md).
+
 - Date: 2026-09-29
 - Updated: 2026-10-04 after interaction merged and subscription review fixups
   were consolidated.

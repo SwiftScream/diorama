@@ -3,8 +3,8 @@
 - Status: Accepted
 - Created: 2026-09-05
 - Approved by owner: 2026-09-07
-- Last reviewed: 2026-09-24
-- Scope: Decisions 1 through 18
+- Last reviewed: 2026-10-06
+- Scope: Decisions 1 through 19
 - Derived from: [Accepted design decisions](design-decisions/README.md)
 
 This document maintains a consolidated reading of the accepted decisions. It
@@ -27,6 +27,13 @@ Its 2026-09-20 amendment places optional persistence capabilities on shared
 system-type descriptors and permits startup to omit unregistered payload types.
 Its 2026-09-21 amendment places consumer setup and run orchestration in a
 `Diorama` module above separate core and persistence modules.
+
+On 2026-10-06, the owner accepts
+[Decision 19](design-decisions/19-system-owned-records.md). Systems own strict
+record models, lifecycle construction, and delivery. Core supplies typed record
+capture/freeze, atomic selection/claims, time, scheduling, diagnostics, and
+optional progress reporting. Interaction and subscription are domain concepts,
+not required Core record protocols or generic behavior engines.
 
 The original review of decisions 1 through 12 identified scheduler, clock,
 location, consumer-extension, and HTTP-composition prerequisites. Decisions 13
@@ -81,12 +88,13 @@ The decisions combine into this design:
    overrides. Replay never contacts a live dependency.
 5. Native values remain inside adapters. Only prepared, stable semantic values
    enter tracks, matching, diagnostics, resources, or persistence.
-6. Interactions, streams, and clocks use behavior-appropriate grouped
-   recordings. Every interaction or subscription has one explicit conclusion,
-   including an open-at-recording-horizon case.
-7. A system selects a grouped recording using domain semantics. The execution
-   atomically claims the selected group once, while its internal lifecycle
-   remains private to that claim.
+6. Systems own their typed records. HTTP operations and location sessions
+   retain strict, mutually exclusive conclusions, including an explicit open
+   horizon. Random and wall observations remain ordinary sequential values;
+   no interaction/subscription wrapper or Core lifecycle protocol is required.
+7. A system selects a complete record using domain semantics. The execution
+   atomically claims it once; the system privately traverses its lifecycle and
+   separately supplies any progress/consumption facts.
 8. Systems retain monotonic relative timing only where elapsed time affects
    replay behavior. Initial replay maps logical duration one-to-one to monotonic
    real duration.
@@ -127,13 +135,30 @@ available candidates. Stream emissions and phases within a claimed group still
 replay in their semantic order. Stored order is therefore always deterministic,
 but not every stored order is an application-call constraint.
 
-### Selection, use, and completion
+### Claiming and consumption
 
-Selection and claim are one atomic action. A claimed group is used immediately,
-including an open group or one whose later replay delivery is stopped. It never
-returns to the available pool. Lifecycle progress and whether the recorded
-conclusion was reached remain reportable facts, but they are not separate
-consumption units and do not implicitly verify caller cancellation.
+Selection and claim are one atomic action. A claim exclusively reserves a
+record and never returns it to the available pool. It starts unconsumed;
+`markConsumed()` acknowledges that the system has replayed all recorded behavior.
+`consumeNext()` combines both steps for synchronous value delivery.
+
+`allRecordsClaimed` and `allClaimedRecordsConsumed` evaluate these independent
+facts only when requested. Open recordings must reach their recorded horizon
+before consumption is acknowledged, while their simulated operations can remain
+open. Cancellation does not release or automatically consume a claim. Core
+reports progress and consumption without interpreting terminal/open lifecycle
+semantics. See [DD19's amendment](design-decisions/19-system-owned-records.md#claim-and-consumption-amendment--2026-10-06).
+
+### Location access barriers and record boundaries
+
+Location access remains one ordered state machine, stored as an initial
+observation segment followed by one record per authorization-request barrier.
+Each segment owns notifications until the next barrier. Observation registration
+claims the initial segment; only a matching request at the reached barrier may
+claim the next one. Early or wrong requests cannot skip it. Unrequested request
+segments remain unclaimed records; current-state reads and individual notifications
+do not consume separate records. This preserves DD16's unused-request facts
+without making all internal lifecycle events Core consumption units.
 
 ### Open conclusions and cancellation
 
@@ -173,11 +198,13 @@ accepts an absolute local file URL. It does not re-export every declaration from
 either module. Returned system instances pass directly to setup without a caller
 import of core; system authors and callers naming or constructing lower-level
 semantic values import core. Each configured system may override the default mode
-and declare whether unused replay records are acceptable for its attachment.
+and declare whether unclaimed replay records are acceptable for its attachment.
 
-Core contains semantic values, system authoring contracts, and the execution
-engine. Persistence depends on core and contains schema conversion and storage;
-repositories load and publish definitions without activating systems.
+Core contains track and execution semantic values, system authoring contracts,
+and the execution engine. Systems own their strict record schemas, mutable
+accumulators, and delivery state machines. Persistence depends on core and
+contains schema conversion and storage; repositories load and publish definitions
+without activating systems.
 System implementations depend on core and may use persistence schema helpers.
 
 `Diorama.execute` supplies dependencies and finalizes the run. Startup and body
@@ -270,8 +297,12 @@ different cases.
 
 ### Prepared values and final validation
 
-Systems prepare every observation before it enters a working track. Candidate
-finalization then validates the complete grouped and merged scenario again.
+Systems prepare every observation before it enters a working track or domain
+accumulator. Core reserves each incremental record before accumulator creation,
+freezes constructed accumulators once, and validates complete prepared records.
+The system owns transition validity, intentional open horizons, and detachment
+of its internal resources. Candidate finalization validates the merged scenario
+again.
 The latter is not a second opportunity to redact raw values; it verifies
 cross-record invariants, authored-override merges, resource integrity, and
 publication health using values that are already prepared.
@@ -349,10 +380,11 @@ must preserve explicitly.
 Status: Resolved by
 [decision 14](design-decisions/14-real-time-replay-scheduler.md).
 
-The execution-owned `ContinuousClock` scheduler now defines one-to-one playback,
-equal-deadline ordering, phase prerequisites, cancellation, mixed live/replay
-timing, and quiescent finalization. Constant-factor acceleration is the leading
-next enhancement. Manual advancement, fully virtual time, and user-authored
+The execution-owned `ContinuousClock` scheduler defines one-to-one playback,
+equal-deadline ordering, cancellation, mixed live/replay timing, and quiescent
+finalization. Systems determine reachable phases and prerequisites and register
+work with domain-appropriate anchors, including current HTTP decisions.
+Constant-factor acceleration is the leading next enhancement. Manual advancement, fully virtual time, and user-authored
 cross-track constraints remain deferred.
 
 ### Initial clock system contract
@@ -384,9 +416,10 @@ Status: Resolved by
 
 The random proving system drives the same public system registration, track,
 mode, persistence, diagnostic, and finalization boundaries available to a
-consumer-defined demand-driven system. Consumer systems may compose the initial
-behavior engines; arbitrary replacement of the scenario execution engine
-remains outside the first milestone.
+consumer-defined demand-driven system. Consumer systems use the same public
+record, time, scheduling, and reporting services as first-party systems. Synthetic consumers prove that boundary, not
+the need for additional generic behavior engines. Arbitrary replacement of the
+scenario execution engine remains outside the first milestone.
 
 ### HTTP lifecycle composition
 
@@ -409,7 +442,7 @@ its attachment would not be configured. After successful loading, each
 unmatched attachment produces a safe diagnostic and is discarded from execution
 and future candidate construction. A later healthy publication may remove it
 from the Git-backed scenario file. Ignoring a configured attachment affects
-unused-recording verification only; it does not bypass persistent registration
+unclaimed-record verification only; it does not bypass persistent registration
 or schema and prepared-value validation.
 
 ## Required implementation evidence

@@ -281,3 +281,12 @@ the public typed sequential-track extension boundary. Consumer-defined systems
 can use that same boundary with optional `Codable` persistence. Random values
 are demand-driven and retain no timing; decision 3 now reserves persisted
 timing for behavior whose elapsed time affects replay.
+
+## System-owned record amendment — accepted 2026-10-06
+
+The owner accepts [Decision 19](19-system-owned-records.md), which explicitly
+reconciles this record with system-owned lifecycle values, shared record
+selection/capture, and domain-owned delivery. Its reconciliation supersedes
+requirements for generic Core interaction/subscription models or engines while
+preserving the domain invariants specified there. The earlier discussion above
+remains a historical record.

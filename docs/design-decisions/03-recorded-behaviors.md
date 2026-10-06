@@ -569,3 +569,12 @@ Decisions 7 and 8 place grouped records in an authoritative semantic scenario
 and use deliberate `Codable` representations in a versioned JSON repository.
 The YAML fragments in this decision remain notation examples, not a selected
 file format.
+
+## System-owned record amendment — accepted 2026-10-06
+
+The owner accepts [Decision 19](19-system-owned-records.md), which explicitly
+reconciles this record with system-owned lifecycle values, shared record
+selection/capture, and domain-owned delivery. Its reconciliation supersedes
+requirements for generic Core interaction/subscription models or engines while
+preserving the domain invariants specified there. The earlier discussion above
+remains a historical record.

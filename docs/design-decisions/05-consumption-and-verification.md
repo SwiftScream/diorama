@@ -480,3 +480,20 @@ be reopened.
 
 The mechanics that finalize a report, notify sinks of final diagnostics, and
 clean up active claims remain intentionally deferred to decision 10.
+
+## System-owned record amendment — accepted 2026-10-06
+
+The owner accepts [Decision 19](19-system-owned-records.md), which explicitly
+reconciles this record with system-owned lifecycle values, shared record
+selection/capture, and domain-owned delivery. Its reconciliation supersedes
+requirements for generic Core interaction/subscription models or engines while
+preserving the domain invariants specified there. The earlier discussion above
+remains a historical record.
+
+### Claim and consumption terminology — accepted 2026-10-06
+
+[DD19's claim/consumption amendment](19-system-owned-records.md#claim-and-consumption-amendment--2026-10-06)
+supersedes this record's use of consumption to mean selection and its opt-in
+terminal-completion assertion. Claiming reserves a record; consumption separately
+acknowledges that all its behavior has been replayed. Open recordings must reach
+their horizon to count as consumed, without terminating the simulated operation.

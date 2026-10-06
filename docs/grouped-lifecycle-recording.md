@@ -1,5 +1,9 @@
 # Grouped lifecycle recording
 
+> Historical E04 API/evidence. The 2026-10-06 review refactor replaces these
+> helpers with [system-owned record services](record-services.md).
+> See [accepted DD19](design-decisions/19-system-owned-records.md).
+
 An interaction or subscription occupies one typed sequential record. Its
 accumulator accepts observations during a recording execution. At `finish()`,
 Diorama freezes it into one immutable group and validates the complete recording

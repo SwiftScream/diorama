@@ -83,6 +83,15 @@ finish through detached forwarding; replay still requires native quiescence.
 | 16 | [Initial location system](16-location-system.md) | `16-location-system.md` | Accepted |
 | 17 | [HTTP lifecycle composition](17-http-lifecycle-composition.md) | `17-http-lifecycle-composition.md` | Accepted |
 | 18 | [Diorama setup and immutable scenario data](18-diorama-setup-and-scenario-data.md) | `18-diorama-setup-and-scenario-data.md` | Accepted |
+| 19 | [System-owned records and shared execution services](19-system-owned-records.md) | `19-system-owned-records.md` | Accepted |
+
+On 2026-10-06, the owner accepts [Decision 19](19-system-owned-records.md):
+systems own strict lifecycle records and delivery, while Core supplies typed
+record capture, selection, and execution services. Its explicit reconciliation
+amends the generic capability requirements in the earlier records. Its
+[claim/consumption amendment](19-system-owned-records.md#claim-and-consumption-amendment--2026-10-06)
+also separates exclusive claims from acknowledged replay without projecting
+terminal/open lifecycle semantics into Core.
 
 The initial twelve decisions and their combined
 [design overview](../design-overview.md) establish the architecture and
