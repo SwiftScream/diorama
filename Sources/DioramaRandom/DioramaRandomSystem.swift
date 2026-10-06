@@ -12,29 +12,50 @@ private enum LiveRandomMode: Sendable {
     case passthrough
 }
 
-private protocol LiveRandomSource: Sendable {
-    func nextRecording(
-        lease: HeaderlessSequentialTrackLease<UInt64>,
-        preparation: ValuePreparation<UInt64>) -> SourceOperationResult
-    func nextPassthrough(lease: HeaderlessSequentialTrackLease<UInt64>) -> SourceOperationResult
-    func close()
-}
-
-private final class TypedLiveRandomSource<Source: RandomNumberGenerator & Sendable>: LiveRandomSource, Sendable {
+private final class LiveRandomNumberGenerator<Source: RandomNumberGenerator & Sendable>:
+    RandomNumberGenerator, Sendable
+{
     private struct State: Sendable {
         var source: Source?
     }
 
+    private let mode: LiveRandomMode
+    private let lease: HeaderlessSequentialTrackLease<UInt64>
+    private let preparation: ValuePreparation<UInt64>
     private let state: Mutex<State>
 
-    init(_ source: Source) {
+    init(
+        mode: LiveRandomMode,
+        lease: HeaderlessSequentialTrackLease<UInt64>,
+        preparation: ValuePreparation<UInt64>,
+        source: Source)
+    {
+        self.mode = mode
+        self.lease = lease
+        self.preparation = preparation
         state = Mutex(State(source: source))
     }
 
-    func nextRecording(
-        lease: HeaderlessSequentialTrackLease<UInt64>,
-        preparation: ValuePreparation<UInt64>) -> SourceOperationResult
-    {
+    func next() -> UInt64 {
+        let result: SourceOperationResult = switch mode {
+        case .record:
+            nextRecording()
+        case .passthrough:
+            nextPassthrough()
+        }
+
+        switch result {
+        case let .value(value):
+            return value
+        case .failedTrackOperation:
+            return 0
+        case .unavailable:
+            _ = lease.report(.system(DiagnosticLabel("random-operation-after-close")))
+            return 0
+        }
+    }
+
+    private func nextRecording() -> SourceOperationResult {
         state.withLock { state in
             guard var source = state.source else { return .unavailable }
             var liveValue: UInt64?
@@ -60,7 +81,7 @@ private final class TypedLiveRandomSource<Source: RandomNumberGenerator & Sendab
         }
     }
 
-    func nextPassthrough(lease: HeaderlessSequentialTrackLease<UInt64>) -> SourceOperationResult {
+    private func nextPassthrough() -> SourceOperationResult {
         state.withLock { state in
             guard !lease.isClosed, state.source != nil else { return .unavailable }
             return .value(state.source!.next())
@@ -74,46 +95,6 @@ private final class TypedLiveRandomSource<Source: RandomNumberGenerator & Sendab
             return source
         }
         withExtendedLifetime(detached) {}
-    }
-}
-
-private final class LiveRandomNumberGenerator: RandomNumberGenerator, Sendable {
-    private static let closedOperation = DiagnosticLabel("random-operation-after-close")
-
-    private let mode: LiveRandomMode
-    private let lease: HeaderlessSequentialTrackLease<UInt64>
-    private let preparation: ValuePreparation<UInt64>
-    private let source: any LiveRandomSource
-
-    init(
-        mode: LiveRandomMode,
-        lease: HeaderlessSequentialTrackLease<UInt64>,
-        preparation: ValuePreparation<UInt64>,
-        source: any LiveRandomSource)
-    {
-        self.mode = mode
-        self.lease = lease
-        self.preparation = preparation
-        self.source = source
-    }
-
-    func next() -> UInt64 {
-        let result: SourceOperationResult = switch mode {
-        case .record:
-            source.nextRecording(lease: lease, preparation: preparation)
-        case .passthrough:
-            source.nextPassthrough(lease: lease)
-        }
-
-        switch result {
-        case let .value(value):
-            return value
-        case .failedTrackOperation:
-            return 0
-        case .unavailable:
-            _ = lease.report(.system(Self.closedOperation))
-            return 0
-        }
     }
 }
 
@@ -218,14 +199,11 @@ public enum DioramaRandomSystem {
                 mode = .passthrough
             }
             return PreparedSystem {
-                let source: any LiveRandomSource = TypedLiveRandomSource(sourceFactory())
+                let generator = LiveRandomNumberGenerator(
+                    mode: mode, lease: lease, preparation: preparation, source: sourceFactory())
                 return ActivatedSystem(
-                    dependency: LiveRandomNumberGenerator(
-                        mode: mode,
-                        lease: lease,
-                        preparation: preparation,
-                        source: source) as any RandomNumberGenerator & Sendable,
-                    deactivate: { source.close() })
+                    dependency: generator as any RandomNumberGenerator & Sendable,
+                    deactivate: { generator.close() })
             }
         }
     }

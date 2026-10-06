@@ -149,6 +149,29 @@ struct DioramaRandomTests {
         ])
     }
 
+    @Test(arguments: [ScenarioMode.record, .passthrough])
+    func `mutable value sources advance through shared generator references`(mode: ScenarioMode) async throws {
+        let instance = try DioramaRandomSystem.instance(named: "value-source") {
+            ValueSource(nextValue: 7)
+        }
+        let execution = try start(mode: mode, instance: instance)
+        var generator = try execution.dependency(instance)
+        var alias = generator
+
+        #expect(generator.next() == 7)
+        #expect(alias.next() == 8)
+        #expect(generator.next() == 9)
+        let result = await execution.finish()
+        let attachment = try #require(result.definition).attachments[0]
+        let track = try #require(try attachment.track(attachment.trackIDs[0], as: UInt64.self))
+        #expect(track.records.map(\.value) == (mode == .record ? [7, 8, 9] : []))
+        #expect(result.report.diagnostics.isEmpty)
+        #expect(alias.next() == 0)
+        #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [
+            .lifecycle(.leaseClosed),
+        ])
+    }
+
     @Test
     func `default source registration activates in passthrough`() async throws {
         let key = AttachmentKey(rawValue: "default")
@@ -284,5 +307,14 @@ private final class KnownSource: RandomNumberGenerator, Sendable {
 
     deinit {
         probe.released()
+    }
+}
+
+private struct ValueSource: RandomNumberGenerator, Sendable {
+    var nextValue: UInt64
+
+    mutating func next() -> UInt64 {
+        defer { nextValue += 1 }
+        return nextValue
     }
 }
