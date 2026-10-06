@@ -186,6 +186,8 @@ proposal for discussion, with its review gate recorded in the owning plan.
   and platform verification.
 - [System-owned incremental record evidence](evidence/003-E04R-system-owned-records.md)
   records ordered capture, freeze, and validation for domain-owned accumulators.
+- [Record selection and consumption evidence](evidence/003-E05-record-selection-and-consumption.md)
+  records atomic matching, independent consumption acknowledgement, and public consumers.
 - [Historical strict grouped lifecycle accumulation evidence](evidence/003-E04-grouped-lifecycle-accumulation.md)
   records typed interaction and subscription accumulation, horizon validation,
   candidate health, and platform verification.

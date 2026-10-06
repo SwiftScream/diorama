@@ -1,6 +1,6 @@
 # Typed record services
 
-This guide describes the recording services established by
+This guide describes the shared services established by
 [accepted Decision 19](design-decisions/19-system-owned-records.md). It
 replaces the historical [grouped lifecycle API](grouped-lifecycle-recording.md).
 The owning system defines its strict record value and runtime lifecycle.
@@ -8,10 +8,9 @@ The owning system defines its strict record value and runtime lifecycle.
 ## Record ownership
 
 A `SequentialTrack<Value, Header>` supplies stable identities and ordering for
-any `Sendable` value. `Sequential` describes stored order. Immediate and
-incremental capture share the same record positions and final validation.
-DD19 also defines separate replay-selection and consumption services; their
-API guide accompanies that implementation.
+any `Sendable` value. `Sequential` describes stored order and supports the
+simple `consumeNext` operation; it does not require matched operations to arrive
+in recorded order. The same claimed-record ledger serves both operations.
 
 Use `record(capturing:preparation:)` for immediate recording, as in the random
 system. It reserves a position before capture, prepares and admits the complete
@@ -68,6 +67,72 @@ late calls, and diagnostics for incompatible phases. Its implementation must
 check admission and synchronize against freeze. The public lease's `isClosed`
 provides the admission check; a domain can also use its existing execution
 services. Core cannot prove an opaque draft follows this contract.
+
+## Record selection
+
+A selector operates on prepared values and returns equivalent candidates,
+no match, or ambiguity. It is pure, deterministic, and does not call live
+services. All baseline records are supplied, including claimed records, so
+exhaustion can be distinguished from absence.
+
+```swift
+let selector = ReplaySelector<String, Operation>.exactInput(\.requestKey)
+let claim = try lease.claim(matching: preparedKey, using: selector)
+let operation = claim.record.value
+```
+
+The selector runs outside lease isolation. Core validates its identifiers and
+atomically chooses the earliest still-available equivalent record in stable
+sequence order. Empty/duplicate/foreign/unknown identifiers are invalid.
+Unresolved ambiguity, exhaustion, and no match are distinct safe diagnostics.
+The failure path can use the selector's setup-authored field labels for safe
+differences. Record payloads and arbitrary error descriptions are not rendered.
+
+`ReplaySelector<Void, Value>.sequential()` supports the same claim API without
+matching an input. `consumeNext()` remains the small synchronous path used by
+random and wall observations. Neither path returns a claimed record to the
+available pool, even when later replay is canceled or fails.
+
+## Claiming and consuming
+
+A claim reserves one record exclusively and starts unconsumed. The system
+acknowledges consumption after replaying all the behavior the record provides:
+
+```swift
+let claim = try lease.claim(matching: request, using: httpSelector)
+claim.advance(to: deliveredStepCount)
+claim.markConsumed() // After replay reaches the end of the recorded behavior.
+```
+
+`markConsumed()` reports work already performed; it does not deliver events or
+terminate the simulated operation. A record with an open horizon must replay
+its observations and reach that horizon before acknowledgement. The operation
+can remain open afterward. Core needs no terminal/open projection and cannot
+infer consumption from an empty scheduler queue or a progress count.
+
+`consumeNext()` combines claiming and consumption atomically for ordinary values
+whose replay consists of returning the value. Both APIs share availability and
+appear in `claimedRecords`; synchronous consumption has a progress count of zero.
+Explicit claims require acknowledgement even when their values are scalars.
+
+Progress is monotonic. Consumption prevents further progress updates and is
+idempotent until the lease closes. Admission closure stops new claims while
+in-flight replay can still acknowledge consumption during quiescence; lease
+closure freezes the report and rejects further updates. Cancellation or
+abandonment neither releases a claim nor automatically marks it consumed.
+
+Two independent opt-in evaluations use these facts:
+
+- `allRecordsClaimed`: every record was claimed, except for attachments whose
+  `allowsUnclaimedReplayRecords` policy permits leftovers.
+- `allClaimedRecordsConsumed`: every claimed record was fully replayed. The
+  leftover policy does not waive this check, and open records receive no exemption.
+
+Unclaimed records do not fail the second check; evaluate both to require every
+record to be selected and fully replayed. Neither check runs implicitly or
+changes a test outcome. Reports retain safe identities, progress counts, and
+`isConsumed` facts, never domain payloads. Systems determine when all recorded
+behavior has been replayed; Core cannot verify an opaque lifecycle's semantics.
 
 ## Timing and delivery
 
