@@ -236,13 +236,16 @@ capability models differ from the system-owned record boundary.
 ## Delivery and review boundary
 
 [Plan 003](../plans/003-clean-slate-implementation.md) records E04R and revised
-E05 as the combined refactor accepted by the owner on 2026-10-06.
+E05 as the combined design/refactor accepted by the owner on 2026-10-06.
+On 2026-10-07, the owner requests separate delivery PRs: recording services in
+E04R first, followed by the stacked E05 selection/consumption implementation.
+This changes the review boundary, not the accepted architecture.
 E06/E07's generic engines are superseded by G03/G03A–G05 and H05–H12B; E08 proves
 shared services without requiring those future domains. Full native behavior
 remains in the existing G/H/I conformance units.
 
 The unmerged `003-e05-system-selectors` and `003-e06-stream-delivery` branches
-are preserved. E05 claim logic is adapted on this branch. E06's stream engine
+are preserved. Revised E05 adapts the claim logic in its own delivery unit. E06's stream engine
 must not be merged unchanged; its ordering/cancellation tests can inform G04.
 The E07A lease assessment found on that stack is resolved here: retain one typed
 track lease, with domain-specific models and delivery outside Core. A further
