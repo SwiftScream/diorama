@@ -61,7 +61,7 @@ public final class ConsumerSequentialDependency: Sendable {
         switch lease.mode {
         case .record:
             var observation: ConsumerStableValue?
-            try lease.append(
+            try lease.record(
                 capturing: {
                     let value = liveValue()
                     observation = value

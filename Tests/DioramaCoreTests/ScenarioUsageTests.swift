@@ -37,7 +37,7 @@ struct ScenarioUsageTests {
         #expect(throws: SequentialOperationFailure.self) { try leases[1].claimNext() }
         let recording = try execution.dependency(
             DependencyKey<HeaderlessSequentialTrackLease<Int>>(attachmentID: record.id))
-        try recording.append(capturing: { 42 }, preparation: ValuePreparation<Int>())
+        try recording.record(capturing: { 42 }, preparation: ValuePreparation<Int>())
         let result = await execution.finish()
         #expect(result.usage.map(\.attachmentID) == [replay.id, record.id, pass.id])
         #expect(result.usage.map(\.mode) == [.replay, .record, .passthrough])
@@ -78,7 +78,7 @@ struct ScenarioUsageTests {
             systems: [AnyScenarioSystem(instance)])
         let lease = try execution.dependency(instance)
         #expect(throws: SequentialOperationFailure.self) {
-            try lease.append(capturing: { 4 }, preparation: ValuePreparation<Int>())
+            try lease.record(capturing: { 4 }, preparation: ValuePreparation<Int>())
         }
         #expect(lease.report(.system(DiagnosticLabel("unhealthy")), recordingImpact: .invalidatesCandidate))
         let result = await execution.finish()

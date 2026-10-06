@@ -123,7 +123,7 @@ public final class SystemPreparationContext: Sendable {
         }
         let lease = SequentialTrackLease(
             track: original, baseline: records, baselineHeader: admittedHeader,
-            mode: mode, reporter: reporter, admission: admission, time: time)
+            mode: mode, reporter: reporter, admission: admission)
         let admitted = state.withLock { state in
             guard state.attachment != nil else { return false }
             state.leases.append(lease)

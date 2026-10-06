@@ -56,7 +56,7 @@ struct DioramaSetupTests {
                                 systems: record, replay)
         let result = try await setup.execute { recording, replaying in
             #expect(recording.mode == .record)
-            try recording.append(capturing: { 7 }, preparation: ValuePreparation<Int>())
+            try recording.record(capturing: { 7 }, preparation: ValuePreparation<Int>())
             return try replaying.claimNext().value
         }
         #expect(result.body == 1)
@@ -115,7 +115,7 @@ struct DioramaSetupTests {
         #expect(probe.events.withLock { $0 }.isEmpty)
         for _ in 0..<2 {
             let result = try await setup.execute { lease in
-                try lease.append(capturing: { 7 }, preparation: ValuePreparation<Int>())
+                try lease.record(capturing: { 7 }, preparation: ValuePreparation<Int>())
             }
             #expect(result.finalization.usage[0].tracks[0].activity == .record(recordedCount: 1, incompleteCount: 0))
         }

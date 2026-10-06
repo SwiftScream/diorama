@@ -10,13 +10,13 @@ struct SequentialTrackOperationTests {
         let (execution, lease) = try makeExecution(mode: .record, values: [])
         let secondIdentity = Mutex<RecordIdentity?>(nil)
         let firstPreparation = ValuePreparation<Int>(normalize: { value in
-            let identity = try lease.append(capturing: { 20 }, preparation: ValuePreparation<Int>())
+            let identity = try lease.record(capturing: { 20 }, preparation: ValuePreparation<Int>())
             secondIdentity.withLock { $0 = identity }
             #expect(lease.recordedRecords().map(\.identity.sequence) == [1])
             #expect(lease.recordedRecords().map(\.value) == [20])
             return value
         })
-        let firstIdentity = try lease.append(capturing: { 10 }, preparation: firstPreparation)
+        let firstIdentity = try lease.record(capturing: { 10 }, preparation: firstPreparation)
         #expect(firstIdentity.sequence == 0)
         #expect(secondIdentity.withLock { $0?.sequence } == 1)
         #expect(lease.recordedRecords().map(\.identity.sequence) == [0, 1])
@@ -29,14 +29,14 @@ struct SequentialTrackOperationTests {
         let (execution, lease) = try makeExecution(mode: .record, values: [1, 2])
         let failing = ValuePreparation<Int>(validate: { _ in throw UnsafeValue() })
         do {
-            _ = try lease.append(capturing: { 10 }, preparation: failing)
+            _ = try lease.record(capturing: { 10 }, preparation: failing)
             Issue.record("Failed preparation unexpectedly entered the track")
         } catch {
             #expect(error.diagnostic.issue == .preparationFailed(.validation))
             #expect(error.diagnostic.context.recordIdentity?.sequence == 0)
         }
 
-        let admitted = try lease.append(capturing: { 20 }, preparation: ValuePreparation<Int>())
+        let admitted = try lease.record(capturing: { 20 }, preparation: ValuePreparation<Int>())
         #expect(admitted.sequence == 1)
         #expect(lease.baselineRecords().map(\.value) == [1, 2])
         #expect(lease.recordedRecords().map(\.identity.sequence) == [1])
@@ -153,7 +153,7 @@ struct SequentialTrackOperationTests {
         let (replayExecution, replayLease) = try makeExecution(mode: .replay, values: [1, 2])
         let captures = Mutex(0)
         #expect(throws: SequentialOperationFailure.self) {
-            try replayLease.append(
+            try replayLease.record(
                 capturing: {
                     captures.withLock { $0 += 1 }
                     return 3
@@ -166,7 +166,7 @@ struct SequentialTrackOperationTests {
         _ = await replayExecution.finish()
         #expect(throws: SequentialOperationFailure.self) { try replayLease.claimNext() }
         #expect(throws: SequentialOperationFailure.self) {
-            try replayLease.append(
+            try replayLease.record(
                 capturing: {
                     captures.withLock { $0 += 1 }
                     return 3
@@ -183,7 +183,7 @@ struct SequentialTrackOperationTests {
         #expect(passthroughLease.recordedRecords().isEmpty)
         #expect(throws: SequentialOperationFailure.self) { try passthroughLease.claimNext() }
         #expect(throws: SequentialOperationFailure.self) {
-            try passthroughLease.append(capturing: { 3 }, preparation: ValuePreparation<Int>())
+            try passthroughLease.record(capturing: { 3 }, preparation: ValuePreparation<Int>())
         }
         #expect(passthroughLease.baselineRecords().isEmpty)
         #expect(passthroughLease.recordedRecords().isEmpty)

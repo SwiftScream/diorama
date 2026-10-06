@@ -143,7 +143,7 @@ anchor. Callback execution lateness does not implicitly rewrite the profile.
 
 | Core service | First-party need | Enforced invariant |
 | --- | --- | --- |
-| Atomic append and typed tracks | Random and wall observations | Reservation order, preparation, attachment isolation, candidate health. |
+| Immediate recording and typed tracks | Random and wall observations | Reservation order, preparation, attachment isolation, candidate health. |
 | Incremental record registration and freeze | HTTP in-flight operation; location update session/access capture | One ordered slot, one freeze, whole-record validation, mode/closure enforcement, released callback captures. |
 | Sequential claims | Random, wall, location sessions | Single use, deterministic next record, exhaustion, no rollback. |
 | System-selected record claims | HTTP prepared request matching | Validate track-scoped identities and claim earliest available equivalent record atomically. |
@@ -292,3 +292,12 @@ new semantics above. Report collections/counts, evaluation failures, and the
 leftover policy use claimed/unclaimed or consumed/unconsumed explicitly.
 All claimed records appear in the report, including synchronous consumption.
 No compatibility aliases or persisted schema changes are introduced.
+
+## Recording API naming amendment — 2026-10-06
+
+The owner approves naming immediate capture `record(capturing:preparation:)`
+alongside `beginRecord(preparation:capturing:freeze:)` for incremental capture.
+`record` replaces `append` without changing reservation, preparation, admission,
+error, or finalization behavior. It returns the reserved `RecordIdentity`;
+`beginRecord` returns a system-owned accumulator whose freeze closure is invoked
+by execution finalization. No `endRecord()` API or compatibility alias is added.

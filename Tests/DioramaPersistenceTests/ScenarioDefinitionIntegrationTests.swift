@@ -23,7 +23,7 @@ struct ScenarioDefinitionIntegrationTests {
         let replayLease = try replay.dependency(system)
         let recordLease = try record.dependency(system)
         #expect(try replayLease.claimNext().value == 0)
-        try recordLease.append(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
+        try recordLease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
         let replayResult = await replay.finish()
         let recordResult = await record.finish()
         #expect(replayResult.report.scenarioID == ScenarioID(rawValue: "replay"))

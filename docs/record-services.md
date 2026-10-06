@@ -12,8 +12,19 @@ any `Sendable` value. `Sequential` describes stored order and supports the
 simple `consumeNext` operation; it does not require matched operations to arrive
 in recorded order. The same claimed-record ledger serves both operations.
 
-Random and wall observations append prepared values atomically. HTTP operations
-and location sessions reserve before their complete record exists:
+Use `record(capturing:preparation:)` for immediate recording, as in the random
+system. It reserves a position before capture, prepares and admits the complete
+value, and returns its `RecordIdentity`:
+
+```swift
+let identity = try lease.record(
+    capturing: { value },
+    preparation: valuePolicy)
+```
+
+Use `beginRecord(preparation:capturing:freeze:)` when capture continues over
+time, such as HTTP operations and location sessions. It reserves a position
+before the complete record exists and returns the system's accumulator:
 
 ```swift
 let draft = try lease.beginRecord(
@@ -27,6 +38,9 @@ let draft = try lease.beginRecord(
 `DomainDraft` and its record are system types, not Core protocols. Capture time
 comes from the system preparation context's `time` service. Core has no phase,
 subscription, response, or terminal model that the draft must instantiate.
+
+Execution finalization invokes the supplied freeze closure; there is no separate
+`endRecord()` operation. Both recording paths contribute to the same ordered track.
 
 The factory runs after the record position is reserved and outside the lease
 state lock. A nested or slower factory cannot move the reserved position. A
