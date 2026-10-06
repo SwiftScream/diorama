@@ -1,7 +1,7 @@
 # Quality gates and CI policy
 
 - Status: Accepted
-- Last updated: 2026-09-26
+- Last updated: 2026-10-07
 - Reference project: [SwiftScream/URITemplate](https://github.com/SwiftScream/URITemplate)
 
 ## Purpose
@@ -42,6 +42,15 @@ adjustments. In particular:
 - public documentation checking begins with the first public library surface;
 - overlapping formatter and linter style rules are disabled in one tool rather
   than producing conflicting fixes.
+
+Test code under `Tests/` and `Spikes/URLSessionInterception/Tests/` disables
+SwiftLint's `file_length` and `type_body_length` rules through nested
+`.swiftlint.yml` files. Related test cases may stay together in one file or
+suite. Production code retains the root length limits, and test code retains
+all other configured lint rules. The canonical lint command discovers these
+nested configurations from the repository root; do not pass `--config`, which
+would override nested configuration discovery. New test directory trees need
+the same scoped configuration if they require these exceptions.
 
 Lint and formatting may run on macOS only. Both tools support broader platforms,
 but one deterministic quality job is sufficient; Linux remains a required

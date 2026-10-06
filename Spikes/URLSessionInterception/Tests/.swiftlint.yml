@@ -1,0 +1,4 @@
+# Keep related test cases together without file or suite-size limits.
+disabled_rules:
+  - file_length
+  - type_body_length
