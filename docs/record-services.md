@@ -196,3 +196,50 @@ cancellation, delivery acknowledgement, and execution shutdown. The system
 owns which continuation is reachable and its callback state. Each domain must
 prove its cancellation and freeze behavior together with these services before
 native adapters depend on it.
+
+## Composing public services in a consumer system
+
+Preparation obtains a typed record lease, `context.time`, and
+`context.scheduling`. These services are available to consumer modules through
+the same public boundary used by first-party systems. Keep immutable setup
+separate from the fresh dependency and accumulator state created for each run.
+Several keyed attachments can share a system type while choosing different
+modes. Every attachment in a run receives the same time origin and rate; a
+separate run gets independent time, claims, scheduling, and finalization.
+
+At a live observation boundary, reserve a record or a position in the domain
+accumulator and capture its time before conversion. Prepare detached semantic
+data before committing it to the accumulator. Concurrent conversion may finish
+in another order; the domain must retain observation order and derive delays
+from the original captures. Replay delivery continues while live conversion is
+pending. Record and passthrough delivery remain controlled by the live source.
+
+At replay, claim one complete record, then register only its reachable delivery.
+The system chooses the current anchor for each domain delay. Await the adapter's
+actor or queue work inside the scheduling closure, report progress after actual
+delivery, and acknowledge consumption after reaching the recorded horizon.
+An actor hop determines isolation, but does not order independent equal-deadline
+tasks. Establish causal order in the domain through awaited traversal or another
+explicit sequencing mechanism.
+
+Finish closes new admission and cancels pending scheduling, then joins claimed
+delivery scopes before record freeze and report freeze. In-flight consumption
+acknowledgements remain accepted during that drain. A canceled pending delivery
+leaves its claim unconsumed; scheduling cancellation never returns the record.
+The domain freezes live capture without waiting for consumer-owned conversion
+or application decisions. Incomplete observed conversion returns no record
+and invalidates the candidate; a fully prepared open record remains valid.
+
+Escaped drafts must reject further observations and release their runtime
+references at freeze. Escaped dependencies must honor lease closure. Pending
+callback captures are released at shutdown, and terminal scheduling handles
+retain only their registration state. New calls after finish can add separate
+post-finish diagnostics; they cannot alter the frozen report or deliver work.
+See [execution scheduling](execution-scheduling.md#shutdown-and-ownership) for
+the delivery scope's ownership limits.
+
+The [external consumer fixture](../Tests/DioramaConsumerTestSupport/ConsumerTimedSystem.swift)
+demonstrate these obligations with open update sessions, batches, nonterminal
+failures, and decision-relative response delivery. They establish access to and
+composition of shared services. Production location and HTTP models and native
+adapters require their own domain and platform conformance evidence.
