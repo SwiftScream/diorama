@@ -73,7 +73,7 @@ public final class ConsumerSequentialDependency: Sendable {
             }
             return observation
         case .replay:
-            return try lease.consumeNext().value
+            return try lease.consumeNext()
         case .passthrough:
             return liveValue()
         }

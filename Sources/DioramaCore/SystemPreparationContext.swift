@@ -48,19 +48,24 @@ public final class SystemPreparationContext: Sendable {
     /// Call exactly once for each declared track. Existing values are validated
     /// outside the context lock without rerunning capture transformations;
     /// failed or abandoned requests cannot authorize activation. The selected
-    /// policy is not retained by the lease. Systems use their own immutable
-    /// policy for later observations.
+    /// preparation policy is not retained by the lease. Systems use their own immutable
+    /// policy for later observations. Synchronous replay returns the stored value;
+    /// systems translate it into their domain objects.
     ///
     /// - Parameters:
     ///   - id: The declared track identity for this attachment.
     ///   - preparation: The system's setup-selected policy for its stable type.
+    ///   - continuationPolicy: Exhausted and closed replay behavior; defaults to throwing.
     /// - Returns: A fresh typed lease, closed on rollback or finalization.
     /// - Throws: Safe, already-reported admission or track-request evidence.
     public func lease<Value: Sendable>(
         for id: TrackID,
-        preparation: ValuePreparation<Value>) throws(PreparationFailure) -> HeaderlessSequentialTrackLease<Value>
+        preparation: ValuePreparation<Value>,
+        continuationPolicy: ReplayContinuationPolicy<Value> = .error)
+        throws(PreparationFailure) -> HeaderlessSequentialTrackLease<Value>
     {
-        try lease(for: id, preparation: preparation, header: Void.self, admitHeader: { $0 })
+        try lease(for: id, preparation: preparation, admitHeader: { (_: Void) in () },
+                  continuationPolicy: continuationPolicy)
     }
 
     /// Prepares a track with one typed header outside its record sequence.
@@ -69,20 +74,23 @@ public final class SystemPreparationContext: Sendable {
     public func lease<Value: Sendable, Header: Sendable>(
         for id: TrackID,
         preparation: ValuePreparation<Value>,
-        headerPreparation: ValuePreparation<Header>) throws(PreparationFailure) -> SequentialTrackLease<Value, Header>
+        headerPreparation: ValuePreparation<Header>,
+        continuationPolicy: ReplayContinuationPolicy<Value> = .error)
+        throws(PreparationFailure) -> SequentialTrackLease<Value, Header>
     {
         func admit(_ header: Header) throws(PreparationFailure) -> Header {
             try headerPreparation.admitPrepared(
                 header, reporter: reporter, context: .track(id)).value
         }
-        return try lease(for: id, preparation: preparation, header: Header.self, admitHeader: admit)
+        return try lease(for: id, preparation: preparation, admitHeader: admit,
+                         continuationPolicy: continuationPolicy)
     }
 
     private func lease<Value: Sendable, Header: Sendable>(
         for id: TrackID,
         preparation: ValuePreparation<Value>,
-        header: Header.Type,
-        admitHeader: (Header) throws(PreparationFailure) -> Header)
+        admitHeader: (Header) throws(PreparationFailure) -> Header,
+        continuationPolicy: ReplayContinuationPolicy<Value>)
         throws(PreparationFailure) -> SequentialTrackLease<Value, Header>
     {
         let original: SequentialTrack<Value, Header>
@@ -92,7 +100,7 @@ public final class SystemPreparationContext: Sendable {
                     throw ScenarioLifecycleIssue.preparationClosed
                 }
                 guard !state.requested.contains(id),
-                      let track = try attachment.track(id, as: Value.self, header: header)
+                      let track = try attachment.track(id, as: Value.self, header: Header.self)
                 else {
                     throw ScenarioLifecycleIssue.invalidTrackRequest
                 }
@@ -123,7 +131,8 @@ public final class SystemPreparationContext: Sendable {
         }
         let lease = SequentialTrackLease(
             track: original, baseline: records, baselineHeader: admittedHeader,
-            mode: mode, reporter: reporter, admission: admission)
+            mode: mode, reporter: reporter, admission: admission,
+            continuationPolicy: continuationPolicy)
         let admitted = state.withLock { state in
             guard state.attachment != nil else { return false }
             state.leases.append(lease)

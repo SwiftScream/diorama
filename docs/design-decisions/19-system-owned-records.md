@@ -289,6 +289,7 @@ initial DD19 completion projection and DD05's opt-in terminal-completion check.
 The API migration removes `ReplayCompletion`, the completion projection, and
 `ReplayClaimUsage.Conclusion`; `isConsumed` replaces the latter. `claimNext()`
 becomes `consumeNext()`, and `complete()` becomes `markConsumed()`.
+
 `allRecordingsUsed` becomes `allRecordsClaimed`, while
 `allSelectedRecordingsCompleted` becomes `allClaimedRecordsConsumed` with the
 new semantics above. Report collections/counts, evaluation failures, and the
@@ -304,3 +305,45 @@ alongside `beginRecord(preparation:capturing:freeze:)` for incremental capture.
 error, or finalization behavior. It returns the reserved `RecordIdentity`;
 `beginRecord` returns a system-owned accumulator whose freeze closure is invoked
 by execution finalization. No `endRecord()` API or compatibility alias is added.
+
+## Synchronous replay continuation amendment — accepted 2026-10-07
+
+During F04 review, the owner approves a preparatory Core refactor that separates
+stored record values from projected synchronous replay values. Systems supply
+a pure projection during replay preparation. `consumeNext()` returns the
+projected value directly; explicit claims continue to expose stored records
+and their identities. Persistence and re-recording retain stored authorship.
+
+Lease creation selects a `ReplayContinuationPolicy` over the projected type:
+`.error`, `.fallback(value)`, or `.replayLast(defaultValue:)`. Exhausted and
+closed synchronous replay reads always diagnose, then throw or return the
+selected continuation. Wrong-mode calls and explicit claims still throw.
+Continuation never creates a record or consumption fact and never contacts a
+live dependency. Consumption and updating or selecting the continuation share
+one atomic order; diagnostic callbacks run outside isolation.
+
+An opted-in replay lease may retain its single required continuation value
+after closure, consistent with DD10's frozen escaped-handle state. It releases
+the rest of the stored and projected baseline, and does not retain the
+projection closure. Default-policy leases retain no continuation value.
+The [record-services guide](../record-services.md) defines the concrete API.
+
+## System-owned replay conversion refinement — accepted 2026-10-07
+
+During review of the preparatory commit, the owner supersedes the projection
+portion of the preceding amendment. Translating stable records into domain
+objects belongs to systems and may require execution context, as with HTTP.
+It is not an intrinsic conversion that Core performs during preparation.
+
+`SequentialTrackLease<Value, Header>` retains two generic parameters.
+`consumeNext()` returns the stored `Value`, without a `SequentialRecord`
+wrapper. Core requires no mapping protocol, accepts no replay projection,
+and retains no separate projected baseline. Explicit claims still carry
+stored records and identities.
+
+`ReplayContinuationPolicy<Value>` operates on the same stored type. The wall
+clock lease returns `OverridableValue<Date>` and the clock extracts its effective
+`Date`; its empty-track default is `.observed(unixEpoch)`. This wrapper does
+not create an observation or enter persistence. Atomic consumption, diagnostic
+behavior, and opt-in continuation lifetime from the preceding amendment remain
+unchanged.

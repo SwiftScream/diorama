@@ -49,7 +49,7 @@ struct ScenarioReportRenderingTests {
             ])
         let first = try execution.dependency(
             ExecutionFixtures.dependencyKey("z", as: HeaderlessSequentialTrackLease<Int>.self))
-        #expect(try first.consumeNext().value == 1)
+        #expect(try first.consumeNext() == 1)
         execution.reporter.record(Diagnostic(issue: .system(DiagnosticLabel("safe\nlabel")),
                                              context: .track(ExecutionFixtures.track("a")),
                                              fieldPath: [DiagnosticLabel("body"), DiagnosticLabel("name")],

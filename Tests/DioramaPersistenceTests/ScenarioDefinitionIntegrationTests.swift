@@ -22,7 +22,7 @@ struct ScenarioDefinitionIntegrationTests {
             systems: [AnyScenarioSystem(system)])
         let replayLease = try replay.dependency(system)
         let recordLease = try record.dependency(system)
-        #expect(try replayLease.consumeNext().value == 0)
+        #expect(try replayLease.consumeNext() == 0)
         try recordLease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
         let replayResult = await replay.finish()
         let recordResult = await record.finish()
@@ -36,7 +36,7 @@ struct ScenarioDefinitionIntegrationTests {
         let second = try ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "replay"), defaultMode: .record,
             systems: [AnyScenarioSystem(replaySystem)])
-        #expect(try second.dependency(system).consumeNext().value == 0)
+        #expect(try second.dependency(system).consumeNext() == 0)
         _ = await second.finish()
     }
 }

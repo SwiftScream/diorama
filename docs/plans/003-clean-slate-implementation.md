@@ -1352,6 +1352,15 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-F04 — Sequential wall replay and exhaustion
 
+- Preparatory scope approved on 2026-10-07: return stored values from
+  `consumeNext()` and configure
+  error, fixed-fallback, or replay-last continuation at lease creation. Keep
+  diagnostics and consumption atomic, preserve stored authorship, and retain
+  only opted-in continuation state after closure. See the
+  [preparatory evidence](../evidence/003-F04-replay-continuation-preparation.md).
+  Owner review on the same date removes Core projection and the third lease
+  generic parameter: systems translate stored values into domain objects,
+  using execution context when needed.
 - Recommended model: GPT-6 Luna; reasoning: `medium`. Sequential replay reuses established claims and codecs, with explicit last-value continuation and closed-handle tests.
 - Prerequisites: 003-F03, 003-B08; DD05, DD15.
 - Scope: Replay effective origin plus accumulated deltas and report unused reads.
