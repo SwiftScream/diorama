@@ -93,6 +93,14 @@ amends the generic capability requirements in the earlier records. Its
 also separates exclusive claims from acknowledged replay without projecting
 terminal/open lifecycle semantics into Core.
 
+On 2026-10-07, the owner approves DD19's
+[synchronous replay continuation amendment](19-system-owned-records.md#synchronous-replay-continuation-amendment--accepted-2026-10-07):
+systems project stored values into replay output during preparation and opt into
+fixed or replay-last continuation without fabricating records or consumption.
+The subsequent [replay conversion refinement](19-system-owned-records.md#system-owned-replay-conversion-refinement--accepted-2026-10-07)
+supersedes preparation-time projection: leases return stored values, systems
+translate them, and continuation operates on the stored type.
+
 The initial twelve decisions and their combined
 [design overview](../design-overview.md) establish the architecture and
 URLSession direction. Follow-up decisions 13 through 17 resolve the proving

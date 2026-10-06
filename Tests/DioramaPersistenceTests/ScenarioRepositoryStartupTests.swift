@@ -22,7 +22,7 @@ struct ScenarioRepositoryStartupTests {
             #expect(storage.writeCount == 0)
             #expect(probe.preparationCount == 1)
             #expect(probe.activationCount == 1)
-            return try [lease.consumeNext().value, lease.consumeNext().value]
+            return try [lease.consumeNext(), lease.consumeNext()]
         }
         guard case let .loaded(baseline, _) = result.loadResult else {
             Issue.record("Expected the exact loaded result"); return
@@ -251,7 +251,7 @@ struct UnmatchedAttachmentStartupTests {
             storage: StartupStorage(document: persistedFixture("random-example")))
         let result = try await Diorama(repository: repository,
                                        scenarioID: "repository-startup", mode: .replay,
-                                       systems: system).execute { lease in try lease.consumeNext().value }
+                                       systems: system).execute { lease in try lease.consumeNext() }
         #expect(result.body == 1842)
 
         guard case let .loaded(baseline, _) = result.loadResult else {

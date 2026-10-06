@@ -65,40 +65,40 @@ struct SequentialTrackOperationTests {
         let values = Array(0..<100)
         let (execution, lease) = try makeExecution(mode: .replay, values: values)
         let claimed = try await withThrowingTaskGroup(
-            of: SequentialRecord<Int>.self,
-            returning: [SequentialRecord<Int>].self)
+            of: Int.self,
+            returning: [Int].self)
         { group in
             for _ in values {
                 group.addTask { try lease.consumeNext() }
             }
-            var records: [SequentialRecord<Int>] = []
+            var records: [Int] = []
             for try await record in group {
                 records.append(record)
             }
             return records
         }
 
-        #expect(claimed.map(\.identity.sequence).sorted() == Array(0..<UInt64(values.count)))
-        #expect(claimed.map(\.value).sorted() == values)
-        #expect(Set(claimed.map(\.identity)).count == values.count)
+        #expect(claimed.sorted() == values)
+        #expect(Set(claimed).count == values.count)
         let result = await execution.finish()
         #expect(result.report.diagnostics.isEmpty)
         #expect(result.usage[0].tracks[0].activity == .replay(claimedCount: 100, unclaimedCount: 0))
+        #expect(result.usage[0].tracks[0].claimedRecords.map(\.identity.sequence) == Array(0..<UInt64(values.count)))
         #expect(result.usage[0].tracks[0].unclaimedRecords.isEmpty)
     }
 
     @Test
     func `exhausted replay requests retain distinct stable requested positions`() async throws {
         let (execution, lease) = try makeExecution(mode: .replay, values: [42])
-        #expect(try lease.consumeNext().value == 42)
+        #expect(try lease.consumeNext() == 42)
         let attempts = await withTaskGroup(
-            of: Result<SequentialRecord<Int>, SequentialOperationFailure>.self,
-            returning: [Result<SequentialRecord<Int>, SequentialOperationFailure>].self)
+            of: Result<Int, SequentialOperationFailure>.self,
+            returning: [Result<Int, SequentialOperationFailure>].self)
         { group in
             for _ in 0..<20 {
                 group.addTask { claimResult(from: lease) }
             }
-            var results: [Result<SequentialRecord<Int>, SequentialOperationFailure>] = []
+            var results: [Result<Int, SequentialOperationFailure>] = []
             for await result in group {
                 results.append(result)
             }
@@ -134,7 +134,7 @@ struct SequentialTrackOperationTests {
         let (execution, lease) = try makeExecution(mode: .replay, values: [42], sink: sink)
         leaseReference.withLock { $0 = lease }
 
-        #expect(try lease.consumeNext().value == 42)
+        #expect(try lease.consumeNext() == 42)
         #expect(throws: SequentialOperationFailure.self) { try lease.consumeNext() }
         #expect(observedCounts.withLock { $0 } == [1])
         #expect(await (execution.finish()).report.diagnostics.count == 1)
@@ -216,10 +216,10 @@ struct SequentialTrackOperationTests {
         let secondLease = try execution.dependency(
             DependencyKey<HeaderlessSequentialTrackLease<Int>>(attachmentID: second))
 
-        #expect(try secondLease.consumeNext().value == 10)
-        #expect(try firstLease.consumeNext().value == 1)
-        #expect(try secondLease.consumeNext().value == 20)
-        #expect(try firstLease.consumeNext().value == 2)
+        #expect(try secondLease.consumeNext() == 10)
+        #expect(try firstLease.consumeNext() == 1)
+        #expect(try secondLease.consumeNext() == 20)
+        #expect(try firstLease.consumeNext() == 2)
         #expect(await (execution.finish()).report.diagnostics.isEmpty)
     }
 
@@ -247,7 +247,7 @@ struct SequentialTrackOperationTests {
     }
 
     private func claimResult(
-        from lease: HeaderlessSequentialTrackLease<Int>) -> Result<SequentialRecord<Int>, SequentialOperationFailure>
+        from lease: HeaderlessSequentialTrackLease<Int>) -> Result<Int, SequentialOperationFailure>
     {
         do {
             return try .success(lease.consumeNext())

@@ -141,6 +141,13 @@ Selection and claim are one atomic action. A claim exclusively reserves a
 record and never returns it to the available pool. It starts unconsumed;
 `markConsumed()` acknowledges that the system has replayed all recorded behavior.
 `consumeNext()` combines both steps for synchronous value delivery.
+The lease returns stored values, including authorship. Systems translate them
+into domain objects and may use execution context for that translation. Lease setup selects whether
+exhausted or closed replay reads throw, return a fixed value, or repeat the last
+consumed value with an initial default. Every failed read still diagnoses;
+continuation creates no record or consumption fact. Only opted-in leases retain
+their required continuation value after closure. See the
+[DD19 replay conversion refinement](design-decisions/19-system-owned-records.md#system-owned-replay-conversion-refinement--accepted-2026-10-07).
 
 `allRecordsClaimed` and `allClaimedRecordsConsumed` evaluate these independent
 facts only when requested. Open recordings must reach their recorded horizon

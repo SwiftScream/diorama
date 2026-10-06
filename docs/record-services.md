@@ -134,6 +134,53 @@ changes a test outcome. Reports retain safe identities, progress counts, and
 `isConsumed` facts, never domain payloads. Systems determine when all recorded
 behavior has been replayed; Core cannot verify an opaque lifecycle's semantics.
 
+### Synchronous replay values and continuation
+
+`SequentialTrackLease<Value, Header>` returns its stored `Value` from
+`consumeNext()`. Systems translate those values into domain objects, using
+execution context where needed. Record types need no mapping protocol, and
+Core retains no conversion closure or separate replay representation.
+Lease preparation selects a `ReplayContinuationPolicy<Value>`, defaulting
+to `.error`:
+
+```swift
+let lease = try context.lease(
+    for: trackID,
+    preparation: ValuePreparation<OverridableValue<Date>>(),
+    continuationPolicy: .replayLast(defaultValue: .observed(Date(timeIntervalSince1970: 0))))
+let value: OverridableValue<Date> = try lease.consumeNext()
+let date: Date = value.value
+```
+
+Authorship remains available in returned values and intact for persistence
+and re-recording. The wall clock unwraps it when returning a `Date` to its
+consumer. Continuation uses the same stored type: the empty-track default above
+is an observed value, but it is never added to the track. Explicit selectors
+and claims still expose stored records and their identities.
+
+The policy is fixed at lease creation:
+
+| Policy | Exhausted or closed synchronous replay read |
+| --- | --- |
+| `.error` (default) | Report the failure and throw; retain no continuation value. |
+| `.fallback(value)` | Report the failure and return the configured value. |
+| `.replayLast(defaultValue:)` | Report the failure and return the most recently consumed stored value, or the default before any synchronous consumption. |
+
+Returning a continuation creates no record, identity, or consumption fact.
+Exhausted requests still receive distinct requested positions in diagnostics.
+Wrong-mode calls always throw. Explicit claims neither apply nor update the
+synchronous continuation policy. The method remains throwing because policy
+selection occurs at runtime.
+
+Consumption and continuation updates share one atomic order. Failure selects
+its continuation in that same order, then reports outside the lock before
+returning. Reentrant diagnostics cannot change the already-selected result.
+Closure releases the baseline records. Only replay leases configured for
+continuation retain their required fallback value;
+`replayLast` releases its default once the first consumption replaces it.
+Supplied continuation values must be safe stable values suitable for this
+post-finish lifetime, without live resources or execution references.
+
 ## Timing and delivery
 
 A system uses `ExecutionTime` to derive local recording delays and current

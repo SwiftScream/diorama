@@ -32,8 +32,8 @@ struct ScenarioUsageTests {
                 ExecutionFixtures.system("record", journal: journal, mode: .record),
             ])
         let leases = try execution.dependency(replayInstance)
-        #expect(try leases[0].consumeNext().value == 11)
-        #expect(try leases[1].consumeNext().value == 21)
+        #expect(try leases[0].consumeNext() == 11)
+        #expect(try leases[1].consumeNext() == 21)
         #expect(throws: SequentialOperationFailure.self) { try leases[1].consumeNext() }
         let recording = try execution.dependency(
             DependencyKey<HeaderlessSequentialTrackLease<Int>>(attachmentID: record.id))

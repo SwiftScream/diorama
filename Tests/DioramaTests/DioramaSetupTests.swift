@@ -38,9 +38,9 @@ struct DioramaSetupTests {
         let baseline = try DioramaFixtures.definition(["a"])
         let setup = try Diorama(definition: baseline, scenarioID: "setup", mode: .replay, systems: system)
         let first = try await setup.execute { lease in
-            try [lease.consumeNext().value, lease.consumeNext().value]
+            try [lease.consumeNext(), lease.consumeNext()]
         }
-        let second = try await setup.execute { lease in try lease.consumeNext().value }
+        let second = try await setup.execute { lease in try lease.consumeNext() }
         #expect(first.body == [1, 2])
         #expect(second.body == 1)
         #expect(try baseline.attachments[0].track(DioramaFixtures.track("a"), as: Int.self)?.records.count == 2)
@@ -57,7 +57,7 @@ struct DioramaSetupTests {
         let result = try await setup.execute { recording, replaying in
             #expect(recording.mode == .record)
             try recording.record(capturing: { 7 }, preparation: ValuePreparation<Int>())
-            return try replaying.consumeNext().value
+            return try replaying.consumeNext()
         }
         #expect(result.body == 1)
         #expect(result.finalization.usage.map(\.attachmentID) == [record.attachment.id, replay.attachment.id])

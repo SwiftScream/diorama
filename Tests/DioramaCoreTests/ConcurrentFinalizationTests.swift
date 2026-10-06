@@ -18,7 +18,7 @@ struct ConcurrentFinalizationTests {
             systems: [ExecutionFixtures.system("a", journal: journal), blockingSystem(gate: gate, journal: journal)])
         let lease = try execution.dependency(
             ExecutionFixtures.dependencyKey("a", as: HeaderlessSequentialTrackLease<Int>.self))
-        #expect(try lease.consumeNext().value == 1)
+        #expect(try lease.consumeNext() == 1)
         let returned = Mutex(0)
         let first = Task {
             if alreadyCanceled {

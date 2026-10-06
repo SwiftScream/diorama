@@ -4,7 +4,8 @@ import Synchronization
 /// An execution-owned, reference-semantic lifetime for one typed track.
 /// References share a lifetime within a run; new runs get fresh leases.
 /// Recording builds a new sequence, replay claims the baseline, and
-/// passthrough retains neither. Closed leases retain no track content.
+/// passthrough retains neither. Closed leases release track content and keep only
+/// the continuation value explicitly requested by replay setup.
 public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Sendable {
     private enum HeaderSlot: Sendable {
         case empty
@@ -54,6 +55,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
     private struct State: Sendable {
         var baseline: [SequentialRecord<Value>]
         var baselineHeader: Header?
+        var continuation: ReplayContinuationState<Value>
         var recording: [RecordingSlot] = []
         var recordingHeader: HeaderSlot = .empty
         var nextHeaderAttempt: UInt64 = 0
@@ -78,13 +80,15 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
 
     init(track: SequentialTrack<Value, Header>, baseline: [SequentialRecord<Value>],
          baselineHeader: Header?, mode: ScenarioMode,
-         reporter: DiagnosticReporter, admission: ExecutionAdmission)
+         reporter: DiagnosticReporter, admission: ExecutionAdmission,
+         continuationPolicy: ReplayContinuationPolicy<Value> = .error)
     {
         id = track.id
         self.mode = mode
         self.reporter = reporter
         self.admission = admission
-        state = Mutex(State(baseline: baseline, baselineHeader: baselineHeader))
+        state = Mutex(State(baseline: baseline, baselineHeader: baselineHeader,
+                            continuation: ReplayContinuationState(mode == .replay ? continuationPolicy : .error)))
     }
 
     /// Whether startup rollback or explicit finish has closed this lease.
@@ -167,48 +171,52 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
         return reservation.identity
     }
 
-    /// Atomically claims, marks consumed, and returns the next record exactly once.
+    /// Atomically claims and consumes the next record, returning its stored value.
     ///
-    /// Each request receives a stable position, including requests after
-    /// exhaustion. A claimed record never becomes available again. This
-    /// operation is available only in replay mode and never consults a live
-    /// dependency. Returning the value exhausts its recorded behavior; use
-    /// `claim(matching:using:)` when the system must replay it before consumption.
+    /// Systems translate stored values into their domain objects. Each
+    /// exhausted request receives a stable requested position and a diagnostic,
+    /// but continuation never creates a record or consumption fact. Exhausted and
+    /// closed replay reads follow the setup-selected continuation policy; wrong
+    /// mode always throws. Diagnostic handlers run outside the lease lock.
+    /// Use `claim(matching:using:)` for identity or later consumption acknowledgement.
     ///
-    /// - Returns: The next stable record in this track.
-    /// - Throws: Safe, already-reported closed, wrong-mode, or exhaustion evidence.
-    public func consumeNext() throws(SequentialOperationFailure) -> SequentialRecord<Value> {
-        let result: Result<SequentialRecord<Value>, SequentialOperationFailure> = state.withLock { state in
-            if let failure = closedFailure(state) {
-                return .failure(failure)
-            }
-            guard mode == .replay else {
-                return .failure(operationFailure(
-                    .wrongMode(expected: .replay, actual: mode),
-                    context: .track(id)))
-            }
-            while state.claimed.contains(state.nextReplayPosition) {
-                state.nextReplayPosition += 1
-            }
-            let requested = state.nextReplayPosition
+    /// - Returns: The next stored value or the configured continuation.
+    /// - Throws: Safe, already-reported wrong-mode or noncontinuable failure evidence.
+    public func consumeNext() throws(SequentialOperationFailure) -> Value {
+        let (result, previous) = state.withLock { state in
+            // Replacing a reference-valued default must not run its destruction
+            // while holding the lease lock; it may report or reenter the lease.
+            let previous = state.continuation
+            return (consumeNext(state: &state), previous)
+        }
+        defer { withExtendedLifetime(previous) {} }
+        return try result.report(using: reporter)
+    }
+
+    private func consumeNext(state: inout State) -> SequentialReadResult<Value> {
+        if let failure = closedFailure(state) {
+            return state.continuation.resolve(failure)
+        }
+        guard mode == .replay else {
+            return .failure(operationFailure(
+                .wrongMode(expected: .replay, actual: mode), context: .track(id)))
+        }
+        while state.claimed.contains(state.nextReplayPosition) {
             state.nextReplayPosition += 1
-            guard requested < state.baseline.count else {
-                let identity = RecordIdentity(trackID: id, sequence: UInt64(requested))
-                return .failure(operationFailure(
-                    .replayExhausted(availableCount: UInt64(state.baseline.count)),
-                    context: .record(identity)))
-            }
-            state.claimed.insert(requested)
-            state.replayProgress[requested] = ReplayClaimProgress(isConsumed: true)
-            return .success(state.baseline[requested])
         }
-        switch result {
-        case let .success(record):
-            return record
-        case let .failure(failure):
-            reporter.record(failure.diagnostic)
-            throw failure
+        let requested = state.nextReplayPosition
+        state.nextReplayPosition += 1
+        guard requested < state.baseline.count else {
+            let identity = RecordIdentity(trackID: id, sequence: UInt64(requested))
+            return state.continuation.resolve(operationFailure(
+                .replayExhausted(availableCount: UInt64(state.baseline.count)),
+                context: .record(identity)))
         }
+        state.claimed.insert(requested)
+        state.replayProgress[requested] = ReplayClaimProgress(isConsumed: true)
+        let value = state.baseline[requested].value
+        state.continuation.consume(value)
+        return .consumed(value)
     }
 
     /// Reports a system fact while this lease remains open.
@@ -497,7 +505,8 @@ extension SequentialTrackLease: AnySequentialLease {
     private func detachClosedContents() -> ClosedContents {
         state.withLock { state -> ClosedContents in
             if let usage = state.finalUsage {
-                return ClosedContents(usage: usage, records: [], baselineHeader: nil, recordingHeader: nil,
+                return ClosedContents(usage: usage, records: [],
+                                      baselineHeader: nil, recordingHeader: nil,
                                       incomplete: [], incompleteHeader: false, recording: nil)
             }
             state.closed = true

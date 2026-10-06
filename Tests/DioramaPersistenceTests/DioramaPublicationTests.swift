@@ -25,7 +25,7 @@ struct DioramaPublicationTests {
                                        systems: record, replay, passthrough, ignored)
             .execute { record, replay, _, _ in
                 try record.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
-                #expect(try replay.consumeNext().value == 3)
+                #expect(try replay.consumeNext() == 3)
                 #expect(storage.writeCount == 0)
                 #expect(storage.document == bytes)
             }
@@ -119,7 +119,7 @@ struct DioramaPublicationTests {
         #expect(storage.document == bytes)
         #expect(storage.writeCount == (failEncoding ? 0 : 1))
         let replay = try await Diorama(definition: definition, scenarioID: "retained", mode: .replay, systems: system)
-            .execute { lease in try lease.consumeNext().value }
+            .execute { lease in try lease.consumeNext() }
         #expect(replay.body == 42)
     }
 

@@ -48,7 +48,7 @@ struct SequentialTrackHeaderTests {
             defaultMode: .replay, systems: [AnyScenarioSystem(system)])
         let replayLease = try replay.dependency(system)
         #expect(replayLease.baselineHeader() == 240)
-        #expect(try replayLease.consumeNext().value == 2)
+        #expect(try replayLease.consumeNext() == 2)
         #expect(await replay.finish().report.diagnostics.isEmpty)
 
         let emptied = candidate.removingRecords()

@@ -106,7 +106,7 @@ private final class ReplayRandomNumberGenerator: RandomNumberGenerator, Sendable
     }
 
     func next() -> UInt64 {
-        (try? lease.consumeNext().value) ?? 0
+        (try? lease.consumeNext()) ?? 0
     }
 }
 
