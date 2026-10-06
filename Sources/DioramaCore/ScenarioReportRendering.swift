@@ -11,13 +11,17 @@ public extension ScenarioFinalizationResult {
         var lines = ["Scenario \(ReportFieldEscaping.quote(report.scenarioID.rawValue))"]
         for attachment in usage {
             let mode = ReportText.mode(attachment.mode)
-            let verification = attachment.allowsUnusedReplayRecords ? "ignored" : "included"
+            let verification = attachment.allowsUnclaimedReplayRecords ? "ignored" : "included"
             lines.append("Attachment \(ReportText.attachment(attachment.attachmentID)) \(mode) usage=\(verification)")
             for track in attachment.tracks {
                 let key = ReportFieldEscaping.quote(track.id.key.rawValue)
                 lines.append("  Track \(key) \(ReportText.activity(track.activity))")
-                for record in track.unusedRecords {
-                    lines.append("    Unused record \(record.sequence)")
+                for record in track.unclaimedRecords {
+                    lines.append("    Unclaimed record \(record.sequence)")
+                }
+                for record in track.claimedRecords {
+                    lines.append("    Claimed record \(record.identity.sequence) progress=\(record.progressCount) "
+                        + (record.isConsumed ? "consumed" : "unconsumed"))
                 }
             }
         }
@@ -64,7 +68,7 @@ enum ReportText {
     static func activity(_ activity: SequentialTrackUsage.Activity) -> String {
         switch activity {
         case let .record(recorded, incomplete): "record admitted=\(recorded) incomplete=\(incomplete)"
-        case let .replay(used, unused): "replay used=\(used) unused=\(unused)"
+        case let .replay(claimed, unclaimed): "replay claimed=\(claimed) unclaimed=\(unclaimed)"
         case .passthrough: "passthrough"
         }
     }
@@ -114,6 +118,18 @@ enum ReportText {
             "wrong-mode expected=\(mode(expected)) actual=\(mode(actual))"
         case let .replayExhausted(availableCount):
             "replay-exhausted available=\(availableCount)"
+        case let .selection(fact): replaySelection(fact)
+        }
+    }
+
+    private static func replaySelection(_ issue: ReplaySelectionIssue) -> String {
+        switch issue {
+        case .noMatch: "selection-no-match"
+        case let .exhausted(ids):
+            "selection-exhausted matches=[\(ids.map { String($0.sequence) }.joined(separator: ","))]"
+        case let .ambiguous(ids):
+            "selection-ambiguous candidates=[\(ids.map { String($0.sequence) }.joined(separator: ","))]"
+        case .invalidSelectorResult: "selection-invalid-result"
         }
     }
 

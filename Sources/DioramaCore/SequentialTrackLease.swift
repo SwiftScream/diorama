@@ -60,6 +60,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
         var pendingHeaderAttempts: UInt64 = 0
         var nextReplayPosition = 0
         var claimed: IndexSet = []
+        var replayProgress: [Int: ReplayClaimProgress] = [:]
         var closed = false
         var finalUsage: SequentialTrackUsage?
     }
@@ -166,16 +167,17 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
         return reservation.identity
     }
 
-    /// Atomically claims and returns the next record exactly once.
+    /// Atomically claims, marks consumed, and returns the next record exactly once.
     ///
     /// Each request receives a stable position, including requests after
     /// exhaustion. A claimed record never becomes available again. This
     /// operation is available only in replay mode and never consults a live
-    /// dependency.
+    /// dependency. Returning the value exhausts its recorded behavior; use
+    /// `claim(matching:using:)` when the system must replay it before consumption.
     ///
     /// - Returns: The next stable record in this track.
     /// - Throws: Safe, already-reported closed, wrong-mode, or exhaustion evidence.
-    public func claimNext() throws(SequentialOperationFailure) -> SequentialRecord<Value> {
+    public func consumeNext() throws(SequentialOperationFailure) -> SequentialRecord<Value> {
         let result: Result<SequentialRecord<Value>, SequentialOperationFailure> = state.withLock { state in
             if let failure = closedFailure(state) {
                 return .failure(failure)
@@ -197,6 +199,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
                     context: .record(identity)))
             }
             state.claimed.insert(requested)
+            state.replayProgress[requested] = ReplayClaimProgress(isConsumed: true)
             return .success(state.baseline[requested])
         }
         switch result {
@@ -515,6 +518,7 @@ extension SequentialTrackLease: AnySequentialLease {
             state.baseline = []
             state.recording = []
             state.claimed = []
+            state.replayProgress = [:]
             let recording = mode == .record
                 ? recordingTrack(header: recordingHeader ?? baselineHeader, records: admitted)
                 : nil
@@ -535,15 +539,153 @@ extension SequentialTrackLease: AnySequentialLease {
                 id: id,
                 activity: .record(recordedCount: UInt64(admittedCount),
                                   incompleteCount: UInt64(state.recording.count - admittedCount)),
-                unusedRecords: [])
+                unclaimedRecords: [], claimedRecords: [])
         case .replay:
             let unused = state.baseline.indices.filter { !state.claimed.contains($0) }
                 .map { state.baseline[$0].identity }
+            let selected: [ReplayClaimUsage] = state.replayProgress.keys.sorted().compactMap { index in
+                guard let progress = state.replayProgress[index] else { return nil }
+                return ReplayClaimUsage(identity: state.baseline[index].identity,
+                                        progressCount: progress.progressCount,
+                                        isConsumed: progress.isConsumed)
+            }
             return SequentialTrackUsage(
-                id: id, activity: .replay(usedCount: UInt64(state.claimed.count), unusedCount: UInt64(unused.count)),
-                unusedRecords: unused)
+                id: id, activity: .replay(claimedCount: UInt64(state.claimed.count),
+                                          unclaimedCount: UInt64(unused.count)),
+                unclaimedRecords: unused, claimedRecords: selected)
         case .passthrough:
-            return SequentialTrackUsage(id: id, activity: .passthrough, unusedRecords: [])
+            return SequentialTrackUsage(id: id, activity: .passthrough, unclaimedRecords: [], claimedRecords: [])
         }
+    }
+}
+
+public extension SequentialTrackLease {
+    /// Selects and atomically claims a complete record once.
+    ///
+    /// The system selector sees all baseline records so exhaustion differs from
+    /// absence. Its callback runs outside the lease lock. Validation, current
+    /// availability, and the claim share one lock acquisition. No failure
+    /// contacts a live dependency or returns a previously claimed record.
+    /// The claim starts unconsumed. The system calls `markConsumed()` after
+    /// replaying all recorded behavior. Progress and consumption acknowledgements
+    /// never change availability or choose a continuation.
+    func claim<Input: Sendable>(
+        matching input: Input,
+        using selector: ReplaySelector<Input, Value>)
+        throws(SequentialOperationFailure) -> ReplayClaim<Value>
+    {
+        let snapshot: Result<[SequentialRecord<Value>], SequentialOperationFailure> = state.withLock { state in
+            if admissionClosedOrLeaseClosed(state) {
+                return .failure(operationFailure(.leaseClosed, context: .track(id)))
+            }
+            guard mode == .replay else {
+                return .failure(operationFailure(.wrongMode(expected: .replay, actual: mode), context: .track(id)))
+            }
+            return .success(state.baseline)
+        }
+        let records: [SequentialRecord<Value>]
+        switch snapshot {
+        case let .success(value): records = value
+        case let .failure(failure):
+            reporter.record(failure.diagnostic)
+            throw failure
+        }
+        let selection = selector.select(input, records)
+        let chosen = state.withLock { state in
+            claimSelection(selection, rule: selector.rule, state: &state)
+        }
+        switch chosen {
+        case let .success(record):
+            return ReplayClaim(record: record) { identity, action in
+                self.updateReplayProgress(identity, action: action)
+            }
+        case let .failure(failure):
+            guard case .sequential(.selection) = failure.diagnostic.issue else {
+                reporter.record(failure.diagnostic)
+                throw failure
+            }
+            let diagnostic = Diagnostic(issue: failure.diagnostic.issue, context: failure.diagnostic.context,
+                                        fieldPath: selector.differences(input, records), rule: selector.rule)
+            reporter.record(diagnostic)
+            throw SequentialOperationFailure(diagnostic: diagnostic)
+        }
+    }
+}
+
+private extension SequentialTrackLease {
+    private func claimSelection(
+        _ selection: ReplaySelection, rule: DiagnosticLabel,
+        state: inout State) -> Result<SequentialRecord<Value>, SequentialOperationFailure>
+    {
+        if admissionClosedOrLeaseClosed(state) {
+            return .failure(operationFailure(.leaseClosed, context: .track(id)))
+        }
+        switch selection {
+        case .noMatch:
+            return .failure(selectionFailure(.noMatch, context: .track(id), rule: rule))
+        case let .ambiguous(identities):
+            guard let indices = validSelection(identities, records: state.baseline), indices.count > 1 else {
+                return .failure(selectionFailure(.invalidSelectorResult, context: .track(id), rule: rule))
+            }
+            let ordered = indices.sorted().map { state.baseline[$0].identity }
+            return .failure(selectionFailure(.ambiguous(ordered), context: .track(id), rule: rule))
+        case let .equivalent(identities):
+            guard let indices = validSelection(identities, records: state.baseline) else {
+                return .failure(selectionFailure(.invalidSelectorResult, context: .track(id), rule: rule))
+            }
+            let ordered = indices.sorted()
+            guard let index = ordered.first(where: { !state.claimed.contains($0) }) else {
+                let matches = ordered.map { state.baseline[$0].identity }
+                return .failure(selectionFailure(.exhausted(matches), context: .track(id), rule: rule))
+            }
+            state.claimed.insert(index)
+            state.replayProgress[index] = ReplayClaimProgress()
+            return .success(state.baseline[index])
+        }
+    }
+
+    private func admissionClosedOrLeaseClosed(_ state: State) -> Bool {
+        admission.isClosed || state.closed
+    }
+
+    func validSelection(_ identities: [RecordIdentity], records: [SequentialRecord<Value>]) -> [Int]? {
+        guard !identities.isEmpty else { return nil }
+        var seen: Set<Int> = []
+        var indices: [Int] = []
+        for identity in identities {
+            guard identity.trackID == id, identity.sequence < UInt64(records.count),
+                  let index = Int(exactly: identity.sequence), records[index].identity == identity,
+                  seen.insert(index).inserted else { return nil }
+            indices.append(index)
+        }
+        return indices
+    }
+
+    func updateReplayProgress(_ identity: RecordIdentity, action: ReplayProgressAction) -> Bool {
+        state.withLock { state in
+            // Admission stops new claims first. Already claimed scheduled
+            // delivery may still acknowledge progress while finish drains it.
+            // The track closes only after that quiescence boundary.
+            guard !state.closed, identity.trackID == id,
+                  let index = Int(exactly: identity.sequence),
+                  var progress = state.replayProgress[index] else { return false }
+            switch action {
+            case let .advance(count):
+                guard !progress.isConsumed else { return false }
+                progress.progressCount = max(progress.progressCount, count)
+            case .markConsumed:
+                progress.isConsumed = true
+            }
+            state.replayProgress[index] = progress
+            return true
+        }
+    }
+
+    func selectionFailure(
+        _ issue: ReplaySelectionIssue, context: DiagnosticContext,
+        rule: DiagnosticLabel) -> SequentialOperationFailure
+    {
+        SequentialOperationFailure(diagnostic: Diagnostic(issue: .sequential(.selection(issue)),
+                                                          context: context, rule: rule))
     }
 }

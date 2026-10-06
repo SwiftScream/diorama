@@ -22,7 +22,7 @@ struct ScenarioRepositoryStartupTests {
             #expect(storage.writeCount == 0)
             #expect(probe.preparationCount == 1)
             #expect(probe.activationCount == 1)
-            return try [lease.claimNext().value, lease.claimNext().value]
+            return try [lease.consumeNext().value, lease.consumeNext().value]
         }
         guard case let .loaded(baseline, _) = result.loadResult else {
             Issue.record("Expected the exact loaded result"); return
@@ -79,7 +79,7 @@ struct ScenarioRepositoryStartupTests {
         _ = try await Diorama(repository: emptyRepository,
                               scenarioID: "repository-startup", mode: .replay,
                               systems: emptySystem).execute { lease in
-            #expect(throws: SequentialOperationFailure.self) { _ = try lease.claimNext() }
+            #expect(throws: SequentialOperationFailure.self) { _ = try lease.consumeNext() }
         }
         #expect(emptyProbe.activationCount == 1)
 
@@ -184,7 +184,7 @@ struct ScenarioRepositoryValidationTests {
     @Test
     func `persistence registration fails before storage and ignored system callbacks`() async throws {
         let probe = StartupProbe()
-        let system = try probe.system(key: "ignored", allowsUnusedReplayRecords: true)
+        let system = try probe.system(key: "ignored", allowsUnclaimedReplayRecords: true)
 
         let storage = try StartupStorage(document: persistedFixture("random-empty"))
         let repository = try JSONScenarioRepository(
@@ -251,7 +251,7 @@ struct UnmatchedAttachmentStartupTests {
             storage: StartupStorage(document: persistedFixture("random-example")))
         let result = try await Diorama(repository: repository,
                                        scenarioID: "repository-startup", mode: .replay,
-                                       systems: system).execute { lease in try lease.claimNext().value }
+                                       systems: system).execute { lease in try lease.consumeNext().value }
         #expect(result.body == 1842)
 
         guard case let .loaded(baseline, _) = result.loadResult else {

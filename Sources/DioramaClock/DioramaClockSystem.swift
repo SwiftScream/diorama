@@ -53,10 +53,10 @@ public enum DioramaClockSystem {
     /// Replay behavior is added by the next clock unit.
     public static func instance(
         named name: String,
-        allowsUnusedReplayRecords: Bool = false) throws -> ScenarioSystem<any DioramaWallClock>
+        allowsUnclaimedReplayRecords: Bool = false) throws -> ScenarioSystem<any DioramaWallClock>
     {
         try instance(named: name,
-                     allowsUnusedReplayRecords: allowsUnusedReplayRecords)
+                     allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
         {
             SystemWallDateSource()
         }
@@ -70,7 +70,7 @@ public enum DioramaClockSystem {
     /// it never changes the absolute `Date` returned to the consumer.
     public static func instance(
         named name: String,
-        allowsUnusedReplayRecords: Bool = false,
+        allowsUnclaimedReplayRecords: Bool = false,
         sourceFactory: @escaping @Sendable () -> some DioramaWallClock)
         throws -> ScenarioSystem<any DioramaWallClock>
     {
@@ -78,7 +78,7 @@ public enum DioramaClockSystem {
         let trackID = trackID(for: key)
         let attachment = try attachment(named: name)
         return try ScenarioSystem(type: type, attachment: attachment,
-                                  allowsUnusedReplayRecords: allowsUnusedReplayRecords)
+                                  allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
         { context in
             let lease = try context.lease(
                 for: trackID, preparation: ValuePreparation<OverridableValue<Date>>(),

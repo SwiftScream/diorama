@@ -77,7 +77,7 @@ struct ScenarioEvaluationTests {
             systems: [])
         let result = await execution.finish()
         let conditions: [ScenarioEvaluationCondition] = [
-            .noUnexpectedOperations, .noDiagnostics, .allRecordingsUsed, .healthyRecording, .successfulCleanup,
+            .noUnexpectedOperations, .noDiagnostics, .allRecordsClaimed, .healthyRecording, .successfulCleanup,
         ]
         for condition in conditions {
             #expect(result.evaluate(condition).condition == condition)

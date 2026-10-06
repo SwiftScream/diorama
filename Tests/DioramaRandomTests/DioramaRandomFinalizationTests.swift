@@ -27,10 +27,10 @@ struct DioramaRandomFinalizationTests {
         let used = returns.withLock { $0.filter { $0 != 0 }.sorted() }
         #expect(used == Array(values.prefix(used.count)))
         #expect(result.usage[0].tracks[0].activity == .replay(
-            usedCount: UInt64(used.count), unusedCount: UInt64(values.count - used.count)))
-        let unused = result.usage[0].tracks[0].unusedRecords
+            claimedCount: UInt64(used.count), unclaimedCount: UInt64(values.count - used.count)))
+        let unused = result.usage[0].tracks[0].unclaimedRecords
         #expect(unused.map(\.sequence) == Array(UInt64(used.count)..<UInt64(values.count)))
-        #expect(result.evaluate(.allRecordingsUsed).failures == unused.map { .unusedRecord($0) })
+        #expect(result.evaluate(.allRecordsClaimed).failures == unused.map { .unclaimedRecord($0) })
         let diagnostics = result.report.diagnostics + execution.reporter.postFinishDiagnostics
         #expect(diagnostics.count == values.count - used.count)
         #expect(diagnostics.allSatisfy { $0.diagnostic.issue == .lifecycle(.leaseClosed) })
@@ -59,7 +59,7 @@ struct DioramaRandomFinalizationTests {
         }
         #expect(weakExecution == nil)
         let text = result.rendered()
-        #expect(result.usage[0].tracks[0].activity == .replay(usedCount: 1, unusedCount: 2))
+        #expect(result.usage[0].tracks[0].activity == .replay(claimedCount: 1, unclaimedCount: 2))
         #expect(generator?.next() == 0)
         #expect(reporter?.postFinishDiagnostics.map(\.diagnostic.issue) == [.lifecycle(.leaseClosed)])
         #expect(result.rendered() == text)
@@ -68,7 +68,7 @@ struct DioramaRandomFinalizationTests {
         #expect(weakReporter != nil)
         generator = nil
         #expect(weakReporter == nil)
-        #expect(result.evaluate(.allRecordingsUsed).failures.count == 2)
+        #expect(result.evaluate(.allRecordsClaimed).failures.count == 2)
     }
 
     private func replayExecution(

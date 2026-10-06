@@ -96,7 +96,7 @@ struct PersistedConsumerConformanceTests {
             #expect(result.body.0 == 10)
             #expect(result.body.1 == 100)
             #expect(result.body.2 == ConsumerStableValue(7))
-            #expect(result.finalization.evaluate(.allRecordingsUsed).isSatisfied)
+            #expect(result.finalization.evaluate(.allRecordsClaimed).isSatisfied)
             #expect(result.finalization.report.diagnostics.isEmpty)
             guard case .notRequested = result.publication else { Issue.record("Replay wrote storage"); return }
         }
@@ -151,7 +151,7 @@ struct PersistedConsumerConformanceTests {
         #expect(replay.body.0 == 10)
         #expect(replay.body.1 == 500)
         #expect(replay.body.2 == ConsumerStableValue(7))
-        #expect(replay.finalization.evaluate(.allRecordingsUsed).isSatisfied)
+        #expect(replay.finalization.evaluate(.allRecordsClaimed).isSatisfied)
         guard case .notRequested = replay.publication else { Issue.record("Replay wrote storage"); return }
     }
 
@@ -203,8 +203,8 @@ struct PersistedConsumerConformanceTests {
                 return random.next()
             }
         #expect(unused.body == 41)
-        #expect(unused.finalization.usage.map { $0.tracks[0].unusedRecords.count } == [1, 1])
-        #expect(unused.finalization.evaluate(.allRecordingsUsed).failures.count == 2)
+        #expect(unused.finalization.usage.map { $0.tracks[0].unclaimedRecords.count } == [1, 1])
+        #expect(unused.finalization.evaluate(.allRecordsClaimed).failures.count == 2)
         #expect(unused.finalization.report.diagnostics.isEmpty)
 
         let exhausted = try await Diorama(file: file, scenarioID: "usage", mode: .replay,
@@ -225,7 +225,7 @@ struct PersistedConsumerConformanceTests {
             .sequential(.replayExhausted(availableCount: 2)),
         ])
         #expect(exhausted.finalization.report.diagnostics[0].diagnostic.context.recordIdentity?.sequence == 2)
-        #expect(exhausted.finalization.evaluate(.allRecordingsUsed).isSatisfied)
+        #expect(exhausted.finalization.evaluate(.allRecordsClaimed).isSatisfied)
         #expect(try Data(contentsOf: file) == bytes)
     }
 

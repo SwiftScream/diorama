@@ -3,7 +3,7 @@ struct ExecutionUsage: Sendable {
     struct Attachment: Sendable {
         let id: AttachmentID
         let mode: ScenarioMode
-        let allowsUnusedReplayRecords: Bool
+        let allowsUnclaimedReplayRecords: Bool
         let tracks: [TrackID]
     }
 
@@ -15,14 +15,15 @@ struct ExecutionUsage: Sendable {
                 preconditionFailure("Validated system registration is missing")
             }
             return Attachment(id: attachment.id, mode: system.effectiveMode(defaultMode: defaultMode),
-                              allowsUnusedReplayRecords: system.allowsUnusedReplayRecords, tracks: attachment.trackIDs)
+                              allowsUnclaimedReplayRecords: system.allowsUnclaimedReplayRecords,
+                              tracks: attachment.trackIDs)
         }
     }
 
     func snapshot(_ tracks: [SequentialTrackUsage]) -> [AttachmentUsage] {
         active.map { attachment in
             AttachmentUsage(attachmentID: attachment.id, mode: attachment.mode,
-                            allowsUnusedReplayRecords: attachment.allowsUnusedReplayRecords,
+                            allowsUnclaimedReplayRecords: attachment.allowsUnclaimedReplayRecords,
                             tracks: attachment.tracks.map { id in
                                 guard let track = tracks.first(where: { $0.id == id }) else {
                                     preconditionFailure("An activated track must contribute final usage")

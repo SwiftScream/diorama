@@ -49,11 +49,11 @@ struct SequentialTrackOperationTests {
     @Test
     func `close returns frozen usage and permits intentionally discarded results`() async throws {
         let (execution, lease) = try makeExecution(mode: .replay, values: [1, 2])
-        _ = try lease.claimNext()
+        _ = try lease.consumeNext()
 
         let usage = lease.close().usage
-        #expect(usage.activity == .replay(usedCount: 1, unusedCount: 1))
-        #expect(usage.unusedRecords == [RecordIdentity(trackID: lease.id, sequence: 1)])
+        #expect(usage.activity == .replay(claimedCount: 1, unclaimedCount: 1))
+        #expect(usage.unclaimedRecords == [RecordIdentity(trackID: lease.id, sequence: 1)])
         #expect(lease.close().usage == usage)
 
         let result = await execution.finish()
@@ -69,7 +69,7 @@ struct SequentialTrackOperationTests {
             returning: [SequentialRecord<Int>].self)
         { group in
             for _ in values {
-                group.addTask { try lease.claimNext() }
+                group.addTask { try lease.consumeNext() }
             }
             var records: [SequentialRecord<Int>] = []
             for try await record in group {
@@ -83,14 +83,14 @@ struct SequentialTrackOperationTests {
         #expect(Set(claimed.map(\.identity)).count == values.count)
         let result = await execution.finish()
         #expect(result.report.diagnostics.isEmpty)
-        #expect(result.usage[0].tracks[0].activity == .replay(usedCount: 100, unusedCount: 0))
-        #expect(result.usage[0].tracks[0].unusedRecords.isEmpty)
+        #expect(result.usage[0].tracks[0].activity == .replay(claimedCount: 100, unclaimedCount: 0))
+        #expect(result.usage[0].tracks[0].unclaimedRecords.isEmpty)
     }
 
     @Test
     func `exhausted replay requests retain distinct stable requested positions`() async throws {
         let (execution, lease) = try makeExecution(mode: .replay, values: [42])
-        #expect(try lease.claimNext().value == 42)
+        #expect(try lease.consumeNext().value == 42)
         let attempts = await withTaskGroup(
             of: Result<SequentialRecord<Int>, SequentialOperationFailure>.self,
             returning: [Result<SequentialRecord<Int>, SequentialOperationFailure>].self)
@@ -118,8 +118,8 @@ struct SequentialTrackOperationTests {
         #expect(failures.compactMap { $0.diagnostic.context.recordIdentity?.sequence }.sorted() == Array(1..<21))
         let result = await execution.finish()
         #expect(result.report.diagnostics.count == 20)
-        #expect(result.usage[0].tracks[0].activity == .replay(usedCount: 1, unusedCount: 0))
-        #expect(result.usage[0].tracks[0].unusedRecords.isEmpty)
+        #expect(result.usage[0].tracks[0].activity == .replay(claimedCount: 1, unclaimedCount: 0))
+        #expect(result.usage[0].tracks[0].unclaimedRecords.isEmpty)
     }
 
     @Test
@@ -134,8 +134,8 @@ struct SequentialTrackOperationTests {
         let (execution, lease) = try makeExecution(mode: .replay, values: [42], sink: sink)
         leaseReference.withLock { $0 = lease }
 
-        #expect(try lease.claimNext().value == 42)
-        #expect(throws: SequentialOperationFailure.self) { try lease.claimNext() }
+        #expect(try lease.consumeNext().value == 42)
+        #expect(throws: SequentialOperationFailure.self) { try lease.consumeNext() }
         #expect(observedCounts.withLock { $0 } == [1])
         #expect(await (execution.finish()).report.diagnostics.count == 1)
     }
@@ -143,7 +143,7 @@ struct SequentialTrackOperationTests {
     @Test
     func `wrong mode and closed use diagnose without touching track content`() async throws {
         let (recordExecution, recordLease) = try makeExecution(mode: .record, values: [1, 2])
-        #expect(throws: SequentialOperationFailure.self) { try recordLease.claimNext() }
+        #expect(throws: SequentialOperationFailure.self) { try recordLease.consumeNext() }
         #expect(recordLease.baselineRecords().map(\.value) == [1, 2])
         #expect(recordLease.recordedRecords().isEmpty)
         #expect(await (recordExecution.finish()).report.diagnostics.map(\.diagnostic.issue) == [
@@ -164,7 +164,7 @@ struct SequentialTrackOperationTests {
         #expect(replayLease.baselineRecords().map(\.value) == [1, 2])
         #expect(replayLease.recordedRecords().isEmpty)
         _ = await replayExecution.finish()
-        #expect(throws: SequentialOperationFailure.self) { try replayLease.claimNext() }
+        #expect(throws: SequentialOperationFailure.self) { try replayLease.consumeNext() }
         #expect(throws: SequentialOperationFailure.self) {
             try replayLease.record(
                 capturing: {
@@ -181,7 +181,7 @@ struct SequentialTrackOperationTests {
         let (passthroughExecution, passthroughLease) = try makeExecution(mode: .passthrough, values: [1, 2])
         #expect(passthroughLease.baselineRecords().isEmpty)
         #expect(passthroughLease.recordedRecords().isEmpty)
-        #expect(throws: SequentialOperationFailure.self) { try passthroughLease.claimNext() }
+        #expect(throws: SequentialOperationFailure.self) { try passthroughLease.consumeNext() }
         #expect(throws: SequentialOperationFailure.self) {
             try passthroughLease.record(capturing: { 3 }, preparation: ValuePreparation<Int>())
         }
@@ -216,10 +216,10 @@ struct SequentialTrackOperationTests {
         let secondLease = try execution.dependency(
             DependencyKey<HeaderlessSequentialTrackLease<Int>>(attachmentID: second))
 
-        #expect(try secondLease.claimNext().value == 10)
-        #expect(try firstLease.claimNext().value == 1)
-        #expect(try secondLease.claimNext().value == 20)
-        #expect(try firstLease.claimNext().value == 2)
+        #expect(try secondLease.consumeNext().value == 10)
+        #expect(try firstLease.consumeNext().value == 1)
+        #expect(try secondLease.consumeNext().value == 20)
+        #expect(try firstLease.consumeNext().value == 2)
         #expect(await (execution.finish()).report.diagnostics.isEmpty)
     }
 
@@ -250,7 +250,7 @@ struct SequentialTrackOperationTests {
         from lease: HeaderlessSequentialTrackLease<Int>) -> Result<SequentialRecord<Int>, SequentialOperationFailure>
     {
         do {
-            return try .success(lease.claimNext())
+            return try .success(lease.consumeNext())
         } catch {
             return .failure(error)
         }

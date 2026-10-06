@@ -7,13 +7,13 @@ struct DioramaRandomReplayTests {
     @Test
     func `factory may allow unused replay values without discarding their usage facts`() async throws {
         let key = AttachmentKey(rawValue: "optional-random")
-        let instance = try DioramaRandomSystem.instance(named: key.rawValue, allowsUnusedReplayRecords: true)
+        let instance = try DioramaRandomSystem.instance(named: key.rawValue, allowsUnclaimedReplayRecords: true)
         let execution = try replayExecution(key: key, values: [7, 11], instance: instance)
         var generator = try execution.dependency(instance)
         #expect(generator.next() == 7)
         let result = await execution.finish()
-        #expect(result.usage[0].tracks[0].unusedRecords.count == 1)
-        #expect(result.evaluate(.allRecordingsUsed).isSatisfied)
+        #expect(result.usage[0].tracks[0].unclaimedRecords.count == 1)
+        #expect(result.evaluate(.allRecordsClaimed).isSatisfied)
         #expect(result.report.diagnostics.isEmpty)
     }
 

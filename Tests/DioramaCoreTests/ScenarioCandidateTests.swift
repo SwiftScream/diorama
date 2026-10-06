@@ -26,7 +26,7 @@ struct ScenarioCandidateTests {
         try recorded.record(capturing: { 4 }, preparation: preparation)
         let replayed = try execution.dependency(
             ExecutionFixtures.dependencyKey("replay", as: HeaderlessSequentialTrackLease<Int>.self))
-        #expect(try replayed.claimNext().value == 1)
+        #expect(try replayed.consumeNext().value == 1)
         let result = await execution.finish()
         let definition = try #require(result.definition)
         #expect(definition.attachments.map(\.id) == baseline.attachments.map(\.id))

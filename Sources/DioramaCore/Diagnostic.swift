@@ -120,6 +120,8 @@ public enum SequentialOperationIssue: Equatable, Sendable {
     case wrongMode(expected: ScenarioMode, actual: ScenarioMode)
     /// No unclaimed record exists at the requested position.
     case replayExhausted(availableCount: UInt64)
+    /// A system selector could not claim an available record.
+    case selection(ReplaySelectionIssue)
 }
 
 /// The effect of one infrastructure fact on recording completeness.

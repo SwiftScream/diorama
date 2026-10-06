@@ -31,7 +31,7 @@ struct WallRecordingState: Sendable {
         var native: Date?
         var next: Progress?
         do {
-            try lease.append(capturing: {
+            try lease.record(capturing: {
                 let observed = capture()
                 native = observed
                 lastReturned = observed
