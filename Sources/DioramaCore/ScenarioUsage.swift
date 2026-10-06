@@ -9,14 +9,17 @@ public struct SequentialTrackUsage: Equatable, Sendable {
     public enum Activity: Equatable, Sendable {
         /// Successfully admitted observations and reservations left incomplete.
         case record(recordedCount: UInt64, incompleteCount: UInt64)
-        /// Successful synchronous claims and the remaining unclaimed suffix.
-        case replay(usedCount: UInt64, unusedCount: UInt64)
+        /// Successful claims and remaining unclaimed records.
+        case replay(claimedCount: UInt64, unclaimedCount: UInt64)
         /// The attachment never accesses track content.
         case passthrough
     }
 
     /// Every unclaimed replay identity, in stable sequence order.
-    public let unusedRecords: [RecordIdentity]
+    public let unclaimedRecords: [RecordIdentity]
+    /// All claimed records in stable record order. `consumeNext()` records
+    /// consumption immediately with zero system-reported replay steps.
+    public let claimedRecords: [ReplayClaimUsage]
 }
 
 /// Ordered facts for one active system attachment.
@@ -25,11 +28,11 @@ public struct AttachmentUsage: Equatable, Sendable {
     public let attachmentID: AttachmentID
     /// The active mode.
     public let mode: ScenarioMode
-    /// Whether this attachment allows unused replay records during evaluation.
+    /// Whether this attachment allows unclaimed replay records during evaluation.
     ///
     /// This does not suppress operation diagnostics, health, preparation, or
     /// cleanup, and does not waive persistence validation.
-    public let allowsUnusedReplayRecords: Bool
+    public let allowsUnclaimedReplayRecords: Bool
     /// Track facts in declaration order, without their recorded values.
     public let tracks: [SequentialTrackUsage]
 }

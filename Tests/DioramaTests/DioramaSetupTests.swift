@@ -38,9 +38,9 @@ struct DioramaSetupTests {
         let baseline = try DioramaFixtures.definition(["a"])
         let setup = try Diorama(definition: baseline, scenarioID: "setup", mode: .replay, systems: system)
         let first = try await setup.execute { lease in
-            try [lease.claimNext().value, lease.claimNext().value]
+            try [lease.consumeNext().value, lease.consumeNext().value]
         }
-        let second = try await setup.execute { lease in try lease.claimNext().value }
+        let second = try await setup.execute { lease in try lease.consumeNext().value }
         #expect(first.body == [1, 2])
         #expect(second.body == 1)
         #expect(try baseline.attachments[0].track(DioramaFixtures.track("a"), as: Int.self)?.records.count == 2)
@@ -49,7 +49,7 @@ struct DioramaSetupTests {
     @Test
     func `mixed modes add empty record layout and diagnose unmatched content`() async throws {
         let probe = DioramaSetupProbe()
-        let replay = try probe.system("a", allowsUnusedReplayRecords: true).withMode(.replay)
+        let replay = try probe.system("a", allowsUnclaimedReplayRecords: true).withMode(.replay)
         let record = try probe.system("new", values: [99])
         let baseline = try DioramaFixtures.definition(["a", "omitted"])
         let setup = try Diorama(definition: baseline, scenarioID: "mixed", mode: .record,
@@ -57,12 +57,12 @@ struct DioramaSetupTests {
         let result = try await setup.execute { recording, replaying in
             #expect(recording.mode == .record)
             try recording.record(capturing: { 7 }, preparation: ValuePreparation<Int>())
-            return try replaying.claimNext().value
+            return try replaying.consumeNext().value
         }
         #expect(result.body == 1)
         #expect(result.finalization.usage.map(\.attachmentID) == [record.attachment.id, replay.attachment.id])
         #expect(result.finalization.usage[0].tracks[0].activity == .record(recordedCount: 1, incompleteCount: 0))
-        #expect(result.finalization.usage[1].allowsUnusedReplayRecords)
+        #expect(result.finalization.usage[1].allowsUnclaimedReplayRecords)
         #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [
             .baseline(.loadedAttachmentNotConfigured),
         ])
@@ -129,13 +129,13 @@ final class DioramaSetupProbe: Sendable {
     let events = Mutex<[String]>([])
 
     func system(
-        _ key: String, values: [Int] = [], allowsUnusedReplayRecords: Bool = false)
+        _ key: String, values: [Int] = [], allowsUnclaimedReplayRecords: Bool = false)
         throws -> ScenarioSystem<HeaderlessSequentialTrackLease<Int>>
     {
         let attachment = try ScenarioAttachment(id: DioramaFixtures.attachment(key)).adding(
             SequentialTrack(id: DioramaFixtures.track(key), values: preparedValues(values)))
         return try ScenarioSystem(type: DioramaFixtures.type, attachment: attachment,
-                                  allowsUnusedReplayRecords: allowsUnusedReplayRecords)
+                                  allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
         { [self] context in
             events.withLock { $0.append("prepare-" + key) }
             let lease = try context.lease(for: DioramaFixtures.track(key), preparation: ValuePreparation<Int>())

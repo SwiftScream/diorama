@@ -5,8 +5,11 @@ public enum ScenarioEvaluationCondition: Equatable, Sendable {
     case noUnexpectedOperations
     /// No diagnostics of any category occurred before the result froze.
     case noDiagnostics
-    /// All replay records were used, except where their system allows leftovers.
-    case allRecordingsUsed
+    /// All replay records were claimed, except where their system allows leftovers.
+    case allRecordsClaimed
+    /// Every claimed record has been acknowledged as fully replayed by its system.
+    /// This includes records whose simulated operations remain open.
+    case allClaimedRecordsConsumed
     /// No selected diagnostic invalidates the recording candidate.
     case healthyRecording
     /// Every selected attachment's cleanup completed successfully.
@@ -20,7 +23,9 @@ public enum ScenarioEvaluationFailure: Equatable, Sendable {
     /// A retained diagnostic violates the selected condition.
     case diagnostic(ReportedDiagnostic)
     /// A replay record was never claimed.
-    case unusedRecord(RecordIdentity)
+    case unclaimedRecord(RecordIdentity)
+    /// A claimed record has not been acknowledged as fully replayed.
+    case unconsumedRecord(RecordIdentity)
     /// An activated attachment's cleanup failed.
     case cleanup(AttachmentCleanup)
 }
@@ -41,11 +46,11 @@ public extension ScenarioFinalizationResult {
     /// Evaluates frozen facts without reporting test failures or new diagnostics.
     ///
     /// A selected attachment scope excludes scenario-level diagnostics. A system's
-    /// unused-replay waiver affects only `allRecordingsUsed`; all other conditions inspect it.
+    /// unclaimed-replay waiver affects only `allRecordsClaimed`; all other conditions inspect it.
     /// An unknown selected key yields a failure instead of vacuous success.
     /// Late diagnostics stay in the separately retained reporter and cannot
-    /// change this evaluation. Sequential claims complete synchronously, so
-    /// this capability has no separate incomplete replay lifecycle to evaluate.
+    /// change this evaluation. `consumeNext()` claims and consumes synchronously;
+    /// explicit claims remain unconsumed until their system acknowledges replay.
     ///
     /// - Parameters:
     ///   - condition: The policy the caller deliberately chooses to evaluate.
@@ -70,10 +75,17 @@ public extension ScenarioFinalizationResult {
             }
         case .noDiagnostics:
             diagnostics.map { .diagnostic($0) }
-        case .allRecordingsUsed:
-            selected.filter { !$0.allowsUnusedReplayRecords }.flatMap { attachment in
+        case .allRecordsClaimed:
+            selected.filter { !$0.allowsUnclaimedReplayRecords }.flatMap { attachment in
                 attachment.tracks.flatMap { track in
-                    track.unusedRecords.map { .unusedRecord($0) }
+                    track.unclaimedRecords.map { .unclaimedRecord($0) }
+                }
+            }
+        case .allClaimedRecordsConsumed:
+            selected.flatMap { attachment in
+                attachment.tracks.flatMap { track in
+                    track.claimedRecords.filter { !$0.isConsumed }
+                        .map { .unconsumedRecord($0.identity) }
                 }
             }
         case .healthyRecording:

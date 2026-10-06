@@ -32,9 +32,9 @@ struct ScenarioUsageTests {
                 ExecutionFixtures.system("record", journal: journal, mode: .record),
             ])
         let leases = try execution.dependency(replayInstance)
-        #expect(try leases[0].claimNext().value == 11)
-        #expect(try leases[1].claimNext().value == 21)
-        #expect(throws: SequentialOperationFailure.self) { try leases[1].claimNext() }
+        #expect(try leases[0].consumeNext().value == 11)
+        #expect(try leases[1].consumeNext().value == 21)
+        #expect(throws: SequentialOperationFailure.self) { try leases[1].consumeNext() }
         let recording = try execution.dependency(
             DependencyKey<HeaderlessSequentialTrackLease<Int>>(attachmentID: record.id))
         try recording.record(capturing: { 42 }, preparation: ValuePreparation<Int>())
@@ -43,15 +43,15 @@ struct ScenarioUsageTests {
         #expect(result.usage.map(\.mode) == [.replay, .record, .passthrough])
         #expect(result.usage[0].tracks.map(\.id) == [first, second])
         #expect(result.usage.flatMap(\.tracks).map(\.activity) == [
-            .replay(usedCount: 1, unusedCount: 2), .replay(usedCount: 1, unusedCount: 0),
+            .replay(claimedCount: 1, unclaimedCount: 2), .replay(claimedCount: 1, unclaimedCount: 0),
             .record(recordedCount: 1, incompleteCount: 0), .passthrough,
         ])
-        #expect(result.evaluate(.allRecordingsUsed).failures == [
-            .unusedRecord(RecordIdentity(trackID: first, sequence: 1)),
-            .unusedRecord(RecordIdentity(trackID: first, sequence: 2)),
+        #expect(result.evaluate(.allRecordsClaimed).failures == [
+            .unclaimedRecord(RecordIdentity(trackID: first, sequence: 1)),
+            .unclaimedRecord(RecordIdentity(trackID: first, sequence: 2)),
         ])
         #expect(!result.evaluate(.noUnexpectedOperations).isSatisfied)
-        #expect(result.evaluate(.allRecordingsUsed, attachments: [record.id.key, pass.id.key]).isSatisfied)
+        #expect(result.evaluate(.allRecordsClaimed, attachments: [record.id.key, pass.id.key]).isSatisfied)
         let repeated = await execution.finish()
         #expect(repeated.report == result.report)
         #expect(repeated.usage == result.usage)
@@ -65,7 +65,7 @@ struct ScenarioUsageTests {
         let preparations = Mutex(0)
         let instance = try ScenarioSystem(type: ExecutionFixtures.type,
                                           attachment: definition.attachments[0],
-                                          allowsUnusedReplayRecords: true)
+                                          allowsUnclaimedReplayRecords: true)
         { context in
             let lease = try context.lease(
                 for: ExecutionFixtures.track("a"), preparation: ValuePreparation<Int>(validate: { _ in
@@ -83,8 +83,8 @@ struct ScenarioUsageTests {
         #expect(lease.report(.system(DiagnosticLabel("unhealthy")), recordingImpact: .invalidatesCandidate))
         let result = await execution.finish()
         #expect(preparations.withLock { $0 } == 2)
-        #expect(result.usage[0].tracks[0].unusedRecords.count == 2)
-        #expect(result.evaluate(.allRecordingsUsed).isSatisfied)
+        #expect(result.usage[0].tracks[0].unclaimedRecords.count == 2)
+        #expect(result.evaluate(.allRecordsClaimed).isSatisfied)
         #expect(!result.evaluate(.healthyRecording).isSatisfied)
         #expect(!result.evaluate(.noUnexpectedOperations).isSatisfied)
     }

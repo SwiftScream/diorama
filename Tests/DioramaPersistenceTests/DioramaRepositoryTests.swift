@@ -17,7 +17,7 @@ struct DioramaRepositoryTests {
         #expect(storage.readCount == 0)
         #expect(probe.preparationCount == 0)
         for expectedReads in 1...2 {
-            let result = try await setup.execute { lease in try lease.claimNext().value }
+            let result = try await setup.execute { lease in try lease.consumeNext().value }
             #expect(result.body == 0)
             guard case let .loaded(baseline, _) = result.loadResult else {
                 Issue.record("Exact loaded baseline was not retained"); return
@@ -103,8 +103,8 @@ struct DioramaRepositoryTests {
         let system = try StartupProbe().system(key: "boundaries")
         let scenarioID = "repository-setup"
         let setup = try Diorama(repository: repository, scenarioID: scenarioID, mode: .replay, systems: system)
-        let high = try await setup.execute { lease in try lease.claimNext().value }
-        let second = try await setup.execute { lease in try lease.claimNext().value }
+        let high = try await setup.execute { lease in try lease.consumeNext().value }
+        let second = try await setup.execute { lease in try lease.consumeNext().value }
         #expect(second.body == high.body)
         #expect(second.finalization.report == high.finalization.report)
         #expect(second.finalization.usage == high.finalization.usage)

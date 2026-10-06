@@ -18,7 +18,7 @@ struct ConcurrentFinalizationTests {
             systems: [ExecutionFixtures.system("a", journal: journal), blockingSystem(gate: gate, journal: journal)])
         let lease = try execution.dependency(
             ExecutionFixtures.dependencyKey("a", as: HeaderlessSequentialTrackLease<Int>.self))
-        #expect(try lease.claimNext().value == 1)
+        #expect(try lease.consumeNext().value == 1)
         let returned = Mutex(0)
         let first = Task {
             if alreadyCanceled {
@@ -44,7 +44,7 @@ struct ConcurrentFinalizationTests {
         others[0].cancel()
         #expect(returned.withLock { $0 } == 0)
         #expect(lease.isClosed)
-        #expect(throws: SequentialOperationFailure.self) { try lease.claimNext() }
+        #expect(throws: SequentialOperationFailure.self) { try lease.consumeNext() }
         gate.release()
         let result = await first.value
         for other in others {
@@ -53,7 +53,7 @@ struct ConcurrentFinalizationTests {
         await expectSameFacts(execution.finish(), result)
         #expect(result.cleanup.map(\.disposition) == [.completed, .failed])
         #expect(journal.events.withLock { $0.filter { $0.hasPrefix("cleanup-") } } == ["cleanup-b", "cleanup-a"])
-        #expect(result.usage[0].tracks[0].activity == .replay(usedCount: 1, unusedCount: 1))
+        #expect(result.usage[0].tracks[0].activity == .replay(claimedCount: 1, unclaimedCount: 1))
         #expect(result.report.diagnostics.map(\.diagnostic.issue) == [
             .lifecycle(.leaseClosed), .lifecycle(.cleanupFailed),
         ])

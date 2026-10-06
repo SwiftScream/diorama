@@ -25,7 +25,7 @@ struct UnknownSystemDecodingTests {
         let system = try probe.system(key: "active")
         let setup = try Diorama(repository: repository, scenarioID: "unknown-types",
                                 mode: .replay, systems: system)
-        let result = try await setup.execute { lease in try lease.claimNext().value }
+        let result = try await setup.execute { lease in try lease.consumeNext().value }
         #expect(result.body == 7)
         guard case let .loaded(definition, skipped) = result.loadResult else {
             Issue.record("Missing loaded content and omission evidence"); return
@@ -108,7 +108,7 @@ struct UnknownSystemDecodingTests {
         let setup = try Diorama(
             repository: randomRepository(storage: StartupStorage(document: bytes)),
             scenarioID: "unknown-types", mode: .replay, systems: probe.system(key: "active"))
-        let result = try await setup.execute { lease in try lease.claimNext().value }
+        let result = try await setup.execute { lease in try lease.consumeNext().value }
         #expect(result.body == 7)
         #expect(result.finalization.usage.count == 1)
         #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [

@@ -19,13 +19,13 @@ struct DioramaPublicationTests {
         let record = try probe.system(key: "record")
         let replay = try probe.system(key: "replay").withMode(.replay)
         let passthrough = try probe.system(key: "passthrough").withMode(.passthrough)
-        let ignored = try probe.system(key: "ignored", allowsUnusedReplayRecords: true).withMode(.replay)
+        let ignored = try probe.system(key: "ignored", allowsUnclaimedReplayRecords: true).withMode(.replay)
         let result = try await Diorama(repository: randomRepository(storage: storage),
                                        scenarioID: "mixed", mode: .record,
                                        systems: record, replay, passthrough, ignored)
             .execute { record, replay, _, _ in
                 try record.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
-                #expect(try replay.claimNext().value == 3)
+                #expect(try replay.consumeNext().value == 3)
                 #expect(storage.writeCount == 0)
                 #expect(storage.document == bytes)
             }
@@ -40,7 +40,7 @@ struct DioramaPublicationTests {
         #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [
             .baseline(.loadedAttachmentNotConfigured),
         ])
-        #expect(result.finalization.usage.last?.allowsUnusedReplayRecords == true)
+        #expect(result.finalization.usage.last?.allowsUnclaimedReplayRecords == true)
         #expect(try codec.encode(baseline) == bytes)
         #expect(storage.readCount == 1)
         #expect(storage.writeCount == 1)
@@ -60,7 +60,7 @@ struct DioramaPublicationTests {
                                        scenarioID: "preserve", mode: mode, systems: system)
             .execute { lease in
                 if mode == .replay {
-                    _ = try lease.claimNext()
+                    _ = try lease.consumeNext()
                 }
             }
         let definition = try #require(result.definition)
@@ -119,7 +119,7 @@ struct DioramaPublicationTests {
         #expect(storage.document == bytes)
         #expect(storage.writeCount == (failEncoding ? 0 : 1))
         let replay = try await Diorama(definition: definition, scenarioID: "retained", mode: .replay, systems: system)
-            .execute { lease in try lease.claimNext().value }
+            .execute { lease in try lease.consumeNext().value }
         #expect(replay.body == 42)
     }
 

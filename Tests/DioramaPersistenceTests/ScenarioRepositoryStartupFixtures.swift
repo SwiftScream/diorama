@@ -26,7 +26,7 @@ final class StartupProbe: Sendable {
     }
 
     func system(
-        key: String, allowsUnusedReplayRecords: Bool = false)
+        key: String, allowsUnclaimedReplayRecords: Bool = false)
         throws -> ScenarioSystem<HeaderlessSequentialTrackLease<UInt64>>
     {
         let attachmentKey = AttachmentKey(rawValue: key)
@@ -35,7 +35,7 @@ final class StartupProbe: Sendable {
             id: DioramaRandomSystem.attachmentID(for: attachmentKey))
             .adding(HeaderlessSequentialTrack<UInt64>(id: trackID))
         return try ScenarioSystem(type: DioramaRandomSystem.type, attachment: attachment,
-                                  allowsUnusedReplayRecords: allowsUnusedReplayRecords)
+                                  allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
         { [self] context in
             state.withLock { $0.preparations += 1 }
             let preparation = ValuePreparation<UInt64>(validate: { [failValidation] _ in

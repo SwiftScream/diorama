@@ -106,7 +106,7 @@ private final class ReplayRandomNumberGenerator: RandomNumberGenerator, Sendable
     }
 
     func next() -> UInt64 {
-        (try? lease.claimNext().value) ?? 0
+        (try? lease.consumeNext().value) ?? 0
     }
 }
 
@@ -131,14 +131,14 @@ public enum DioramaRandomSystem {
     ///
     /// - Parameters:
     ///   - name: The caller-selected random-domain name.
-    ///   - allowsUnusedReplayRecords: Whether replay may leave random values unused.
+    ///   - allowsUnclaimedReplayRecords: Whether replay may leave random values unclaimed.
     /// - Returns: Typed immutable setup using `SystemRandomNumberGenerator`.
     /// - Throws: Public scenario-definition evidence.
     public static func instance(
         named name: String,
-        allowsUnusedReplayRecords: Bool = false) throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
+        allowsUnclaimedReplayRecords: Bool = false) throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
     {
-        try instance(named: name, allowsUnusedReplayRecords: allowsUnusedReplayRecords) {
+        try instance(named: name, allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords) {
             SystemRandomNumberGenerator()
         }
     }
@@ -165,13 +165,13 @@ public enum DioramaRandomSystem {
     ///
     /// - Parameters:
     ///   - name: The caller-selected random-domain name.
-    ///   - allowsUnusedReplayRecords: Whether replay may leave random values unused.
+    ///   - allowsUnclaimedReplayRecords: Whether replay may leave random values unclaimed.
     ///   - sourceFactory: Creates the live source after all systems prepare.
     /// - Returns: Typed immutable attachment, preparation, and lookup setup.
     /// - Throws: Public scenario-definition evidence.
     public static func instance(
         named name: String,
-        allowsUnusedReplayRecords: Bool = false,
+        allowsUnclaimedReplayRecords: Bool = false,
         sourceFactory: @escaping @Sendable () -> some RandomNumberGenerator & Sendable)
         throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
     {
@@ -181,7 +181,7 @@ public enum DioramaRandomSystem {
             id: attachmentID(for: attachmentKey)).adding(
             HeaderlessSequentialTrack<UInt64>(id: trackID))
         return try ScenarioSystem(type: type, attachment: attachment,
-                                  allowsUnusedReplayRecords: allowsUnusedReplayRecords)
+                                  allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
         { context in
             let preparation = ValuePreparation<UInt64>()
             let lease = try context.lease(for: trackID, preparation: preparation)

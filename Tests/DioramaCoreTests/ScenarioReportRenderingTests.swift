@@ -49,7 +49,7 @@ struct ScenarioReportRenderingTests {
             ])
         let first = try execution.dependency(
             ExecutionFixtures.dependencyKey("z", as: HeaderlessSequentialTrackLease<Int>.self))
-        #expect(try first.claimNext().value == 1)
+        #expect(try first.consumeNext().value == 1)
         execution.reporter.record(Diagnostic(issue: .system(DiagnosticLabel("safe\nlabel")),
                                              context: .track(ExecutionFixtures.track("a")),
                                              fieldPath: [DiagnosticLabel("body"), DiagnosticLabel("name")],
@@ -62,12 +62,13 @@ struct ScenarioReportRenderingTests {
         #expect(text == #"""
         Scenario "execution"
         Attachment system="consumer" key="z" replay usage=included
-          Track "values" replay used=1 unused=1
-            Unused record 1
+          Track "values" replay claimed=1 unclaimed=1
+            Unclaimed record 1
+            Claimed record 0 progress=0 consumed
         Attachment system="consumer" key="a" replay usage=included
-          Track "values" replay used=0 unused=2
-            Unused record 0
-            Unused record 1
+          Track "values" replay claimed=0 unclaimed=2
+            Unclaimed record 0
+            Unclaimed record 1
         Diagnostics 2
           [1] system="consumer" key="a" cleanup-failed
           \#(issueLine)
@@ -109,8 +110,8 @@ struct ScenarioReportRenderingTests {
         #expect(text.contains("Recording health healthy"))
         #expect(!text.contains("SECRET-RECORD"))
         #expect(descriptions.withLock { $0 } == 0)
-        #expect(result.evaluate(.allRecordingsUsed).failures == [
-            .unusedRecord(RecordIdentity(trackID: trackID, sequence: 0)),
+        #expect(result.evaluate(.allRecordsClaimed).failures == [
+            .unclaimedRecord(RecordIdentity(trackID: trackID, sequence: 0)),
         ])
     }
 

@@ -57,8 +57,8 @@ public struct ScenarioSystem<Dependency: Sendable>: Sendable {
     /// This attachment's mode, or `nil` to inherit the scenario default.
     public private(set) var modeOverride: ScenarioMode?
 
-    /// Whether unused replay records are exempt from evaluation.
-    public let allowsUnusedReplayRecords: Bool
+    /// Whether unclaimed replay records are exempt from evaluation.
+    public let allowsUnclaimedReplayRecords: Bool
 
     let prepare: @Sendable (SystemPreparationContext) throws -> PreparedSystem<Dependency>
 
@@ -72,14 +72,14 @@ public struct ScenarioSystem<Dependency: Sendable>: Sendable {
     /// - Parameters:
     ///   - type: Shared descriptor whose identity owns the attachment.
     ///   - attachment: Immutable stable attachment content.
-    ///   - allowsUnusedReplayRecords: Whether unused replay records are acceptable
+    ///   - allowsUnclaimedReplayRecords: Whether unclaimed replay records are acceptable
     ///     for this attachment. A system factory chooses whether to expose this option.
     ///   - prepare: Creates a fresh prepared system for each execution.
     /// - Throws: An attachment identity belonging to another system type.
     public init(
         type: ScenarioSystemType,
         attachment: ScenarioAttachment,
-        allowsUnusedReplayRecords: Bool = false,
+        allowsUnclaimedReplayRecords: Bool = false,
         prepare: @escaping @Sendable (SystemPreparationContext) throws -> PreparedSystem<Dependency>)
         throws(ScenarioDefinitionError)
     {
@@ -91,7 +91,7 @@ public struct ScenarioSystem<Dependency: Sendable>: Sendable {
         self.attachment = attachment
         dependencyKey = DependencyKey(attachmentID: attachment.id)
         modeOverride = nil
-        self.allowsUnusedReplayRecords = allowsUnusedReplayRecords
+        self.allowsUnclaimedReplayRecords = allowsUnclaimedReplayRecords
         self.prepare = prepare
     }
 
@@ -116,8 +116,8 @@ public struct AnyScenarioSystem: Sendable {
     /// Per-attachment mode selected by the caller, if any.
     public let modeOverride: ScenarioMode?
 
-    /// Whether this attachment waives unused-replay-record evaluation.
-    public let allowsUnusedReplayRecords: Bool
+    /// Whether this attachment waives unclaimed-replay-record evaluation.
+    public let allowsUnclaimedReplayRecords: Bool
 
     let prepare: @Sendable (SystemPreparationContext) throws -> AnyPreparedSystem
 
@@ -129,7 +129,7 @@ public struct AnyScenarioSystem: Sendable {
         let prepare = system.prepare
         self.attachmentID = attachmentID
         modeOverride = system.modeOverride
-        allowsUnusedReplayRecords = system.allowsUnusedReplayRecords
+        allowsUnclaimedReplayRecords = system.allowsUnclaimedReplayRecords
         self.prepare = { context in
             let prepared = try prepare(context)
             return AnyPreparedSystem {
