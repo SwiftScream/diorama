@@ -115,12 +115,20 @@ enum SchedulingDeadline: Sendable {
     }
 }
 
-struct SchedulingOrder: Comparable, Sendable {
-    let attachment: Int
-    let track: Int
-    let record: UInt64
+enum SchedulingOrder: Comparable, Sendable {
+    case attachment(Int, track: Int, record: UInt64)
+    case execution
+
+    init(attachment: Int, track: Int, record: UInt64) {
+        self = .attachment(attachment, track: track, record: record)
+    }
 
     static func < (lhs: Self, rhs: Self) -> Bool {
-        (lhs.attachment, lhs.track, lhs.record) < (rhs.attachment, rhs.track, rhs.record)
+        switch (lhs, rhs) {
+        case let (.attachment(left, leftTrack, leftRecord), .attachment(right, rightTrack, rightRecord)):
+            (left, leftTrack, leftRecord) < (right, rightTrack, rightRecord)
+        case (.attachment, .execution): true
+        case (.execution, _): false
+        }
     }
 }

@@ -41,7 +41,7 @@ public final class ScenarioExecution: Sendable {
     private final class Resources: Sendable {
         private let contents: Mutex<ResourceContents>
         private let usage: ExecutionUsage
-        private let time: ExecutionTime
+        let time: ExecutionTime
         private let scheduler: DeadlineEngine
 
         init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease], usage: ExecutionUsage,
@@ -59,7 +59,12 @@ public final class ScenarioExecution: Sendable {
             }
         }
 
-        func finish(reporter: DiagnosticReporter) async -> ScenarioFinalizationResult {
+        func finish(reporter: DiagnosticReporter, horizonIssue: ExecutionTimeIssue?)
+            async -> ScenarioFinalizationResult
+        {
+            if let horizonIssue {
+                reporter.record(Diagnostic(issue: .logicalTime(horizonIssue), recordingImpact: .invalidatesCandidate))
+            }
             await scheduler.stop()?.value
             let final = release(reporter: reporter)
             let report = reporter.freeze()
@@ -93,15 +98,18 @@ public final class ScenarioExecution: Sendable {
     /// Lightweight diagnostic context, independently retainable after finish.
     public let reporter: DiagnosticReporter
 
+    /// The shared execution clock, independent of system attachments and persistence.
+    /// Retaining this value does not extend the execution or scheduler lifetime.
+    public let clock: ScenarioClock
+
     private let state: Mutex<State>
-    private let admission: ExecutionAdmission
 
     private init(systems: [AnyActivatedSystem], leases: [any AnySequentialLease],
-                 reporter: DiagnosticReporter, admission: ExecutionAdmission, usage: ExecutionUsage,
+                 reporter: DiagnosticReporter, usage: ExecutionUsage,
                  definition: ScenarioDefinition, time: ExecutionTime, scheduler: DeadlineEngine)
     {
         self.reporter = reporter
-        self.admission = admission
+        clock = ScenarioClock(time: time, scheduler: scheduler, reporter: reporter)
         state = Mutex(.running(Resources(systems: systems, leases: leases, usage: usage,
                                          definition: definition, time: time, scheduler: scheduler)))
     }
@@ -190,6 +198,7 @@ public final class ScenarioExecution: Sendable {
                 attachment: attachment,
                 mode: system.effectiveMode(defaultMode: defaultMode),
                 reporter: reporter, admission: admission, time: time,
+                clock: ScenarioClock(time: time, scheduler: scheduler, reporter: reporter),
                 scheduling: SchedulingLease(engine: scheduler, attachment: attachment,
                                             order: order, reporter: reporter))
             do {
@@ -221,7 +230,7 @@ public final class ScenarioExecution: Sendable {
             }
         }
         let usage = ExecutionUsage(definition: definition, defaultMode: defaultMode, systems: systems)
-        let execution = ScenarioExecution(systems: activated, leases: leases, reporter: reporter, admission: admission,
+        let execution = ScenarioExecution(systems: activated, leases: leases, reporter: reporter,
                                           usage: usage, definition: definition, time: time, scheduler: scheduler)
         time.start()
         return execution
@@ -281,9 +290,9 @@ public final class ScenarioExecution: Sendable {
         let selected = state.withLock { state in
             switch state {
             case let .running(resources):
-                admission.close()
+                let horizonIssue = resources.time.closeAdmission()
                 let reporter = reporter
-                let task = Task { await resources.finish(reporter: reporter) }
+                let task = Task { await resources.finish(reporter: reporter, horizonIssue: horizonIssue) }
                 state = .finishing(task)
             case .finishing, .finished: break
             }

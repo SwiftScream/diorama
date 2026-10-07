@@ -52,6 +52,7 @@ public final class ExecutionTime: Sendable {
         var clock: ExecutionClock?
         var origin: ContinuousClock.Instant?
         var lastRead: ContinuousClock.Instant?
+        var lastTime: Duration = .zero
         var nextOrder: UInt64 = 0
     }
 
@@ -59,6 +60,7 @@ public final class ExecutionTime: Sendable {
     private let admission: ExecutionAdmission
     private let reporter: DiagnosticReporter
     private let owner = CaptureOwner()
+    let minimumResolution: Duration
 
     init(clock: ExecutionClock,
          admission: ExecutionAdmission, reporter: DiagnosticReporter)
@@ -66,6 +68,7 @@ public final class ExecutionTime: Sendable {
         state = Mutex(State(clock: clock))
         self.admission = admission
         self.reporter = reporter
+        minimumResolution = clock.minimumResolution
     }
 
     func start() {
@@ -90,6 +93,33 @@ public final class ExecutionTime: Sendable {
             return source
         }
         withExtendedLifetime(source) {}
+    }
+
+    /// Stamps the horizon and closes admission while excluding time reads.
+    /// The caller reports any failure after releasing execution isolation.
+    func closeAdmission() -> ExecutionTimeIssue? {
+        state.withLock { state in
+            guard !admission.isClosed else { return nil }
+            let reading = read(state: &state, reservingCapture: false)
+            admission.close()
+            if case let .failure(issue) = reading {
+                return issue
+            }
+            return nil
+        }
+    }
+
+    /// Nonthrowing Clock reads retain the last valid time on failure or closure.
+    func clockNow() -> Duration {
+        let reading = state.withLock { state in
+            (read(state: &state, reservingCapture: false), state.lastTime)
+        }
+        switch reading.0 {
+        case let .success(value): return value.time
+        case let .failure(issue):
+            _ = failure(issue)
+            return reading.1
+        }
     }
 
     /// Returns the duration since this execution completed startup.
@@ -163,25 +193,31 @@ public final class ExecutionTime: Sendable {
     }
 
     private func read(reservingCapture: Bool) -> Result<ExecutionTimeReading, ExecutionTimeIssue> {
-        state.withLock { state in
-            guard !admission.isClosed else { return .failure(.executionClosed) }
-            guard let origin = state.origin, let clock = state.clock,
-                  let lastRead = state.lastRead else { return .failure(.notStarted) }
-            if reservingCapture, state.nextOrder == UInt64.max {
-                return .failure(.overflow)
-            }
-            let instant = clock.now()
-            guard instant >= lastRead else { return .failure(.clockMovedBackward) }
-            let time = origin.duration(to: instant)
-            guard time >= .zero else { return .failure(.clockMovedBackward) }
-            state.lastRead = instant
-            if reservingCapture {
-                let order = state.nextOrder
-                state.nextOrder += 1
-                return .success(ExecutionTimeReading(time: time, order: order, origin: origin, clock: clock))
-            }
-            return .success(ExecutionTimeReading(time: time, order: nil, origin: origin, clock: clock))
+        state.withLock { read(state: &$0, reservingCapture: reservingCapture) }
+    }
+
+    private func read(state: inout State, reservingCapture: Bool)
+        -> Result<ExecutionTimeReading, ExecutionTimeIssue>
+    {
+        guard !admission.isClosed else { return .failure(.executionClosed) }
+        guard let origin = state.origin, let clock = state.clock,
+              let lastRead = state.lastRead else { return .failure(.notStarted) }
+        if reservingCapture, state.nextOrder == UInt64.max {
+            return .failure(.overflow)
         }
+        let instant = clock.now()
+        guard instant >= lastRead else { return .failure(.clockMovedBackward) }
+        let time = origin.duration(to: instant)
+        guard time >= .zero else { return .failure(.clockMovedBackward) }
+        guard time <= .maximumLogicalTime else { return .failure(.overflow) }
+        state.lastRead = instant
+        state.lastTime = time
+        if reservingCapture {
+            let order = state.nextOrder
+            state.nextOrder += 1
+            return .success(ExecutionTimeReading(time: time, order: order, origin: origin, clock: clock))
+        }
+        return .success(ExecutionTimeReading(time: time, order: nil, origin: origin, clock: clock))
     }
 
     private func failure(_ issue: ExecutionTimeIssue) -> ExecutionTimeFailure {

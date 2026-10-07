@@ -2,6 +2,16 @@
 struct ExecutionClock: Sendable {
     let now: @Sendable () -> ContinuousClock.Instant
     let sleep: @Sendable (ContinuousClock.Instant, Duration) async throws -> Void
+    let minimumResolution: Duration
+
+    init(now: @escaping @Sendable () -> ContinuousClock.Instant,
+         sleep: @escaping @Sendable (ContinuousClock.Instant, Duration) async throws -> Void,
+         minimumResolution: Duration = ContinuousClock().minimumResolution)
+    {
+        self.now = now
+        self.sleep = sleep
+        self.minimumResolution = minimumResolution
+    }
 
     static func continuous() -> Self {
         let clock = ContinuousClock()

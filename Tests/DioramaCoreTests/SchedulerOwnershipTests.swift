@@ -63,7 +63,9 @@ struct SchedulerOwnershipTests {
         #expect(!pending.cancel())
         let finish = Task { await execution.finish() }
         gate.release()
-        #expect(await finish.value.report.diagnostics.count == 1)
+        let result = await finish.value
+        #expect(result.report.diagnostics.count == 2)
+        #expect(!result.report.recordingHealth.isHealthy)
         #expect(claimed.registration.phase == .completed)
         #expect(clock.activeWaits == 0)
     }

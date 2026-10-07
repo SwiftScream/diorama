@@ -1,15 +1,5 @@
 import Synchronization
 
-/// The host timer's representable instant range, after logical time is mapped
-/// through this execution's origin.
-private enum SchedulerTimerRange {
-    private static let lastInstant = ContinuousClock().systemEpoch.advanced(by: .maximumLogicalTime)
-
-    static func canRepresent(_ deadline: Duration, from origin: ContinuousClock.Instant) -> Bool {
-        origin <= lastInstant.advanced(by: .zero - deadline)
-    }
-}
-
 struct ScheduledHandoffOrder: Comparable, Sendable {
     let deadline: Duration
     let position: SchedulingOrder
@@ -28,31 +18,40 @@ struct ScheduledHandoffOrder: Comparable, Sendable {
 
 /// One worker owns the timer and hands off whole claimed batches serially.
 final class DeadlineEngine: Sendable {
-    private final class WaitIdentity: Sendable {}
+    /// The host timer's representable instant range, after logical time is mapped
+    /// through this execution's origin.
+    private enum SchedulerTimerRange {
+        private static let lastInstant = ContinuousClock().systemEpoch.advanced(by: .maximumLogicalTime)
 
-    private enum Wake: Sendable {
-        case changed
-        case timer(WaitIdentity)
+        static func canRepresent(_ deadline: Duration, from origin: ContinuousClock.Instant) -> Bool {
+            origin <= lastInstant.advanced(by: .zero - deadline)
+        }
+    }
+
+    private enum ScheduledWork: Sendable {
+        case delivery(@Sendable () async -> Void)
+        case sleep(ClockSleep)
+
+        func cancel(with error: any Error) {
+            if case let .sleep(sleep) = self {
+                sleep.complete(.failure(error))
+            }
+        }
     }
 
     private struct Item: Sendable {
         let order: ScheduledHandoffOrder
         let registration: ScheduledRegistration
-        let delivery: @Sendable () async -> Void
+        let work: ScheduledWork
     }
 
     private struct State: Sendable {
         var pending: [Item] = []
+        var canceledSleeps: [ClockSleep] = []
         var nextRegistration: UInt64 = 0
         var worker: Task<Void, Never>?
         var closed = false
         var failure: SchedulingIssue?
-    }
-
-    private struct Wait {
-        let identity: WaitIdentity
-        let deadline: Duration
-        let task: Task<Bool, Never>
     }
 
     private enum Work {
@@ -61,6 +60,19 @@ final class DeadlineEngine: Sendable {
         case idle
         case stopped
         case failed(SchedulingIssue)
+    }
+
+    private final class WaitIdentity: Sendable {}
+
+    private enum Wake: Sendable {
+        case changed
+        case timer(WaitIdentity)
+    }
+
+    private struct Wait {
+        let identity: WaitIdentity
+        let deadline: Duration
+        let task: Task<Bool, Never>
     }
 
     private let state = Mutex(State())
@@ -77,6 +89,16 @@ final class DeadlineEngine: Sendable {
 
     func register(_ requested: SchedulingDeadline, order: SchedulingOrder,
                   delivery: @escaping @Sendable () async -> Void)
+        throws(SchedulingIssue) -> ScheduledItemHandle
+    {
+        try register(requested, order: order, work: .delivery(delivery))
+    }
+
+    func registerSleep(at deadline: Duration, sleep: ClockSleep) throws(SchedulingIssue) -> ScheduledItemHandle {
+        try register(.absolute(deadline), order: .execution, work: .sleep(sleep))
+    }
+
+    private func register(_ requested: SchedulingDeadline, order: SchedulingOrder, work: ScheduledWork)
         throws(SchedulingIssue) -> ScheduledItemHandle
     {
         let result: Result<ScheduledItemHandle, SchedulingIssue> = state.withLock { state in
@@ -100,7 +122,7 @@ final class DeadlineEngine: Sendable {
             let registration = ScheduledRegistration(engine: self)
             let handoffOrder = ScheduledHandoffOrder(deadline: deadline, position: order,
                                                      registration: state.nextRegistration)
-            let item = Item(order: handoffOrder, registration: registration, delivery: delivery)
+            let item = Item(order: handoffOrder, registration: registration, work: work)
             state.nextRegistration += 1
             let index = state.pending.firstIndex { item.order < $0.order } ?? state.pending.endIndex
             state.pending.insert(item, at: index)
@@ -124,12 +146,19 @@ final class DeadlineEngine: Sendable {
             for item in state.pending {
                 item.registration.transition(to: .canceled)
             }
-            let detached = (state.worker, state.pending)
+            let detached = (state.worker, state.pending, state.canceledSleeps)
             state.worker = nil
             state.pending = []
+            state.canceledSleeps = []
             return detached
         }
         wake.continuation.finish()
+        for item in detached.1 {
+            item.work.cancel(with: CancellationError())
+        }
+        for sleep in detached.2 {
+            sleep.complete(.failure(CancellationError()))
+        }
         withExtendedLifetime(detached.1) {}
         return detached.0
     }
@@ -139,10 +168,16 @@ final class DeadlineEngine: Sendable {
             guard let index = state.pending.firstIndex(where: { $0.registration === registration })
             else { return nil }
             registration.transition(to: .canceled)
-            return state.pending.remove(at: index)
+            let item = state.pending.remove(at: index)
+            if case let .sleep(sleep) = item.work {
+                state.canceledSleeps.append(sleep)
+            }
+            return item
         }
         guard let removed else { return false }
         wake.continuation.yield(.changed)
+        // The worker or stop owns canceled-sleep completion. A caller paused
+        // here cannot resume a continuation after finalization has returned.
         // Capture destruction may reenter scheduling or reporting.
         withExtendedLifetime(removed) {}
         return true
@@ -155,11 +190,27 @@ final class DeadlineEngine: Sendable {
     private func deliver(_ items: [Item], tasks: inout DiscardingTaskGroup) {
         for item in items {
             let registration = item.registration
-            let body = item.delivery
-            tasks.addTask {
-                await body()
-                self.complete(registration)
+            switch item.work {
+            case let .delivery(body):
+                tasks.addTask {
+                    await body()
+                    self.complete(registration)
+                }
+            case let .sleep(sleep):
+                sleep.complete(.success(()))
+                complete(registration)
             }
+        }
+    }
+
+    private func completeCancellations() {
+        let canceled = state.withLock { state in
+            let canceled = state.canceledSleeps
+            state.canceledSleeps = []
+            return canceled
+        }
+        for sleep in canceled {
+            sleep.complete(.failure(CancellationError()))
         }
     }
 
@@ -218,6 +269,7 @@ final class DeadlineEngine: Sendable {
 
     private func drain(wait: inout Wait?, tasks: inout DiscardingTaskGroup) async -> Bool {
         while true {
+            completeCancellations()
             let work = takeWork()
             if case let .wait(deadline, _) = work, wait?.deadline == deadline {
                 return true
@@ -274,11 +326,19 @@ final class DeadlineEngine: Sendable {
             for item in state.pending {
                 item.registration.transition(to: .canceled)
             }
-            let discarded = state.pending
+            let discarded = (state.pending, state.canceledSleeps)
             state.pending = []
+            state.canceledSleeps = []
             return discarded
         }
-        reporter.record(Diagnostic(issue: .scheduling(issue)))
+        let diagnostic = Diagnostic(issue: .scheduling(issue))
+        reporter.record(diagnostic)
+        for item in discarded.0 {
+            item.work.cancel(with: SchedulingFailure(diagnostic: diagnostic))
+        }
+        for sleep in discarded.1 {
+            sleep.complete(.failure(CancellationError()))
+        }
         withExtendedLifetime(discarded) {}
     }
 }

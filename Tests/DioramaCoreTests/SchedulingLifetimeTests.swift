@@ -96,7 +96,9 @@ struct SchedulingLifetimeTests {
             #expect(error.diagnostic.issue == .scheduling(issue))
         }
         let result = await execution.finish()
-        #expect(result.evaluate(.noUnexpectedOperations).failures.count == 2)
+        // A still-backward source also fails the newly stamped finish horizon.
+        #expect(result.evaluate(.noUnexpectedOperations).failures.count == (backward ? 3 : 2))
+        #expect(result.report.recordingHealth.isHealthy == !backward)
         #expect(result.rendered().contains(backward
                 ? "scheduling-logical-time-clock-moved-backward" : "scheduling-clock-wait-failed"))
         #expect(journal.values.isEmpty)

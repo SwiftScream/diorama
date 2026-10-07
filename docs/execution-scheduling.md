@@ -38,6 +38,12 @@ Every drain atomically claims the complete currently due batch, ordered by:
 3. track declaration order and record sequence;
 4. atomic registration sequence.
 
+The [Core execution clock](execution-time-service.md#swift-clock-for-application-code)
+also registers runtime sleeps with this engine. For equal deadlines, attachment
+work precedes execution-clock sleeps, which use atomic registration order among
+themselves. These sleeps have execution context rather than fabricated track or
+record identities. They never claim or consume recorded values.
+
 A late wake preserves this ordering across different deadlines. Work registered
 while delivery runs joins a subsequent batch, including work with an earlier
 logical deadline. Handoff order determines task submission, not delivery body
@@ -96,11 +102,14 @@ explicitly; a serial executor alone does not establish task arrival order.
 ## Shutdown and ownership
 
 The worker starts with the first accepted registration. Executions that never
-schedule work create no scheduler worker or timer. Finish closes admission,
+schedule work create no scheduler worker or timer. Finish stamps and freezes
+the logical horizon while closing admission,
 cancels pending registrations, releases their captures, and cancels and joins
 the active wait. It joins every claimed delivery task before system cleanup and
 report freezing. A claimed delivery may complete during shutdown but cannot
 schedule follow-up work.
+Pending clock sleeps resume with `CancellationError`; claimed sleeps complete
+normally. The scheduler joins their handoff, not subsequent application work.
 
 Repeated and concurrent `finish()` callers share one result. Canceling a finish
 waiter does not cancel delivery, abandon cleanup, or return a partial result.

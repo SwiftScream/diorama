@@ -22,6 +22,15 @@ struct DeadlineEngineTests {
         #expect(keys.sorted { $0.0 < $1.0 }.map(\.1) == [
             "earliest", "z-1", "z-3-first", "z-3-second", "z-second", "a",
         ])
+        let clocks: [(ScheduledHandoffOrder, String)] = [
+            (.init(deadline: .seconds(10), position: .execution, registration: 0), "clock-first"),
+            (.init(deadline: .seconds(10), position: .execution, registration: 2), "clock-second"),
+            (.init(deadline: .seconds(4), position: .execution, registration: 1), "clock-earliest"),
+        ]
+        #expect((clocks + keys).sorted { $0.0 < $1.0 }.map(\.1) == [
+            "clock-earliest", "earliest", "z-1", "z-3-first", "z-3-second", "z-second", "a",
+            "clock-first", "clock-second",
+        ])
 
         let clock = SchedulerTestClock()
         let (execution, systems) = try SchedulerFixtures.setup(["z", "a"], clock: clock.source)
