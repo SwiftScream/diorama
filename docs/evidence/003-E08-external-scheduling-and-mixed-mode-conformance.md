@@ -77,6 +77,11 @@ release example build and execution. The rebase preserves both E08 commit
 patches without conflicts; `git diff --check` against F04 passes. iOS Simulator,
 Linux, and coverage exports are not rerun for this rebase.
 
+The initial PR's iOS spike gate exposes an intermittent completion failure in
+the existing D02 unsupported-conversion fixture before E08's package tests run.
+The [D02 CI stabilization record](003-D02-delivery-and-delegate-boundaries.md#ci-response-decision-stabilization--2026-10-07)
+documents the callback-order correction and repeated Simulator verification.
+
 | Gate | Result |
 | --- | --- |
 | Focused temporal consumer and Core integration suites | All nine tests pass, including both current-answer timing cases. |

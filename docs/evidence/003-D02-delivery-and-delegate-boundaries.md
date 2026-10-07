@@ -223,3 +223,31 @@ passes with zero violations. V-doc checks cover local links, anchors, status,
 and `git diff --check` across the complete branch. No hosted CI or production
 suite result is claimed by this isolated spike. Generated logs and result
 bundles remain local artifacts.
+
+## CI response-decision stabilization — 2026-10-07
+
+E08's [iOS CI job](https://github.com/SwiftScream/diorama/actions/runs/37564166752/job/112607975470)
+fails in the existing controlled `download` case: Foundation logs the supplied
+`D02UnsupportedConversion/1` error, but the consumer does not receive completion
+before the 30-second watchdog expires. The spike gate fails before E08's package
+tests run. This is a test assertion failure, with no runner failure in the log.
+Ten local iterations of the original suite pass, so the failure is intermittent.
+
+The inferred race is between native error delivery and resolution of the
+response-disposition callback. The fixture now answers `.allow` before sending
+the custom error, replacing the error-before-answer ordering described above.
+The test cannot emit body bytes during this interval: it waits for the `head`
+flag, which the callback sets only after the terminal error is sent. The requested
+download/stream conversion remains rejected, and the existing custom-error,
+empty-body, zero-connection, and terminal-delivery assertions remain intact.
+The watchdog is unchanged.
+
+The corrected suite passes ten iOS Simulator iterations, covering all 140
+parameterized cases, and the focused macOS suite passes all 14 cases.
+The full spike gates, `Spikes/URLSessionInterception/run swiftpm` and
+`Spikes/URLSessionInterception/run ios`, also pass: 77 tests pass and the suite's
+five existing opt-in/platform-specific tests are skipped on each platform.
+`scripts/check` passes formatting, strict lint, all 328 host tests,
+warning-as-error builds, and the release example. iOS uses Xcode 27.0
+(`27A266a`) and the iPhone 17 / iOS 27.0 (`24A434`) Simulator on macOS 27.0.1.
+These repetitions do not claim to prove every possible native callback schedule.

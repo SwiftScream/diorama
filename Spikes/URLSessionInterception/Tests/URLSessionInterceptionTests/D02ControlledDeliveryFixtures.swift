@@ -153,11 +153,14 @@ final class D02ControlledConsumer: NSObject, URLSessionDataDelegate {
             let consumer = D02ConversionRequester(stream: mode == "stream")
             consumer.urlSession(session, dataTask: dataTask, didReceive: response) { decision in
                 self.result.withLock { $0.diagnostics.append(String(decision.rawValue)) }
+                // Resolve the response decision before reporting failure.
+                // Failing while Foundation is still waiting on this decision
+                // can lose the task's completion callback on iOS. The test
+                // waits for `head` before emitting bytes, so none can arrive
+                // between this allow and the terminal error.
+                completionHandler(.allow)
                 D02ControlledProtocol.active.withLock { $0 }?.finish(
                     error: NSError(domain: "D02UnsupportedConversion", code: 1))
-                // Delivery is already terminal. Release Foundation's response
-                // wait without replacing the infrastructure error with -999.
-                completionHandler(.allow)
             }
         default: completionHandler(.allow)
         }
