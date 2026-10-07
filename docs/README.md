@@ -223,6 +223,11 @@ proposal for discussion, with its review gate recorded in the owning plan.
 - [Core execution-clock evidence](evidence/003-F06-core-execution-clock.md)
   records attachment-free Swift Clock access, logical instants, cancellation
   and horizon ownership, scoped consumer access, and platform verification.
+- [Clock usage guide](clock-usage.md) explains wall observations, execution
+  delays, mixed modes, authored overrides, and timeout ownership.
+- [Clock composition conformance evidence](evidence/003-F07-clock-composition-conformance.md)
+  records public-only persisted and timed composition, examples, and platform
+  acceptance limitations.
 
 ## Historical boundary
 

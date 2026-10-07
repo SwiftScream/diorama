@@ -1453,7 +1453,18 @@ no placement or checkpoint implementation is authorized.
 
 ### 003-F07 — Wall-clock platform and execution-clock composition conformance
 
-- Recommended model: GPT-6 Sol; reasoning: `high`. Full clock acceptance combines portable codecs, persistence, mixed timed systems, and quiescence evidence.
+- Status: Complete. The owner confirms scope
+  and GPT-6.1 Sol at `high` reasoning on 2026-10-08 and authorizes a separate
+  branch stacked on F06 during its review. Canonical macOS/iOS/Linux checks,
+  public examples, coverage, and targeted iOS 18.0 scalar/wall composition
+  verification pass on 2026-10-08.
+  The owner approves the execution-context compatibility update, fixup
+  consolidation, and branch publication on 2026-10-09. After F06 merges, the
+  owner authorizes PR creation into `master` on 2026-10-09. Required checks and
+  a separate explicit owner request still gate merge.
+- Evidence: [Clock composition conformance](../evidence/003-F07-clock-composition-conformance.md).
+
+- Recommended model: GPT-6.1 Sol; reasoning: `high`. Full clock acceptance combines portable codecs, persistence, mixed timed systems, and quiescence evidence.
 - Prerequisites: 003-F05–003-F06; DD15 and its execution-clock ownership amendment.
 - Scope: Complete persisted/mixed-mode/portable wall-clock evidence and examples composing wall dependencies with the independent Core execution clock.
 - Expected files/modules: Wall conformance fixtures and public-only consumer tests, clock capability and override documentation and examples.
