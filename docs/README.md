@@ -209,6 +209,9 @@ proposal for discussion, with its review gate recorded in the owning plan.
 - [Wall-source recording and passthrough evidence](evidence/003-F03-wall-source-recording-and-passthrough.md)
   records native Date forwarding, serialized source capture, timezone selection,
   safe failure behavior, and local platform verification.
+- [Native capture refactor assessment](evidence/003-F03A-native-capture-operation.md)
+  records measured caller savings and the owner decision to retain the existing
+  recording APIs.
 - [Replay-continuation preparation evidence](evidence/003-F04-replay-continuation-preparation.md)
   records stored-value replay, opt-in continuation, atomic consumption, and
   escaped-lease lifetime verification.

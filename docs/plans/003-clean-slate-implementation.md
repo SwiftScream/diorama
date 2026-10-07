@@ -419,7 +419,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | C     | 003-C01–003-C07 plus 003-C04A–003-C04B | Persisted random and consumer-defined systems; first complete vertical path. |
 | D     | 003-D01–003-D05      | Isolated URLProtocol evidence and reviewed native capability boundaries.     |
 | E     | 003-E01–003-E08      | Shared real-time scheduler and system-owned record services.           |
-| F     | 003-F01–003-F07 plus 003-F03A | Complete portable clock system and shared native capture. |
+| F     | 003-F01–003-F07; 003-F03A abandoned | Complete portable clock system. |
 | G     | 003-G01–003-G09      | Portable location replay and narrow Apple live/delegate integration.         |
 | H     | 003-H01–003-H14      | Shared HTTP domain, resource publication, strict URLSession lifecycle data.  |
 | I     | 003-I01–003-I09      | Incremental production URLSession conformance across platform bridges.       |
@@ -1324,9 +1324,15 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-F03A — Shared native capture and recording operation
 
-- Status: Deferred. The owner requests this future refactor unit during F03
-  review on 2026-10-06. Do not begin implementation until Phase E is complete
-  and the owner separately confirms this unit's scope.
+- Status: Abandoned on 2026-10-07 at the owner's request. The prototype passes
+  its local verification but removes only 10 Random source lines and two
+  WallClock source lines overall. Its added Core API and bookkeeping do not
+  provide a fruitful reduction in the code required to implement recording.
+  The owner directs discarding the unmerged implementation branch.
+- Evidence: [Native capture refactor assessment](../evidence/003-F03A-native-capture-operation.md).
+- Disposition: Retain the existing recording APIs. This unit is no longer
+  required for Phase F or Plan 003 completion. The original scope below is
+  historical; it does not authorize restarting the refactor.
 - Prerequisites: All Phase E units required by the active approved plan,
   including its final external/mixed-mode conformance gate; 003-F03;
   DD06, DD09, DD13, DD15. Placement beside F03 does not bypass the Phase E gate.
