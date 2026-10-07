@@ -35,6 +35,10 @@ and persist host scheduler noise rather than external dependency behavior.
 
 ## One system, two facets
 
+The [execution-clock ownership amendment](#execution-clock-ownership-amendment--owner-approved-2026-10-07)
+supersedes this original grouping. The wall system remains optional; Core owns
+the execution clock independently of attachments.
+
 One named clock-system attachment vends two distinct dependencies:
 
 1. A **wall-clock facet** conforms to a small Diorama-owned protocol whose
@@ -457,3 +461,48 @@ an authored override.
 This refinement supersedes the setup-supplied timezone option above. It
 preserves the existing whole-origin override contract. F03 implements fresh
 capture; F05 owns baseline override merging.
+
+## Execution-clock ownership amendment — owner-approved 2026-10-07
+
+The owner approves moving the monotonic Swift `Clock` into `DioramaCore` and
+revising plan units F06 and F07 before implementation. Monotonic reads and
+sleeps are execution infrastructure: they have no recorded values, attachment
+mode, replay cursor, or independent source. Core already owns their origin,
+deadline engine, and lifetime.
+
+`DioramaCore` owns the logical instant and Swift `Clock` implementation. Every
+successful execution exposes its clock, including executions with no systems.
+The `Diorama` consumer API exposes that same clock during its scoped body for
+application dependency injection. System authors can obtain it through their
+execution services. Using it requires neither a `DioramaClock` import nor a
+clock attachment, empty wall track, persistence registration, or dependency key.
+It does not add records, usage counts, or persisted fields.
+
+`DioramaClock` owns independently named wall sources and their record, replay,
+passthrough, override, and persistence behavior. An empty wall recording still
+means no wall observations; it is no longer necessary to represent execution
+clock use. A declared replay wall attachment still requires its baseline track.
+
+All execution-clock handles in a run share one origin, scheduler, and shutdown
+boundary. Instants retain the existing identity-free `Duration` semantics;
+transferred offsets are interpreted against the receiving execution's origin.
+Sleep cancellation, zero-tolerance scheduling, checked instant arithmetic,
+frozen horizon, and diagnostic closed-handle behavior remain as specified
+above. Execution-clock diagnostics use execution context without fabricating
+an attachment or record identity. Scheduler ordering must accommodate these
+runtime sleeps deterministically alongside attachment deliveries; it does not
+promise application task resumption order.
+
+This amendment supersedes the "one system, two facets" grouping, the
+monotonic-only empty-wall requirement, and attachment ownership of monotonic
+diagnostics in this decision. It reconciles DD02's clock example and capability
+table, DD14's execution services, and DD19's shared time/scheduler boundary with
+Core ownership. DD18's consumer module still owns scoped orchestration and
+exposes the Core clock without whole-module re-exports. Historical descriptions
+remain records of the original decision. Wall schemas and existing recorded
+values do not change.
+
+F06 implements the Core execution clock, consumer access, and lifecycle proof.
+F07 completes wall-system portability and composition with the independent
+execution clock. This amendment authorizes no virtual time, playback-rate
+control, additional dependency, or platform increase.

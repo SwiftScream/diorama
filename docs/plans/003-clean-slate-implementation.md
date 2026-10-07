@@ -1417,28 +1417,31 @@ records insertion/removal and positional override evidence. It recommends a
 separately approved design unit in a successor plan for owner consideration;
 no placement or checkpoint implementation is authorized.
 
-### 003-F06 — Logical Swift Clock facet and closed-handle behavior
+### 003-F06 — Core execution Clock and closed-handle behavior
 
+- Status: In progress. The owner approves the DD15 ownership amendment,
+  revised F06/F07 scope, and commencement on 2026-10-07 with the recommended
+  GPT-6 Astra at `high` reasoning. Documentation precedes implementation.
 - Recommended model: GPT-6 Astra; reasoning: `high`. Swift Clock conformance combines cancellation, transferred logical instants, frozen horizons, and scheduler lifetime.
-- Prerequisites: 003-F04, 003-E08; DD14–DD15.
-- Scope: Add Sendable/Hashable/Comparable logical instants and Clock conformance using public scheduler services, including sleep cancellation and closure.
-- Expected files/modules: Clock monotonic facet/instant and lifecycle tests.
+- Prerequisites: 003-E08; DD14–DD15, including the approved execution-clock ownership amendment.
+- Scope: Add Core-owned Sendable/Hashable/Comparable logical instants and Swift Clock conformance over the shared execution scheduler, including sleep cancellation, closure, system-author access, and scoped consumer access.
+- Expected files/modules: `DioramaCore` clock/instant, time and scheduler lifecycle support, `Diorama` scoped access, Core and public-only consumer tests, execution-clock documentation and evidence.
 - Public behavior: Instants are Duration offsets without execution identity; receiving executions interpret transferred offsets locally.
-  Sleeps are never recorded.
-  Finish cancels pending sleeps and freezes now; new closed sleeps diagnose and throw execution-closed, while canceled pending sleeps throw CancellationError.
-  Closed now diagnoses and returns the frozen horizon.
-- Tests/verification: V-code; instant arithmetic/range preconditions, past deadlines, tolerance, cross-attachment/execution offsets, no persisted sleep counts, cancellation races, frozen instant and all escaped-handle cases.
-- Exclusions: Public host instants, wall-derived monotonic time, virtual time, broad availability beyond Q2, comparing cross-execution UUIDs.
-- Checkpoint: R; review standard Clock API semantics and scheduler ownership.
+  The clock is available without attachments or `DioramaClock`; reads and sleeps have no persisted representation, mode, or usage counts.
+  Finish cancels pending sleeps and freezes now at the admission-closing horizon; new closed sleeps diagnose and throw execution-closed, while canceled pending sleeps throw CancellationError.
+  Closed now diagnoses and returns the frozen horizon. Diagnostics identify the execution without fabricated attachment/record identities.
+- Tests/verification: V-code; instant arithmetic/range preconditions, past deadlines, tolerance, shared and cross-execution offsets, attachment-free execution and scoped consumer use, no persisted sleep counts, cancellation/claim/finish races, frozen instant and all escaped-handle cases, released scheduler/source ownership.
+- Exclusions: Wall API/schema changes, public host instants, wall-derived monotonic time, virtual time, broad availability beyond Q2, comparing cross-execution UUIDs, F07's broader complete-system conformance.
+- Checkpoint: R; review standard Clock API semantics, execution ownership, and the scoped consumer access API.
 
-### 003-F07 — Clock platform and complete-system conformance
+### 003-F07 — Wall-clock platform and execution-clock composition conformance
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Full clock acceptance combines portable codecs, persistence, mixed timed systems, and quiescence evidence.
-- Prerequisites: 003-F05–003-F06; DD15.
-- Scope: Complete persisted/mixed-mode/portable clock evidence and user examples.
-- Expected files/modules: Clock conformance fixtures and public-only consumer tests, clock capability and override documentation.
-- Public behavior: Optional wall/monotonic facets work together or independently; multiple walls remain independent while monotonic deadlines share an execution.
-- Tests/verification: V-code; macOS/iOS/Linux Date/timezone/scalar goldens, monotonic-only empty fixtures, concurrent calls, file re-record/replay, live-source isolation, clock timeouts alongside synthetic stream/interactions, quiescence and truthful minimum-runtime versus current-simulator evidence.
+- Prerequisites: 003-F05–003-F06; DD15 and its execution-clock ownership amendment.
+- Scope: Complete persisted/mixed-mode/portable wall-clock evidence and examples composing wall dependencies with the independent Core execution clock.
+- Expected files/modules: Wall conformance fixtures and public-only consumer tests, clock capability and override documentation and examples.
+- Public behavior: Optional wall attachments and the execution clock work together or independently; multiple walls retain independent observations while all execution-clock handles share a scheduler. Execution-clock-only use needs no wall attachment or payload.
+- Tests/verification: V-code; macOS/iOS/Linux Date/timezone/scalar goldens, execution-clock use without persisted clock content, empty wall fixtures, concurrent calls, file re-record/replay, live-source isolation, execution-clock timeouts alongside synthetic stream/interactions, quiescence and truthful minimum-runtime versus current-simulator evidence.
 - Exclusions: Regional timezone persistence, calendars, new playback policies, adding an optional algorithms package without demonstrated need and approval.
 - Checkpoint: R; stop at a complete clock milestone with documented limitations.
 

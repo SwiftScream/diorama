@@ -63,6 +63,13 @@ tasks afterward crashes on the tested native runtimes. No recoverable error or
 diagnostic is promised before interception can run. Existing live tasks may
 finish through detached forwarding; replay still requires native quiescence.
 
+On 2026-10-07, the owner approves [Decision 15's execution-clock ownership
+amendment](15-clock-system.md#execution-clock-ownership-amendment--owner-approved-2026-10-07):
+`DioramaCore` owns the runtime Swift `Clock`, exposed by executions and scoped
+consumer runs independently of wall attachments. `DioramaClock` retains wall
+recording and replay. The amendment explicitly reconciles DD02, DD14, DD18,
+and DD19 and revises F06/F07 without changing wall schemas.
+
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |
 | 1 | [Common abstraction](01-common-abstraction.md) | `01-common-abstraction.md` | Accepted |
