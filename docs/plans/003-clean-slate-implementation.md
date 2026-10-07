@@ -1392,7 +1392,14 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 
 ### 003-F05 — Clock override normalization and re-record merge
 
-- Recommended model: GPT-6 Sol; reasoning: `high`. Positional override survival and fresh-observation merge rules must preserve the baseline and public extension boundary.
+- Status: Complete. The owner confirms the outlined scope and
+  GPT-6.1 Sol at `high` reasoning on 2026-10-07. The typed finalization hook,
+  clock override merge, canonical fixture, and local macOS/iOS Simulator/Linux
+  verification are complete. After review, the owner authorizes PR creation
+  into `master` on 2026-10-07. Required checks and a separate explicit owner
+  request still gate merge.
+- Evidence: [Clock override normalization and merge](../evidence/003-F05-clock-override-normalization-and-merge.md).
+- Recommended model: GPT-6.1 Sol; reasoning: `high`. Positional override survival and fresh-observation merge rules must preserve the baseline and public extension boundary.
 - Prerequisites: 003-F04, 003-C05; DD03, DD07, DD09, DD15.
 - Scope: Add deliberate origin/later-delta overrides and clock-specific merge through the public candidate preparation/finalization extension boundary.
 - Expected files/modules: Clock override codec/merge, necessary public merge hook, baseline-to-candidate fixtures and transient report tests.
@@ -1405,12 +1412,10 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Exclusions: Heuristic positional rematching, overriding random values, applying clock deletion policy to every system, sticky setup configuration.
 - Checkpoint: R; review merge results and any public merge service addition.
 
-After F05 review, update the exploratory
-[named checkpoint design notes](../checkpoint-design-notes.md) with its
-insertion/removal and override evidence. Reconsider whether a separate,
-owner-approved checkpoint unit belongs immediately after Phase F, at the end
-of Plan 003, or in a successor plan. This follow-up does not expand F05 or
-authorize checkpoint implementation.
+The post-review [named checkpoint assessment](../checkpoint-design-notes.md#f05-evidence-and-placement-assessment--2026-10-07)
+records insertion/removal and positional override evidence. It recommends a
+separately approved design unit in a successor plan for owner consideration;
+no placement or checkpoint implementation is authorized.
 
 ### 003-F06 — Logical Swift Clock facet and closed-handle behavior
 

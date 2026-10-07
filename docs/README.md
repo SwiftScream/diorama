@@ -217,6 +217,9 @@ proposal for discussion, with its review gate recorded in the owning plan.
   escaped-lease lifetime verification.
 - [Sequential wall replay and exhaustion evidence](evidence/003-F04-sequential-wall-replay-and-exhaustion.md)
   records replay claims, diagnostics, closed handles, and platform verification.
+- [Clock override normalization and merge evidence](evidence/003-F05-clock-override-normalization-and-merge.md)
+  records typed finalization merge, positional override preservation, healthy
+  deletion, canonical output, and whole-publication refusal on invalid merges.
 
 ## Historical boundary
 

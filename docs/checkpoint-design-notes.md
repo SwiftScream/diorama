@@ -2,11 +2,11 @@
 
 - Status: Exploratory; not an accepted design decision or approved implementation unit.
 - Recorded: 2026-10-03, during 003-F02 review.
-- Revisit: After 003-F05 review, using its insertion, removal, and override evidence.
+- Revisited: 2026-10-07 after 003-F05 review, using its insertion/removal and override evidence.
 
 ## Problem
 
-The accepted wall clock replays unlabelled `now` calls in attachment order. An
+The accepted wall clock replays unlabeled `now` calls in attachment order. An
 added or removed read can shift later values to different call sites. An extra
 read may eventually exhaust the track, and an omitted read may leave unused
 content, but neither fact identifies where the calls diverged. An insertion and
@@ -36,7 +36,7 @@ are useful remains open.
 ## Intended limit
 
 A checkpoint can localize a divergence to a section of a test. It cannot
-identify which unlabelled read within that section changed. Shifted values may
+identify which unlabeled read within that section changed. Shifted values may
 already have been returned before the checkpoint, and compensating changes
 within one section may escape a count comparison. Checkpoints should not be
 described as automatic call-site matching or cursor repair.
@@ -65,12 +65,40 @@ interleaving. Explicit cross-track ordering remains separately deferred by
 
 ## Revisit and placement
 
-After 003-F05 review, update this note with evidence from inserting and
-removing clock observations and from positional override merging. Assess the
-actual diagnostics and whether the initial library is usable without named
-checkpoints. Then choose a separately scoped, owner-approved design and review
-unit if warranted. Possible placements are immediately after Phase F, at the
-end of Plan 003, or in a successor plan. None is selected or authorized here.
+The assessment below revisits the evidence after F05 review. Any checkpoint
+design or implementation still needs a separately scoped, owner-approved unit.
+
+## F05 evidence and placement assessment — 2026-10-07
+
+[F05's positional tests and publication evidence](evidence/003-F05-clock-override-normalization-and-merge.md#proving-tests)
+confirm that a baseline position-two 7s override stays at position two when
+a new read is inserted or an earlier read is removed. It can therefore affect
+a different logical call. Shrinking below that position drops the override;
+an empty re-record drops all obsolete fields. These deliberate changes remain
+healthy. Neither merge nor replay infers call-site identity.
+
+The existing unused-record and exhaustion diagnostics can identify count
+differences at the horizon or an extra read, but cannot localize a divergence
+or detect compensating edits with unchanged counts. A count checkpoint could
+help localize a difference across its boundaries; it still cannot repair the
+values already returned or distinguish compensating edits within a section.
+F05 also proves that an invalid combined sequence refuses whole publication
+while preserving native returns and the previous file. That protection does
+not depend on a checkpoint facility.
+
+The current positional behavior meets the accepted clock contract. The initial
+library remains usable through coordinated reads and independently keyed clock
+attachments; F05 does not demonstrate that named checkpoints are an initial
+delivery requirement. Location and HTTP have not yet supplied evidence for a
+shared definition of progress or useful participation boundaries.
+
+Recommendation for owner consideration: defer a dedicated checkpoint design
+unit to a successor plan, informed by complete-system conformance and actual
+consumer use. Placing it immediately after Phase F would require additional
+architectural choices before the remaining systems are exercised. Adding it
+at the end of Plan 003 would broaden initial acceptance without a demonstrated
+requirement. This is an exploratory recommendation; no placement is selected
+or implementation authorized.
 
 The accepted [track model](design-decisions/01-common-abstraction.md),
 [clock selection rule](design-decisions/04-replay-selection.md), and

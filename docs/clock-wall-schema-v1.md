@@ -12,7 +12,7 @@ attachment. Record mode captures native `Date` values in source order, rounds
 each absolute value independently, and selects the origin's numeric timezone
 offset from the first observation using `TimeZone.current` captured at activation.
 Re-recording clears the old header and produces a fresh observed origin and
-offset. The planned F05 merge preserves an authored whole-origin override, including
+offset. Finalization preserves an authored whole-origin override, including
 its offset; there is no independent offset override. With no new observations,
 the empty payload drops the old origin and offset.
 Passthrough returns native values without changing the track. Replay claims
@@ -65,6 +65,40 @@ zero to ordinary `0ms`. Later deltas are unchanged. Canonical writing retains
 only the effective origin override. The
 [editing and canonical output fixtures](../Tests/DioramaClockTests/Fixtures/clock-edited.json)
 show this transformation.
+
+## Re-recording authored overrides
+
+Clock registers its typed merge through the public
+[recording merge boundary](record-services.md#recording-merge). It runs during
+in-memory finalization before returning a healthy definition or publishing a
+file. The baseline remains immutable; replay and passthrough preserve it.
+
+First, record mode captures and prepares a complete fresh wall sequence. Its
+successive deltas come from fresh independently rounded dates, before applying
+any old override. Then the clock preserves an authored baseline origin with
+its full absolute date and numeric display offset, and each later authored
+delta at a position that still exists. Other fields use fresh observations.
+The merged sequence is cumulatively validated and converted back to prepared
+absolute dates for the track.
+
+For example, fresh observations at 0s, 2s, and 9s yield deltas of 2s and 7s.
+Preserving a 5s override at position one produces effective values at 0s, 5s,
+and 12s. The later ordinary delta stays 7s, rather than being recalculated
+against the earlier override. An authored origin shifts that complete sequence
+to its chosen date while preserving its authored offset.
+
+Correspondence is strictly positional. Inserting or removing a read can move
+an override to another logical call site without changing its numeric position.
+There is no heuristic rematching. Overrides beyond the new sequence length
+are dropped; an empty new recording drops all old content, including the origin
+and offset. These deliberate deletions do not invalidate publication.
+
+A merge that cannot produce a valid cumulative sequence reports a safe
+`recordingMergeFailed` fact and makes the whole candidate unhealthy. Live wall
+reads still return their native observations; no healthy definition is returned
+and the previous file is preserved. Canonical writing stores only effective
+overrides, not the fresh observations they replace. The version-one schema
+and its tolerant editing forms are unchanged.
 
 The reader rejects missing or extra fields, unknown tags or versions, invalid
 scalar text, an origin without observations, observations without an origin,
