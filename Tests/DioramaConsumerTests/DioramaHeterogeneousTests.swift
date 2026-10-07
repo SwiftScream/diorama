@@ -18,7 +18,7 @@ struct DioramaHeterogeneousTests {
         let random = try DioramaRandomSystem.instance(named: "random") { Counter() }
         let consumer = try ConsumerSequentialSystem.instance(key: .init(rawValue: "consumer"))
         let recording = try await Diorama(scenarioID: "record", mode: .record, systems: random, consumer)
-            .execute { random, consumer in
+            .execute { _, random, consumer in
                 var random = random
                 _ = random.next()
                 _ = random.next()
@@ -31,7 +31,7 @@ struct DioramaHeterogeneousTests {
         let replay = try Diorama(definition: definition, scenarioID: "replay", mode: .replay,
                                  systems: random, consumer)
         for _ in 0..<2 {
-            let result = try await replay.execute { random, consumer async throws in
+            let result = try await replay.execute { _, random, consumer async throws in
                 var random = random
                 #expect(random.next() == 10)
                 #expect(random.next() == 11)
@@ -70,7 +70,7 @@ struct DioramaHeterogeneousTests {
             systems: first, random, second)
         #expect(factories.withLock { $0 } == 0)
         for _ in 0..<2 {
-            let result = try await setup.execute { first, random, second in
+            let result = try await setup.execute { _, first, random, second in
                 var random = random
                 #expect(first !== second)
                 #expect(random.next() == 10)

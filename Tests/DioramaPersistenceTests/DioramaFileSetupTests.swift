@@ -23,7 +23,7 @@ struct DioramaFileSetupTests {
         let file = directory.appendingPathComponent("scenario.json")
         let random = try DioramaRandomSystem.instance(named: "random") { Counter() }
         let setup = try Diorama(file: file, scenarioID: "record", mode: .record, systems: random)
-        let result = try await setup.execute { generator in
+        let result = try await setup.execute { _, generator in
             var generator = generator
             _ = generator.next()
             _ = generator.next()
@@ -32,13 +32,13 @@ struct DioramaFileSetupTests {
         guard case .published = result.publication else { Issue.record("Expected file publication"); return }
         let bytes = try Data(contentsOf: file)
         let replay = try await Diorama(file: file, scenarioID: "replay", mode: .replay, systems: random)
-            .execute { generator in
+            .execute { _, generator in
                 var generator = generator
                 return [generator.next(), generator.next()]
             }
         #expect(replay.body == [42, 43])
         #expect(try Data(contentsOf: file) == bytes)
-        let empty = try await setup.execute { _ in () }
+        let empty = try await setup.execute { _, _ in () }
         #expect(try PublicationFixtures.values("random", in: #require(empty.definition)).isEmpty)
         let stored = try PublicationFixtures.codec().decode(Data(contentsOf: file))
         #expect(try PublicationFixtures.values("random", in: stored).isEmpty)
@@ -63,13 +63,13 @@ struct DioramaFileSetupTests {
         let codec = try JSONScenarioCodec(registry: PersistentSystemRegistry([random.type]))
         let fixed = try Diorama(definition: codec.decode(original), scenarioID: "file-setup",
                                 mode: .replay, systems: random)
-        let first = try await setup.execute { generator in var generator = generator; return generator.next() }
+        let first = try await setup.execute { _, generator in var generator = generator; return generator.next() }
         let originalText = try #require(String(data: original, encoding: .utf8))
         let changed = Data(originalText.replacingOccurrences(
             of: "          0,", with: "          17,").utf8)
         try changed.write(to: location.fileURL)
-        let second = try await setup.execute { generator in var generator = generator; return generator.next() }
-        let pinned = try await fixed.execute { generator in var generator = generator; return generator.next() }
+        let second = try await setup.execute { _, generator in var generator = generator; return generator.next() }
+        let pinned = try await fixed.execute { _, generator in var generator = generator; return generator.next() }
         #expect(first.body == 0)
         #expect(second.body == 17)
         #expect(pinned.body == 0)
@@ -89,7 +89,7 @@ struct DioramaFileSetupTests {
             file: location.fileURL,
             scenarioID: "record", mode: .record,
             systems: first, second)
-        let result = try await setup.execute { first, second in
+        let result = try await setup.execute { _, first, second in
             var first = first
             var second = second
             _ = first.next()
@@ -121,7 +121,7 @@ struct DioramaFileSetupTests {
         try bytes.write(to: location.fileURL)
         let unknown = try Diorama(file: location.fileURL, scenarioID: "file-setup", mode: .replay,
                                   systems: random)
-        let unknownResult = try await unknown.execute { _ in () }
+        let unknownResult = try await unknown.execute { _, _ in () }
         guard case let .loaded(available, skipped) = unknownResult.loadResult else {
             Issue.record("Expected available content and skipped headers"); return
         }
@@ -129,7 +129,7 @@ struct DioramaFileSetupTests {
         #expect(skipped.map(\.attachmentID) == [inactive.id])
         let readable = try Diorama(
             file: location.fileURL, scenarioID: "file-setup", mode: .replay, systems: random)
-        let result = try await readable.execute { generator in
+        let result = try await readable.execute { _, generator in
             var generator = generator
             _ = generator.next()
             _ = generator.next()
@@ -142,7 +142,7 @@ struct DioramaFileSetupTests {
             of: "\"payload\" : 42", with: "\"payload\" : \"invalid\"").utf8)
         #expect(corrupt != bytes)
         try corrupt.write(to: location.fileURL)
-        _ = try await readable.execute { _ in () }
+        _ = try await readable.execute { _, _ in () }
         #expect(throws: (any Error).self) { try codec.decode(corrupt) }
     }
 

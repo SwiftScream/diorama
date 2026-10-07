@@ -83,7 +83,7 @@ struct WallOverrideMergeTests {
         let pass = try DioramaClockSystem.instance(named: "pass") { passthroughSource }.withMode(.passthrough)
         let result = try await Diorama(definition: baseline, scenarioID: "mixed", mode: .record,
                                        systems: record, replay, pass)
-            .execute { record, replay, pass in
+            .execute { _, record, replay, pass in
                 #expect(record.now == Date(timeIntervalSince1970: 2000))
                 #expect(record.now == Date(timeIntervalSince1970: 2001))
                 #expect(replay.now == original.effectiveDates[0])
@@ -109,7 +109,7 @@ struct WallOverrideMergeTests {
         let source = WallMergeFixtures.Source(native)
         let system = try DioramaClockSystem.instance(named: "clock") { source }
         let result = try await Diorama(definition: baseline, scenarioID: "rerecord", mode: .record, systems: system)
-            .execute { wall in native.map { _ in wall.now } }
+            .execute { _, wall in native.map { _ in wall.now } }
         #expect(result.body == native)
         #expect(source.count == native.count)
         let candidate = try #require(result.definition)
@@ -124,7 +124,7 @@ struct WallOverrideMergeTests {
         #expect(result.finalization.report.diagnostics.isEmpty)
         #expect(!result.report.rendered().contains("2033-"))
         let replay = try await Diorama(definition: candidate, scenarioID: "replay", mode: .replay, systems: system)
-            .execute { wall in native.map { _ in wall.now } }
+            .execute { _, wall in native.map { _ in wall.now } }
         #expect(replay.body == recording.effectiveDates)
         #expect(source.count == native.count)
         #expect(replay.finalization.report.diagnostics.isEmpty)
@@ -142,7 +142,7 @@ struct WallOverrideMergeTests {
         let system = try DioramaClockSystem.instance(named: "clock") { source }
         let zone = TimeZone.current
         let result = try await Diorama(definition: baseline, scenarioID: "fresh", mode: .record, systems: system)
-            .execute { wall in native.map { _ in wall.now } }
+            .execute { _, wall in native.map { _ in wall.now } }
         let candidate = try #require(result.definition)
         let merged = try WallMergeFixtures.content(candidate)
         #expect(result.body == native)
@@ -172,7 +172,7 @@ struct WallOverrideMergeTests {
         let source = WallMergeFixtures.Source(native)
         let system = try DioramaClockSystem.instance(named: "clock") { source }
         let result = try await Diorama(definition: baseline, scenarioID: "positions", mode: .record, systems: system)
-            .execute { wall in native.map { _ in wall.now } }
+            .execute { _, wall in native.map { _ in wall.now } }
         let merged = try WallMergeFixtures.content(#require(result.definition))
         #expect(result.body == native)
         #expect(merged.observations.map(\.value) == deltas)
@@ -195,7 +195,7 @@ struct WallOverrideMergeTests {
         let source = WallMergeFixtures.Source(native)
         let system = try DioramaClockSystem.instance(named: "clock") { source }
         let result = try await Diorama(file: file, scenarioID: "publish", mode: .record, systems: system)
-            .execute { wall in native.map { _ in wall.now } }
+            .execute { _, wall in native.map { _ in wall.now } }
         let candidate = try #require(result.definition)
         let merged = try WallMergeFixtures.content(candidate)
         #expect(merged.observations == (empty ? [] : [.observed(0)]))
@@ -206,7 +206,7 @@ struct WallOverrideMergeTests {
         #expect(result.finalization.report.diagnostics.isEmpty)
         #expect(try Data(contentsOf: file) == codec.encode(candidate))
         let replay = try await Diorama(file: file, scenarioID: "file-replay", mode: .replay, systems: system)
-            .execute { wall in native.map { _ in wall.now } }
+            .execute { _, wall in native.map { _ in wall.now } }
         #expect(replay.body == merged.effectiveDates)
         #expect(replay.report.disposition == .notRequested)
         #expect(source.count == native.count)
@@ -231,7 +231,7 @@ struct WallOverrideMergeTests {
         let source = WallMergeFixtures.Source(native)
         let system = try DioramaClockSystem.instance(named: "clock") { source }
         let result = try await Diorama(file: file, scenarioID: "invalid-merge", mode: .record, systems: system)
-            .execute { wall in native.map { _ in wall.now } }
+            .execute { _, wall in native.map { _ in wall.now } }
         #expect(result.body == native)
         #expect(result.definition == nil)
         #expect(result.report.disposition == .refusedUnhealthy)

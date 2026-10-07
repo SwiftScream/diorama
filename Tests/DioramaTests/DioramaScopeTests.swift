@@ -18,7 +18,7 @@ struct DioramaScopeTests {
             scenarioID: "actor", mode: .record,
             systems: probe.system("a"))
         await #expect(throws: BodyFailure.stopped) {
-            _ = try await setup.execute { lease async throws(BodyFailure) -> Int in
+            _ = try await setup.execute { _, lease async throws(BodyFailure) -> Int in
                 state.value += 1
                 #expect(!lease.isClosed)
                 throw .stopped
@@ -38,7 +38,7 @@ struct DioramaScopeTests {
             let started = AsyncStream<Void>.makeStream()
             let blocker = AsyncStream<Void>.makeStream()
             let task = Task {
-                try await setup.execute { lease async throws -> Bool in
+                try await setup.execute { _, lease async throws -> Bool in
                     started.continuation.yield(())
                     var iterator = blocker.stream.makeAsyncIterator()
                     _ = await iterator.next()

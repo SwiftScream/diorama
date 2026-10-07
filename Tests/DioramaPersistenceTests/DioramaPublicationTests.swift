@@ -23,7 +23,7 @@ struct DioramaPublicationTests {
         let result = try await Diorama(repository: randomRepository(storage: storage),
                                        scenarioID: "mixed", mode: .record,
                                        systems: record, replay, passthrough, ignored)
-            .execute { record, replay, _, _ in
+            .execute { _, record, replay, _, _ in
                 try record.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
                 #expect(try replay.consumeNext() == 3)
                 #expect(storage.writeCount == 0)
@@ -58,7 +58,7 @@ struct DioramaPublicationTests {
         let system = try StartupProbe().system(key: "boundaries")
         let result = try await Diorama(repository: randomRepository(storage: storage),
                                        scenarioID: "preserve", mode: mode, systems: system)
-            .execute { lease in
+            .execute { _, lease in
                 if mode == .replay {
                     _ = try lease.consumeNext()
                 }
@@ -95,7 +95,7 @@ struct DioramaPublicationTests {
         let system = try StartupProbe().system(key: "boundaries")
         let result = try await Diorama(repository: JSONScenarioRepository(codec: codec, storage: storage),
                                        scenarioID: "failure", mode: .record, systems: system)
-            .execute { lease in
+            .execute { _, lease in
                 try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
                 return "body value"
             }
@@ -119,7 +119,7 @@ struct DioramaPublicationTests {
         #expect(storage.document == bytes)
         #expect(storage.writeCount == (failEncoding ? 0 : 1))
         let replay = try await Diorama(definition: definition, scenarioID: "retained", mode: .replay, systems: system)
-            .execute { lease in try lease.consumeNext() }
+            .execute { _, lease in try lease.consumeNext() }
         #expect(replay.body == 42)
     }
 
@@ -131,7 +131,7 @@ struct DioramaPublicationTests {
         let setup = try Diorama(repository: randomRepository(storage: storage),
                                 scenarioID: "body-outcome", mode: .record, systems: system)
         let task = Task {
-            try await setup.execute { lease in
+            try await setup.execute { _, lease in
                 try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
                 if unhealthy {
                     _ = lease.report(.system(DiagnosticLabel("invalid-recording")),

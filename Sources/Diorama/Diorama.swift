@@ -133,25 +133,27 @@ public struct Diorama<each Dependency: Sendable>: Sendable {
         self.startup = { try startup(layout, registered) }
     }
 
-    /// Runs a body with typed dependencies in declaration order, then awaits finish.
+    /// Runs a body with execution context and typed dependencies, then awaits finish.
     ///
     /// A body error is rethrown after finalization. Startup failure throws
     /// without invoking the body. The explicit isolation annotation
     /// preserves the caller's actor through the stored parameter pack.
     /// - Parameters:
-    ///   - body: Work receiving fresh dependencies on its inferred actor.
+    ///   - body: Work receiving execution context followed by fresh dependencies
+    ///     in declaration order, on its inferred actor. Context is available even
+    ///     with no configured systems and creates no attachment or persisted values.
     /// - Returns: Successful body value, finalization, resulting definition,
     ///   publication disposition, and the exact load outcome. A failed publication
     ///   is reported without discarding the body value or healthy definition.
     /// - Throws: Startup or body failure, after finalization when the body throws.
     public func execute<Success: Sendable, Failure: Error>(
-        _ body: @isolated(any) (repeat each Dependency) async throws(Failure) -> Success)
+        _ body: @isolated(any) (ScenarioExecutionContext, repeat each Dependency) async throws(Failure) -> Success)
         async throws -> DioramaResult<Success>
     {
         let run = try startup()
         let dependencies = (repeat run.requiredDependency(for: each systems))
         return try await run.runScoped { () async throws(Failure) -> Success in
-            try await body(repeat each dependencies)
+            try await body(run.context, repeat each dependencies)
         }
     }
 }

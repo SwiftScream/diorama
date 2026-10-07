@@ -9,7 +9,7 @@ struct DioramaRandomUsage {
         let random = try DioramaRandomSystem.instance(named: "example-random")
 
         let recordingSetup = try Diorama(scenarioID: "random-recording-example", mode: .record, systems: random)
-        let recording = try await recordingSetup.execute { generator in
+        let recording = try await recordingSetup.execute { _, generator in
             var generator = generator
             return Array(0..<5).map { _ in
                 generator.next()
@@ -22,7 +22,7 @@ struct DioramaRandomUsage {
 
         let replaySetup = try Diorama(
             definition: replayDefinition, scenarioID: "random-replay-example", mode: .replay, systems: random)
-        let replay = try await replaySetup.execute { generator in
+        let replay = try await replaySetup.execute { _, generator in
             var generator = generator
             return Array(0..<5).map { _ in
                 generator.next()
@@ -45,14 +45,14 @@ struct DioramaRandomUsage {
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = directory.appendingPathComponent("random.json")
         let recording = try await Diorama(file: file, scenarioID: "file-record", mode: .record, systems: random)
-            .execute { generator in
+            .execute { _, generator in
                 var generator = generator
                 return generator.next()
             }
         try requireCleanFinalization(recording.finalization)
         guard case .published = recording.publication else { throw ExampleError.publicationFailed }
         let replay = try await Diorama(file: file, scenarioID: "file-replay", mode: .replay, systems: random)
-            .execute { generator in
+            .execute { _, generator in
                 var generator = generator
                 return generator.next()
             }

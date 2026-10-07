@@ -25,7 +25,7 @@ struct DioramaPublicationReportTests {
         let system = try StartupProbe().system(key: "record")
         let failure = try await Diorama(repository: randomRepository(storage: storage),
                                         scenarioID: "safe-error", mode: .record, systems: system)
-            .execute { lease in
+            .execute { _, lease in
                 try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
             }
         #expect(failure.report.disposition == .failed)
@@ -34,7 +34,7 @@ struct DioramaPublicationReportTests {
         #expect(descriptions.withLock { $0 } == 0)
 
         let memory = try await Diorama(scenarioID: "memory", mode: .record, systems: system)
-            .execute { lease in
+            .execute { _, lease in
                 try lease.record(capturing: { 7 }, preparation: ValuePreparation<UInt64>())
             }
         #expect(memory.report.priorDocument == .notApplicable)
@@ -63,7 +63,7 @@ struct DioramaPublicationReportTests {
         let repository = try JSONScenarioRepository(codec: PublicationFixtures.codec(), storage: storage)
         let system = try StartupProbe().system(key: "boundaries")
         let result = try await Diorama(repository: repository, scenarioID: "file-report", mode: .record,
-                                       systems: system).execute { lease in
+                                       systems: system).execute { _, lease in
             try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
         }
         let candidate = try #require(result.definition)
@@ -124,7 +124,7 @@ struct DioramaPublicationReportTests {
         let second = try probe.system(key: "boundaries")
         let result = try await Diorama(repository: randomRepository(storage: storage),
                                        scenarioID: "refusal", mode: .record,
-                                       systems: first, second).execute { firstLease, secondLease in
+                                       systems: first, second).execute { _, firstLease, secondLease in
             try firstLease.record(capturing: { 7 }, preparation: ValuePreparation<UInt64>())
             _ = firstLease.report(.system(DiagnosticLabel("earlier")))
             switch fault {
@@ -175,7 +175,7 @@ struct DioramaPublicationReportTests {
         let system = try StartupProbe().system(key: "boundaries")
         let result = try await Diorama(repository: JSONScenarioRepository(
             codec: PublicationFixtures.codec(), storage: storage),
-        scenarioID: "double-fault", mode: .record, systems: system).execute { lease in
+        scenarioID: "double-fault", mode: .record, systems: system).execute { _, lease in
             try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
         }
         #expect(result.report.disposition == .failed)

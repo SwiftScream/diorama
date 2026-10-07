@@ -17,7 +17,7 @@ struct DioramaRepositoryTests {
         #expect(storage.readCount == 0)
         #expect(probe.preparationCount == 0)
         for expectedReads in 1...2 {
-            let result = try await setup.execute { lease in try lease.consumeNext() }
+            let result = try await setup.execute { _, lease in try lease.consumeNext() }
             #expect(result.body == 0)
             guard case let .loaded(baseline, _) = result.loadResult else {
                 Issue.record("Exact loaded baseline was not retained"); return
@@ -40,7 +40,7 @@ struct DioramaRepositoryTests {
         let setup = try Diorama(repository: repository, scenarioID: "repository-setup",
                                 mode: .replay, systems: system)
         do {
-            _ = try await setup.execute { _ in Issue.record("Unusable replay invoked body") }
+            _ = try await setup.execute { _, _ in Issue.record("Unusable replay invoked body") }
             Issue.record("Unusable replay started")
         } catch let error as ScenarioRepositoryStartupFailure {
             guard case let .load(result) = error.evidence else {
@@ -63,7 +63,7 @@ struct DioramaRepositoryTests {
             let setup = try Diorama(
                 repository: randomRepository(storage: storage), scenarioID: "repository-setup",
                 mode: .record, systems: system)
-            let result = try await setup.execute { lease in
+            let result = try await setup.execute { _, lease in
                 try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
             }
             let baselineProblem = try loadProblem(#require(result.loadResult))
@@ -84,7 +84,7 @@ struct DioramaRepositoryTests {
         let setup = try Diorama(repository: repository, scenarioID: "repository-setup",
                                 mode: .passthrough, systems: system)
         do {
-            _ = try await setup.execute { _ in () }
+            _ = try await setup.execute { _, _ in () }
             Issue.record("Unregistered active system started")
         } catch let error as ScenarioRepositoryStartupFailure {
             guard case let .persistenceConfiguration(problem) = error.evidence else {
@@ -103,8 +103,8 @@ struct DioramaRepositoryTests {
         let system = try StartupProbe().system(key: "boundaries")
         let scenarioID = "repository-setup"
         let setup = try Diorama(repository: repository, scenarioID: scenarioID, mode: .replay, systems: system)
-        let high = try await setup.execute { lease in try lease.consumeNext() }
-        let second = try await setup.execute { lease in try lease.consumeNext() }
+        let high = try await setup.execute { _, lease in try lease.consumeNext() }
+        let second = try await setup.execute { _, lease in try lease.consumeNext() }
         #expect(second.body == high.body)
         #expect(second.finalization.report == high.finalization.report)
         #expect(second.finalization.usage == high.finalization.usage)

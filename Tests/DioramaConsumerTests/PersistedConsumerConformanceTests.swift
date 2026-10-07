@@ -30,7 +30,7 @@ struct PersistedConsumerConformanceTests {
         var firstPublication: Data?
 
         for _ in 0..<2 {
-            let result = try await record.execute { first, second, consumer async throws in
+            let result = try await record.execute { _, first, second, consumer async throws in
                 async let firstValues = draw(first, count: 32)
                 async let secondValues = draw(second, count: 32)
                 let (recordedFirst, recordedSecond) = await (firstValues, secondValues)
@@ -82,7 +82,7 @@ struct PersistedConsumerConformanceTests {
         let replay = try Diorama(file: file, scenarioID: "persistent-consumer", mode: .replay,
                                  systems: replayFirst, replaySecond, consumer)
         for _ in 0..<2 {
-            let result = try await replay.execute { first, second, consumer in
+            let result = try await replay.execute { _, first, second, consumer in
                 var first = first
                 var second = second
                 let firstValue = first.next()
@@ -114,7 +114,7 @@ struct PersistedConsumerConformanceTests {
         let consumer = try ConsumerPersistedSystem.instance(key: consumerKey)
         let original = try await Diorama(file: file, scenarioID: "mixed", mode: .record,
                                          systems: first, second, consumer)
-            .execute { first, second, consumer in
+            .execute { _, first, second, consumer in
                 var first = first
                 var second = second
                 _ = first.next()
@@ -127,7 +127,7 @@ struct PersistedConsumerConformanceTests {
         let newSecond = try DioramaRandomSystem.instance(named: "second") { Counter(value: 500) }
         let mixed = try await Diorama(file: file, scenarioID: "mixed", mode: .passthrough,
                                       systems: first.withMode(.replay), newSecond.withMode(.record), consumer)
-            .execute { first, second, consumer in
+            .execute { _, first, second, consumer in
                 var first = first
                 var second = second
                 let firstValue = first.next()
@@ -143,7 +143,7 @@ struct PersistedConsumerConformanceTests {
 
         let replay = try await Diorama(file: file, scenarioID: "mixed", mode: .replay,
                                        systems: first, newSecond, consumer)
-            .execute { first, second, consumer in
+            .execute { _, first, second, consumer in
                 var first = first
                 var second = second
                 return try (first.next(), second.next(), consumer.next { ConsumerStableValue(-1) })
@@ -166,7 +166,7 @@ struct PersistedConsumerConformanceTests {
         let consumer = try ConsumerPersistedSystem.instance(key: AttachmentKey(rawValue: "consumer"))
         let passthrough = try await Diorama(file: file, scenarioID: "mixed", mode: .passthrough,
                                             systems: first, second, consumer)
-            .execute { first, second, consumer in
+            .execute { _, first, second, consumer in
                 var first = first
                 var second = second
                 return try (first.next(), second.next(), consumer.next { ConsumerStableValue(123) })
@@ -187,7 +187,7 @@ struct PersistedConsumerConformanceTests {
         let consumer = try ConsumerPersistedSystem.instance(key: AttachmentKey(rawValue: "consumer"))
         let recording = try await Diorama(file: file, scenarioID: "usage", mode: .record,
                                           systems: random, consumer)
-            .execute { random, consumer in
+            .execute { _, random, consumer in
                 var random = random
                 _ = random.next()
                 _ = random.next()
@@ -198,7 +198,7 @@ struct PersistedConsumerConformanceTests {
 
         let unused = try await Diorama(file: file, scenarioID: "usage", mode: .replay,
                                        systems: random, consumer)
-            .execute { random, _ in
+            .execute { _, random, _ in
                 var random = random
                 return random.next()
             }
@@ -209,7 +209,7 @@ struct PersistedConsumerConformanceTests {
 
         let exhausted = try await Diorama(file: file, scenarioID: "usage", mode: .replay,
                                           systems: random, consumer)
-            .execute { random, consumer in
+            .execute { _, random, consumer in
                 var random = random
                 let firstValue = random.next()
                 let secondValue = random.next()

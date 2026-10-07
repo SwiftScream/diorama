@@ -70,6 +70,11 @@ consumer runs independently of wall attachments. `DioramaClock` retains wall
 recording and replay. The amendment explicitly reconciles DD02, DD14, DD18,
 and DD19 and revises F06/F07 without changing wall schemas.
 
+On 2026-10-08, the owner approved [Decision 18's execution-context amendment](18-diorama-setup-and-scenario-data.md#execution-context-amendment--owner-approved-2026-10-08)
+during F06 review. One scoped `execute` body always receives a Core-owned
+`ScenarioExecutionContext` before its typed dependencies. The context initially
+exposes the execution clock without extending execution lifetime.
+
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |
 | 1 | [Common abstraction](01-common-abstraction.md) | `01-common-abstraction.md` | Accepted |

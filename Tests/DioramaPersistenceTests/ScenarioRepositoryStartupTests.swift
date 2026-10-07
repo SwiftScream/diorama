@@ -17,7 +17,7 @@ struct ScenarioRepositoryStartupTests {
 
         let result = try await Diorama(repository: repository,
                                        scenarioID: "repository-startup", mode: .replay,
-                                       systems: system).execute { lease in
+                                       systems: system).execute { _, lease in
             #expect(storage.readCount == 1)
             #expect(storage.writeCount == 0)
             #expect(probe.preparationCount == 1)
@@ -45,7 +45,7 @@ struct ScenarioRepositoryStartupTests {
         do {
             _ = try await Diorama(repository: repository,
                                   scenarioID: "repository-startup", mode: .replay,
-                                  systems: system).execute { _ in () }
+                                  systems: system).execute { _, _ in () }
             Issue.record("Unusable replay input returned an execution")
         } catch let error as ScenarioRepositoryStartupFailure {
             let expected: ScenarioBaselineProblem = switch kind {
@@ -78,7 +78,7 @@ struct ScenarioRepositoryStartupTests {
             storage: StartupStorage(document: persistedFixture("random-empty")))
         _ = try await Diorama(repository: emptyRepository,
                               scenarioID: "repository-startup", mode: .replay,
-                              systems: emptySystem).execute { lease in
+                              systems: emptySystem).execute { _, lease in
             #expect(throws: SequentialOperationFailure.self) { _ = try lease.consumeNext() }
         }
         #expect(emptyProbe.activationCount == 1)
@@ -89,7 +89,7 @@ struct ScenarioRepositoryStartupTests {
         do {
             _ = try await Diorama(repository: emptyRepository,
                                   scenarioID: "repository-startup", mode: .replay,
-                                  systems: missingSystem).execute { _ in () }
+                                  systems: missingSystem).execute { _, _ in () }
             Issue.record("A valid document missing the replay attachment started")
         } catch let error as ScenarioRepositoryStartupFailure {
             #expect(error.startupFailure.report.diagnostics.map(\.diagnostic.issue) == [
@@ -113,7 +113,7 @@ struct ScenarioRepositoryStartupTests {
         let repository = try randomRepository(storage: storage)
         let result = try await Diorama(repository: repository,
                                        scenarioID: "repository-startup", mode: .record,
-                                       systems: system).execute { _ in
+                                       systems: system).execute { _, _ in
             #expect(probe.preparationCount == 1)
             #expect(probe.activationCount == 1)
             #expect(storage.writeCount == 0)
@@ -140,7 +140,7 @@ struct ScenarioRepositoryStartupTests {
         let missing = try randomRepository(storage: missingStorage)
         let recordingResult = try await Diorama(repository: missing,
                                                 scenarioID: "repository-startup", mode: .record,
-                                                systems: recording).execute { _ in () }
+                                                systems: recording).execute { _, _ in () }
         #expect(recordingResult.finalization.report.diagnostics.isEmpty)
         #expect(recordingProbe.activationCount == 1)
 
@@ -150,7 +150,7 @@ struct ScenarioRepositoryStartupTests {
         let invalid = try randomRepository(storage: invalidStorage)
         let passthroughResult = try await Diorama(repository: invalid,
                                                   scenarioID: "repository-startup", mode: .passthrough,
-                                                  systems: passthrough).execute { _ in () }
+                                                  systems: passthrough).execute { _, _ in () }
         #expect(passthroughResult.finalization.report.diagnostics.isEmpty)
         #expect(passthroughProbe.activationCount == 1)
         #expect(missingStorage.writeCount == 1)
@@ -170,7 +170,7 @@ struct ScenarioRepositoryStartupTests {
         await #expect(throws: ScenarioRepositoryStartupFailure.self) {
             _ = try await Diorama(repository: repository,
                                   scenarioID: "repository-startup", mode: .passthrough,
-                                  systems: recording, replaying).execute { _, _ in () }
+                                  systems: recording, replaying).execute { _, _, _ in () }
         }
         #expect(recordProbe.preparationCount == 0)
         #expect(recordProbe.activationCount == 0)
@@ -194,7 +194,7 @@ struct ScenarioRepositoryValidationTests {
         do {
             _ = try await Diorama(repository: repository,
                                   scenarioID: "registration", mode: .record,
-                                  systems: system).execute { _ in () }
+                                  systems: system).execute { _, _ in () }
             Issue.record("Unregistered ignored setup started")
         } catch let error as ScenarioRepositoryStartupFailure {
             guard case let .persistenceConfiguration(dispatch) = error.evidence else {
@@ -221,7 +221,7 @@ struct ScenarioRepositoryValidationTests {
         do {
             _ = try await Diorama(repository: repository,
                                   scenarioID: "repository-startup", mode: .replay,
-                                  systems: system).execute { _ in () }
+                                  systems: system).execute { _, _ in () }
             Issue.record("Current-policy validation failure returned an execution")
         } catch let error as ScenarioRepositoryStartupFailure {
             guard case let .load(result) = error.evidence,
@@ -251,7 +251,7 @@ struct UnmatchedAttachmentStartupTests {
             storage: StartupStorage(document: persistedFixture("random-example")))
         let result = try await Diorama(repository: repository,
                                        scenarioID: "repository-startup", mode: .replay,
-                                       systems: system).execute { lease in try lease.consumeNext() }
+                                       systems: system).execute { _, lease in try lease.consumeNext() }
         #expect(result.body == 1842)
 
         guard case let .loaded(baseline, _) = result.loadResult else {

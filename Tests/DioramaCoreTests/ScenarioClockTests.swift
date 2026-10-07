@@ -47,7 +47,7 @@ struct ScenarioClockTests {
         let execution = try ScenarioExecution.start(
             definition: ScenarioDefinition(), scenarioID: ScenarioID(rawValue: "clock-only"),
             defaultMode: mode, systems: [], clock: source.source)
-        let clock = execution.clock
+        let clock = execution.context.clock
         #expect(clock.now.offset == .zero)
         #expect(clock.minimumResolution == source.source.minimumResolution)
         source.advance(to: .milliseconds(125))
@@ -67,7 +67,7 @@ struct ScenarioClockTests {
     func `sleep ignores larger tolerance and rechecks an early timer wake`(tolerance: Duration?) async throws {
         let source = SchedulerTestClock()
         let (execution, _) = try SchedulerFixtures.setup([], clock: source.source)
-        let clock = execution.clock
+        let clock = execution.context.clock
         let completed = Mutex(false)
         let sleeper = Task {
             try await clock.sleep(until: .init(offset: .seconds(2)), tolerance: tolerance)
@@ -91,10 +91,10 @@ struct ScenarioClockTests {
         let (first, _) = try SchedulerFixtures.setup([], clock: source.source)
         source.advance(to: .seconds(10))
         let (second, _) = try SchedulerFixtures.setup([], clock: source.source)
-        let deadline = first.clock.now.advanced(by: .seconds(20))
+        let deadline = first.context.clock.now.advanced(by: .seconds(20))
         #expect(deadline.offset == .seconds(30))
-        #expect(second.clock.now.offset == .zero)
-        let clock = second.clock
+        #expect(second.context.clock.now.offset == .zero)
+        let clock = second.context.clock
         let sleeper = Task { try await clock.sleep(until: deadline) }
         #expect(try await source.nextSleep().deadline == .seconds(40))
         #expect(await first.finish().report.diagnostics.isEmpty)
@@ -121,7 +121,7 @@ struct ScenarioClockTests {
             defaultMode: .record, systems: systems.map(AnyScenarioSystem.init), clock: source.source)
         source.advance(to: .milliseconds(123))
         for system in systems {
-            #expect(try execution.dependency(system).now == execution.clock.now)
+            #expect(try execution.dependency(system).now == execution.context.clock.now)
         }
         #expect(await execution.finish().report.diagnostics.isEmpty)
     }
@@ -130,7 +130,7 @@ struct ScenarioClockTests {
     @MainActor
     func `standard generic Clock sleep uses real time without requiring a wall system`() async throws {
         let (execution, _) = try SchedulerFixtures.setup([])
-        let elapsed = try await sleepGenerically(on: execution.clock)
+        let elapsed = try await sleepGenerically(on: execution.context.clock)
         #expect(elapsed >= .milliseconds(10))
         #expect(elapsed < .seconds(5))
         #expect(await execution.finish().report.diagnostics.isEmpty)

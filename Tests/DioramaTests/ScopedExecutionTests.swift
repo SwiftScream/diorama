@@ -27,7 +27,7 @@ struct ScopedExecutionTests {
             scenarioID: "execution", mode: .replay,
             systems: third,
             first,
-            second).execute { flag, number, text in
+            second).execute { _, flag, number, text in
             "\(flag)-\(number)-\(text)"
         }
 
@@ -50,7 +50,7 @@ struct ScopedExecutionTests {
         let state = MainActorState()
 
         let scoped = try await Diorama(definition: definition, scenarioID: "execution", mode: .replay,
-                                       systems: instance).execute { value in
+                                       systems: instance).execute { _, value in
             state.values.append(value)
             return state.values.count
         }
@@ -71,7 +71,7 @@ struct ScopedExecutionTests {
             definition: definition, scenarioID: "execution", mode: .replay,
             systems: first, second)
         await #expect(throws: BodyFailure.stopped) {
-            _ = try await setup.execute { first, second async throws(BodyFailure) -> Int in
+            _ = try await setup.execute { _, first, second async throws(BodyFailure) -> Int in
                 #expect(first == 1)
                 #expect(second == 2)
                 throw .stopped
@@ -86,7 +86,7 @@ struct ScopedExecutionTests {
         let definition = try DioramaFixtures.definition(["a"])
         let instance = try system("a", dependency: 1, journal: journal, failCleanup: true)
         let result = try await Diorama(definition: definition, scenarioID: "execution", mode: .replay,
-                                       systems: instance).execute { value in value }
+                                       systems: instance).execute { _, value in value }
         #expect(result.body == 1)
         #expect(result.finalization.cleanup.map(\.disposition) == [.failed])
         #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [.lifecycle(.cleanupFailed)])
@@ -102,7 +102,7 @@ struct ScopedExecutionTests {
 
         let task = Task {
             try await Diorama(definition: definition, scenarioID: "execution", mode: .replay, systems: instance)
-                .execute { value async throws -> Int in
+                .execute { _, value async throws -> Int in
                     started.continuation.yield(())
                     try await Task.sleep(for: .seconds(10))
                     return value
@@ -131,7 +131,7 @@ struct ScopedExecutionTests {
 
         let task = Task {
             try await Diorama(definition: definition, scenarioID: "execution", mode: .replay, systems: instance)
-                .execute { value in
+                .execute { _, value in
                     started.continuation.yield(())
                     var iterator = blocker.stream.makeAsyncIterator()
                     _ = await iterator.next()
@@ -155,7 +155,7 @@ struct ScopedExecutionTests {
         let bodyCalls = Mutex(0)
 
         await #expect(throws: ScenarioStartupFailure.self) {
-            _ = try await setup.execute { _ in
+            _ = try await setup.execute { _, _ in
                 bodyCalls.withLock { $0 += 1 }
             }
         }

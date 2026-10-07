@@ -8,7 +8,7 @@ struct DioramaSetupTests {
     func `scoped execution finalizes its dependency and retains diagnostic identity`() async throws {
         let probe = DioramaSetupProbe()
         let system = try probe.system("a")
-        let result = try await Diorama(scenarioID: "setup", mode: .record, systems: system).execute { lease in
+        let result = try await Diorama(scenarioID: "setup", mode: .record, systems: system).execute { _, lease in
             #expect(!lease.isClosed)
             return lease
         }
@@ -23,11 +23,11 @@ struct DioramaSetupTests {
         let probe = DioramaSetupProbe()
         let system = try probe.system("a")
         let absent = try Diorama(scenarioID: "setup", mode: .replay, systems: system)
-        await #expect(throws: ScenarioStartupFailure.self) { try await absent.execute { _ in () } }
+        await #expect(throws: ScenarioStartupFailure.self) { try await absent.execute { _, _ in () } }
         #expect(probe.events.withLock { $0 }.isEmpty)
         let baseline = try ScenarioDefinition(attachments: [system.attachment])
         let empty = try Diorama(definition: baseline, scenarioID: "setup", mode: .replay, systems: system)
-        let result = try await empty.execute { _ in () }
+        let result = try await empty.execute { _, _ in () }
         #expect(result.finalization.report.diagnostics.isEmpty)
     }
 
@@ -37,10 +37,10 @@ struct DioramaSetupTests {
         let system = try probe.system("a", values: [99])
         let baseline = try DioramaFixtures.definition(["a"])
         let setup = try Diorama(definition: baseline, scenarioID: "setup", mode: .replay, systems: system)
-        let first = try await setup.execute { lease in
+        let first = try await setup.execute { _, lease in
             try [lease.consumeNext(), lease.consumeNext()]
         }
-        let second = try await setup.execute { lease in try lease.consumeNext() }
+        let second = try await setup.execute { _, lease in try lease.consumeNext() }
         #expect(first.body == [1, 2])
         #expect(second.body == 1)
         #expect(try baseline.attachments[0].track(DioramaFixtures.track("a"), as: Int.self)?.records.count == 2)
@@ -54,7 +54,7 @@ struct DioramaSetupTests {
         let baseline = try DioramaFixtures.definition(["a", "omitted"])
         let setup = try Diorama(definition: baseline, scenarioID: "mixed", mode: .record,
                                 systems: record, replay)
-        let result = try await setup.execute { recording, replaying in
+        let result = try await setup.execute { _, recording, replaying in
             #expect(recording.mode == .record)
             try recording.record(capturing: { 7 }, preparation: ValuePreparation<Int>())
             return try replaying.consumeNext()
@@ -96,14 +96,14 @@ struct DioramaSetupTests {
         let missing = try Diorama(
             definition: DioramaFixtures.definition(["a"]), scenarioID: "setup", mode: .replay,
             systems: first, second)
-        await #expect(throws: ScenarioStartupFailure.self) { try await missing.execute { _, _ in () } }
+        await #expect(throws: ScenarioStartupFailure.self) { try await missing.execute { _, _, _ in () } }
         #expect(probe.events.withLock { $0 }.isEmpty)
         let invalidTrack = try ScenarioAttachment(id: second.attachment.id).adding(
             HeaderlessSequentialTrack<String>(id: DioramaFixtures.track("b")))
         let incompatible = try Diorama(
             definition: ScenarioDefinition(attachments: [first.attachment, invalidTrack]),
             scenarioID: "setup", mode: .replay, systems: first, second)
-        await #expect(throws: ScenarioStartupFailure.self) { try await incompatible.execute { _, _ in () } }
+        await #expect(throws: ScenarioStartupFailure.self) { try await incompatible.execute { _, _, _ in () } }
         #expect(probe.events.withLock { $0 } == ["prepare-a", "prepare-b"])
     }
 
@@ -114,7 +114,7 @@ struct DioramaSetupTests {
         let setup = try Diorama(scenarioID: "setup", mode: .record, systems: system)
         #expect(probe.events.withLock { $0 }.isEmpty)
         for _ in 0..<2 {
-            let result = try await setup.execute { lease in
+            let result = try await setup.execute { _, lease in
                 try lease.record(capturing: { 7 }, preparation: ValuePreparation<Int>())
             }
             #expect(result.finalization.usage[0].tracks[0].activity == .record(recordedCount: 1, incompleteCount: 0))

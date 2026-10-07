@@ -214,7 +214,10 @@ contains schema conversion and storage; repositories load and publish definition
 without activating systems.
 System implementations depend on core and may use persistence schema helpers.
 
-`Diorama.execute` supplies dependencies and finalizes the run. Startup and body
+`Diorama.execute` supplies a Core-owned `ScenarioExecutionContext` followed by
+typed dependencies in declaration order and finalizes the run. Context currently
+exposes the shared execution clock; retaining it does not extend run lifetime.
+Startup and body
 errors throw, with finalization awaited before a body error is rethrown. A
 returned `DioramaResult` holds the successful body value, finalization facts,
 and concrete optional load outcome. The intermediate `DioramaRun` is internal;

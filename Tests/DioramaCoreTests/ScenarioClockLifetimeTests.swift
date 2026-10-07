@@ -13,7 +13,7 @@ struct ScenarioClockLifetimeTests {
         let (execution, _) = try SchedulerFixtures.setup([], clock: driver)
         for _ in 0..<2 {
             do {
-                try await execution.clock.sleep(until: .init(offset: .seconds(1)))
+                try await execution.context.clock.sleep(until: .init(offset: .seconds(1)))
                 Issue.record("A failed timer must fail the sleep")
             } catch let failure as SchedulingFailure {
                 #expect(failure.diagnostic.issue == .scheduling(.clockWaitFailed))
@@ -30,7 +30,7 @@ struct ScenarioClockLifetimeTests {
     func `host deadline overflow is a safe registration failure`() async throws {
         let (execution, _) = try SchedulerFixtures.setup([])
         do {
-            try await execution.clock.sleep(until: .init(offset: .maximumLogicalTime))
+            try await execution.context.clock.sleep(until: .init(offset: .maximumLogicalTime))
             Issue.record("Logical maximum cannot map beyond the host timer range")
         } catch let failure as SchedulingFailure {
             #expect(failure.diagnostic.issue == .scheduling(.logicalTime(.overflow)))
@@ -78,7 +78,7 @@ struct ScenarioClockLifetimeTests {
                 resolutions.withLock { $0.append(clock.minimumResolution) }
             }
         })
-        let clock = execution.clock
+        let clock = execution.context.clock
         escaped.withLock { $0 = clock }
         source.advance(to: .seconds(5))
         #expect(clock.now.offset == .seconds(5))
@@ -97,7 +97,7 @@ struct ScenarioClockLifetimeTests {
     }
 
     @Test
-    func `escaped clock and sleeping task do not retain the deadline engine`() async throws {
+    func `escaped context and sleeping task do not retain the deadline engine`() async throws {
         let source = SchedulerTestClock()
         let reporter = try DiagnosticReporter(scenarioID: ScenarioID(rawValue: "clock-lifetime"),
                                               definition: ScenarioDefinition())
@@ -105,9 +105,10 @@ struct ScenarioClockLifetimeTests {
         let retainedTime = ExecutionTime(clock: source.source, admission: admission, reporter: reporter)
         var engine: DeadlineEngine? = DeadlineEngine(time: retainedTime, admission: admission, reporter: reporter)
         weak let weakEngine = engine
-        let clock = try ScenarioClock(time: retainedTime, scheduler: #require(engine), reporter: reporter)
+        let context = try ScenarioExecutionContext(
+            clock: ScenarioClock(time: retainedTime, scheduler: #require(engine), reporter: reporter))
         retainedTime.start()
-        let sleeper = Task { try await clock.sleep(until: .init(offset: .seconds(10))) }
+        let sleeper = Task { try await context.clock.sleep(until: .init(offset: .seconds(10))) }
         _ = try await source.nextSleep()
         source.advance(to: .seconds(3), waking: false)
         #expect(retainedTime.closeAdmission() == nil)
@@ -115,22 +116,22 @@ struct ScenarioClockLifetimeTests {
         retainedTime.close()
         engine = nil
         // The canceled application's continuation may not have resumed yet.
-        // Neither its suspended frame nor the escaped clock may own the engine.
+        // Neither its suspended frame nor the escaped context may own the engine.
         #expect(weakEngine == nil)
         await #expect(throws: CancellationError.self) { try await sleeper.value }
-        #expect(clock.now.offset == .seconds(3))
+        #expect(context.clock.now.offset == .seconds(3))
     }
 
     @Test
-    func `finished execution releases injected source captures while clock escapes`() async throws {
+    func `finished execution releases injected source captures while context escapes`() async throws {
         let journal = SchedulerJournal()
         let execution = try startWithSourceMarker(journal: journal)
-        let clock = execution.clock
+        let context = execution.context
         #expect(journal.values.isEmpty)
         let result = await execution.finish()
         #expect(journal.values == ["released"])
         #expect(result.report.diagnostics.map(\.diagnostic.issue) == [.logicalTime(.executionClosed)])
-        #expect(clock.minimumResolution > .zero)
+        #expect(context.clock.minimumResolution > .zero)
         #expect(await execution.finish().report == result.report)
     }
 
@@ -146,7 +147,7 @@ struct ScenarioClockLifetimeTests {
             withExtendedLifetime(marker) { ContinuousClock().now }
         }, sleep: ExecutionClock.continuous().sleep)
         let (execution, _) = try SchedulerFixtures.setup([], clock: source)
-        box.clock.withLock { $0 = execution.clock }
+        box.clock.withLock { $0 = execution.context.clock }
         return execution
     }
 }

@@ -98,9 +98,9 @@ public final class ScenarioExecution: Sendable {
     /// Lightweight diagnostic context, independently retainable after finish.
     public let reporter: DiagnosticReporter
 
-    /// The shared execution clock, independent of system attachments and persistence.
+    /// Shared execution services, independent of system attachments and persistence.
     /// Retaining this value does not extend the execution or scheduler lifetime.
-    public let clock: ScenarioClock
+    public let context: ScenarioExecutionContext
 
     private let state: Mutex<State>
 
@@ -109,7 +109,7 @@ public final class ScenarioExecution: Sendable {
                  definition: ScenarioDefinition, time: ExecutionTime, scheduler: DeadlineEngine)
     {
         self.reporter = reporter
-        clock = ScenarioClock(time: time, scheduler: scheduler, reporter: reporter)
+        context = ScenarioExecutionContext(clock: ScenarioClock(time: time, scheduler: scheduler, reporter: reporter))
         state = Mutex(.running(Resources(systems: systems, leases: leases, usage: usage,
                                          definition: definition, time: time, scheduler: scheduler)))
     }

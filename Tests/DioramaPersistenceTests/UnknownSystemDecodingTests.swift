@@ -25,7 +25,7 @@ struct UnknownSystemDecodingTests {
         let system = try probe.system(key: "active")
         let setup = try Diorama(repository: repository, scenarioID: "unknown-types",
                                 mode: .replay, systems: system)
-        let result = try await setup.execute { lease in try lease.consumeNext() }
+        let result = try await setup.execute { _, lease in try lease.consumeNext() }
         #expect(result.body == 7)
         guard case let .loaded(definition, skipped) = result.loadResult else {
             Issue.record("Missing loaded content and omission evidence"); return
@@ -54,7 +54,7 @@ struct UnknownSystemDecodingTests {
         let setup = try Diorama(repository: repository, scenarioID: "unknown-types", mode: mode, systems: system)
         if mode == .replay {
             do {
-                _ = try await setup.execute { _ in () }
+                _ = try await setup.execute { _, _ in () }
                 Issue.record("Incompatible active type started replay")
             } catch let failure as ScenarioRepositoryStartupFailure {
                 #expect(failure.startupFailure.report.diagnostics.map(\.diagnostic.issue) == [
@@ -69,7 +69,7 @@ struct UnknownSystemDecodingTests {
             #expect(probe.preparationCount == 0)
             #expect(probe.activationCount == 0)
         } else {
-            let result = try await setup.execute { lease in
+            let result = try await setup.execute { _, lease in
                 if mode == .record {
                     try lease.record(capturing: { 9 }, preparation: ValuePreparation<UInt64>())
                 }
@@ -94,7 +94,7 @@ struct UnknownSystemDecodingTests {
         let setup = try Diorama(
             repository: randomRepository(storage: StartupStorage(document: bytes)),
             scenarioID: "unknown-types", mode: .replay, systems: system)
-        await #expect(throws: ScenarioRepositoryStartupFailure.self) { try await setup.execute { _ in () } }
+        await #expect(throws: ScenarioRepositoryStartupFailure.self) { try await setup.execute { _, _ in () } }
         #expect(probe.preparationCount == 0)
         #expect(probe.activationCount == 0)
     }
@@ -108,7 +108,7 @@ struct UnknownSystemDecodingTests {
         let setup = try Diorama(
             repository: randomRepository(storage: StartupStorage(document: bytes)),
             scenarioID: "unknown-types", mode: .replay, systems: probe.system(key: "active"))
-        let result = try await setup.execute { lease in try lease.consumeNext() }
+        let result = try await setup.execute { _, lease in try lease.consumeNext() }
         #expect(result.body == 7)
         #expect(result.finalization.usage.count == 1)
         #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [
@@ -140,7 +140,7 @@ struct UnknownSystemDecodingTests {
         let setup = try Diorama(
             repository: randomRepository(storage: StartupStorage(document: bytes)),
             scenarioID: "unknown-types", mode: .replay, systems: probe.system(key: "active"))
-        await #expect(throws: ScenarioRepositoryStartupFailure.self) { try await setup.execute { _ in () } }
+        await #expect(throws: ScenarioRepositoryStartupFailure.self) { try await setup.execute { _, _ in () } }
         #expect(probe.preparationCount == 0)
         #expect(probe.activationCount == 0)
     }
@@ -153,7 +153,7 @@ struct UnknownSystemDecodingTests {
                 entry("inactive", type: "future.system"),
             ]))), scenarioID: "unknown-types", mode: .replay, systems: probe.system(key: "active"))
         do {
-            _ = try await setup.execute { _ in () }
+            _ = try await setup.execute { _, _ in () }
             Issue.record("Missing replay content started")
         } catch let failure as ScenarioRepositoryStartupFailure {
             #expect(failure.startupFailure.report.diagnostics.map(\.diagnostic.issue) == [

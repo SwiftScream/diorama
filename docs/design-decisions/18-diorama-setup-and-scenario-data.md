@@ -473,3 +473,29 @@ renames the illustrative `allowsUnusedReplayRecords` policy to
 `allowsUnclaimedReplayRecords` and the synchronous `claimNext()` API to
 `consumeNext()`. The policy only waives unclaimed records; it does not waive
 consumption verification for records that were claimed.
+
+## Execution context amendment — owner-approved 2026-10-08
+
+During F06 review, the owner approves one scoped consumer operation that always
+receives a `ScenarioExecutionContext`, followed by the configured typed system
+dependencies in declaration order. This replaces the dependency-only body and
+the separate `execute(withClock:)` overload. A body that does not need execution
+services ignores its first argument.
+
+Core owns and constructs the immutable `Sendable` context for each execution,
+exposing it through `ScenarioExecution.context`. Its only initial property is
+the shared `ScenarioClock`. Future execution services require their own concrete
+reviewed need; this amendment adds no generic service registry or placeholder
+capabilities. Retaining the context does not extend execution lifetime or keep
+adapters alive. The clock retains its existing cancellation, frozen-horizon,
+and closed-handle behavior.
+
+`SystemPreparationContext` remains the separate attachment-specific preparation
+boundary. The body context does not expose preparation, dependency lookup,
+finalization, or publication controls. Consumer isolation, typed body errors,
+result contents, and finalization/publication policy remain unchanged.
+
+This refines DD15's execution-clock ownership amendment: the execution exposes
+its clock through `context.clock` rather than a direct `clock` property. Core
+still owns the clock, origin, scheduler, and lifetime. Inferred context values
+require no additional consumer import or whole-module re-export.

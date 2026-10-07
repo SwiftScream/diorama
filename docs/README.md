@@ -17,7 +17,7 @@ The owner approved the consolidated design and implementation plan on
 5. [Dependency approval policy](dependency-policy.md)
 6. [Quality gates and CI policy](quality-gates-and-ci.md)
 7. [JSON persistence schema version 1](persistence-schema-v1.md)
-8. [Execution logical time](execution-time-service.md)
+8. [Execution logical time and Swift Clock](execution-time-service.md)
 9. [Execution scheduling](execution-scheduling.md)
 10. [Stable time scalars](stable-time-scalars.md)
 11. [Clock wall payload schema version 1](clock-wall-schema-v1.md)

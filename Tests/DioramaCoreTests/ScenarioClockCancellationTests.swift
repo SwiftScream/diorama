@@ -8,7 +8,7 @@ struct ScenarioClockCancellationTests {
     func `already canceled task never registers a timer`() async throws {
         let source = SchedulerTestClock()
         let (execution, _) = try SchedulerFixtures.setup([], clock: source.source)
-        let clock = execution.clock
+        let clock = execution.context.clock
         let sleeper = Task {
             withUnsafeCurrentTask { $0?.cancel() }
             try await clock.sleep(until: .init(offset: .seconds(10)))
@@ -22,7 +22,7 @@ struct ScenarioClockCancellationTests {
     func `pending task cancellation removes the timer and resumes exactly once`() async throws {
         let source = SchedulerTestClock()
         let (execution, _) = try SchedulerFixtures.setup([], clock: source.source)
-        let clock = execution.clock
+        let clock = execution.context.clock
         let sleeper = Task { try await clock.sleep(until: .init(offset: .seconds(10))) }
         let wait = try await source.nextSleep()
         sleeper.cancel()
@@ -49,7 +49,7 @@ struct ScenarioClockCancellationTests {
             }
         })
         let (execution, systems) = try SchedulerFixtures.setup(clock: driver)
-        let clock = execution.clock
+        let clock = execution.context.clock
         let sleeper = Task { try await clock.sleep(until: .init(offset: .seconds(1))) }
         _ = try await source.nextSleep()
         source.advance(to: .seconds(1), waking: false)
@@ -83,7 +83,7 @@ struct ScenarioClockCancellationTests {
             }
         })
         let (execution, systems) = try SchedulerFixtures.setup(clock: driver)
-        let clock = execution.clock
+        let clock = execution.context.clock
         let sleeper = Task { try await clock.sleep(until: .init(offset: .seconds(20))) }
         _ = try await source.nextSleep()
         try systems[0].scheduling.schedule(at: .seconds(10), for: SchedulerFixtures.record()) {
@@ -109,7 +109,7 @@ struct ScenarioClockCancellationTests {
             await gate.suspend()
         }
         await gate.waitForEntry()
-        let clock = execution.clock
+        let clock = execution.context.clock
         let sleeper = Task { try await clock.sleep(until: .init(offset: .seconds(20))) }
         _ = try await source.nextSleep()
         source.advance(to: .seconds(7), waking: false)
@@ -149,7 +149,7 @@ struct ScenarioClockCancellationTests {
     {
         let source = SchedulerTestClock()
         let (execution, _) = try SchedulerFixtures.setup([], clock: source.source)
-        let clock = execution.clock
+        let clock = execution.context.clock
         let sleepers = (0..<64).map { _ in
             Task { () -> Int in
                 do {

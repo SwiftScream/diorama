@@ -32,7 +32,7 @@ cannot be captured. Systems register timed handoffs through the separate
 ## Swift Clock for application code
 
 `DioramaCore.ScenarioClock` conforms to Swift `Clock` over that same execution
-origin and deadline engine. Obtain it from `ScenarioExecution.clock` or
+origin and deadline engine. Obtain it from `ScenarioExecution.context.clock` or
 `SystemPreparationContext.clock`. It is available even in an execution with
 no systems. It requires no wall attachment, recording mode, track, or persistence
 registration. Monotonic reads and sleeps never add records or usage counts.
@@ -82,3 +82,33 @@ holding only a weak reference to the scheduler.
 The ownership boundary is recorded in
 [DD15's execution-clock amendment](design-decisions/15-clock-system.md#execution-clock-ownership-amendment--owner-approved-2026-10-07).
 `DioramaClock` separately records and replays wall `Date` observations.
+
+## Scoped consumer access
+
+The `Diorama` facade's single `execute` operation always passes a
+`ScenarioExecutionContext` first, followed by configured system dependencies
+in declaration order. The context currently exposes only `clock`. It is an
+immutable, `Sendable` value constructed by Core for each execution; retaining
+it does not extend execution lifetime or retain adapters. System preparation
+keeps its separate attachment-specific `SystemPreparationContext`.
+The closure keeps its inferred actor isolation and the ordinary
+result/finalization policy. Bodies that need only dependencies may ignore
+the context parameter with `_`.
+No Core import is needed when these values are inferred:
+
+```swift
+import Diorama
+
+let setup = try Diorama(scenarioID: "retry-backoff", mode: .record)
+let result = try await setup.execute { context in
+    let start = context.clock.now
+    try await context.clock.sleep(for: .milliseconds(25))
+    return start.duration(to: context.clock.now)
+}
+```
+
+Pass the clock to application code that accepts a generic Swift `Clock` for
+timeouts, retry delays, or debounce behavior. Sleeps use real elapsed time in
+this implementation. The returned definition in this example contains no
+attachments, and the usage report has no clock operations. Finishing the scope
+cancels any pending sleeps even when the body fails or is canceled.

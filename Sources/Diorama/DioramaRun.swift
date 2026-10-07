@@ -9,6 +9,10 @@ struct DioramaRun: Sendable {
     /// The exact repository load outcome, or nil for an in-memory baseline.
     let loadResult: ScenarioLoadResult?
 
+    var context: ScenarioExecutionContext {
+        execution.context
+    }
+
     init(execution: ScenarioExecution, loadResult: ScenarioLoadResult? = nil,
          repository: JSONScenarioRepository? = nil)
     {

@@ -17,7 +17,7 @@ struct DioramaPublicationLifetimeTests {
             let system = try StartupProbe().system(key: "record")
             let result = try await Diorama(repository: randomRepository(storage: storage),
                                            scenarioID: "lifetime", mode: .record,
-                                           systems: system).execute { _ in }
+                                           systems: system).execute { _, _ in }
             report = result.report
         }
         #expect(releasedStorage == nil)
@@ -41,7 +41,7 @@ struct DioramaPublicationLifetimeTests {
         let setup = try Diorama(repository: randomRepository(storage: storage),
                                 scenarioID: "once", mode: .record, systems: system)
         let task = Task {
-            try await setup.execute { lease in
+            try await setup.execute { _, lease in
                 try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
                 return 123
             }
