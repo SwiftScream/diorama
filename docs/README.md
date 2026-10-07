@@ -220,6 +220,9 @@ proposal for discussion, with its review gate recorded in the owning plan.
 - [Clock override normalization and merge evidence](evidence/003-F05-clock-override-normalization-and-merge.md)
   records typed finalization merge, positional override preservation, healthy
   deletion, canonical output, and whole-publication refusal on invalid merges.
+- [Core execution-clock evidence](evidence/003-F06-core-execution-clock.md)
+  records attachment-free Swift Clock access, logical instants, cancellation
+  and horizon ownership, scoped consumer access, and platform verification.
 
 ## Historical boundary
 

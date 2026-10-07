@@ -419,7 +419,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | C     | 003-C01–003-C07 plus 003-C04A–003-C04B | Persisted random and consumer-defined systems; first complete vertical path. |
 | D     | 003-D01–003-D05      | Isolated URLProtocol evidence and reviewed native capability boundaries.     |
 | E     | 003-E01–003-E08      | Shared real-time scheduler and system-owned record services.           |
-| F     | 003-F01–003-F07; 003-F03A abandoned | Complete portable clock system. |
+| F     | 003-F01–003-F07; 003-F03A abandoned | Portable wall system and Core execution clock. |
 | G     | 003-G01–003-G09      | Portable location replay and narrow Apple live/delegate integration.         |
 | H     | 003-H01–003-H14      | Shared HTTP domain, resource publication, strict URLSession lifecycle data.  |
 | I     | 003-I01–003-I09      | Incremental production URLSession conformance across platform bridges.       |
@@ -1419,15 +1419,32 @@ no placement or checkpoint implementation is authorized.
 
 ### 003-F06 — Core execution Clock and closed-handle behavior
 
-- Status: In progress. The owner approves the DD15 ownership amendment,
+- Status: Complete. The owner approves the DD15 ownership amendment,
   revised F06/F07 scope, and commencement on 2026-10-07 with the recommended
-  GPT-6 Astra at `high` reasoning. Documentation precedes implementation.
+  GPT-6 Astra at `high` reasoning. The documentation amendment precedes
+  implementation. Core clock ownership, scoped consumer access, and local
+  macOS/iOS Simulator/Linux coverage gates are complete on 2026-10-08.
+  During review that day, the owner approves replacing both body forms with one
+  context-first `execute` API under DD18's execution-context amendment.
+  The context review update and repeated local platform gates are complete.
+  The owner approves squashing the F06 fixups and pushing its feature branch
+  on 2026-10-08.
+  The owner authorizes PR creation into `master` on 2026-10-08. Required checks
+  and a separate explicit owner request still gate merge.
+  The 2026-10-09 review update applies the owner-selected global 500-line type
+  body limit and restores private scheduler helpers under `DeadlineEngine`.
+  Focused scheduler/clock tests and the canonical local gate pass. The owner
+  approves the review update, fixup consolidation, and branch publication on
+  2026-10-09.
+- Evidence: [Core execution Clock and closed-handle behavior](../evidence/003-F06-core-execution-clock.md).
 - Recommended model: GPT-6 Astra; reasoning: `high`. Swift Clock conformance combines cancellation, transferred logical instants, frozen horizons, and scheduler lifetime.
-- Prerequisites: 003-E08; DD14–DD15, including the approved execution-clock ownership amendment.
+- Prerequisites: 003-E08; DD14–DD15, including the approved execution-clock ownership amendment, and DD18's execution-context amendment.
 - Scope: Add Core-owned Sendable/Hashable/Comparable logical instants and Swift Clock conformance over the shared execution scheduler, including sleep cancellation, closure, system-author access, and scoped consumer access.
 - Expected files/modules: `DioramaCore` clock/instant, time and scheduler lifecycle support, `Diorama` scoped access, Core and public-only consumer tests, execution-clock documentation and evidence.
 - Public behavior: Instants are Duration offsets without execution identity; receiving executions interpret transferred offsets locally.
   The clock is available without attachments or `DioramaClock`; reads and sleeps have no persisted representation, mode, or usage counts.
+  Every scoped body receives an immutable `ScenarioExecutionContext` before
+  typed dependencies; Core exposes the same services through `ScenarioExecution.context`.
   Finish cancels pending sleeps and freezes now at the admission-closing horizon; new closed sleeps diagnose and throw execution-closed, while canceled pending sleeps throw CancellationError.
   Closed now diagnoses and returns the frozen horizon. Diagnostics identify the execution without fabricated attachment/record identities.
 - Tests/verification: V-code; instant arithmetic/range preconditions, past deadlines, tolerance, shared and cross-execution offsets, attachment-free execution and scoped consumer use, no persisted sleep counts, cancellation/claim/finish races, frozen instant and all escaped-handle cases, released scheduler/source ownership.
