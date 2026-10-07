@@ -22,6 +22,14 @@ public enum DioramaClockSystem {
     {
         let key = AttachmentKey(rawValue: name)
         let trackID = trackID(for: key)
+        return try ScenarioAttachment(id: trackID.attachmentID).adding(track(id: trackID, recording: recording))
+    }
+
+    /// Creates the same prepared track for authoring and finalization merge.
+    static func track(
+        id trackID: TrackID,
+        recording: WallRecording) throws -> SequentialTrack<OverridableValue<Date>, Int?>
+    {
         let preparation = ValuePreparation<OverridableValue<Date>>()
         let prepared = try recording.effectiveValues.enumerated().map { position, value in
             try preparation.admitPrepared(
@@ -30,8 +38,7 @@ public enum DioramaClockSystem {
         }
         let header = try ValuePreparation<Int?>().admitPrepared(
             recording.offsetMinutes, context: .track(trackID))
-        return try ScenarioAttachment(id: trackID.attachmentID).adding(
-            SequentialTrack(id: trackID, header: header, values: prepared))
+        return SequentialTrack(id: trackID, header: header, values: prepared)
     }
 
     /// Reconstructs and validates the wall content of a clock attachment.
@@ -83,7 +90,8 @@ public enum DioramaClockSystem {
             let lease = try context.lease(
                 for: trackID, preparation: ValuePreparation<OverridableValue<Date>>(),
                 headerPreparation: ValuePreparation<Int?>(),
-                continuationPolicy: .replayLast(defaultValue: .observed(ReplayWallClock.unixEpoch)))
+                continuationPolicy: .replayLast(defaultValue: .observed(ReplayWallClock.unixEpoch)),
+                mergeRecording: mergeWallRecording)
             switch context.mode {
             case .record:
                 return PreparedSystem {

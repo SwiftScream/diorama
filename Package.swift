@@ -65,7 +65,7 @@ let package = Package(
             swiftSettings: strictConcurrencySettings),
         .testTarget(
             name: "DioramaClockTests",
-            dependencies: ["DioramaClock", "DioramaCore", "DioramaPersistence"],
+            dependencies: ["Diorama", "DioramaClock", "DioramaCore", "DioramaPersistence"],
             resources: [.copy("Fixtures")],
             swiftSettings: strictConcurrencySettings),
         .testTarget(
