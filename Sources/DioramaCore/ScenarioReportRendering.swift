@@ -98,8 +98,15 @@ enum ReportText {
         case let .system(label): "system-issue \(ReportFieldEscaping.quote(label.text))"
         case let .logicalTime(fact): logicalTime(fact)
         case let .scheduling(fact): scheduling(fact)
-        case .verification(.recordingNotAdmitted): "recording-not-admitted"
+        case let .verification(fact): verification(fact)
         case let .sequential(fact): sequential(fact)
+        }
+    }
+
+    private static func verification(_ issue: VerificationIssue) -> String {
+        switch issue {
+        case .recordingNotAdmitted: "recording-not-admitted"
+        case .recordingMergeFailed: "recording-merge-failed"
         }
     }
 

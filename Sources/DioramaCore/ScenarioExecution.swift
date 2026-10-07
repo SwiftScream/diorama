@@ -74,7 +74,7 @@ public final class ScenarioExecution: Sendable {
                 contents = ResourceContents()
                 return detached
             }
-            let tracks = detached.leases.map { $0.close() }
+            let tracks = detached.leases.map { $0.close(mergingRecording: true) }
             let definition = detached.definition?.replacingRecordings(tracks.compactMap(\.recording))
             // This scope drops dependencies and cleanup captures before freeze.
             // Their destruction, like callbacks, occurs outside all locks.
@@ -310,7 +310,7 @@ public final class ScenarioExecution: Sendable {
         reporter: DiagnosticReporter) -> StartupRollback
     {
         for lease in leases {
-            lease.close()
+            lease.close(mergingRecording: false)
         }
         let cleanup = cleanUp(systems, reporter: reporter)
         return StartupRollback(cleanup: cleanup)

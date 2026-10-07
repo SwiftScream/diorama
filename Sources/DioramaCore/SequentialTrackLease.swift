@@ -50,12 +50,14 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
         let incomplete: [RecordIdentity]
         let incompleteHeader: Bool
         let recording: SequentialTrack<Value, Header>?
+        let merge: RecordingMergeFinalization<Value, Header>?
     }
 
     private struct State: Sendable {
         var baseline: [SequentialRecord<Value>]
         var baselineHeader: Header?
         var continuation: ReplayContinuationState<Value>
+        var recordingMerge: FinalRecordingMerge<Value, Header>?
         var recording: [RecordingSlot] = []
         var recordingHeader: HeaderSlot = .empty
         var nextHeaderAttempt: UInt64 = 0
@@ -81,14 +83,16 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
     init(track: SequentialTrack<Value, Header>, baseline: [SequentialRecord<Value>],
          baselineHeader: Header?, mode: ScenarioMode,
          reporter: DiagnosticReporter, admission: ExecutionAdmission,
-         continuationPolicy: ReplayContinuationPolicy<Value> = .error)
+         continuationPolicy: ReplayContinuationPolicy<Value> = .error,
+         recordingMerge: FinalRecordingMerge<Value, Header>? = nil)
     {
         id = track.id
         self.mode = mode
         self.reporter = reporter
         self.admission = admission
         state = Mutex(State(baseline: baseline, baselineHeader: baselineHeader,
-                            continuation: ReplayContinuationState(mode == .replay ? continuationPolicy : .error)))
+                            continuation: ReplayContinuationState(mode == .replay ? continuationPolicy : .error),
+                            recordingMerge: mode == .record ? recordingMerge : nil))
     }
 
     /// Whether startup rollback or explicit finish has closed this lease.
@@ -448,8 +452,8 @@ public extension SequentialTrackLease {
 
 extension SequentialTrackLease: AnySequentialLease {
     @discardableResult
-    func close() -> ClosedSequentialTrack {
-        closing.withLock { _ in finishClosing() }
+    func close(mergingRecording: Bool = false) -> ClosedSequentialTrack {
+        closing.withLock { _ in finishClosing(mergingRecording: mergingRecording) }
     }
 
     private func freezeRecords() {
@@ -484,7 +488,7 @@ extension SequentialTrackLease: AnySequentialLease {
         withExtendedLifetime(accumulators) {}
     }
 
-    private func finishClosing() -> ClosedSequentialTrack {
+    private func finishClosing(mergingRecording: Bool) -> ClosedSequentialTrack {
         if !state.withLock({ $0.closed }) {
             freezeRecords()
         }
@@ -497,9 +501,17 @@ extension SequentialTrackLease: AnySequentialLease {
             reporter.record(Diagnostic(issue: .verification(.recordingNotAdmitted), context: .record(identity),
                                        recordingImpact: .invalidatesCandidate))
         }
+        let recording: SequentialTrack<Value, Header>? = switch (mergingRecording, detached.merge) {
+        case let (true, .apply(policy, baseline, fresh)) where reporter.report.recordingHealth.isHealthy:
+            policy.apply(baseline: baseline, recording: fresh, reporter: reporter)
+        default:
+            detached.recording
+        }
         withExtendedLifetime(detached) {}
         return ClosedSequentialTrack(usage: detached.usage,
-                                     recording: detached.recording.map { SequentialTrackBox(track: $0) })
+                                     recording: recording.map {
+                                         SequentialTrackBox(track: $0)
+                                     })
     }
 
     private func detachClosedContents() -> ClosedContents {
@@ -507,7 +519,7 @@ extension SequentialTrackLease: AnySequentialLease {
             if let usage = state.finalUsage {
                 return ClosedContents(usage: usage, records: [],
                                       baselineHeader: nil, recordingHeader: nil,
-                                      incomplete: [], incompleteHeader: false, recording: nil)
+                                      incomplete: [], incompleteHeader: false, recording: nil, merge: nil)
             }
             state.closed = true
             let incomplete = state.recording.indices.filter {
@@ -524,21 +536,38 @@ extension SequentialTrackLease: AnySequentialLease {
             let baselineHeader = state.baselineHeader
             let recordingHeader = state.recordingHeader.value
             let incompleteHeader = state.pendingHeaderAttempts > 0
-            state.baseline = []
-            state.recording = []
-            state.claimed = []
-            state.replayProgress = [:]
             let recording = mode == .record
                 ? recordingTrack(header: recordingHeader ?? baselineHeader, records: admitted)
                 : nil
+            let merge = mergeFinalization(state, recording: recording, admittedCount: admitted.count)
+            state.baseline = []
+            state.recording = []
+            state.recordingMerge = nil
+            state.claimed = []
+            state.replayProgress = [:]
             state.baselineHeader = nil
             state.recordingHeader = .empty
             state.pendingHeaderAttempts = 0
             return ClosedContents(usage: usage, records: records,
                                   baselineHeader: baselineHeader, recordingHeader: recordingHeader,
                                   incomplete: incomplete, incompleteHeader: incompleteHeader,
-                                  recording: recording)
+                                  recording: recording, merge: merge)
         }
+    }
+
+    private func mergeFinalization(
+        _ state: State, recording: SequentialTrack<Value, Header>?,
+        admittedCount: Int) -> RecordingMergeFinalization<Value, Header>?
+    {
+        guard let policy = state.recordingMerge else { return nil }
+        guard let recording, admittedCount == state.recording.count, state.pendingHeaderAttempts == 0 else {
+            return .discard(policy)
+        }
+        if case .failed = state.recordingHeader {
+            return .discard(policy)
+        }
+        return .apply(policy, baseline: recordingTrack(header: state.baselineHeader, records: state.baseline),
+                      recording: recording)
     }
 
     private func makeUsage(_ state: State, admittedCount: Int) -> SequentialTrackUsage {

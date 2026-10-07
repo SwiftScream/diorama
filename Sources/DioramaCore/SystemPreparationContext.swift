@@ -48,49 +48,63 @@ public final class SystemPreparationContext: Sendable {
     /// Call exactly once for each declared track. Existing values are validated
     /// outside the context lock without rerunning capture transformations;
     /// failed or abandoned requests cannot authorize activation. The selected
-    /// preparation policy is not retained by the lease. Systems use their own immutable
-    /// policy for later observations. Synchronous replay returns the stored value;
+    /// preparation policy is retained only when a recording merge needs final
+    /// validation. Systems use their own immutable policy for later observations.
+    /// Synchronous replay returns the stored value;
     /// systems translate it into their domain objects.
     ///
     /// - Parameters:
     ///   - id: The declared track identity for this attachment.
     ///   - preparation: The system's setup-selected policy for its stable type.
     ///   - continuationPolicy: Exhausted and closed replay behavior; defaults to throwing.
+    ///   - mergeRecording: Optional typed baseline/fresh merge at finalization.
+    ///     The result receives validation only, with capture transforms omitted.
     /// - Returns: A fresh typed lease, closed on rollback or finalization.
     /// - Throws: Safe, already-reported admission or track-request evidence.
     public func lease<Value: Sendable>(
         for id: TrackID,
         preparation: ValuePreparation<Value>,
-        continuationPolicy: ReplayContinuationPolicy<Value> = .error)
+        continuationPolicy: ReplayContinuationPolicy<Value> = .error,
+        mergeRecording: RecordingMerge<Value, Void>? = nil)
         throws(PreparationFailure) -> HeaderlessSequentialTrackLease<Value>
     {
-        try lease(for: id, preparation: preparation, admitHeader: { (_: Void) in () },
-                  continuationPolicy: continuationPolicy)
+        let policy = mergeRecording.map {
+            FinalRecordingMerge(merge: $0, valuePreparation: preparation, headerPreparation: ValuePreparation<Void>())
+        }
+        return try lease(for: id, preparation: preparation, admitHeader: { (_: Void) in () },
+                         continuationPolicy: continuationPolicy, recordingMerge: policy)
     }
 
     /// Prepares a track with one typed header outside its record sequence.
     /// Existing header content receives validation-only admission, including
     /// when its record sequence is empty.
+    /// An optional recording merge receives typed baseline and fresh tracks,
+    /// including their headers. Its output is validated with these policies.
     public func lease<Value: Sendable, Header: Sendable>(
         for id: TrackID,
         preparation: ValuePreparation<Value>,
         headerPreparation: ValuePreparation<Header>,
-        continuationPolicy: ReplayContinuationPolicy<Value> = .error)
+        continuationPolicy: ReplayContinuationPolicy<Value> = .error,
+        mergeRecording: RecordingMerge<Value, Header>? = nil)
         throws(PreparationFailure) -> SequentialTrackLease<Value, Header>
     {
         func admit(_ header: Header) throws(PreparationFailure) -> Header {
             try headerPreparation.admitPrepared(
                 header, reporter: reporter, context: .track(id)).value
         }
+        let policy = mergeRecording.map {
+            FinalRecordingMerge(merge: $0, valuePreparation: preparation, headerPreparation: headerPreparation)
+        }
         return try lease(for: id, preparation: preparation, admitHeader: admit,
-                         continuationPolicy: continuationPolicy)
+                         continuationPolicy: continuationPolicy, recordingMerge: policy)
     }
 
     private func lease<Value: Sendable, Header: Sendable>(
         for id: TrackID,
         preparation: ValuePreparation<Value>,
         admitHeader: (Header) throws(PreparationFailure) -> Header,
-        continuationPolicy: ReplayContinuationPolicy<Value>)
+        continuationPolicy: ReplayContinuationPolicy<Value>,
+        recordingMerge: FinalRecordingMerge<Value, Header>?)
         throws(PreparationFailure) -> SequentialTrackLease<Value, Header>
     {
         let original: SequentialTrack<Value, Header>
@@ -132,7 +146,7 @@ public final class SystemPreparationContext: Sendable {
         let lease = SequentialTrackLease(
             track: original, baseline: records, baselineHeader: admittedHeader,
             mode: mode, reporter: reporter, admission: admission,
-            continuationPolicy: continuationPolicy)
+            continuationPolicy: continuationPolicy, recordingMerge: recordingMerge)
         let admitted = state.withLock { state in
             guard state.attachment != nil else { return false }
             state.leases.append(lease)

@@ -41,4 +41,6 @@ public struct AttachmentUsage: Equatable, Sendable {
 public enum VerificationIssue: Equatable, Sendable {
     /// An observation reserved before closure never entered the recording.
     case recordingNotAdmitted
+    /// System-owned recording merge or complete-result construction failed.
+    case recordingMergeFailed
 }

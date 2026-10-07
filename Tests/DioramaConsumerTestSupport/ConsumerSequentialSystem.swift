@@ -123,11 +123,14 @@ public enum ConsumerSequentialSystem {
     ///   - key: The caller-selected instance key.
     ///   - values: Prepared baseline values; the type intentionally is not
     ///     `Codable`.
+    ///   - mergeRecording: Optional consumer-owned merge of prepared tracks.
     /// - Returns: Typed immutable attachment, preparation, and lookup setup.
     /// - Throws: Public definition or preparation evidence.
     public static func instance(
         key: AttachmentKey,
-        values: [ConsumerStableValue] = []) throws -> ScenarioSystem<ConsumerSequentialDependency>
+        values: [ConsumerStableValue] = [],
+        mergeRecording: RecordingMerge<ConsumerStableValue, Void>? = nil)
+        throws -> ScenarioSystem<ConsumerSequentialDependency>
     {
         let track = try SequentialTrack(
             id: trackID(for: key),
@@ -137,7 +140,7 @@ public enum ConsumerSequentialSystem {
         let trackID = trackID(for: key)
         return try ScenarioSystem(type: type, attachment: attachment) { context in
             let preparation = ValuePreparation<ConsumerStableValue>()
-            let lease = try context.lease(for: trackID, preparation: preparation)
+            let lease = try context.lease(for: trackID, preparation: preparation, mergeRecording: mergeRecording)
             return PreparedSystem {
                 ActivatedSystem(
                     dependency: ConsumerSequentialDependency(

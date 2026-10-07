@@ -68,6 +68,49 @@ check admission and synchronize against freeze. The public lease's `isClosed`
 provides the admission check; a domain can also use its existing execution
 services. Core cannot prove an opaque draft follows this contract.
 
+## Recording merge
+
+A system can register a typed merge when preparing a lease. This combines the
+validated baseline with the newly captured track during in-memory finalization,
+before the complete candidate becomes available or optional publication begins:
+
+```swift
+let lease = try context.lease(
+    for: trackID,
+    preparation: valuePolicy,
+    headerPreparation: headerPolicy,
+    mergeRecording: { baseline, fresh in
+        try mergePreparedDomainTrack(baseline: baseline, fresh: fresh)
+    })
+```
+
+`RecordingMerge<Value, Header>` receives two immutable tracks of the same type
+and identity, including their prepared headers. A fresh recording can be empty.
+The callback owns correspondence, override preservation, deletion policy, and
+complete domain validation. Clock uses numeric positions; Core does not infer
+correspondence or impose that policy on other systems.
+
+Normal record-mode finish runs a configured callback once, after scheduler
+quiescence and record freeze. Capture is closed and the callback runs outside
+lease state locks. It must use only prepared stable values, remain deterministic,
+and never read a live source or wait for recursive finish. Replay, passthrough,
+unhealthy capture, and startup rollback do not invoke it. Without a callback,
+the existing whole-track replacement behavior remains.
+
+Core requires the returned track identity to stay unchanged and validates the
+returned header and each value with the setup policies. It does not repeat
+capture canonicalization, redaction, or normalization. Those validation policies
+and the callback are retained only until lease closure; escaped leases retain
+neither baseline content nor callback captures. Usage counts describe this
+run's captured observations, independently of merged content.
+
+A thrown merge or changed track identity reports `recordingMergeFailed` without
+rendering the error or any value. Setup validation failures retain their normal
+preparation evidence. Either failure invalidates the whole recording candidate,
+so in-memory execution supplies no healthy definition and file publication
+preserves the previous document. Successfully captured native returns remain
+unchanged by merge outcomes.
+
 ## Record selection
 
 A selector operates on prepared values and returns equivalent candidates,
