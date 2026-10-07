@@ -12,6 +12,17 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
+            name: "DioramaClockUsage",
+            dependencies: [
+                .product(name: "Diorama", package: "Diorama"),
+                .product(name: "DioramaClock", package: "Diorama"),
+            ],
+            swiftSettings: [
+                .defaultIsolation(nil),
+                .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+                .enableUpcomingFeature("InferIsolatedConformances"),
+            ]),
+        .executableTarget(
             name: "DioramaRandomUsage",
             dependencies: [
                 .product(name: "Diorama", package: "Diorama"),

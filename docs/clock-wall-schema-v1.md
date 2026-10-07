@@ -107,3 +107,9 @@ schema is deliberate `Codable`; the JSON envelope and deterministic whitespace
 follow the [repository schema](persistence-schema-v1.md). Version 1 is the
 only clock payload version currently read or written. No older public clock
 schema exists to migrate.
+
+For complete public workflows, see [wall observations and execution time](clock-usage.md).
+The runtime execution clock requires no wall payload. A declared empty wall
+still represents a wall system with zero observations, independently of
+execution-clock use. The portable [composition fixture](../Tests/DioramaClockTests/Fixtures/clock-composition.json)
+combines independently keyed overridden, repeated, backward, and empty walls.
