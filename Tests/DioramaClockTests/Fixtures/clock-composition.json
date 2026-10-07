@@ -1,0 +1,59 @@
+{
+  "diorama" : {
+    "schemaVersion" : 1
+  },
+  "systems" : [
+    {
+      "attachmentKey" : "capture",
+      "payload" : {
+        "observations" : [
+          "0ms",
+          {
+            "override" : "5s"
+          },
+          "-1s"
+        ],
+        "origin" : {
+          "override" : "2030-01-01T09:00:02.125+11:00"
+        }
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.clock"
+    },
+    {
+      "attachmentKey" : "replay",
+      "payload" : {
+        "observations" : [
+          "0ms",
+          "0ms",
+          "-1500ms"
+        ],
+        "origin" : "1969-12-31T16:00:00.001-08:00"
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.clock"
+    },
+    {
+      "attachmentKey" : "pass",
+      "payload" : {
+        "observations" : [
+          "0ms",
+          "1s"
+        ],
+        "origin" : "2025-07-01T00:00:00.000-07:00"
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.clock"
+    },
+    {
+      "attachmentKey" : "empty",
+      "payload" : {
+        "observations" : [
+
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.clock"
+    }
+  ]
+}

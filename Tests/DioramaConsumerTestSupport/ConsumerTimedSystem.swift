@@ -130,6 +130,8 @@ public struct ConsumerTimedServices: Sendable {
     public let records: HeaderlessSequentialTrackLease<ConsumerTimedRecord>
     /// The execution's shared logical-time service.
     public let time: ExecutionTime
+    /// The same runtime clock exposed to scoped application code.
+    public let clock: ScenarioClock
     /// The attachment's scheduling service; delivery isolation stays external.
     public let scheduling: SchedulingLease
 
@@ -166,7 +168,8 @@ public enum ConsumerTimedSystem {
         let attachment = try ScenarioAttachment(id: id).adding(SequentialTrack(id: trackID, values: values))
         return try ScenarioSystem(type: type, attachment: attachment) { context in
             let records = try context.lease(for: trackID, preparation: policy)
-            let dependency = ConsumerTimedServices(records: records, time: context.time, scheduling: context.scheduling)
+            let dependency = ConsumerTimedServices(
+                records: records, time: context.time, clock: context.clock, scheduling: context.scheduling)
             return PreparedSystem { ActivatedSystem(dependency: dependency, deactivate: {}) }
         }
     }
