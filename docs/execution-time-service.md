@@ -81,7 +81,7 @@ holding only a weak reference to the scheduler.
 
 The ownership boundary is recorded in
 [DD15's execution-clock amendment](design-decisions/15-clock-system.md#execution-clock-ownership-amendment--owner-approved-2026-10-07).
-`DioramaClock` separately records and replays wall `Date` observations.
+`DioramaDate` separately records and replays wall `Date` observations.
 
 ## Scoped consumer access
 

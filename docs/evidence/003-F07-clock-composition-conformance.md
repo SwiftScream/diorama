@@ -17,7 +17,7 @@
 
 F07 completes the wall/Core execution-clock milestone through public product
 APIs. It adds seven tests, a multi-wall canonical golden, a compiled usage
-example, and a [usage guide](../clock-usage.md). No production implementation,
+example, and a [usage guide](../date-usage.md). No production implementation,
 wall schema, playback policy, third-party dependency, unsafe concurrency
 annotation, warning exception, or deployment floor changes.
 

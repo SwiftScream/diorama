@@ -8,6 +8,13 @@
 
 The owner explicitly approved this plan on 2026-09-07, alongside the consolidated design.
 
+On 2026-10-09, the owner authorizes a separate naming maintenance PR under
+[Decision 15's date-system naming amendment](../design-decisions/15-clock-system.md#date-system-naming-amendment--owner-approved-2026-10-09).
+Current module references use `DioramaDate`; `DioramaDateSystem`,
+`DioramaDateSource`, and persisted type `diorama.date` replace the former wall
+clock names. F01–F07 retain their original unit IDs and evidence history.
+This naming work does not authorize beginning Phase G.
+
 On 2026-10-06, the owner accepts
 [Decision 19](../design-decisions/19-system-owned-records.md), its delivery-plan
 revision, and the scope of the combined E04R/revised E05 refactor.
@@ -433,7 +440,7 @@ The consumer entry product is `Diorama`, depending on `DioramaCore` and
 `DioramaPersistence`. Core remains the system authoring and execution engine
 boundary; persistence owns codecs and storage. Consumer run orchestration belongs
 in `Diorama`, as approved in DD18's 2026-09-21 amendment.
-System products include `DioramaRandom`, `DioramaClock`, `DioramaLocation`, `DioramaHTTP`, and `DioramaURLSession`.
+System products include `DioramaRandom`, `DioramaDate`, `DioramaLocation`, `DioramaHTTP`, and `DioramaURLSession`.
 Optional persistence, Core Location, XCTest, and Swift Testing code belongs in suitable separate targets/products when introduced.
 Names such as `DioramaPersistence`, `DioramaCoreLocation`, `DioramaXCTest`, and `DioramaTesting` below are working labels.
 They do not impose a new architectural commitment.
@@ -1292,7 +1299,7 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
   are complete on `master`. They retain one effective value
   and its observed or authored override state without Core persistence policy.
 - Scope: Add strict empty/nonempty wall data, origin and successive signed observations, cumulative validation and deliberate version-one persistence.
-- Expected files/modules: `DioramaClock` stable model/schema, fixtures and builders; conditional `Codable` conformance in `DioramaPersistence` for the shared observed/override field form.
+- Expected files/modules: `DioramaDate` stable model/schema, fixtures and builders; conditional `Codable` conformance in `DioramaPersistence` for the shared observed/override field form.
 - Public behavior: Empty has no origin; nonempty canonical position zero is zero.
   Negative wall deltas change values without introducing replay delays.
   Builders and decoding both produce validated semantic values.
@@ -1442,7 +1449,7 @@ no placement or checkpoint implementation is authorized.
 - Scope: Add Core-owned Sendable/Hashable/Comparable logical instants and Swift Clock conformance over the shared execution scheduler, including sleep cancellation, closure, system-author access, and scoped consumer access.
 - Expected files/modules: `DioramaCore` clock/instant, time and scheduler lifecycle support, `Diorama` scoped access, Core and public-only consumer tests, execution-clock documentation and evidence.
 - Public behavior: Instants are Duration offsets without execution identity; receiving executions interpret transferred offsets locally.
-  The clock is available without attachments or `DioramaClock`; reads and sleeps have no persisted representation, mode, or usage counts.
+  The clock is available without attachments or `DioramaDate`; reads and sleeps have no persisted representation, mode, or usage counts.
   Every scoped body receives an immutable `ScenarioExecutionContext` before
   typed dependencies; Core exposes the same services through `ScenarioExecution.context`.
   Finish cancels pending sleeps and freezes now at the admission-closing horizon; new closed sleeps diagnose and throw execution-closed, while canceled pending sleeps throw CancellationError.

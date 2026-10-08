@@ -75,6 +75,13 @@ during F06 review. One scoped `execute` body always receives a Core-owned
 `ScenarioExecutionContext` before its typed dependencies. The context initially
 exposes the execution clock without extending execution lifetime.
 
+On 2026-10-09, the owner approves [Decision 15's date-system naming
+amendment](15-clock-system.md#date-system-naming-amendment--owner-approved-2026-10-09):
+`DioramaDate`, `DioramaDateSystem`, and `DioramaDateSource` replace the wall
+system's former clock names, including the persisted type `diorama.date`.
+The payload remains version 1; former imports and identifiers have no aliases
+or automatic migration.
+
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |
 | 1 | [Common abstraction](01-common-abstraction.md) | `01-common-abstraction.md` | Accepted |

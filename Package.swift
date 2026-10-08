@@ -20,8 +20,8 @@ let package = Package(
             name: "DioramaCore",
             targets: ["DioramaCore"]),
         .library(
-            name: "DioramaClock",
-            targets: ["DioramaClock"]),
+            name: "DioramaDate",
+            targets: ["DioramaDate"]),
         .library(
             name: "DioramaRandom",
             targets: ["DioramaRandom"]),
@@ -38,7 +38,7 @@ let package = Package(
             name: "DioramaCore",
             swiftSettings: strictConcurrencySettings),
         .target(
-            name: "DioramaClock",
+            name: "DioramaDate",
             dependencies: ["DioramaCore", "DioramaPersistence"],
             swiftSettings: strictConcurrencySettings),
         .target(
@@ -64,9 +64,9 @@ let package = Package(
             resources: [.copy("Fixtures")],
             swiftSettings: strictConcurrencySettings),
         .testTarget(
-            name: "DioramaClockTests",
+            name: "DioramaDateTests",
             dependencies: [
-                "Diorama", "DioramaClock", "DioramaConsumerTestSupport", "DioramaCore", "DioramaPersistence",
+                "Diorama", "DioramaDate", "DioramaConsumerTestSupport", "DioramaCore", "DioramaPersistence",
             ],
             resources: [.copy("Fixtures")],
             swiftSettings: strictConcurrencySettings),

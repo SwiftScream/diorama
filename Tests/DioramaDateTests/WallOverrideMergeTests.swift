@@ -1,6 +1,6 @@
 import Diorama
-@testable import DioramaClock
 import DioramaCore
+@testable import DioramaDate
 import DioramaPersistence
 import Foundation
 import Synchronization
@@ -8,7 +8,7 @@ import Testing
 
 enum WallMergeFixtures {
     static func codec() throws -> JSONScenarioCodec {
-        try JSONScenarioCodec(registry: PersistentSystemRegistry([DioramaClockSystem.type]))
+        try JSONScenarioCodec(registry: PersistentSystemRegistry([DioramaDateSystem.type]))
     }
 
     static func recording(
@@ -21,7 +21,7 @@ enum WallMergeFixtures {
 
     static func content(_ definition: ScenarioDefinition, named name: String = "clock") throws -> WallRecording {
         let attachment = try #require(definition.attachment(for: AttachmentKey(rawValue: name)))
-        return try DioramaClockSystem.recording(in: attachment)
+        return try DioramaDateSystem.recording(in: attachment)
     }
 
     static func fixture(_ name: String) throws -> Data {
@@ -38,7 +38,7 @@ enum WallMergeFixtures {
         return file
     }
 
-    final class Source: DioramaWallClock {
+    final class Source: DioramaDateSource {
         private let values: [Date]
         private let reads = Mutex(0)
 
@@ -69,18 +69,18 @@ struct WallOverrideMergeTests {
         let original = try WallMergeFixtures.recording(
             origin: .override(Date(timeIntervalSince1970: 1000)), deltas: [.observed(0), .override(5000)])
         let baseline = try ScenarioDefinition(attachments: [
-            DioramaClockSystem.attachment(named: "record", recording: original),
-            DioramaClockSystem.attachment(named: "replay", recording: original),
-            DioramaClockSystem.attachment(named: "pass", recording: original),
+            DioramaDateSystem.attachment(named: "record", recording: original),
+            DioramaDateSystem.attachment(named: "replay", recording: original),
+            DioramaDateSystem.attachment(named: "pass", recording: original),
         ])
         let source = WallMergeFixtures.Source([Date(timeIntervalSince1970: 2000), Date(timeIntervalSince1970: 2001)])
         let passthroughSource = WallMergeFixtures.Source([Date(timeIntervalSince1970: 3000)])
-        let record = try DioramaClockSystem.instance(named: "record") { source }
-        let replay = try DioramaClockSystem.instance(named: "replay") { () -> WallMergeFixtures.Source in
+        let record = try DioramaDateSystem.instance(named: "record") { source }
+        let replay = try DioramaDateSystem.instance(named: "replay") { () -> WallMergeFixtures.Source in
             Issue.record("Replay initialized a source")
             return WallMergeFixtures.Source([])
         }.withMode(.replay)
-        let pass = try DioramaClockSystem.instance(named: "pass") { passthroughSource }.withMode(.passthrough)
+        let pass = try DioramaDateSystem.instance(named: "pass") { passthroughSource }.withMode(.passthrough)
         let result = try await Diorama(definition: baseline, scenarioID: "mixed", mode: .record,
                                        systems: record, replay, pass)
             .execute { _, record, replay, pass in
@@ -103,11 +103,11 @@ struct WallOverrideMergeTests {
     @Test
     func `edited baseline rerecords to canonical overrides while live values remain native`() async throws {
         let codec = try WallMergeFixtures.codec()
-        let baseline = try codec.decode(WallMergeFixtures.fixture("clock-edited"))
+        let baseline = try codec.decode(WallMergeFixtures.fixture("date-edited"))
         let baselineBytes = try codec.encode(baseline)
         let native = [0.00049, 0.00098, 0.0004].map { Date(timeIntervalSince1970: 2_000_000_000 + $0) }
         let source = WallMergeFixtures.Source(native)
-        let system = try DioramaClockSystem.instance(named: "clock") { source }
+        let system = try DioramaDateSystem.instance(named: "clock") { source }
         let result = try await Diorama(definition: baseline, scenarioID: "rerecord", mode: .record, systems: system)
             .execute { _, wall in native.map { _ in wall.now } }
         #expect(result.body == native)
@@ -117,7 +117,7 @@ struct WallOverrideMergeTests {
         let old = try WallMergeFixtures.content(baseline)
         #expect(recording.origin == old.origin)
         #expect(recording.observations == [.observed(0), .override(5000), .observed(-1)])
-        let expected = try WallMergeFixtures.fixture("clock-rerecorded-overrides")
+        let expected = try WallMergeFixtures.fixture("date-rerecorded-overrides")
         #expect(try codec.encode(candidate) == expected)
         #expect(try codec.encode(codec.decode(expected)) == expected)
         #expect(try codec.encode(baseline) == baselineBytes)
@@ -135,11 +135,11 @@ struct WallOverrideMergeTests {
         let original = try WallMergeFixtures.recording(
             origin: .observed(Date(timeIntervalSince1970: 100)),
             deltas: [.observed(0), .override(5000), .observed(7000)], offset: -300)
-        let attachment = try DioramaClockSystem.attachment(named: "clock", recording: original)
+        let attachment = try DioramaDateSystem.attachment(named: "clock", recording: original)
         let baseline = try ScenarioDefinition(attachments: [attachment])
         let native = [0.0, 2, 9].map { Date(timeIntervalSince1970: 2_000_000_000 + $0) }
         let source = WallMergeFixtures.Source(native)
-        let system = try DioramaClockSystem.instance(named: "clock") { source }
+        let system = try DioramaDateSystem.instance(named: "clock") { source }
         let zone = TimeZone.current
         let result = try await Diorama(definition: baseline, scenarioID: "fresh", mode: .record, systems: system)
             .execute { _, wall in native.map { _ in wall.now } }
@@ -166,11 +166,11 @@ struct WallOverrideMergeTests {
         let original = try WallMergeFixtures.recording(
             origin: .override(Date(timeIntervalSince1970: 1000)),
             deltas: [.observed(0), .observed(1000), .override(7000), .observed(1000)])
-        let attachment = try DioramaClockSystem.attachment(named: "clock", recording: original)
+        let attachment = try DioramaDateSystem.attachment(named: "clock", recording: original)
         let baseline = try ScenarioDefinition(attachments: [attachment])
         let native = offsets.map { Date(timeIntervalSince1970: 2_000_000_000 + $0) }
         let source = WallMergeFixtures.Source(native)
-        let system = try DioramaClockSystem.instance(named: "clock") { source }
+        let system = try DioramaDateSystem.instance(named: "clock") { source }
         let result = try await Diorama(definition: baseline, scenarioID: "positions", mode: .record, systems: system)
             .execute { _, wall in native.map { _ in wall.now } }
         let merged = try WallMergeFixtures.content(#require(result.definition))
@@ -188,12 +188,12 @@ struct WallOverrideMergeTests {
         empty: Bool) async throws
     {
         let codec = try WallMergeFixtures.codec()
-        let bytes = try WallMergeFixtures.fixture("clock-edited-canonical")
+        let bytes = try WallMergeFixtures.fixture("date-edited-canonical")
         let file = try WallMergeFixtures.file(containing: bytes)
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let native = empty ? [] : [Date(timeIntervalSince1970: 2_000_000_000)]
         let source = WallMergeFixtures.Source(native)
-        let system = try DioramaClockSystem.instance(named: "clock") { source }
+        let system = try DioramaDateSystem.instance(named: "clock") { source }
         let result = try await Diorama(file: file, scenarioID: "publish", mode: .record, systems: system)
             .execute { _, wall in native.map { _ in wall.now } }
         let candidate = try #require(result.definition)
@@ -219,7 +219,7 @@ struct WallOverrideMergeTests {
             origin: .observed(Date(timeIntervalSince1970: 0)),
             deltas: [.observed(0), .override(large), .observed(-large)], offset: 0)
         let codec = try WallMergeFixtures.codec()
-        let attachment = try DioramaClockSystem.attachment(named: "clock", recording: original)
+        let attachment = try DioramaDateSystem.attachment(named: "clock", recording: original)
         let baseline = try ScenarioDefinition(attachments: [attachment])
         let bytes = try codec.encode(baseline)
         let file = try WallMergeFixtures.file(containing: bytes)
@@ -229,7 +229,7 @@ struct WallOverrideMergeTests {
             Date(timeIntervalSince1970: Double(large) / 1000),
         ]
         let source = WallMergeFixtures.Source(native)
-        let system = try DioramaClockSystem.instance(named: "clock") { source }
+        let system = try DioramaDateSystem.instance(named: "clock") { source }
         let result = try await Diorama(file: file, scenarioID: "invalid-merge", mode: .record, systems: system)
             .execute { _, wall in native.map { _ in wall.now } }
         #expect(result.body == native)

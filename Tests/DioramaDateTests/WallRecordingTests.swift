@@ -1,5 +1,5 @@
-@testable import DioramaClock
 import DioramaCore
+@testable import DioramaDate
 import DioramaPersistence
 import Foundation
 import Testing
@@ -9,17 +9,26 @@ struct WallRecordingTests {
 
     init() throws {
         codec = try JSONScenarioCodec(
-            registry: PersistentSystemRegistry([DioramaClockSystem.type]))
+            registry: PersistentSystemRegistry([DioramaDateSystem.type]))
+    }
+
+    @Test
+    func `former clock identifier is not accepted as a date system`() throws {
+        let current = try #require(String(data: fixture("date-empty"), encoding: .utf8))
+        let former = Data(current.replacingOccurrences(of: "diorama.date", with: "diorama.clock").utf8)
+        #expect(throws: PersistenceDispatchError.unknownSystemType(SystemTypeID(rawValue: "diorama.clock"))) {
+            _ = try codec.decode(former)
+        }
     }
 
     @Test
     func `empty wall payload is distinct from an absent clock attachment`() throws {
-        let empty = try DioramaClockSystem.attachment(named: "clock")
+        let empty = try DioramaDateSystem.attachment(named: "clock")
         let data = try codec.encode(ScenarioDefinition(attachments: [empty]))
-        let expected = try fixture("clock-empty")
+        let expected = try fixture("date-empty")
         #expect(data == expected)
-        #expect(try DioramaClockSystem.recording(in: empty) == .empty)
-        let trackID = DioramaClockSystem.trackID(for: AttachmentKey(rawValue: "clock"))
+        #expect(try DioramaDateSystem.recording(in: empty) == .empty)
+        let trackID = DioramaDateSystem.trackID(for: AttachmentKey(rawValue: "clock"))
         let track = try #require(try empty.track(
             trackID, as: OverridableValue<Date>.self, header: Int?.self))
         #expect(track.header == nil)
@@ -45,23 +54,23 @@ struct WallRecordingTests {
             origin.date.addingTimeInterval(7),
             origin.date.addingTimeInterval(6),
         ])
-        let attachment = try DioramaClockSystem.attachment(named: "clock", recording: recording)
-        let trackID = DioramaClockSystem.trackID(for: AttachmentKey(rawValue: "clock"))
+        let attachment = try DioramaDateSystem.attachment(named: "clock", recording: recording)
+        let trackID = DioramaDateSystem.trackID(for: AttachmentKey(rawValue: "clock"))
         let track = try #require(try attachment.track(
             trackID, as: OverridableValue<Date>.self, header: Int?.self))
         #expect(track.header == 660)
         #expect(track.records.map(\.value) == recording.effectiveValues)
         let data = try codec.encode(ScenarioDefinition(attachments: [attachment]))
-        let expected = try fixture("clock-nonempty")
+        let expected = try fixture("date-nonempty")
         #expect(data == expected)
         let decoded = try codec.decode(data)
-        #expect(try DioramaClockSystem.recording(in: decoded.attachments[0]) == recording)
+        #expect(try DioramaDateSystem.recording(in: decoded.attachments[0]) == recording)
     }
 
     @Test
     func `authored first delta shifts origin and canonicalizes position zero`() throws {
-        let decoded = try codec.decode(fixture("clock-edited"))
-        let recording = try DioramaClockSystem.recording(in: decoded.attachments[0])
+        let decoded = try codec.decode(fixture("date-edited"))
+        let recording = try DioramaDateSystem.recording(in: decoded.attachments[0])
         #expect(recording.origin?.isOverride == true)
         #expect(recording.origin?.value.date == Date(timeIntervalSince1970: 1_893_448_802))
         #expect(recording.observations == [.observed(0), .override(5000), .observed(-1000)])
@@ -72,7 +81,7 @@ struct WallRecordingTests {
         ])
 
         let canonical = try codec.encode(decoded)
-        let expected = try fixture("clock-edited-canonical")
+        let expected = try fixture("date-edited-canonical")
         #expect(canonical == expected)
     }
 
@@ -89,10 +98,10 @@ struct WallRecordingTests {
         #expect(recording.effectiveValues == values)
         #expect(recording.observations == [.observed(0), .override(1), .observed(-2)])
 
-        let attachment = try DioramaClockSystem.attachment(named: "clock", recording: recording)
+        let attachment = try DioramaDateSystem.attachment(named: "clock", recording: recording)
         let encoded = try codec.encode(ScenarioDefinition(attachments: [attachment]))
         let decoded = try codec.decode(encoded)
-        #expect(try DioramaClockSystem.recording(in: decoded.attachments[0]) == recording)
+        #expect(try DioramaDateSystem.recording(in: decoded.attachments[0]) == recording)
     }
 
     @Test
@@ -118,11 +127,11 @@ struct WallRecordingTests {
         #expect(shifted.observations == [.observed(0), .observed(1000)])
 
         let unheadered = try ScenarioAttachment(
-            id: DioramaClockSystem.trackID(for: AttachmentKey(rawValue: "clock")).attachmentID)
+            id: DioramaDateSystem.trackID(for: AttachmentKey(rawValue: "clock")).attachmentID)
             .adding(HeaderlessSequentialTrack<OverridableValue<Date>>(
-                id: DioramaClockSystem.trackID(for: AttachmentKey(rawValue: "clock"))))
+                id: DioramaDateSystem.trackID(for: AttachmentKey(rawValue: "clock"))))
         #expect(throws: WallRecordingError.invalidTrackLayout) {
-            _ = try DioramaClockSystem.recording(in: unheadered)
+            _ = try DioramaDateSystem.recording(in: unheadered)
         }
     }
 
@@ -151,12 +160,12 @@ struct WallRecordingTests {
     func `unknown clock version is rejected before payload decoding`() throws {
         let data = Data("""
         {"diorama":{"schemaVersion":1},"systems":[{"attachmentKey":"clock",\
-        "type":"diorama.clock","schemaVersion":2,"payload":{"observations":[]}}]}
+        "type":"diorama.date","schemaVersion":2,"payload":{"observations":[]}}]}
         """.utf8)
         #expect(throws: PersistenceDispatchError.unsupportedSchemaVersion(
-            systemTypeID: DioramaClockSystem.type.id,
+            systemTypeID: DioramaDateSystem.type.id,
             declared: 2,
-            supported: [DioramaClockPersistence.schemaVersion]))
+            supported: [DioramaDatePersistence.schemaVersion]))
         {
             _ = try codec.decode(data)
         }
@@ -182,7 +191,7 @@ struct WallRecordingTests {
     private func document(payload: String) -> Data {
         Data("""
         {"diorama":{"schemaVersion":1},"systems":[{"attachmentKey":"clock",\
-        "type":"diorama.clock","schemaVersion":1,"payload":\(payload)}]}
+        "type":"diorama.date","schemaVersion":1,"payload":\(payload)}]}
         """.utf8)
     }
 

@@ -1,13 +1,13 @@
 import Diorama
-import DioramaClock
 import DioramaConsumerTestSupport
 import DioramaCore
+import DioramaDate
 import Foundation
 import Synchronization
 import Testing
 
 @Suite(.timeLimit(.minutes(1)))
-struct ClockSchedulingConformanceTests {
+struct DateSchedulingConformanceTests {
     @Test(arguments: [false, true])
     func `application timeout composes with timed batches and responses independently of wall adjustments`(
         timesOut: Bool) async throws
@@ -18,8 +18,8 @@ struct ClockSchedulingConformanceTests {
         ])
         let timed = try ConsumerTimedSystem.instance(key: "interaction", values: [record])
         let baseline = try ScenarioDefinition(attachments: [timed.attachment])
-        let source = ClockConformanceSupport.Source([1000, -1000])
-        let wall = try DioramaClockSystem.instance(named: "wall") { source }.withMode(.passthrough)
+        let source = DateConformanceSupport.Source([1000, -1000])
+        let wall = try DioramaDateSystem.instance(named: "wall") { source }.withMode(.passthrough)
         let result = try await Diorama(definition: baseline, scenarioID: "timeout", mode: .replay, systems: timed, wall)
             .execute { context, services, wall in
                 let claim = try services.records.claim(matching: "request", using: .exactInput(\.input))
@@ -68,10 +68,10 @@ struct ClockSchedulingConformanceTests {
     func `finish joins claimed domain delivery cancels clock sleeps and closes independent wall handles`(
         mode: ScenarioMode) async throws
     {
-        let bytes = try ClockConformanceSupport.fixture()
-        let definition = try ClockConformanceSupport.codec().decode(bytes)
-        let wallSource = ClockConformanceSupport.Source([123])
-        let wallSystem = try DioramaClockSystem.instance(named: "empty") { wallSource }
+        let bytes = try DateConformanceSupport.fixture()
+        let definition = try DateConformanceSupport.codec().decode(bytes)
+        let wallSource = DateConformanceSupport.Source([123])
+        let wallSystem = try DioramaDateSystem.instance(named: "empty") { wallSource }
         let timed = try ConsumerTimedSystem.instance(key: "pending", values: [
             ConsumerTimedRecord(input: "request", observations: []),
         ]).withMode(.replay)
