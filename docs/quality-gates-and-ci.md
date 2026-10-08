@@ -1,7 +1,7 @@
 # Quality gates and CI policy
 
 - Status: Accepted
-- Last updated: 2026-10-07
+- Last updated: 2026-10-09
 - Reference project: [SwiftScream/URITemplate](https://github.com/SwiftScream/URITemplate)
 
 ## Purpose
@@ -46,7 +46,11 @@ adjustments. In particular:
 Test code under `Tests/` and `Spikes/URLSessionInterception/Tests/` disables
 SwiftLint's `file_length` and `type_body_length` rules through nested
 `.swiftlint.yml` files. Related test cases may stay together in one file or
-suite. Production code retains the root length limits, and test code retains
+suite. The root `type_body_length` limit is 500 counted lines, excluding comments
+and whitespace, with both warning and error thresholds set to 500. The owner
+approves this global limit during F06 review so implementation
+types can remain nested under their owner. Strict lint continues to fail every
+violation. Production code retains the root length limits, and test code retains
 all other configured lint rules. The canonical lint command discovers these
 nested configurations from the repository root; do not pass `--config`, which
 would override nested configuration discovery. New test directory trees need

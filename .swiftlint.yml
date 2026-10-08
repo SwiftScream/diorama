@@ -20,6 +20,10 @@ vertical_whitespace:
 nesting:
   type_level: 2
 
+type_body_length:
+  warning: 500
+  error: 500
+
 file_length:
   warning: 750
   error: 1250
