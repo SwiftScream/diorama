@@ -12,6 +12,10 @@
   [Decision 10: Lifecycle and ownership](10-lifecycle-and-ownership.md), and
   [Decision 14: Real-time replay scheduler](14-real-time-replay-scheduler.md)
 
+The [date-system naming amendment](#date-system-naming-amendment--owner-approved-2026-10-09)
+supersedes the wall system's former module, API, and persisted type names.
+Earlier sections retain their historical terminology.
+
 ## Decision
 
 What native clock dependencies does Diorama provide, which clock behavior is
@@ -506,3 +510,29 @@ F06 implements the Core execution clock, consumer access, and lifecycle proof.
 F07 completes wall-system portability and composition with the independent
 execution clock. This amendment authorizes no virtual time, playback-rate
 control, additional dependency, or platform increase.
+
+## Date-system naming amendment — owner-approved 2026-10-09
+
+Following the execution-clock ownership amendment, the owner approves renaming
+the wall-observation product and module from `DioramaClock` to `DioramaDate`.
+Attachment setup uses `DioramaDateSystem`, and the injected synchronous,
+nonthrowing source protocol is `DioramaDateSource` with `var now: Date`.
+The system continues to record, replay, and pass through independently keyed
+wall observations. Swift `Clock` remains an execution service in `DioramaCore`.
+
+The persisted system type identifier changes from `diorama.clock` to
+`diorama.date`. This is an intentional naming break: no old module or type
+aliases, identifier aliases, or automatic recording migration are provided.
+An existing recording must replace the wall system's `type` value with
+`diorama.date` before use with the renamed system. Standalone decoding treats
+`diorama.clock` as an unknown system type; consumer startup applies its existing
+unknown-type and incompatible-baseline policies rather than treating it as a
+date attachment.
+
+The payload remains schema version 1 with the `wall` track key, the same origin
+and signed successive observation deltas, and the same override, continuation,
+and lifecycle semantics. Existing diagnostic labels remain unchanged. This
+amendment supersedes former wall-system names in this decision and the current
+implementation plan; historical decision examples and evidence retain their
+original names. See the [date schema](../date-schema-v1.md) and
+[usage guide](../date-usage.md) for the current contracts.

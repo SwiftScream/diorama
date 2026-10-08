@@ -2,24 +2,24 @@ import DioramaCore
 import DioramaPersistence
 import Foundation
 
-/// Deliberate version-one schema for first-party clock wall content.
-enum DioramaClockPersistence {
-    /// The only clock payload schema version currently written and read.
+/// Deliberate version-one schema for first-party wall observations.
+enum DioramaDatePersistence {
+    /// The only date payload schema version currently written and read.
     static let schemaVersion: UInt32 = 1
 
-    /// The first-party clock's current writer and strict reader.
+    /// The date system's current writer and strict reader.
     static let registration = PersistentSystemRegistration(
         currentSchemaVersion: schemaVersion,
         payloadType: WallPayload.self,
         encode: { attachment in
             do {
-                return try WallPayload(recording: DioramaClockSystem.recording(in: attachment))
+                return try WallPayload(recording: DioramaDateSystem.recording(in: attachment))
             } catch {
                 throw PersistentSystemEncodingError.invalidTrackLayout(attachment.id)
             }
         },
         decode: { payload, key in
-            try DioramaClockSystem.attachment(
+            try DioramaDateSystem.attachment(
                 named: key.rawValue, recording: payload.recording())
         })
 }

@@ -22,7 +22,7 @@
         ]
       },
       "schemaVersion" : 1,
-      "type" : "diorama.clock"
+      "type" : "diorama.date"
     }
   ]
 }

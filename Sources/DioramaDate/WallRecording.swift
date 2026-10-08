@@ -18,7 +18,7 @@ struct WallOrigin: Equatable, Sendable {
     }
 }
 
-/// Safe structural failures for a clock wall recording.
+/// Safe structural failures for recorded wall observations.
 enum WallRecordingError: Error, Equatable, Sendable {
     /// Observations require an origin.
     case missingOrigin
@@ -34,7 +34,7 @@ enum WallRecordingError: Error, Equatable, Sendable {
     case invalidTrackLayout
 }
 
-/// Strict semantic wall content for one clock attachment.
+/// Strict semantic wall content for one date attachment.
 ///
 /// Empty content has neither an origin nor observations. Nonempty content has
 /// a position-zero `0ms` observation followed by signed successive deltas.
@@ -59,7 +59,7 @@ struct WallRecording: Equatable, Sendable {
         origin?.value.offsetMinutes
     }
 
-    /// A declared clock attachment with no wall reads.
+    /// A declared date attachment with no wall reads.
     static let empty = WallRecording(validatedOrigin: nil, observations: [], effectiveDates: [])
 
     /// Validates and normalizes programmatically authored wall content.

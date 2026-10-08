@@ -22,7 +22,7 @@ extension WallRecording {
     }
 }
 
-extension DioramaClockSystem {
+extension DioramaDateSystem {
     /// Reconstructs both strict wall sequences and validates the merged result.
     static func mergeWallRecording(
         baseline: SequentialTrack<OverridableValue<Date>, Int?>,

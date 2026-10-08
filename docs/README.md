@@ -20,7 +20,7 @@ The owner approved the consolidated design and implementation plan on
 8. [Execution logical time and Swift Clock](execution-time-service.md)
 9. [Execution scheduling](execution-scheduling.md)
 10. [Stable time scalars](stable-time-scalars.md)
-11. [Clock wall payload schema version 1](clock-wall-schema-v1.md)
+11. [Date payload schema version 1](date-schema-v1.md)
 12. [Typed record services](record-services.md)
 13. [System-owned records and shared services](design-decisions/19-system-owned-records.md)
 
@@ -223,7 +223,7 @@ proposal for discussion, with its review gate recorded in the owning plan.
 - [Core execution-clock evidence](evidence/003-F06-core-execution-clock.md)
   records attachment-free Swift Clock access, logical instants, cancellation
   and horizon ownership, scoped consumer access, and platform verification.
-- [Clock usage guide](clock-usage.md) explains wall observations, execution
+- [Date usage guide](date-usage.md) explains wall observations, execution
   delays, mixed modes, authored overrides, and timeout ownership.
 - [Clock composition conformance evidence](evidence/003-F07-clock-composition-conformance.md)
   records public-only persisted and timed composition, examples, and platform

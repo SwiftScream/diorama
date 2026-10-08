@@ -1,11 +1,11 @@
 import DioramaCore
 import Foundation
 
-/// Setup and persistence capability for first-party clock attachments.
-public enum DioramaClockSystem {
-    /// The first-party clock type and its versioned persistence capability.
+/// Setup and persistence capability for first-party date attachments.
+public enum DioramaDateSystem {
+    /// The first-party date type and its versioned persistence capability.
     public static let type = ScenarioSystemType(
-        "diorama.clock", persistence: DioramaClockPersistence.registration)
+        "diorama.date", persistence: DioramaDatePersistence.registration)
 
     private static let wallTrackKey = TrackKey(rawValue: "wall")
 
@@ -15,7 +15,7 @@ public enum DioramaClockSystem {
             key: wallTrackKey)
     }
 
-    /// Builds an immutable clock attachment from validated wall content.
+    /// Builds an immutable date attachment from validated wall content.
     static func attachment(
         named name: String,
         recording: WallRecording = .empty) throws -> ScenarioAttachment
@@ -41,7 +41,7 @@ public enum DioramaClockSystem {
         return SequentialTrack(id: trackID, header: header, values: prepared)
     }
 
-    /// Reconstructs and validates the wall content of a clock attachment.
+    /// Reconstructs and validates the wall content of a date attachment.
     static func recording(in attachment: ScenarioAttachment) throws -> WallRecording {
         let trackID = trackID(for: attachment.id.key)
         guard attachment.id == trackID.attachmentID,
@@ -54,13 +54,13 @@ public enum DioramaClockSystem {
             values: track.records.map(\.value))
     }
 
-    /// Creates one named wall clock backed by the platform wall source.
+    /// Creates one named date source backed by the platform wall source.
     ///
     /// Record captures the current encoding timezone at activation.
     /// Replay consumes the prepared wall track without activating a live source.
     public static func instance(
         named name: String,
-        allowsUnclaimedReplayRecords: Bool = false) throws -> ScenarioSystem<any DioramaWallClock>
+        allowsUnclaimedReplayRecords: Bool = false) throws -> ScenarioSystem<any DioramaDateSource>
     {
         try instance(named: name,
                      allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
@@ -69,7 +69,7 @@ public enum DioramaClockSystem {
         }
     }
 
-    /// Creates one named wall clock with an injected live source factory.
+    /// Creates one named date source with an injected live source factory.
     ///
     /// The factory runs only after successful preparation. Each attachment
     /// serializes reads of its source and the corresponding track operations.
@@ -78,8 +78,8 @@ public enum DioramaClockSystem {
     public static func instance(
         named name: String,
         allowsUnclaimedReplayRecords: Bool = false,
-        sourceFactory: @escaping @Sendable () -> some DioramaWallClock)
-        throws -> ScenarioSystem<any DioramaWallClock>
+        sourceFactory: @escaping @Sendable () -> some DioramaDateSource)
+        throws -> ScenarioSystem<any DioramaDateSource>
     {
         let key = AttachmentKey(rawValue: name)
         let trackID = trackID(for: key)
@@ -90,32 +90,32 @@ public enum DioramaClockSystem {
             let lease = try context.lease(
                 for: trackID, preparation: ValuePreparation<OverridableValue<Date>>(),
                 headerPreparation: ValuePreparation<Int?>(),
-                continuationPolicy: .replayLast(defaultValue: .observed(ReplayWallClock.unixEpoch)),
+                continuationPolicy: .replayLast(defaultValue: .observed(ReplayDateSource.unixEpoch)),
                 mergeRecording: mergeWallRecording)
             switch context.mode {
             case .record:
                 return PreparedSystem {
                     try lease.setHeader(capturing: { nil }, preparation: ValuePreparation<Int?>())
                     let mode = LiveWallMode.record(WallRecordingState())
-                    let clock = LiveWallClock(
+                    let dates = LiveDateSource(
                         mode: mode, lease: lease, source: sourceFactory())
                     return ActivatedSystem(
-                        dependency: clock as any DioramaWallClock,
-                        deactivate: { clock.close() })
+                        dependency: dates as any DioramaDateSource,
+                        deactivate: { dates.close() })
                 }
             case .passthrough:
                 return PreparedSystem {
-                    let clock = LiveWallClock(
+                    let dates = LiveDateSource(
                         mode: .passthrough, lease: lease, source: sourceFactory())
                     return ActivatedSystem(
-                        dependency: clock as any DioramaWallClock,
-                        deactivate: { clock.close() })
+                        dependency: dates as any DioramaDateSource,
+                        deactivate: { dates.close() })
                 }
             case .replay:
                 return PreparedSystem {
-                    let clock = ReplayWallClock(lease: lease)
+                    let dates = ReplayDateSource(lease: lease)
                     return ActivatedSystem(
-                        dependency: clock as any DioramaWallClock,
+                        dependency: dates as any DioramaDateSource,
                         deactivate: {})
                 }
             }

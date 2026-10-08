@@ -1,15 +1,15 @@
-# Wall observations and execution time
+# Date observations and execution time
 
-Use `DioramaClock` when application code needs recorded dates. Use the Core
+Use `DioramaDate` when application code needs recorded dates. Use the Core
 execution clock when application code needs elapsed time, retry delays, or
 application timeouts that share the replay scheduler. Both are available in a
 scoped `Diorama` body:
 
 ```swift
 import Diorama
-import DioramaClock
+import DioramaDate
 
-let wall = try DioramaClockSystem.instance(named: "device-wall")
+let wall = try DioramaDateSystem.instance(named: "device-wall")
 let setup = try Diorama(scenarioID: "retry", mode: .record, systems: wall)
 let result = try await setup.execute { context, wall in
     let firstDate = wall.now
@@ -17,6 +17,13 @@ let result = try await setup.execute { context, wall in
     return [firstDate, wall.now]
 }
 ```
+
+The injected dependency conforms to `DioramaDateSource`, a `Sendable` protocol
+whose synchronous, nonthrowing `now` property returns `Date`.
+`DioramaDate` replaces the former `DioramaClock` module and public type names.
+Existing wall recordings must change their system `type` from `diorama.clock`
+to `diorama.date`; see the [schema reference](date-schema-v1.md#former-system-identifier).
+No compatibility aliases or automatic migration are provided.
 
 The two dates are wall observations. The delay is an execution operation.
 Recording returns native `Date` values while independently rounding persisted
@@ -39,18 +46,18 @@ advances monotonic execution time. Neither a wall delta nor an authored origin
 changes when a timed system delivers an event. Delays initially map one-to-one
 to real monotonic time; execution time does not advance virtually.
 
-The compiled [clock example](../Examples/Sources/DioramaClockUsage/main.swift)
+The compiled [date example](../Examples/Sources/DioramaDateUsage/main.swift)
 records observations across a retry delay to a temporary file, replays it
 without further live reads, and checks that replay leaves the file unchanged.
 It also runs a delay without a wall attachment. Run it with:
 
 ```sh
-swift run --package-path Examples DioramaClockUsage
+swift run --package-path Examples DioramaDateUsage
 ```
 
 ## Clock-only and empty-wall execution
 
-Application delays require no `DioramaClock` import, system declaration,
+Application delays require no `DioramaDate` import, system declaration,
 persistence registration, or wall payload:
 
 ```swift
@@ -72,7 +79,7 @@ payload. Replay of that payload may use the execution clock without consuming
 wall values. Calling `wall.now` instead exhausts the empty recording, reports
 an unexpected replay operation, and returns Unix epoch if the configured
 handler returns. A declared replay wall whose track is missing remains a setup
-error. See the [wall schema](clock-wall-schema-v1.md).
+error. See the [wall schema](date-schema-v1.md).
 
 ## Several walls and attachment modes
 
@@ -98,7 +105,7 @@ with attachment work before clock sleeps, as described in
 
 ## Editing and re-recording
 
-The [version-one schema](clock-wall-schema-v1.md#re-recording-authored-overrides)
+The [version-one schema](date-schema-v1.md#re-recording-authored-overrides)
 uses one origin and signed successive deltas. Author an `override` to shift the
 origin or a later observation. A later delta override shifts that observation
 and subsequent values. Regional timezone rules are not persisted: an origin
@@ -109,7 +116,7 @@ overrides. Correspondence is positional, so inserting a read can move an old
 override to a different call site. Overrides beyond the new sequence length
 are dropped. Recording no reads removes all old wall content. Replay and
 passthrough attachments retain their baseline content during mixed-mode
-publication. The [composition golden](../Tests/DioramaClockTests/Fixtures/clock-composition.json)
+publication. The [composition golden](../Tests/DioramaDateTests/Fixtures/date-composition.json)
 shows separately keyed authored, repeated, backward, and empty wall data.
 
 Record mode captures `TimeZone.current` at activation and selects the numeric
@@ -126,7 +133,7 @@ Use a structured task group to race application work against a clock sleep,
 then cancel the losing task. Clock cancellation does not undo a system's replay
 claim or mark an unfinished interaction consumed. System adapters own that
 cancellation and acknowledgement policy. The
-[synthetic composition tests](../Tests/DioramaClockTests/ClockSchedulingConformanceTests.swift)
+[synthetic composition tests](../Tests/DioramaDateTests/DateSchedulingConformanceTests.swift)
 exercise timed batches followed by a response alongside an application timeout.
 They also prove that a claimed delivery can finish its acknowledgement while
 shutdown waits for it.

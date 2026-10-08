@@ -32,10 +32,10 @@ observed strings and the declared explicit `observed`/`override` editing form,
 then writes only the one effective canonical form. It rejects unknown payload
 fields and tags, missing or malformed fields, invalid origin/delta combinations,
 cumulative overflow, and unsupported clock versions. The
-[schema reference](../clock-wall-schema-v1.md) and committed
-[empty](../../Tests/DioramaClockTests/Fixtures/clock-empty.json),
-[nonempty](../../Tests/DioramaClockTests/Fixtures/clock-nonempty.json), and
-[edited](../../Tests/DioramaClockTests/Fixtures/clock-edited.json) fixtures
+[schema reference](../date-schema-v1.md) and committed
+[empty](../../Tests/DioramaDateTests/Fixtures/date-empty.json),
+[nonempty](../../Tests/DioramaDateTests/Fixtures/date-nonempty.json), and
+[edited](../../Tests/DioramaDateTests/Fixtures/date-edited.json) fixtures
 protect the version-one output and tolerant normalization.
 
 `DioramaPersistence` supplies conditional `Codable` conformance for the shared

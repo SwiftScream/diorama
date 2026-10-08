@@ -1,26 +1,26 @@
 import Diorama
-import DioramaClock
+import DioramaDate
 import Foundation
 import Synchronization
 
 @main
-struct DioramaClockUsage {
+struct DioramaDateUsage {
     static func main() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let file = directory.appendingPathComponent("clock.json")
+        let file = directory.appendingPathComponent("date.json")
         let source = ExampleWallSource()
-        let wall = try DioramaClockSystem.instance(named: "device-wall") { source }
+        let wall = try DioramaDateSystem.instance(named: "device-wall") { source }
 
-        let recording = try await Diorama(file: file, scenarioID: "clock-record", mode: .record, systems: wall)
+        let recording = try await Diorama(file: file, scenarioID: "date-record", mode: .record, systems: wall)
             .execute { context, wall in
                 try await observationsAcrossRetry(wall: wall, clock: context.clock)
             }
         guard recording.report.disposition == .published,
               recording.report.diagnostics.isEmpty else { throw ExampleError.recordingFailed }
         let bytes = try Data(contentsOf: file)
-        let replay = try await Diorama(file: file, scenarioID: "clock-replay", mode: .replay, systems: wall)
+        let replay = try await Diorama(file: file, scenarioID: "date-replay", mode: .replay, systems: wall)
             .execute { context, wall in
                 try await observationsAcrossRetry(wall: wall, clock: context.clock)
             }
@@ -44,7 +44,7 @@ struct DioramaClockUsage {
 
     /// Application code accepts the standard Clock protocol for retry delays.
     /// A wall adjustment changes observed dates while elapsed time moves forward.
-    private static func observationsAcrossRetry<C: Clock>(wall: any DioramaWallClock, clock: C)
+    private static func observationsAcrossRetry<C: Clock>(wall: any DioramaDateSource, clock: C)
         async throws -> [Date] where C.Duration == Duration
     {
         let first = wall.now
@@ -55,7 +55,7 @@ struct DioramaClockUsage {
     }
 }
 
-private final class ExampleWallSource: DioramaWallClock {
+private final class ExampleWallSource: DioramaDateSource {
     private let position = Mutex(0)
 
     var readCount: Int {

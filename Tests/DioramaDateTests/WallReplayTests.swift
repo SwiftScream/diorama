@@ -1,5 +1,5 @@
-@testable import DioramaClock
 import DioramaCore
+@testable import DioramaDate
 import Foundation
 import Synchronization
 import Testing
@@ -8,9 +8,9 @@ struct WallReplayTests {
     @Test
     func `replay returns prepared dated observations including repeats and backward movement`() async throws {
         let original = try recording([100, 105, 105, 98, 100])
-        let attachment = try DioramaClockSystem.attachment(named: "wall", recording: original)
+        let attachment = try DioramaDateSystem.attachment(named: "wall", recording: original)
         let factory = ReplaySourceFactoryProbe()
-        let system = try DioramaClockSystem.instance(named: "wall") {
+        let system = try DioramaDateSystem.instance(named: "wall") {
             factory.makeSource()
         }
         let execution = try start(system, attachment: attachment)
@@ -32,9 +32,9 @@ struct WallReplayTests {
     @Test
     func `exhaustion reports and repeats the last replayed value`() async throws {
         let original = try recording([100, 105, 98])
-        let attachment = try DioramaClockSystem.attachment(named: "wall", recording: original)
+        let attachment = try DioramaDateSystem.attachment(named: "wall", recording: original)
         let factory = ReplaySourceFactoryProbe()
-        let system = try DioramaClockSystem.instance(named: "wall") {
+        let system = try DioramaDateSystem.instance(named: "wall") {
             factory.makeSource()
         }
         let execution = try start(system, attachment: attachment)
@@ -54,9 +54,9 @@ struct WallReplayTests {
 
     @Test
     func `empty replay diagnoses exhaustion and uses the Unix epoch`() async throws {
-        let attachment = try DioramaClockSystem.attachment(named: "wall")
+        let attachment = try DioramaDateSystem.attachment(named: "wall")
         let factory = ReplaySourceFactoryProbe()
-        let system = try DioramaClockSystem.instance(named: "wall") {
+        let system = try DioramaDateSystem.instance(named: "wall") {
             factory.makeSource()
         }
         let execution = try start(system, attachment: attachment)
@@ -74,14 +74,14 @@ struct WallReplayTests {
     @Test
     func `a missing replay track fails startup while an empty track is valid`() async throws {
         let factory = ReplaySourceFactoryProbe()
-        let system = try DioramaClockSystem.instance(named: "wall") {
+        let system = try DioramaDateSystem.instance(named: "wall") {
             factory.makeSource()
         }
         let missing = ScenarioAttachment(id: system.attachment.id)
         do {
             _ = try ScenarioExecution.start(
                 definition: ScenarioDefinition(attachments: [missing]),
-                scenarioID: ScenarioID(rawValue: "clock-missing"), defaultMode: .replay,
+                scenarioID: ScenarioID(rawValue: "date-missing"), defaultMode: .replay,
                 systems: [AnyScenarioSystem(system)])
             Issue.record("A replay attachment missing its named wall track must fail startup")
         } catch let failure as ScenarioStartupFailure {
@@ -91,10 +91,10 @@ struct WallReplayTests {
         }
         #expect(factory.creationCount == 0)
 
-        let emptySystem = try DioramaClockSystem.instance(named: "empty") {
+        let emptySystem = try DioramaDateSystem.instance(named: "empty") {
             factory.makeSource()
         }
-        let emptyAttachment = try DioramaClockSystem.attachment(named: "empty")
+        let emptyAttachment = try DioramaDateSystem.attachment(named: "empty")
         let execution = try start(emptySystem, attachment: emptyAttachment)
         #expect(try execution.dependency(emptySystem).now == Date(timeIntervalSince1970: 0))
         _ = await execution.finish()
@@ -104,14 +104,14 @@ struct WallReplayTests {
     func `keyed replay cursors consume independent recordings`() async throws {
         let firstRecording = try recording([1, 2])
         let secondRecording = try recording([10, 20, 30])
-        let firstAttachment = try DioramaClockSystem.attachment(named: "first", recording: firstRecording)
-        let secondAttachment = try DioramaClockSystem.attachment(named: "second", recording: secondRecording)
+        let firstAttachment = try DioramaDateSystem.attachment(named: "first", recording: firstRecording)
+        let secondAttachment = try DioramaDateSystem.attachment(named: "second", recording: secondRecording)
         let factory = ReplaySourceFactoryProbe()
-        let first = try DioramaClockSystem.instance(named: "first") { factory.makeSource() }
-        let second = try DioramaClockSystem.instance(named: "second") { factory.makeSource() }
+        let first = try DioramaDateSystem.instance(named: "first") { factory.makeSource() }
+        let second = try DioramaDateSystem.instance(named: "second") { factory.makeSource() }
         let definition = try ScenarioDefinition(attachments: [firstAttachment, secondAttachment])
         let execution = try ScenarioExecution.start(
-            definition: definition, scenarioID: ScenarioID(rawValue: "clock-keyed"),
+            definition: definition, scenarioID: ScenarioID(rawValue: "date-keyed"),
             defaultMode: .replay, systems: [AnyScenarioSystem(second), AnyScenarioSystem(first)])
         let firstClock = try execution.dependency(first)
         let secondClock = try execution.dependency(second)
@@ -135,9 +135,9 @@ struct WallReplayTests {
     func `concurrent replay claims each observation once without consulting the source`() async throws {
         let values = (0..<80).map { TimeInterval($0) }
         let original = try recording(values)
-        let attachment = try DioramaClockSystem.attachment(named: "concurrent", recording: original)
+        let attachment = try DioramaDateSystem.attachment(named: "concurrent", recording: original)
         let factory = ReplaySourceFactoryProbe()
-        let system = try DioramaClockSystem.instance(named: "concurrent") {
+        let system = try DioramaDateSystem.instance(named: "concurrent") {
             factory.makeSource()
         }
         let execution = try start(system, attachment: attachment)
@@ -168,9 +168,9 @@ struct WallReplayTests {
     @Test
     func `escaped replay handle repeats its last value after finish`() async throws {
         let original = try recording([1, 2])
-        let attachment = try DioramaClockSystem.attachment(named: "closed", recording: original)
+        let attachment = try DioramaDateSystem.attachment(named: "closed", recording: original)
         let factory = ReplaySourceFactoryProbe()
-        let system = try DioramaClockSystem.instance(named: "closed") {
+        let system = try DioramaDateSystem.instance(named: "closed") {
             factory.makeSource()
         }
         let execution = try start(system, attachment: attachment)
@@ -193,14 +193,14 @@ struct WallReplayTests {
             .override(Date(timeIntervalSince1970: 98)),
         ]
         let original = try WallRecording(offsetMinutes: 0, values: values)
-        let attachment = try DioramaClockSystem.attachment(named: "authored", recording: original)
-        let system = try DioramaClockSystem.instance(named: "authored")
+        let attachment = try DioramaDateSystem.attachment(named: "authored", recording: original)
+        let system = try DioramaDateSystem.instance(named: "authored")
         let execution = try start(system, attachment: attachment)
         let wall = try execution.dependency(system)
         #expect((0..<3).map { _ in wall.now } == values.map(\.value))
         let result = await execution.finish()
         let definition = try #require(result.definition)
-        let stored = try DioramaClockSystem.recording(in: definition.attachments[0])
+        let stored = try DioramaDateSystem.recording(in: definition.attachments[0])
         #expect(stored.effectiveValues == values)
         #expect(wall.now == values[2].value)
     }
@@ -208,8 +208,8 @@ struct WallReplayTests {
     @Test
     func `closing an unread replay uses the epoch rather than an unconsumed date`() async throws {
         let original = try recording([100, 105])
-        let attachment = try DioramaClockSystem.attachment(named: "unread", recording: original)
-        let system = try DioramaClockSystem.instance(named: "unread")
+        let attachment = try DioramaDateSystem.attachment(named: "unread", recording: original)
+        let system = try DioramaDateSystem.instance(named: "unread")
         let execution = try start(system, attachment: attachment)
         let wall = try execution.dependency(system)
         let result = await execution.finish()
@@ -221,9 +221,9 @@ struct WallReplayTests {
     @Test
     func `escaped passthrough handle repeats its last value after finish`() async throws {
         let original = try recording([1, 2])
-        let attachment = try DioramaClockSystem.attachment(named: "passthrough", recording: original)
+        let attachment = try DioramaDateSystem.attachment(named: "passthrough", recording: original)
         let factory = ReplaySourceFactoryProbe()
-        let system = try DioramaClockSystem.instance(named: "passthrough") {
+        let system = try DioramaDateSystem.instance(named: "passthrough") {
             factory.makeSource()
         }
         let execution = try start(system, attachment: attachment, mode: .passthrough)
@@ -240,13 +240,13 @@ struct WallReplayTests {
     }
 
     private func start(
-        _ system: ScenarioSystem<any DioramaWallClock>,
+        _ system: ScenarioSystem<any DioramaDateSource>,
         attachment: ScenarioAttachment,
         mode: ScenarioMode = .replay) throws -> ScenarioExecution
     {
         try ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
-            scenarioID: ScenarioID(rawValue: "clock-replay"), defaultMode: mode,
+            scenarioID: ScenarioID(rawValue: "date-replay"), defaultMode: mode,
             systems: [AnyScenarioSystem(system)])
     }
 
@@ -270,7 +270,7 @@ private final class ReplaySourceFactoryProbe: Sendable {
     }
 }
 
-private struct ReplayWallSource: DioramaWallClock {
+private struct ReplayWallSource: DioramaDateSource {
     var now: Date {
         Date(timeIntervalSince1970: 999)
     }

@@ -1,20 +1,20 @@
-import DioramaClock
 import DioramaCore
+import DioramaDate
 import DioramaPersistence
 import Foundation
 import Synchronization
 import Testing
 
 /// These helpers deliberately use only public product APIs.
-enum ClockConformanceSupport {
-    static func fixture(_ name: String = "clock-composition") throws -> Data {
+enum DateConformanceSupport {
+    static func fixture(_ name: String = "date-composition") throws -> Data {
         let url = try #require(Bundle.module.url(
             forResource: name, withExtension: "json", subdirectory: "Fixtures"))
         return try Data(contentsOf: url)
     }
 
     static func codec() throws -> JSONScenarioCodec {
-        try JSONScenarioCodec(registry: PersistentSystemRegistry([DioramaClockSystem.type]))
+        try JSONScenarioCodec(registry: PersistentSystemRegistry([DioramaDateSystem.type]))
     }
 
     static func file(_ bytes: Data? = nil) throws -> URL {
@@ -26,14 +26,14 @@ enum ClockConformanceSupport {
         return file
     }
 
-    static func offline(_ name: String) throws -> ScenarioSystem<any DioramaWallClock> {
-        try DioramaClockSystem.instance(named: name) { () -> Source in
+    static func offline(_ name: String) throws -> ScenarioSystem<any DioramaDateSource> {
+        try DioramaDateSystem.instance(named: name) { () -> Source in
             Issue.record("Replay must not activate a live wall source")
             return Source([])
         }
     }
 
-    final class Source: DioramaWallClock {
+    final class Source: DioramaDateSource {
         private let values: [Date]
         private let reads = Mutex(0)
 

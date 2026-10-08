@@ -116,7 +116,7 @@ The decisions combine into this design:
 14. One execution-owned scheduler maps logical delays one-to-one to
     `ContinuousClock`, orders equal deadlines deterministically, and guarantees
     quiescent shutdown.
-15. The optional `DioramaClock` system records wall observations. Core separately
+15. The optional `DioramaDate` system records wall observations. Core separately
     exposes the execution scheduler through a monotonic Swift `Clock`.
 16. The optional location system supplies a portable async domain and replay
     model plus an Apple-only Core Location recorder and narrow delegate facade.
@@ -401,8 +401,9 @@ cross-track constraints remain deferred.
 
 Status: Resolved by
 [decision 15](design-decisions/15-clock-system.md), including its
-[execution-clock ownership amendment](design-decisions/15-clock-system.md#execution-clock-ownership-amendment--owner-approved-2026-10-07).
-The optional `DioramaClock` attachment records and replays wall observations.
+[execution-clock ownership amendment](design-decisions/15-clock-system.md#execution-clock-ownership-amendment--owner-approved-2026-10-07)
+and [date-system naming amendment](design-decisions/15-clock-system.md#date-system-naming-amendment--owner-approved-2026-10-09).
+The optional `DioramaDate` attachment records and replays wall observations.
 `DioramaCore` owns the runtime Swift `Clock`, available through executions and
 scoped `Diorama` runs without a wall attachment or persisted track. It shares
 the execution's scheduler and origin, never records reads or sleeps, and freezes

@@ -1,21 +1,21 @@
 import Diorama
-import DioramaClock
 import DioramaCore
+import DioramaDate
 import Foundation
 import Testing
 
 @Suite(.timeLimit(.minutes(1)))
-struct ClockPersistenceConformanceTests {
+struct DatePersistenceConformanceTests {
     @Test
     func `portable multiwall golden replays absolute dates and canonical offsets with a runtime clock`() async throws {
-        let bytes = try ClockConformanceSupport.fixture()
-        let codec = try ClockConformanceSupport.codec()
+        let bytes = try DateConformanceSupport.fixture()
+        let codec = try DateConformanceSupport.codec()
         let definition = try codec.decode(bytes)
         #expect(try codec.encode(definition) == bytes)
-        let capture = try ClockConformanceSupport.offline("capture")
-        let replay = try ClockConformanceSupport.offline("replay")
-        let pass = try ClockConformanceSupport.offline("pass")
-        let empty = try ClockConformanceSupport.offline("empty")
+        let capture = try DateConformanceSupport.offline("capture")
+        let replay = try DateConformanceSupport.offline("replay")
+        let pass = try DateConformanceSupport.offline("pass")
+        let empty = try DateConformanceSupport.offline("empty")
         let result = try await Diorama(definition: definition, scenarioID: "golden", mode: .replay,
                                        systems: capture, replay, pass, empty)
             .execute { context, capture, replay, pass, _ in
@@ -40,15 +40,15 @@ struct ClockPersistenceConformanceTests {
 
     @Test
     func `file rerecord preserves overrides and mixed walls while clock operations add no content`() async throws {
-        let bytes = try ClockConformanceSupport.fixture()
-        let file = try ClockConformanceSupport.file(bytes)
+        let bytes = try DateConformanceSupport.fixture()
+        let file = try DateConformanceSupport.file(bytes)
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
-        let source = ClockConformanceSupport.Source([2000.00049, 2002.00049, 2009.00049])
-        let passive = ClockConformanceSupport.Source([100, -500])
-        let capture = try DioramaClockSystem.instance(named: "capture") { source }
-        let replay = try ClockConformanceSupport.offline("replay").withMode(.replay)
-        let pass = try DioramaClockSystem.instance(named: "pass") { passive }.withMode(.passthrough)
-        let empty = try ClockConformanceSupport.offline("empty").withMode(.replay)
+        let source = DateConformanceSupport.Source([2000.00049, 2002.00049, 2009.00049])
+        let passive = DateConformanceSupport.Source([100, -500])
+        let capture = try DioramaDateSystem.instance(named: "capture") { source }
+        let replay = try DateConformanceSupport.offline("replay").withMode(.replay)
+        let pass = try DioramaDateSystem.instance(named: "pass") { passive }.withMode(.passthrough)
+        let empty = try DateConformanceSupport.offline("empty").withMode(.replay)
         let recorded = try await Diorama(file: file, scenarioID: "mixed-file", mode: .record,
                                          systems: capture, replay, pass, empty)
             .execute { context, capture, replay, pass, _ in
@@ -68,8 +68,8 @@ struct ClockPersistenceConformanceTests {
         let expected = try #require(String(data: bytes, encoding: .utf8))
             .replacingOccurrences(of: "\"-1s\"", with: "\"7s\"")
         #expect(published == Data(expected.utf8))
-        let offlineCapture = try ClockConformanceSupport.offline("capture")
-        let offlinePass = try ClockConformanceSupport.offline("pass")
+        let offlineCapture = try DateConformanceSupport.offline("capture")
+        let offlinePass = try DateConformanceSupport.offline("pass")
         let replayed = try await Diorama(file: file, scenarioID: "offline-file", mode: .replay,
                                          systems: offlineCapture, replay, offlinePass, empty)
             .execute { context, capture, replay, pass, _ in
@@ -104,15 +104,15 @@ struct ClockPersistenceConformanceTests {
 
         """
         let bytes = Data(expected.utf8)
-        let file = try ClockConformanceSupport.file(bytes)
+        let file = try DateConformanceSupport.file(bytes)
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
-        let recording = try await Diorama(file: file, scenarioID: "clock-only-file", mode: .record)
+        let recording = try await Diorama(file: file, scenarioID: "date-only-file", mode: .record)
             .execute { context in try await context.clock.sleep(for: .milliseconds(1)) }
         #expect(recording.finalization.usage.isEmpty)
         #expect(recording.definition?.attachments.isEmpty == true)
         #expect(recording.report.diagnostics.isEmpty)
         #expect(recording.report.disposition == .notRequested)
-        let replay = try await Diorama(file: file, scenarioID: "clock-only-file", mode: .replay)
+        let replay = try await Diorama(file: file, scenarioID: "date-only-file", mode: .replay)
             .execute { context in try await context.clock.sleep(for: .milliseconds(1)) }
         #expect(replay.finalization.usage.isEmpty)
         #expect(replay.report.diagnostics.isEmpty)
@@ -122,14 +122,14 @@ struct ClockPersistenceConformanceTests {
 
     @Test
     func `configured unused wall publishes an empty payload despite execution clock activity`() async throws {
-        let file = try ClockConformanceSupport.file()
+        let file = try DateConformanceSupport.file()
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
-        let source = ClockConformanceSupport.Source([])
-        let system = try DioramaClockSystem.instance(named: "clock") { source }
+        let source = DateConformanceSupport.Source([])
+        let system = try DioramaDateSystem.instance(named: "clock") { source }
         let recorded = try await Diorama(file: file, scenarioID: "empty-wall", mode: .record, systems: system)
             .execute { context, _ in try await context.clock.sleep(for: .milliseconds(1)) }
         let bytes = try Data(contentsOf: file)
-        #expect(try bytes == (ClockConformanceSupport.fixture("clock-empty")))
+        #expect(try bytes == (DateConformanceSupport.fixture("date-empty")))
         #expect(recorded.report.disposition == .published)
         #expect(recorded.report.diagnostics.isEmpty)
         let replayed = try await Diorama(file: file, scenarioID: "empty-wall", mode: .replay, systems: system)
@@ -144,8 +144,8 @@ struct ClockPersistenceConformanceTests {
     @Test
     func `concurrent callers consume one serialized wall sequence without assigning task order`() async throws {
         let native = (0..<32).map { Double($0) / 4 }
-        let source = ClockConformanceSupport.Source(native)
-        let system = try DioramaClockSystem.instance(named: "concurrent") { source }
+        let source = DateConformanceSupport.Source(native)
+        let system = try DioramaDateSystem.instance(named: "concurrent") { source }
         let recorded = try await Diorama(scenarioID: "concurrent", mode: .record, systems: system)
             .execute { context, wall in try await concurrentReads(wall, clock: context.clock) }
         #expect(recorded.body == native.map { Date(timeIntervalSince1970: $0) })
@@ -160,7 +160,7 @@ struct ClockPersistenceConformanceTests {
         #expect(source.count == native.count)
     }
 
-    private func concurrentReads(_ wall: any DioramaWallClock, clock: ScenarioClock) async throws -> [Date] {
+    private func concurrentReads(_ wall: any DioramaDateSource, clock: ScenarioClock) async throws -> [Date] {
         try await withThrowingTaskGroup(of: Date.self) { group in
             for _ in 0..<32 {
                 group.addTask {

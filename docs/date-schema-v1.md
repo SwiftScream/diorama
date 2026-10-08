@@ -1,13 +1,13 @@
-# Clock wall payload schema version 1
+# Date payload schema version 1
 
-Plan 003-F02 adds the portable `DioramaClock` wall recording model and the
-first-party `diorama.clock` payload schema version 1. A clock attachment uses
+The portable `DioramaDate` wall recording model established in Plan 003-F02 uses
+the first-party `diorama.date` payload schema version 1. A date attachment uses
 one `wall` track. In memory, that track stores absolute dated observations as
 Core `OverridableValue<Date>` values and a typed header holding the origin's numeric UTC
 offset. The header is absent for an empty track. Its declared empty track is
-distinct from a missing clock attachment.
-The schema model and its attachment builders are internal to `DioramaClock`.
-`DioramaClockSystem.instance(named:sourceFactory:)` creates a wall
+distinct from a missing date attachment.
+The schema model and its attachment builders are internal to `DioramaDate`.
+`DioramaDateSystem.instance(named:sourceFactory:)` creates a wall
 attachment. Record mode captures native `Date` values in source order, rounds
 each absolute value independently, and selects the origin's numeric timezone
 offset from the first observation using `TimeZone.current` captured at activation.
@@ -17,7 +17,7 @@ its offset; there is no independent offset override. With no new observations,
 the empty payload drops the old origin and offset.
 Passthrough returns native values without changing the track. Replay claims
 effective values sequentially and never activates the live source factory.
-The lease returns stored `OverridableValue<Date>` entries; the clock extracts
+The lease returns stored `OverridableValue<Date>` entries; the date source extracts
 their effective `Date` without changing stored authorship. The lease's configured
 replay-last continuation repeats the last consumed entry or uses
 `.observed(unixEpoch)` before any consumption. Continuation values have no record
@@ -63,19 +63,19 @@ An override at position zero shifts the effective origin by its signed value.
 The runtime model marks the shifted origin as an override and resets position
 zero to ordinary `0ms`. Later deltas are unchanged. Canonical writing retains
 only the effective origin override. The
-[editing and canonical output fixtures](../Tests/DioramaClockTests/Fixtures/clock-edited.json)
+[editing and canonical output fixtures](../Tests/DioramaDateTests/Fixtures/date-edited.json)
 show this transformation.
 
 ## Re-recording authored overrides
 
-Clock registers its typed merge through the public
+The date system registers its typed merge through the public
 [recording merge boundary](record-services.md#recording-merge). It runs during
 in-memory finalization before returning a healthy definition or publishing a
 file. The baseline remains immutable; replay and passthrough preserve it.
 
 First, record mode captures and prepares a complete fresh wall sequence. Its
 successive deltas come from fresh independently rounded dates, before applying
-any old override. Then the clock preserves an authored baseline origin with
+any old override. Then the date system preserves an authored baseline origin with
 its full absolute date and numeric display offset, and each later authored
 delta at a position that still exists. Other fields use fresh observations.
 The merged sequence is cumulatively validated and converted back to prepared
@@ -105,11 +105,19 @@ scalar text, an origin without observations, observations without an origin,
 nonzero ordinary position zero, and cumulative overflow. The first-party
 schema is deliberate `Codable`; the JSON envelope and deterministic whitespace
 follow the [repository schema](persistence-schema-v1.md). Version 1 is the
-only clock payload version currently read or written. No older public clock
-schema exists to migrate.
+only date payload version currently read or written.
 
-For complete public workflows, see [wall observations and execution time](clock-usage.md).
+## Former system identifier
+
+The [owner-approved naming amendment](design-decisions/15-clock-system.md#date-system-naming-amendment--owner-approved-2026-10-09)
+renames the former `diorama.clock` system to `diorama.date`. Existing recordings
+must change each wall system's `type` value to `diorama.date`; its `schemaVersion`
+and payload stay unchanged. There is no identifier alias or automatic migration.
+Standalone decoding rejects `diorama.clock` as unknown. Consumer startup uses
+its existing unknown-type and incompatible-baseline policies.
+
+For complete public workflows, see [wall observations and execution time](date-usage.md).
 The runtime execution clock requires no wall payload. A declared empty wall
 still represents a wall system with zero observations, independently of
-execution-clock use. The portable [composition fixture](../Tests/DioramaClockTests/Fixtures/clock-composition.json)
+execution-clock use. The portable [composition fixture](../Tests/DioramaDateTests/Fixtures/date-composition.json)
 combines independently keyed overridden, repeated, backward, and empty walls.

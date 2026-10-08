@@ -12,10 +12,10 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "DioramaClockUsage",
+            name: "DioramaDateUsage",
             dependencies: [
                 .product(name: "Diorama", package: "Diorama"),
-                .product(name: "DioramaClock", package: "Diorama"),
+                .product(name: "DioramaDate", package: "Diorama"),
             ],
             swiftSettings: [
                 .defaultIsolation(nil),

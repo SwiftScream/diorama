@@ -4,14 +4,14 @@ import Synchronization
 
 /// A synchronous, nonthrowing source of civil time.
 ///
-/// A clock attachment accepts a source of this type and vends the same small
+/// A date attachment accepts a source of this type and vends the same small
 /// dependency to application code. Sources need not round their native dates.
-public protocol DioramaWallClock: Sendable {
+public protocol DioramaDateSource: Sendable {
     /// The current native or replayed wall observation.
     var now: Date { get }
 }
 
-struct SystemWallDateSource: DioramaWallClock {
+struct SystemWallDateSource: DioramaDateSource {
     var now: Date {
         Date()
     }
@@ -30,7 +30,7 @@ private enum WallReadResult {
 
 /// The lock keeps one source read and its track operation in one atomic order.
 /// Finish detaches the source so escaped handles cannot read it again.
-final class LiveWallClock<Source: DioramaWallClock>: DioramaWallClock, Sendable {
+final class LiveDateSource<Source: DioramaDateSource>: DioramaDateSource, Sendable {
     private struct State: Sendable {
         var source: Source?
         var lastReturned: Date?
@@ -84,7 +84,7 @@ final class LiveWallClock<Source: DioramaWallClock>: DioramaWallClock, Sendable 
 }
 
 /// Replays effective dates; the lease owns atomic consumption and continuation.
-final class ReplayWallClock: DioramaWallClock, Sendable {
+final class ReplayDateSource: DioramaDateSource, Sendable {
     static let unixEpoch = Date(timeIntervalSince1970: 0)
 
     private let lease: SequentialTrackLease<OverridableValue<Date>, Int?>

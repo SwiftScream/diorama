@@ -24,10 +24,10 @@ registration list. The corresponding
 cover multiple keyed systems, all three modes, report facts, and concurrent
 random domains.
 
-Run the clock example from the repository root:
+Run the date example from the repository root:
 
 ```sh
-swift run --package-path Examples DioramaClockUsage
+swift run --package-path Examples DioramaDateUsage
 ```
 
 It records wall observations across a monotonic retry delay to a temporary
@@ -35,7 +35,7 @@ JSON file, replays without additional live reads, and verifies unchanged file
 bytes. Its injected source moves wall time backward while the execution clock
 continues forward. It also runs a delay with no wall attachment or persisted
 observations. The application helper accepts the standard Swift `Clock`
-protocol. See the [clock usage guide](../docs/clock-usage.md) for attachment
+protocol. See the [date usage guide](../docs/date-usage.md) for attachment
 modes, overrides, timeout composition, and lifecycle limitations.
 
 The canonical macOS and Linux checks build and run both command-line examples.

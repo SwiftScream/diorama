@@ -18,7 +18,7 @@
         }
       },
       "schemaVersion" : 1,
-      "type" : "diorama.clock"
+      "type" : "diorama.date"
     },
     {
       "attachmentKey" : "replay",
@@ -31,7 +31,7 @@
         "origin" : "1969-12-31T16:00:00.001-08:00"
       },
       "schemaVersion" : 1,
-      "type" : "diorama.clock"
+      "type" : "diorama.date"
     },
     {
       "attachmentKey" : "pass",
@@ -43,7 +43,7 @@
         "origin" : "2025-07-01T00:00:00.000-07:00"
       },
       "schemaVersion" : 1,
-      "type" : "diorama.clock"
+      "type" : "diorama.date"
     },
     {
       "attachmentKey" : "empty",
@@ -53,7 +53,7 @@
         ]
       },
       "schemaVersion" : 1,
-      "type" : "diorama.clock"
+      "type" : "diorama.date"
     }
   ]
 }
