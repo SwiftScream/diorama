@@ -46,7 +46,10 @@ store origin or delta variants at record positions.
 The example denotes 09:00:00, 09:00:05, 09:00:05, and 09:00:04 in the
 origin's fixed offset. Deltas change returned wall values; they do not cause
 replay waits. Effective cumulative deltas must fit `Int64` and produce
-representable Foundation `Date` values. The origin and scalar text use the
+representable Foundation `Date` values within inclusive Unix seconds
+`-62_135_500_000...253_402_250_000` after millisecond rounding. An unsupported
+live observation is returned unchanged, diagnoses conversion failure, and
+prevents publication of the candidate. The origin and scalar text use the
 [shared time codecs](stable-time-scalars.md). The numeric origin offset is a
 display choice; it is not a regional timezone rule.
 
