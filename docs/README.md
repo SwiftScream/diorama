@@ -235,6 +235,9 @@ proposal for discussion, with its review gate recorded in the owning plan.
 - [Clock composition conformance evidence](evidence/003-F07-clock-composition-conformance.md)
   records public-only persisted and timed composition, examples, and platform
   acceptance limitations.
+- [Current-build coverage evidence](evidence/003-Fa07-current-build-coverage.md)
+  records isolated coverage builds, stale-product exclusion, and portable
+  artifact discovery.
 
 ## Historical boundary
 
