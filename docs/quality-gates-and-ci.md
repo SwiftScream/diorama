@@ -294,6 +294,16 @@ between `*-test-runner` executables and matching `*Tests.so` modules. Coverage
 discovery must include both, alongside the `.xctest` executable layout used by
 Apple builds.
 
+Each coverage invocation builds in a fresh, uniquely owned directory under
+`.build/coverage`, and discovers profiles and products only there. SwiftPM's
+test and coverage-path query use the same scratch directory. Xcode uses an
+isolated derived-data directory and must produce exactly one coverage profile.
+Product discovery is sorted deterministically. The temporary build directory
+is removed on exit; ordinary build outputs remain untouched. This trades
+incremental coverage-build speed for reliable current-revision coverage.
+`scripts/tests/coverage`, included in the canonical host test gate, verifies
+stale-product exclusion, platform layouts, relative paths, and failure messages.
+
 The initial `.codecov.yml` follows URITemplate's posture:
 
 - exclude test fixtures and generated code from product coverage;
