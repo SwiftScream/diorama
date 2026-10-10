@@ -1581,8 +1581,10 @@ evidence-driven lifecycle extension remain separately reviewed work.
 
 ### 003-Fa02 — SystemDefinition and Core-owned managed state
 
-- Status: In progress on 2026-10-11 under the owner-approved ordered Fa stack.
-  Uses this session's current model/settings for all implementation and review.
+- Status: Complete on 2026-10-11.
+  [Evidence](../evidence/003-Fa02-system-definitions.md) records the public API
+  replacement, managed concurrency, complete consumer migration, and platform
+  verification. Uses the owner-approved current session model/settings.
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Public API replacement,
   diagnostic reentry, freeze/finalization races, and migration of every existing
   extension capability need coordinated concurrency and ownership review.
