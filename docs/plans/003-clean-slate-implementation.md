@@ -15,6 +15,24 @@ Current module references use `DioramaDate`; `DioramaDateSystem`,
 clock names. F01–F07 retain their original unit IDs and evidence history.
 This naming work does not authorize beginning Phase G.
 
+On 2026-10-10, the owner accepts
+[Decision 20](../design-decisions/20-system-definitions-and-pure-passthrough.md)
+and inserts [Phase Fa](#phase-fa--passthrough-and-system-authoring) between F
+and G: Fa01 delivers pure passthrough; Fa02 makes `SystemDefinition` the sole
+public system-authoring path. Both are approved planned units, not completed
+implementations. Their [self-contained handoff](003-Fa-system-authoring-handoff.md)
+preserves the relevant exploration findings without requiring exploratory code.
+Complete both before Location begins; ordinary per-unit scope/model checkpoints
+still apply. This documentation change does not start either implementation.
+
+On 2026-10-11, the owner approves the Fa03–Fa07 infrastructure-review follow-ups
+after reviewing their scope and refining Fa04's fixed numeric date range.
+Fa03 applies Fa02's preparation boundary to Date validation (R2); Fa04–Fa07
+cover origin integrity (R3), checked duration arithmetic (R4), actor-owned
+lifecycle evidence (R5), and coverage discovery (R6). These are planned work,
+not verified resolutions. The Phase Fa table records each finding's dependency
+deadline; only Fa01/Fa02 are blanket prerequisites for starting Location.
+
 On 2026-10-06, the owner accepts
 [Decision 19](../design-decisions/19-system-owned-records.md), its delivery-plan
 revision, and the scope of the combined E04R/revised E05 refactor.
@@ -131,11 +149,14 @@ All seventeen original accepted decisions, both completed plans, and every other
 DD18 records the owner-approved 2026-09-19 revision of setup, scenario data,
 and in-memory result ownership. It governs C04A and the remaining affected units;
 earlier completed-unit evidence remains historical.
-Decision references use DD01–DD18.
+Decision references use DD01–DD20.
 Review-unit IDs use phase letters A through J and local numbers, including 003-D01–003-D05 for interception evidence.
 An uppercase suffix identifies an owner-approved inserted unit that follows its
 unsuffixed unit without renumbering established references; 003-B07A is the
 first such insertion.
+The owner-approved lowercase phase suffix `Fa` identifies the units inserted
+between F and G: `003-Fa01` through `003-Fa07`. Preserve that spelling in commits,
+evidence filenames, and links; do not renumber completed F units.
 Older proposal examples and explicit deferrals must be read with their later accepted clarifications.
 
 | Source                                                                                       | Required interpretation and principal units                                                                                                                                                                                                                                          |
@@ -151,8 +172,8 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [DD09: Preparation](../design-decisions/09-normalization-and-redaction.md)                   | Live captured values undergo structural canonicalization, redaction, normalization, and validation before admission. Already-prepared decoded input is preserved and validated without rerunning capture transformations. Immutable setup policy; match projection is separate. 003-B02, 003-C02, 003-G06, 003-H03–003-H04, 003-H07–003-H08.                  |
 | [DD10: Lifecycle](../design-decisions/10-lifecycle-and-ownership.md)                         | Immutable definitions, fresh executions, ordered activation and reverse rollback, explicit idempotent finish, body outcome plus final report, quiescence, lightweight post-finish reporter independent of execution resources. 003-B02–003-B03, 003-B07A–003-B09, 003-C04–003-C06 including 003-C04A–003-C04B, 003-E03, 003-G09, 003-I08. |
 | [DD11: HTTP domain](../design-decisions/11-http-model-strategy.md)                           | HTTP Types currency only in optional HTTP products; Diorama owns fields, bodies, policies, schema; native semantics remain in adapters. 003-H01–003-H14.                                                                                                                                     |
-| [DD12: URLSession](../design-decisions/12-urlsession-scope.md)                               | Per-session interception, supported HTTP(S) data tasks, early rejection in all modes, redirects and Basic/Digest, tested platform profiles. 003-D01–003-D05, 003-I01–003-I09; ordering gate Q1 applies.                                                                                              |
-| [DD13: Random](../design-decisions/13-random-proving-system.md)                              | Reference-semantic generator, ordered raw UInt64, no timestamps, injected live source, zero after diagnosed exhaustion, public-only implementation. 003-B01–003-B08 including 003-B07A, 003-C07.                                                                                                 |
+| [DD12: URLSession](../design-decisions/12-urlsession-scope.md) | Per-session interception, supported HTTP(S) data tasks, early rejection in record/replay, redirects and Basic/Digest, tested platform profiles. DD20 makes passthrough uninstrumented. 003-D01–003-D05, 003-I01–003-I09; ordering gate Q1 applies. |
+| [DD13: Random](../design-decisions/13-random-proving-system.md) | Reference-semantic record/replay generator, ordered raw UInt64, no timestamps, injected live source, zero after diagnosed exhaustion, public-only implementation. DD20 gives passthrough native copy/lifetime semantics. 003-B01–003-B08 including 003-B07A, 003-C07, 003-Fa01–003-Fa02. |
 | [DD14: Scheduler](../design-decisions/14-real-time-replay-scheduler.md)                      | One execution-owned ContinuousClock, one-to-one delays, deterministic handoff, no registration reentrancy, atomic cancel/claim, delivery acknowledgement. 003-E01–003-E08; availability gate Q2 applies.                                                                                     |
 | [DD15: Clock](../design-decisions/15-clock-system.md)                                        | Millisecond wall origins and signed successive deltas; positional overrides; empty wall payload; nonpersisted monotonic Clock. 003-F01–003-F07.                                                                                                                                              |
 | [DD16: Location](../design-decisions/16-location-system.md)                                  | Portable async replay, origin-relative WGS84 measurements, separate delivery time, access barriers, nonterminal failures, narrow Apple facade. 003-G01–003-G09.                                                                                                                              |
@@ -160,6 +181,7 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [DD18: Setup and scenario data](../design-decisions/18-diorama-setup-and-scenario-data.md) | Complete reusable `Diorama` setup; immutable data-only `ScenarioDefinition`; direct codec boundary without public `PersistedScenario`; load per execution; valid in-memory results independent of publication success. 003-C04A–003-C07, 003-H07, 003-J03–003-J04. |
 | [Overview](../design-overview.md)                                                            | Ignoring a configured attachment changes verification only. Every loaded payload still requires persistent registration plus schema and prepared-value validation before unmatched attachments are diagnosed and discarded. 003-C01–003-C06 including 003-C04A–003-C04B, 003-J03.                                                                                                           |
 | [DD19: System-owned records](../design-decisions/19-system-owned-records.md) | Core record capture/selection without lifecycle shape constraints; domain capture and delivery in G03A/G04/G05 and H12A/H12B. E04R and revised E05 deliver the accepted record-services boundary. |
+| [DD20: System definitions and pure passthrough](../design-decisions/20-system-definitions-and-pure-passthrough.md) | Native passthrough behavior and consumer-owned lifetime; one public protocol authoring path; Core-owned record/replay state, synchronization, safe notification delivery, and lifecycle. Preserve existing services when retiring the old path. 003-Fa01–003-Fa02; native lifecycle follow-up at G08/I01. |
 | [Dependency policy](../dependency-policy.md)                                                 | Candidate status is not adoption approval. Tools and HTTP products need exact reviewed adoption records before use. 003-A02, 003-H01, and any later demonstrated need.                                                                                                                       |
 | [Quality policy](../quality-gates-and-ci.md)                                                 | One complete tooling/CI bootstrap review unit, warning-free strict concurrency, all applicable platforms, required Codecov uploads. 003-A01–003-A04, 003-B10, every subsequent code unit.                                                                                                        |
 
@@ -170,7 +192,8 @@ Further interpretations that must survive implementation:
 - First-party error metadata explicitly permitted to be omitted by DD16/DD17 warns without poisoning a recording.
   Other failed preparation does poison it.
   Neither path replaces live native behavior when it can still be forwarded.
-- Unsupported URLSession tasks are rejected early even in passthrough.
+- Unsupported URLSession tasks are rejected early in record/replay; DD20's pure
+  passthrough has the native session's capabilities.
   That differs from an unexpected unrepresentable value observed after a supported live operation has begun.
 - DD17 refines HTTP timing: persist successive local delays, exclude caller decision latency, and start a continuation's delay when the current decision returns.
   For example, a 100ms continuation waits 100ms after that decision; it does not become immediately due merely because the decision was slow.
@@ -427,6 +450,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | D     | 003-D01–003-D05      | Isolated URLProtocol evidence and reviewed native capability boundaries.     |
 | E     | 003-E01–003-E08      | Shared real-time scheduler and system-owned record services.           |
 | F     | 003-F01–003-F07; 003-F03A abandoned | Portable wall system and Core execution clock. |
+| Fa    | 003-Fa01–003-Fa07 | Pure passthrough, managed system authoring, and infrastructure-review follow-ups with explicit dependency deadlines. |
 | G     | 003-G01–003-G09      | Portable location replay and narrow Apple live/delegate integration.         |
 | H     | 003-H01–003-H14      | Shared HTTP domain, resource publication, strict URLSession lifecycle data.  |
 | I     | 003-I01–003-I09      | Incremental production URLSession conformance across platform bridges.       |
@@ -1480,12 +1504,368 @@ no placement or checkpoint implementation is authorized.
 - Exclusions: Regional timezone persistence, calendars, new playback policies, adding an optional algorithms package without demonstrated need and approval.
 - Checkpoint: R; stop at a complete clock milestone with documented limitations.
 
+## Phase Fa — Passthrough and system authoring
+
+Fa01/Fa02 follow completed Phase F and precede Location.
+[DD20](../design-decisions/20-system-definitions-and-pure-passthrough.md) records
+their contract changes. The [handoff](003-Fa-system-authoring-handoff.md) contains
+the implementation map, API sketches, concurrency lessons, and migration gaps.
+Read both before proposing a unit's scope. Work from the integrated baseline;
+there is no prerequisite to recover or merge exploratory runtime code.
+
+Fa03–Fa07 capture the remaining actionable infrastructure-review findings.
+Their triggers and acceptance criteria are reproduced below so implementing
+them does not require an exploration branch or the original review checkout.
+Fa02 proves the generic preparation hook and its ordering; Fa03 owns Date's
+use of that hook, semantic rejection, and the R2 regression cases. Tests of
+Fa02's own guarantees stay with Fa02. Neither unit is complete merely because
+the new API compiles.
+
+| Review item | Owning unit and outcome | Latest dependency gate |
+| --- | --- | --- |
+| R1 — Diagnostic reentry under source locks | Fa02: Core-owned serialization, unlocked notification, and both original regressions | Before G01 |
+| R2 — Whole-track preparation validation | Fa02: public typed hook; Fa03: Date admission and external validation proof | Before G03 |
+| R3 — Extreme origins change during persistence | Fa04: representability checks and portable round-trip evidence | Before G02/G03 |
+| R4 — Oversized Duration traps | Fa05: checked operand bounds and public-path regression | Before G04 or HTTP timing integration |
+| R5 — Actor-owned activation/cleanup unproved | Fa06: isolated public-only lifecycle proof and explicit remaining adapter gates | Before G07/G08 depend on actor-owned resources |
+| R6 — Stale test binaries affect coverage | Fa07: current-build-only coverage export | Before the next coverage-baseline or coverage-dependent review decision |
+| S1 — Unify unknown-system loading policies | Closed: retain strict standalone decoding and diagnostic startup omission; no work item | None |
+
+Default order follows the unit numbers, subject to owner selection and actual
+prerequisites. Fa07 is independent of Fa02 and can be selected earlier when
+coverage evidence is needed. These follow-ups do not make every cleanup a
+prerequisite for G01. Native Location and URLSession implementation and any
+evidence-driven lifecycle extension remain separately reviewed work.
+
+### 003-Fa01 — Pure passthrough with native dependency lifetime
+
+- Status: Approved on 2026-10-10; not started. Protocol R scope and
+  model confirmation are required before implementation.
+- Recommended model: GPT-6 Sol; reasoning: `high`. This bounded behavior change
+  crosses startup, resource ownership, mixed-mode persistence, and public tests.
+- Prerequisites: 003-F07, 003-E08, 003-C07; DD05, DD07–DD10, DD13, DD15, DD18,
+  and DD20's explicit reconciliation. Read the Fa handoff.
+- Scope: Return ordinary live dependencies for passthrough using the existing
+  system-authoring mechanism. Remove Diorama operation interception, source
+  serialization, continuation, post-finish diagnosis, and scenario-owned
+  cleanup/drainage from that mode. Permit activation without track leases or
+  content policies; preserve loaded baseline and usage data independently.
+- Expected files/modules: Core preparation/finalization/usage where needed;
+  Random and Date dependencies; public consumer proofs, mixed-mode persistence
+  tests, examples and affected service/API documentation. Record evidence in
+  `docs/evidence/003-Fa01-pure-passthrough.md`.
+- Public behavior: A retained passthrough dependency remains live after finish,
+  with native copy and concurrency semantics and consumer-owned cleanup. Core
+  releases its references without invalidating the live dependency. Random
+  value-source copies may advance independently; Date continues reading its
+  source. Factories run during activation after preparation, and are never
+  invoked for replay. Partial construction and failed startup must not leave
+  abandoned resources owned by Diorama.
+- Persistence/reporting: No record/replay track lease or content policy in
+  passthrough. Preserve configured baseline content during re-record, ordered
+  passthrough usage facts, strict file decoding and startup membership rules.
+  No new record, claim, consumption, or post-finish diagnostic for live calls.
+  The execution clock/scheduler and record/replay lifetime remain unchanged.
+- Tests/verification: V-code; continued live reads after finish with no added
+  diagnostics, native value-copy and reference-source behavior, normal resource
+  retention/release, factory counts, failure/rollback, no content-policy calls,
+  mixed-mode baseline/header preservation and usage reports, read-only replay,
+  and unchanged record/replay failure/continuation semantics. Update assertions
+  that intentionally enforced the superseded passthrough contract.
+- Exclusions: `SystemDefinition` implementation, redesigning record/replay,
+  schema/decoder relaxation, Location/URLSession production work, and claiming
+  consumer-owned work is quiescent when finish returns.
+- Checkpoint: R; review the explicit lifetime/copy-semantics change and complete
+  platform evidence. Do not begin Fa02 automatically.
+
+### 003-Fa02 — SystemDefinition and Core-owned managed state
+
+- Status: Approved on 2026-10-10; not started. Protocol R scope and
+  model confirmation are required before implementation.
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Public API replacement,
+  diagnostic reentry, freeze/finalization races, and migration of every existing
+  extension capability need coordinated concurrency and ownership review.
+- Prerequisites: 003-Fa01; DD02, DD05, DD09–DD10, DD13–DD15, DD18–DD20; current
+  record/time/scheduling services and external-system proofs. Read the Fa
+  handoff; the managed runtime and earlier diagnostic fix are part of this unit,
+  not assumed integrated prerequisites.
+- Scope: Establish `SystemDefinition` as the sole public authoring path. Core
+  derives layout and prepares typed track declarations, runs optional read-only
+  validation before all activation, then calls separate record/replay state
+  factories and dependency factories receiving `SystemRuntime<State>`.
+  Passthrough has only `makePassthroughDependency()`, without managed state.
+  Use one common `Dependency: Sendable`, including concrete native types.
+- State and ownership: Core serializes whole-state operations, reserves and
+  records in source order, retains diagnostic facts before notification, and
+  invokes sinks outside protection. It owns admitted notification/work joins,
+  cancellation, reverse rollback, resource release, and detached frozen views.
+  Scoped operation tokens must not escape. Document no reentry, suspension,
+  arbitrary callbacks, finish waits, or live-resource aliases inside protection.
+- Existing capabilities: Provide the appropriate scoped time/clock/scheduling
+  services and safe incremental capture/freeze integration. Preserve selectors,
+  exclusive claims, consumption, diagnostics, cleanup/failure outcomes, merge,
+  optional persistence, and keyed instances. Do not defer these existing
+  capabilities to native adapter work or silently reduce them.
+- Public migration: Internalize `PreparedSystem`, `ActivatedSystem`, and the
+  closure-based `ScenarioSystem` initializer if Core still needs them; remove
+  redundant paths and superseded preparation/state-owner APIs. Migrate Random,
+  Date, all public-only consumer systems, examples, and documentation. Keep
+  `.instance()` consumer conveniences and schemas. Use explicit record/replay
+  dependency structs with direct `withActiveState` operations; avoid hiding
+  the examples behind a mandatory value-reader abstraction.
+- Expected files/modules: Core authoring/runtime/operation/notification and
+  execution integration; Random/Date definitions; existing consumer support
+  and tests, compiler probes, examples and public guides. Record evidence in
+  `docs/evidence/003-Fa02-system-definitions.md`.
+- Tests/verification: V-code; migrate every existing external proof using
+  public imports only. Prove typed headered/same-value tracks, duplicate and
+  foreign declarations, repeated lookup, fresh keyed executions, preparation
+  failure before any activation, and reverse rollback. Exercise reentrant sinks
+  on conversion failure and throwing operations, source/record order, queued
+  construction work, callback/cancellation reentry, concurrent finish, canceled
+  finish waiters, one incremental freeze, claim acknowledgement, resource
+  release, and immutable reports. Compile negative probes for scoped context,
+  operation and state escapes and old public constructor access; retain a
+  positive external conformance proof. Ordinary compiler rejection is required,
+  not a crash. Preserve Fa01 semantics in every relevant migration.
+- Review acceptance: R1 belongs in this unit. Retain regressions for a Date
+  conversion-failure sink rereading its dependency and a Random sink reentering
+  after a reserved live read races finish. Prove retained facts, unlocked
+  delivery, source/record ordering, preserved live return, and bounded finish.
+  The typed validation hook and validation-before-activation tests also belong
+  here; Fa03 adds Date whole-track admission and R2-specific coverage.
+- Commit structure: Keep behavioral changes and their proofs together. Prefer
+  coherent commits for the managed concurrency boundary, service integration,
+  and migration/public-surface retirement. Do not retain a public legacy path
+  as the completed outcome or split tests away from the invariants they prove.
+- Exclusions: Native Location/URLSession implementations, a universal native
+  lifecycle framework, general HTTP scheduling policy, new dependencies,
+  persistence/schema changes, and compatibility with experimental API spellings.
+  Native construction/cleanup integration is investigated at G08/I01; Core
+  will invoke and await managed native cleanup, and those lifecycle APIs may
+  evolve with evidence. Existing cleanup outcomes remain in this unit.
+- Checkpoint: R; demonstrate a complete public-only replacement before retiring
+  the old surface. Review all remaining gaps explicitly; do not mask them by
+  adding `@testable` to consumer proofs. Stop before Phase G.
+
+### 003-Fa03 — Whole-track Date admission and preparation proof
+
+- Status: Approved review follow-up for R2 on 2026-10-11; not started.
+  Protocol R scope and model confirmation are required before implementation.
+- Recommended model: GPT-6 Sol; reasoning: `high`. Baseline resolution, authored
+  values, and validation ordering must agree across runtime and persistence.
+- Prerequisites: 003-Fa02, 003-F02–003-F05, 003-C04A–003-C04B; DD09, DD15,
+  DD18–DD20. Fa02 delivers and tests the public validation mechanism.
+- Scope: Use that mechanism to validate Date's resolved header and complete
+  ordered values before record/replay activation. Reuse the existing strict
+  `WallRecording` interpretation across preparation, codec, and merge where
+  practical; do not add a competing validator. Validate the authoritative
+  loaded baseline, not only content captured by the reusable definition.
+- Public behavior: Malformed programmatic Date baselines fail preparation
+  before any state, dependency, or live-source factory runs. Generic public
+  track construction with a no-op value policy does not bypass Date-owned
+  structural invariants. This adds the runtime admission that completed F02
+  explicitly excluded; F02's historical scope is not rewritten. Core still
+  leaves arbitrary consumer-system semantics to their selected policies.
+- Expected files/modules: Date definition and `WallRecording` validation;
+  Date/Core/Diorama preparation and persistence tests; public consumer support
+  and authoring documentation. Record evidence in
+  `docs/evidence/003-Fa03-whole-track-admission.md`.
+- Tests/verification: V-code. Reproduce all four R2 cases through public APIs:
+  a nonfinite Date with offset 0, a finite Date without an offset header, an
+  offset of 2000 minutes, and a submillisecond Date with offset 0. Assert
+  preparation failure with attachment/track context and zero activation,
+  rather than waiting for encoding to reject the result. Cover replay and
+  record from baseline, valid setup paired with invalid loaded content, and
+  invalid content in a later attachment before any earlier factory runs.
+  Add valid empty/nonempty, repeated/backward, authored-override, and
+  header/cross-record boundary controls. Exercise in-memory startup and
+  repository paths, preserving strict decoder rejection where it occurs first.
+  Prove an external system can inspect typed header and whole-track content
+  without claims, consumption, capture transforms, or internal imports.
+- Mode boundary: Already-prepared input receives validation only. Passthrough
+  runs no track-content validation; file decoding remains strict. Preserve
+  valid mixed-mode baselines, usage accounting, and replay isolation.
+- Exclusions: Schema changes, a general public Date-building framework,
+  re-normalizing loaded values, and Fa04's extreme-origin repair. If Fa02
+  already wires Date validation, retain it and add only missing invariants
+  and proving cases; do not duplicate the implementation.
+- Checkpoint: R; demonstrate consistent semantic acceptance at execution and
+  persistence boundaries. Close R2 only with these results, before G03.
+
+### 003-Fa04 — Portable wall-origin persistence integrity
+
+- Status: Approved on 2026-10-11 with the fixed numeric range below; not
+  started. Protocol R scope and model confirmation remain required before
+  implementation.
+- Recommended model: GPT-6 Sol; reasoning: `high`. Foundation representability
+  and millisecond normalization need evidence across the supported runtimes.
+- Prerequisites: 003-F01–003-F05; DD06, DD09, DD15's origin, normalization, and
+  [fixed-range amendment](../design-decisions/15-clock-system.md#fixed-wall-date-range-amendment--owner-approved-2026-10-11),
+  DD18. Coordinate shared Date validator changes with Fa03.
+- Trigger: An injected live source returns
+  `Date(timeIntervalSince1970: 100_000_000_000_000)`. The reviewed full workflow
+  records a healthy candidate but encode/decode/replay returns Unix seconds
+  `15928153804800.0`, without diagnostics. Finiteness alone is insufficient.
+- Scope: After existing millisecond rounding, accept wall dates only when
+  `timeIntervalSince1970 >= -62_135_500_000` and
+  `timeIntervalSince1970 <= 253_402_250_000`. Both bounds are inclusive Unix
+  seconds. Use these fixed numeric comparisons, independent of the selected
+  timezone offset, with no production format/reparse check or calendar-based
+  range calculation. Apply the same range to formatting, Date's strict model,
+  capture, and admission of authored/decoded values. Preserve Foundation's
+  parsing/normalization behavior within the range and the separate existing
+  fixed-timezone offset check.
+- Implementation clarity: Define named numeric constants and put a comment
+  beside each with its corresponding UTC timestamp. Verify the comment text
+  using the project's Foundation codec. The macOS exploration renders the
+  bounds as `0001-01-04T02:53:20.000Z` and `9999-12-31T09:53:20.000Z`; the early
+  date reflects Foundation's historical calendar interpretation. The numeric
+  seconds define the bounds; do not parse these comments or construct calendar
+  dates at runtime to obtain the constants.
+- Public behavior: Supported instants retain their millisecond meaning across
+  persistence. An unsupported live observation still returns its native Date,
+  diagnoses conversion failure, makes the candidate unhealthy, and cannot
+  publish a corrupted replacement. Supported fixtures retain their schema and
+  canonical output. Update goldens that intentionally admitted dates outside
+  the newly selected range, including the former calendar-year endpoints.
+- Expected files/modules: Core `StableTimeCodec`, Date origin/capture and
+  persistence integration, scalar and full-workflow tests. Record evidence in
+  `docs/evidence/003-Fa04-wall-origin-integrity.md`.
+- Tests/verification: V-code; original record/encode/decode/replay regression,
+  inclusive rounded boundaries, values still outside after rounding, nonfinite
+  inputs, negative and positive Unix seconds, and millisecond rounding edges.
+  Test boundary values at every supported whole-minute offset, including UTC
+  and both ±14-hour extremes; retain locale/timezone independence. Round-trip
+  equality checks belong in tests only. Verify failure diagnostics, preserved
+  live return, unhealthy publication refusal, and unchanged prior repository
+  content. Run scalar and workflow cases on macOS, iOS Simulator, and pinned
+  Linux; document any failure rather than silently adjusting the bounds.
+- Preliminary evidence: An isolated Apple Swift 6.4 macOS probe passes 16,086
+  boundary cases, including every supported whole-minute offset. At +14:00,
+  the upper bound leaves 400 seconds before year 10000. These exploratory
+  checks do not establish iOS/Linux behavior or complete this production unit.
+- Exclusions: A new date parser, persistence version, timezone-dependent date
+  bounds, production format/reparse checks, widening the selected range, and
+  changing intentional Foundation parser normalization within the range.
+- Checkpoint: R; review the agreed bounds' platform evidence and failure behavior before
+  G02/G03 reuse the shared origin codec.
+
+### 003-Fa05 — Checked logical-time operand bounds
+
+- Status: Approved review follow-up for R4 on 2026-10-11; not started.
+  Protocol R scope and model confirmation are required before implementation.
+- Recommended model: GPT-6 Sol; reasoning: `medium`. This is a bounded numeric
+  fix with a precise process-crash reproduction and existing error semantics.
+- Prerequisites: 003-E01–003-E03, 003-F06; DD14–DD15 and the execution-time
+  service contract. Use Fa02's public authoring path if already integrated.
+- Trigger: With a valid capture anchor,
+  `time.logicalTime(after: Duration.seconds(Int64.max) * 2, from: anchor)`
+  traps while extracting `Duration.components`, before checked arithmetic
+  can return `ExecutionTimeFailure`.
+- Scope: Bound operands before component extraction in checked logical-time
+  arithmetic. Audit checked elapsed/delay paths using the same helper, while
+  preserving their documented errors and supported range.
+- Expected files/modules: Core `Duration+LogicalTime`, `ExecutionTime`, focused
+  arithmetic and public consumer tests. Record evidence in
+  `docs/evidence/003-Fa05-checked-duration-bounds.md`.
+- Tests/verification: V-code; the oversized representable Duration must throw
+  the documented overflow failure through the public API without trapping.
+  Cover boundary operands, just-outside values, bounded addition overflow,
+  negative inputs, zero, fractional seconds, and elapsed-helper callers.
+  Preserve scheduler deadline checks and execution-clock behavior. Run the
+  public regression on macOS, iOS Simulator, and pinned Linux; use an isolated
+  process when reproducing the original crash against an unfixed revision.
+- Exclusions: Changing standard `Clock` arithmetic preconditions, broad timing
+  redesign, virtual time, or new numeric dependencies.
+- Checkpoint: R; fix before G04 or the first dependent HTTP timing integration.
+
+### 003-Fa06 — Public actor-owned lifecycle evidence
+
+- Status: Approved evidence follow-up for R5 on 2026-10-11; not started.
+  Protocol R scope and model confirmation are required before investigation.
+- Recommended model: GPT-6 Astra; reasoning: `high`. Isolation, partial startup,
+  cancellation, and awaited resource cleanup need one coherent ownership proof.
+- Prerequisites: 003-Fa02, 003-E08; DD10, DD14, DD16, DD20. Inspect Fa02's actual
+  lifecycle surface rather than assuming the historical limitation persists.
+- Trigger: The reviewed synchronous nonisolated activation/deactivation
+  callbacks cannot directly construct or clean up a MainActor resource.
+  Existing actor-delivery tests create receivers outside activation, so they
+  do not prove execution-owned actor lifecycle.
+- Scope: Build a small isolated external system using ordinary public imports
+  and a controlled MainActor-isolated resource. Prove activation-owned creation,
+  startup rollback, managed callback drainage, and awaited cleanup through the
+  integrated authoring API. This is an early synthetic proof; actual native
+  Location/URLSession construction and shutdown remain G08/I01 work.
+- Expected files/modules: Isolated `Spikes/ActorOwnedLifecycle/` and
+  `docs/evidence/003-Fa06-actor-owned-lifecycle.md`; focused public consumer tests
+  if an existing supported path can be proved without production API changes.
+- Tests/verification: V-spike, plus V-code if package tests change. Exercise
+  successful activation, failure after resource creation, later attachment
+  failure, cancellation at suspension points, finish from MainActor and other
+  tasks, concurrent finish, and retained handles. Control an in-flight callback
+  and cleanup acknowledgement; finish must wait for owned work and release
+  resources without late delivery. Keep consumer-owned passthrough lifetime
+  separate from record/replay cleanup and account for abandoned construction.
+  Compile and run the portable actor proof on macOS, iOS Simulator, and pinned
+  Linux where supported; record platform limits explicitly.
+- Evidence boundary: Do not precreate the resource outside activation to claim
+  an activation proof. No blocking actor dispatch, fire-and-forget cleanup,
+  unsafe isolation suppression, private imports, or compilation-only claim of
+  runtime quiescence. If current APIs cannot satisfy the proof, record the
+  failing boundary and propose the smallest follow-up for owner review.
+- Exclusions: Production native adapters, a universal lifecycle framework,
+  unapproved Core API changes, and claims of real Core Location or URLSession
+  conformance based on a synthetic resource.
+- Checkpoint: R; resolve the public actor-lifecycle proof before G07/G08 rely
+  on it. A reproduced limitation completes useful investigation but does not
+  close R5; any required API change needs an explicitly approved follow-up.
+
+### 003-Fa07 — Coverage export from current build products
+
+- Status: Approved review follow-up for R6 on 2026-10-11; not started.
+  Protocol R scope and model confirmation are required before implementation.
+- Recommended model: GPT-6 Sol; reasoning: `medium`. Artifact selection is
+  bounded but must preserve the different Apple and Linux coverage layouts.
+- Prerequisites: 003-A04, 003-B10 and the quality/coverage policy. This tooling
+  unit is independent of Fa02 and may be selected before other Fa units.
+- Trigger: `scripts/coverage` recursively discovers stale test executables.
+  An obsolete `DioramaClockTests` binary changes the reviewed local denominator
+  from 4,789 to 4,919 executable lines with the same 4,699 covered lines and
+  profile; clean CI therefore reports a different revision baseline.
+- Scope: Export only binaries belonging to the current coverage build, using
+  isolated clean outputs or authoritative current-product discovery. Keep
+  local and CI invocation aligned, deterministic discovery, and useful failure
+  messages for missing profiles/products.
+- Expected files/modules: `scripts/coverage`, related canonical script helpers
+  only as needed, focused tooling fixtures/checks, and coverage documentation.
+  Record evidence in `docs/evidence/003-Fa07-current-build-coverage.md`.
+- Tests/verification: V-code plus a controlled stale-product reproduction in
+  isolated output directories. Show that a removed/renamed target's executable
+  cannot affect the export and that clean/incremental outputs for the same
+  revision agree. Preserve Linux `*-test-runner` and matching `*Tests.so`
+  coverage mappings, Apple test bundles, repository-relative LCOV paths,
+  platform flags, and canonical macOS/iOS/Linux export commands.
+- Exclusions: Coverage-threshold changes, weakened tests or upload failures,
+  dependency/toolchain updates, and deleting unrelated consumer build outputs.
+- Checkpoint: R; complete before the next coverage-baseline or coverage-dependent
+  review decision. Until then, explicitly exclude stale products when using
+  local coverage as evidence; do not treat historical totals as repaired.
+
 ## Phase G — Location domain and Apple bridge
+
+Fa01/Fa02 precede this phase. Use the DD20 system-definition boundary and native
+passthrough ownership. DD16's scenario-scoped cleanup and inert escaped-handle
+rules continue for record/replay; passthrough follows its live API lifetime.
+Investigate native construction and cleanup at the start of G08, with evidence
+before relying on it; G09 broadens that protection rather than introducing it.
+Fa03–Fa06 have explicit prerequisite gates below; Fa06's synthetic proof does
+not replace native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G01 — Portable location, access, and failure values
 
 - Recommended model: GPT-6 Sol; reasoning: `medium`. Portable location and bounded error values need deliberate range, omission, and unknown-value contracts.
-- Prerequisites: 003-F01, 003-B02; DD06, DD09, DD16, Q4.
+- Prerequisites: 003-Fa02, 003-F01, 003-B02; DD06, DD09, DD16, DD20, Q4.
 - Scope: Define stable location measurements, access state, source information, and bounded property-list-like failure values independent of Core Location.
 - Expected files/modules: `DioramaLocation` domain values, validation tests and supported-field/error-value documentation.
 - Public behavior: Preserve floor, independent orthometric/ellipsoidal heights, timestamp, accuracy, speed/course and optional source flags; invalid native sentinels map to absence.
@@ -1498,7 +1878,7 @@ no placement or checkpoint implementation is authorized.
 ### 003-G02 — WGS84 mapping and numerical contract evidence
 
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. An evidence-backed WGS84 mapping and inverse must bound numerical error and singularities before schema adoption.
-- Prerequisites: 003-G01; DD16 coordinate/scalar sections, dependency policy, Q4.
+- Prerequisites: 003-G01, 003-Fa04; DD16 coordinate/scalar sections, dependency policy, Q4.
 - Scope: Evaluate the common-origin east/north mapping, inverse, WGS84 constants, valid regional envelope and singularities against independent reference data.
 - Expected files/modules: `Spikes/LocationCoordinates/` and `docs/evidence/location-coordinate-codec.md`; proposed stable mapping contract.
 - Public behavior: None yet; fix a reviewable codec interpretation before fixtures depend on numerical choices, without claiming global route-shape preservation.
@@ -1510,7 +1890,7 @@ no placement or checkpoint implementation is authorized.
 ### 003-G03 — Location version-one codec and strict recording model
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Implement an approved geographic contract alongside independent measurement/delivery origins and exact scalar encoding.
-- Prerequisites: 003-G02 approved mapping, 003-C02, 003-F01; DD03, DD08, DD16.
+- Prerequisites: 003-G02 approved mapping, 003-Fa03, 003-C02, 003-F01; DD03, DD08, DD16.
 - Scope: Implement location-owned strict session/access records and coordinate/time codecs, including optional cached location and independent vertical origins.
 - Expected files/modules: Location codec and strict recordings; geographic, numeric, time, failure and schema fixtures.
 - Public behavior: Unit-bearing JSON numbers use finite shortest-round-trip doubles, normalized negative zero and no default quantization.
@@ -1536,7 +1916,7 @@ no placement or checkpoint implementation is authorized.
 ### 003-G04 — Portable sequential update replay
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. AsyncSequence updates, cached state, open sessions, and iterator cancellation require a coherent portable lifecycle.
-- Prerequisites: 003-G03, revised 003-E05, 003-E03; DD04–DD05, DD16.
+- Prerequisites: 003-G03, 003-Fa05, revised 003-E05, 003-E03; DD04–DD05, DD16.
 - Scope: Add location-owned AsyncSequence-first delivery over record claims and scheduling: ordered batches/nonterminal failures, one active session, non-consuming current location, progress, cancellation, and quiescence. Reuse relevant E06 test cases without adopting its generic schema.
 - Expected files/modules: Location portable service/update state machine and tests.
 - Public behavior: Start inactive selects the next group; repeated active start and inactive stop are idempotent.
@@ -1578,7 +1958,9 @@ no placement or checkpoint implementation is authorized.
 ### 003-G07 — Main-actor delegate facade over portable replay
 
 - Recommended model: GPT-6 Sol; reasoning: `medium`. A narrow MainActor facade must preserve weak-delegate ownership and exact frozen/inert post-finish behavior.
-- Prerequisites: 003-G04–003-G05; DD16 consumer and escaped-handle contracts.
+- Prerequisites: 003-G04–003-G05, 003-Fa06 reviewed actor-lifecycle evidence and
+  resolution of any required public-boundary follow-up; DD16 consumer and
+  escaped-handle contracts.
 - Scope: Add the narrow Diorama-owned Apple facade and weak delegate with portable locations, reproducible Apple access/configuration types and local replay state.
 - Expected files/modules: `DioramaCoreLocation` facade/delegate target, controlled main-actor replay tests and migration example.
 - Public behavior: Current access/location are non-consuming; callbacks run on MainActor.
@@ -1592,11 +1974,14 @@ no placement or checkpoint implementation is authorized.
 ### 003-G08 — Private Core Location capture and live forwarding
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Native callback conversion and live forwarding need field-fidelity evidence, safe preparation, and clear manager ownership.
-- Prerequisites: 003-G06–003-G07, 003-B02, 003-E01; DD06, DD09, DD16.
-- Scope: Add an owned private MainActor CLLocationManager bridge for record and passthrough, reserving ordering/time and copying values at native callbacks.
+- Prerequisites: 003-G06–003-G07, 003-B02, 003-E01; DD06, DD09, DD16, DD20.
+- Scope: Add a private MainActor CLLocationManager bridge, with managed recording and native passthrough. Establish construction, rollback, cleanup invocation and callback isolation first; reserve ordering/time and prepare values for recording only.
 - Expected files/modules: Core Location native bridge/converters and controlled adapter-boundary tests; documented native field availability.
 - Public behavior: Forward configuration and supported native behavior; record prepared portable values while live consumers receive the promised facade values/native Error.
   Unsupported user-info entries warn and omit only that value; other conversion failures preserve live behavior and block publication.
+  Pure passthrough has consumer-owned native lifetime and no Diorama recording
+  conversion or post-finish policy. Its facade retains ordinary native isolation
+  and explicit shutdown obligations.
 - Tests/verification: V-code; supported measurement fields and unknown access values, callbacks/errors, initial cached location, batching, no raw origin leak, source isolation, passthrough no track changes, counted owned-manager operations.
 - Exclusions: Consumer-manager mutation, live Linux source, native error string persistence, nondeterministic simulator GPS as the sole correctness evidence.
 - Checkpoint: R; review native conversion fidelity and owned-manager boundaries.
@@ -1607,8 +1992,8 @@ no placement or checkpoint implementation is authorized.
 - Prerequisites: 003-G08; DD10, DD14, DD16.
 - Scope: Complete private-manager/proxy/sequence cleanup and broader portable, Apple, multi-attachment and re-record conformance.
 - Expected files/modules: Location/Core Location integration tests, capability documentation, Apple controlled callback harness and portable replay fixtures.
-- Public behavior: Finish stops the owned manager, detaches proxy, cancels pending and drains claimed callbacks, ends async sequences as runtime cleanup, and leaves escaped handles inert without inventing a delegate completion.
-- Tests/verification: V-code; finish during batches/access barriers, cancellation, late native events, no location callbacks after finish, all frozen-property rules, multiple independent managers, Apple-recorded portable fixtures replaying on Linux; actual Apple integration evidence distinguished from controlled mocks.
+- Public behavior: In record/replay, finish stops owned resources, detaches proxy, cancels pending and drains claimed callbacks, ends async sequences as runtime cleanup, and leaves escaped handles inert without inventing a delegate completion. Pure passthrough retains DD20 native lifetime.
+- Tests/verification: V-code; record/replay finish during batches/access barriers, cancellation, late native events, no managed location callbacks after finish, frozen-property rules, multiple independent managers, Apple-recorded portable fixtures replaying on Linux; passthrough continuation and consumer-owned cleanup. Distinguish actual Apple integration evidence from controlled mocks.
 - Exclusions: Treating simulator lack of deterministic GPS as evidence of live fidelity, adding unsupported services, persisting teardown as stream completion.
 - Checkpoint: R; stop at the complete initial location milestone.
 
@@ -1684,7 +2069,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 ### 003-H06 — Weighted body allocation and local timing
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Proportional byte allocation, zero weights, integer rounding, and cumulative delays need checked arithmetic and independent examples.
-- Prerequisites: 003-H05; DD14, DD17, 003-F01.
+- Prerequisites: 003-H05, 003-Fa05; DD14, DD17, 003-F01.
 - Scope: Implement successive nonnegative delays and byte-weight profiles with checked cumulative arithmetic and deterministic proportional allocation.
 - Expected files/modules: HTTP body profile/timing validation and fixture tests.
 - Public behavior: Unchanged bytes reproduce observed boundaries; edited length scales contiguous allocations, final segment absorbing remainder.
@@ -1826,7 +2211,9 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 Each unit extends one public URLSession system.
 Bring the relevant spike cases into production conformance tests deliberately; do not import the spike package.
-Every intermediate profile rejects both permanently excluded and not-yet-built operations, including in passthrough.
+Every instrumented record/replay profile rejects both permanently excluded and
+not-yet-built operations. DD20 passthrough uses the uninstrumented native session
+and does not inherit those restrictions or scenario-owned invalidation.
 A unit passes only for capabilities proved on its declared platforms.
 Temporary differences are documented; the complete milestone is not delivered while required surfaces remain unimplemented or unresolved.
 Narrowing the milestone requires an approved decision amendment.
@@ -1836,10 +2223,10 @@ the accepted Linux milestone profile; its upstream repair is not required.
 ### 003-I01 — Instrumented session and bodyless GET vertical path
 
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. The first native vertical path combines routing, live forwarding, replay isolation, rejection, and basic shutdown.
-- Prerequisites: 003-D05 evidence review, 003-H12B–003-H14, 003-E08; DD10, DD12, DD17, resolved Q1.
+- Prerequisites: 003-Fa02, 003-D05 evidence review, 003-H12B–003-H14, 003-E08; DD10, DD12, DD17, DD20, resolved Q1.
 - Scope: Implement configuration-first adapter-owned sessions and private forwarding machinery, routing leases, rejection boundary, and minimal supported GET record/replay/passthrough from stable scenario to native result.
 - Expected files/modules: `DioramaURLSession` setup/routing/protocol and Apple/ FoundationNetworking bridge files, GET fixtures and capability documentation.
-- Public behavior: Copy default/ephemeral configurations, reject background and detectable unsupported delegates, disable cache, preserve supported settings and custom protocol order.
+- Public behavior: For record/replay, copy default/ephemeral configurations, reject background and detectable unsupported delegates, disable cache, preserve supported settings and custom protocol order.
   Identify tasks by object identity in owned sessions; revalidate the lease
   after asynchronous lookup. Install no routing header or forwarding property.
   Exclude Diorama from private transport protocols, preserve consumer protocol
@@ -1849,8 +2236,13 @@ the accepted Linux milestone profile; its upstream repair is not required.
   FN-19 requires safe Linux registry enumeration during overlapping task
   creation/completion. Finalization uses admitted task references directly;
   avoiding enumeration there does not repair the initial routing lookup.
+  All factories return concrete `URLSession` dependencies. Pure passthrough
+  returns an ordinary uninstrumented session with native lifetime/capabilities.
+  At the start of this unit, establish the managed native cleanup integration
+  with Fa02's runtime: explicit invalidation, routing removal, detached live
+  forwarding, and replay callback drainage. Releasing state alone is not proof.
 - Tests/verification: V-code; bodyless GET first on macOS/Linux then iOS, all modes, configuration immutability, two sessions/executions, no private routing metadata in preparation/diagnostics/network, absent/ambiguous/expired ownership, late lookup after cancellation, zero live replay access, startup rollback, basic cancellation/finish and the approved native invalidation boundary.
-- Exclusions: Global protocol registration, shared/existing-session mutation, advertising bodies/delegate decisions/redirects/auth before their units, live bypass for unsupported tasks or non-HTTP schemes.
+- Exclusions: Global protocol registration, shared/existing-session mutation, advertising record/replay bodies/delegate decisions/redirects/auth before their units, live bypass for unsupported tasks or non-HTTP schemes in instrumented modes.
 - Checkpoint: R; review the smallest safe native vertical path and its precise temporary profile.
   Any failed rejection guarantee stops adapter rollout.
 
@@ -1962,7 +2354,7 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Expected files/modules: URLSession ownership/race conformance tests and documented forwarding-tail topology; focused fixes only as evidence requires.
 - Public behavior: Horizon stops recording immediately and permits necessary live forwarding tails without scenario retention; replay callbacks quiesce.
   Open before-head, partial-body and unanswered decisions never get invented terminal events.
-  Returned sessions are invalidated; new task creation after execution is invalid native use and crashes on tested runtimes, as approved in DD12/DD17.
+  Returned record/replay sessions are invalidated; new task creation after execution is invalid native use and crashes on tested runtimes, as approved in DD12/DD17. DD20 passthrough sessions retain native lifetime.
   Await native invalidation acknowledgement and owned delivery drainage for
   replay; gracefully invalidate live sessions without waiting for open consumer
   work. A live continuation has weak task/owner backreferences and no scenario
@@ -1978,7 +2370,7 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Scope: Close the supported API/profile matrix, validate structural capabilities at setup, and exercise fixtures recorded on each bridge through the other.
 - Expected files/modules: URLSession shared conformance fixtures, platform CI selection and evidence, supported-capability and rejection documentation.
 - Public behavior: One system and persisted schema; Apple/Linux portability covers the tested intersection.
-  Unsupported or unimplemented nodes/tasks fail at the earliest reliable point in every mode with no built-in HTTP fallback.
+  Unsupported or unimplemented nodes/tasks fail at the earliest reliable point in record/replay with no built-in HTTP fallback. Pure passthrough keeps DD20 native capabilities.
   The DD12/DD17 native-disposition and Digest exceptions permit their documented
   live behavior while refusing invalid publication and incompatible replay.
   FN-01, FN-08 (including the required FN-05/FN-07 integration mechanics),
@@ -2066,7 +2458,11 @@ The complete initial outcome requires all of the following, with review records 
 1. Q1–Q5 are resolved wherever required, with approved decision/policy changes recorded.
    No unresolved failed capability is hidden behind conditional code.
 2. A reusable definition starts independent concurrency-safe executions; the public consumer boundary is proved outside first-party modules.
-   All modes, typed tracks, prepared admission, atomic claims, reports, and lifecycle rules satisfy DD01–DD10.
+   All modes, typed tracks, prepared admission, atomic claims, reports, and lifecycle rules satisfy DD01–DD10 as reconciled by DD20. Fa01/Fa02 establish pure passthrough and the sole public `SystemDefinition` authoring path without losing existing extension services.
+   Infrastructure-review findings R1–R6 have current resolution evidence from
+   their owning Fa units and any explicitly approved follow-ups; planned work
+   or a reproduced limitation alone does not close a finding. S1 remains
+   closed with the accepted loading behavior retained.
    Core has no HTTP, test-framework or native-adapter dependency.
 3. Random is a supported first-party product with file round-trip and all DD13 failure/concurrency behavior.
    Scheduler, clock and location meet DD14–DD16, including portable location replay and the bounded Apple facade/live source.
@@ -2076,7 +2472,7 @@ The complete initial outcome requires all of the following, with review records 
    Compatibility and golden fixtures protect every first-party schema.
    Ignoring affects verification only, and neither replay nor migration-on-read writes to persistence.
 6. Explicit/scoped finish and opt-in test integrations expose complete outcomes; they cannot leave Diorama-owned replay callbacks running after quiescence or alter consumer-owned live behavior merely to end recording.
-   Later misuse is separately inspectable without changing the final report or retaining execution machinery; test reporting respects the test context's lifetime.
+   Later managed-handle misuse is separately inspectable without changing the final report or retaining execution machinery; pure passthrough has no post-finish policy. Test reporting respects the test context's lifetime.
 7. Canonical quality checks and required macOS/iOS Simulator/Linux jobs pass, debug/release strict compilation and public documentation are warning-free, every expected coverage upload succeeds, and pins/adoption records/update automation satisfy the delivery policies.
    Unavailable checks remain gaps.
 8. Documentation and plan status reflect delivered behavior and exclusions.

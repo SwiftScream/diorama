@@ -14,6 +14,15 @@ amendments on 2026-09-07, together with the consolidated
 [design overview](../design-overview.md). Individual decision dates remain
 historical records; no architectural contract changes with this status update.
 
+On 2026-10-10, the owner accepts
+[Decision 20: System definitions and pure passthrough](20-system-definitions-and-pure-passthrough.md).
+Passthrough provides ordinary live behavior and consumer-owned lifetime;
+`SystemDefinition` becomes the sole public authoring path, with Core-owned
+record/replay state and lifecycle. Its reconciliation governs earlier all-mode
+closure, Random copy-semantics, and instrumented-passthrough requirements.
+Plan 003 Fa01/Fa02 deliver these changes before Location; native lifecycle
+integration remains a gate at the first applicable adapter work.
+
 On 2026-09-19, the owner approved Decision 18 during the C04/C04A API review.
 It separates reusable `Diorama` setup from immutable `ScenarioDefinition` data
 and makes persistence operate directly on that shared in-memory model. Its
@@ -82,6 +91,13 @@ system's former clock names, including the persisted type `diorama.date`.
 The payload remains version 1; former imports and identifiers have no aliases
 or automatic migration.
 
+On 2026-10-11, the owner approves [Decision 15's fixed wall-date range
+amendment](15-clock-system.md#fixed-wall-date-range-amendment--owner-approved-2026-10-11):
+rounded wall dates use inclusive Unix-second bounds of `-62_135_500_000` and
+`253_402_250_000`. Fixed numeric checks replace production format/reparse
+validation, with no timezone-dependent date bounds. Round-trip checks remain
+in cross-platform tests.
+
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |
 | 1 | [Common abstraction](01-common-abstraction.md) | `01-common-abstraction.md` | Accepted |
@@ -103,6 +119,7 @@ or automatic migration.
 | 17 | [HTTP lifecycle composition](17-http-lifecycle-composition.md) | `17-http-lifecycle-composition.md` | Accepted |
 | 18 | [Diorama setup and immutable scenario data](18-diorama-setup-and-scenario-data.md) | `18-diorama-setup-and-scenario-data.md` | Accepted |
 | 19 | [System-owned records and shared execution services](19-system-owned-records.md) | `19-system-owned-records.md` | Accepted |
+| 20 | [System definitions and pure passthrough](20-system-definitions-and-pure-passthrough.md) | `20-system-definitions-and-pure-passthrough.md` | Accepted |
 
 On 2026-10-06, the owner accepts [Decision 19](19-system-owned-records.md):
 systems own strict lifecycle records and delivery, while Core supplies typed

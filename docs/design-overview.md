@@ -3,8 +3,8 @@
 - Status: Accepted
 - Created: 2026-09-05
 - Approved by owner: 2026-09-07
-- Last reviewed: 2026-10-06
-- Scope: Decisions 1 through 19
+- Last reviewed: 2026-10-11
+- Scope: Decisions 1 through 20
 - Derived from: [Accepted design decisions](design-decisions/README.md)
 
 This document maintains a consolidated reading of the accepted decisions. It
@@ -34,6 +34,15 @@ record models, lifecycle construction, and delivery. Core supplies typed record
 capture/freeze, atomic selection/claims, time, scheduling, diagnostics, and
 optional progress reporting. Interaction and subscription are domain concepts,
 not required Core record protocols or generic behavior engines.
+
+On 2026-10-10, the owner accepts
+[Decision 20](design-decisions/20-system-definitions-and-pure-passthrough.md).
+Systems use one public `SystemDefinition` protocol with typed track declarations
+and separate record/replay state and dependency factories. Core owns managed
+state synchronization and lifecycle, including notification outside protection.
+Passthrough directly supplies the ordinary live dependency with native copy
+semantics and consumer-owned lifetime; it has no Core operation wrapper or
+post-finish policy. The execution clock remains execution-owned in all setups.
 
 The original review of decisions 1 through 12 identified scheduler, clock,
 location, consumer-extension, and HTTP-composition prerequisites. Decisions 13
@@ -241,11 +250,20 @@ identity and optional capabilities. Several keyed instances share that metadata.
 and its implementations stay in runtime setup. Ordinary system instances serve
 both in-memory and persistent constructors.
 
+`SystemDefinition` declares typed track requirements once. Core prepares their
+leases before activation and provides scoped typed lookup to state factories.
+The dependency type can be a protocol existential or a concrete native type.
+Record/replay factories receive managed state; passthrough constructs its live
+dependency directly, without track leases or runtime content policies. Strict
+file decoding and preservation of configured passthrough baseline data remain
+independent requirements. The old public preparation/activation construction
+path becomes an internal implementation detail under DD20.
+
 ### Immutable final reports and later diagnostics
 
 `finish()` freezes one result; repeated calls return it unchanged. New misuse
-of an escaped dependency enters a separately inspectable diagnostic log before
-sink notification, even without an installed sink. Its small reporter can
+of an escaped managed dependency enters a separately inspectable diagnostic log
+before sink notification, even without an installed sink. Its small reporter can
 outlive the execution without retaining sessions, live sources, recordings, or
 scheduling machinery; escaped handles also retain only their required frozen
 state. There is no global registry. New diagnostic notification does not restart
@@ -256,9 +274,9 @@ owner-approved amendments in
 and [Decision 10](design-decisions/10-lifecycle-and-ownership.md#post-finish-reporting-lifetime--2026-09-06)
 define this boundary. The owner-approved
 [URLSession invalidation exception](design-decisions/12-urlsession-scope.md#session-invalidation-amendment--2026-09-26)
-narrows this promise for native sessions: they are usable only during scenario
-execution and are invalidated at finalization. Creating new tasks afterward
-crashes on tested runtimes before interception, so no recoverable Diorama error
+narrows this promise for instrumented record/replay sessions: they are usable
+only during scenario execution and are invalidated at finalization. Creating
+new tasks afterward crashes on tested runtimes before interception, so no recoverable Diorama error
 or diagnostic is promised for that call. Already running live work may finish
 through detached forwarding without retaining the execution.
 
@@ -301,9 +319,10 @@ unexpected value cannot be represented after a supported operation has begun,
 while making the candidate unhealthy. A concrete adapter may define an earlier,
 stricter boundary for operations it does not support at all. Decision 12 does
 this for URLSession upload, download, streaming-body, WebSocket, stream, and
-non-HTTP operations, including in passthrough mode. Early rejection of an
-unsupported operation and preservation after a late conversion failure are
-different cases.
+non-HTTP operations in record/replay. DD20 supersedes the former passthrough
+restriction: an uninstrumented passthrough session has native capabilities.
+Early rejection of an unsupported operation and preservation after a late
+conversion failure are different cases.
 
 ### Prepared values and final validation
 
@@ -415,6 +434,11 @@ defines successive signed deltas, authored
 overrides, replay exhaustion, scheduler integration, cancellation,
 finalization, and portable platform behavior.
 
+The [fixed wall-date range amendment](design-decisions/15-clock-system.md#fixed-wall-date-range-amendment--owner-approved-2026-10-11)
+limits rounded wall dates to inclusive Unix seconds
+`-62_135_500_000...253_402_250_000`. Production uses fixed numeric comparisons,
+independent of display offset; round-trip verification belongs in tests.
+
 ### Initial location system contract
 
 Status: Resolved by
@@ -429,6 +453,12 @@ models and replay remain portable.
 
 Status: Resolved by
 [decision 13](design-decisions/13-random-proving-system.md).
+
+DD20 makes `SystemDefinition` the single public authoring path, preserving
+existing services and public-only proofs while Core manages synchronization,
+notification delivery, and record/replay lifetime. Pure passthrough has native
+lifetime and needs no managed state. Native lifecycle integration is proved
+with the first applicable adapter, without requiring a universal abstraction.
 
 The random proving system drives the same public system registration, track,
 mode, persistence, diagnostic, and finalization boundaries available to a

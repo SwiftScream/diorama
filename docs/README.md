@@ -23,6 +23,7 @@ The owner approved the consolidated design and implementation plan on
 11. [Date payload schema version 1](date-schema-v1.md)
 12. [Typed record services](record-services.md)
 13. [System-owned records and shared services](design-decisions/19-system-owned-records.md)
+14. [System definitions and pure passthrough](design-decisions/20-system-definitions-and-pure-passthrough.md)
 
 Read the individual decisions referenced by an implementation-plan item before
 working on it. The design overview summarizes their combined architecture but
@@ -54,6 +55,12 @@ refines the runtime and persistence boundaries with one semantic definition
 model, reusable typed setup, and first-class in-memory recording results. It
 includes the random, URLSession, and location API design example and reconciles
 the earlier decisions explicitly.
+
+[Decision 20: System definitions and pure passthrough](design-decisions/20-system-definitions-and-pure-passthrough.md)
+defines the single public authoring boundary and native passthrough lifetime.
+The [Plan 003 Fa01/Fa02 handoff](plans/003-Fa-system-authoring-handoff.md)
+provides self-contained API sketches, concurrency lessons, and migration
+requirements for that implementation work.
 
 The [named checkpoint design notes](checkpoint-design-notes.md) record an
 exploratory usability idea to revisit after 003-F05. They are not an accepted

@@ -536,3 +536,36 @@ amendment supersedes former wall-system names in this decision and the current
 implementation plan; historical decision examples and evidence retain their
 original names. See the [date schema](../date-schema-v1.md) and
 [usage guide](../date-usage.md) for the current contracts.
+
+## Fixed wall-date range amendment — owner-approved 2026-10-11
+
+During review finding R3, the owner chooses a fixed numeric range for wall
+dates to avoid silent changes when Foundation formats extreme finite values.
+After the existing millisecond rounding, supported dates have Unix seconds
+(`timeIntervalSince1970`) in the inclusive interval
+`-62_135_500_000...253_402_250_000`.
+
+Use numeric comparisons against these constants. The limits are independent
+of the selected display offset and leave room for every supported offset from
+-14:00 through +14:00. Do not perform a production format/reparse check or
+derive date-range bounds from calendar components or the current timezone.
+This supersedes the production format/reparse requirement in the 2026-10-02
+origin parser and formatter refinement. Round-trip assertions remain part of
+cross-platform verification. The separate fixed-timezone offset limit and
+Foundation's parsing and millisecond normalization within the range remain.
+
+Apply this range consistently when formatting and admitting Date origins and
+observations, including authored and decoded content. An out-of-range native
+observation still returns unchanged to the live caller, but recording reports
+conversion failure and refuses unhealthy publication. Pure passthrough keeps
+its ordinary live behavior. This deliberately narrows the accepted dates;
+existing fixtures outside the range become invalid without changing the schema.
+
+Declare the limits as named numeric constants with adjacent comments showing
+their corresponding UTC timestamps, verified using the project's Foundation
+codec. The numbers define the contract; the timestamp comments do not become
+runtime parsing or calendar-construction inputs.
+
+[Plan 003 Fa04](../plans/003-clean-slate-implementation.md#003-fa04--portable-wall-origin-persistence-integrity)
+owns implementation and full platform verification. Approval of this amendment
+does not claim that the range check is already implemented.
