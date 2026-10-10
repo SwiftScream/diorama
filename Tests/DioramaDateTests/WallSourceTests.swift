@@ -256,19 +256,8 @@ struct WallSourceTests {
         sourceFactory: @escaping @Sendable () -> some DioramaDateSource)
         throws -> ScenarioSystem<any DioramaDateSource>
     {
-        let attachment = try DioramaDateSystem.attachment(named: name)
-        let trackID = DioramaDateSystem.trackID(for: attachment.id.key)
-        return try ScenarioSystem(type: DioramaDateSystem.type, attachment: attachment) { context in
-            let lease = try context.lease(
-                for: trackID, preparation: ValuePreparation<OverridableValue<Date>>(),
-                headerPreparation: ValuePreparation<Int?>())
-            return PreparedSystem {
-                let clock = LiveDateSource(
-                    recording: WallRecordingState(timeZone: timeZone),
-                    lease: lease, source: sourceFactory())
-                return ActivatedSystem(dependency: clock as any DioramaDateSource, deactivate: { clock.close() })
-            }
-        }
+        try ScenarioSystem(named: name, definition: DateDefinition(sourceFactory: sourceFactory,
+                                                                   timeZone: { timeZone }))
     }
 
     private func start(

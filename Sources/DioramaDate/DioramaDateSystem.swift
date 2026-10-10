@@ -88,43 +88,53 @@ public enum DioramaDateSystem {
         sourceFactory: @escaping @Sendable () -> some DioramaDateSource)
         throws -> ScenarioSystem<any DioramaDateSource>
     {
-        let key = AttachmentKey(rawValue: name)
-        let trackID = trackID(for: key)
-        let attachment = try attachment(named: name)
-        return try ScenarioSystem(type: type, attachment: attachment,
-                                  allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
-        { context in
-            if context.mode == .passthrough {
-                return PreparedSystem {
-                    ActivatedSystem(dependency: sourceFactory() as any DioramaDateSource, deactivate: {})
-                }
-            }
-            let lease = try context.lease(
-                for: trackID, preparation: valuePreparation,
-                headerPreparation: ValuePreparation<Int?>(),
-                continuationPolicy: .replayLast(defaultValue: .observed(ReplayDateSource.unixEpoch)),
-                mergeRecording: mergeWallRecording)
-            switch context.mode {
-            case .record:
-                return PreparedSystem {
-                    try lease.setHeader(capturing: { nil }, preparation: ValuePreparation<Int?>())
-                    let recording = WallRecordingState()
-                    let dates = LiveDateSource(
-                        recording: recording, lease: lease, source: sourceFactory())
-                    return ActivatedSystem(
-                        dependency: dates as any DioramaDateSource,
-                        deactivate: { dates.close() })
-                }
-            case .passthrough:
-                preconditionFailure("Passthrough returns its native dependency before lease preparation")
-            case .replay:
-                return PreparedSystem {
-                    let dates = ReplayDateSource(lease: lease)
-                    return ActivatedSystem(
-                        dependency: dates as any DioramaDateSource,
-                        deactivate: {})
-                }
-            }
+        try ScenarioSystem(named: name, definition: DateDefinition(sourceFactory: sourceFactory),
+                           allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
+    }
+}
+
+struct DateDefinition<Source: DioramaDateSource>: SystemDefinition {
+    let systemType = DioramaDateSystem.type
+    let wall: SystemTrack<OverridableValue<Date>, Int?>
+    let sourceFactory: @Sendable () -> Source
+    let timeZone: @Sendable () -> TimeZone
+
+    init(sourceFactory: @escaping @Sendable () -> Source,
+         timeZone: @escaping @Sendable () -> TimeZone = { .current }) throws
+    {
+        self.sourceFactory = sourceFactory
+        self.timeZone = timeZone
+        wall = try SystemTrack("wall", header: ValuePreparation<Int?>().admitPrepared(nil),
+                               preparation: DioramaDateSystem.valuePreparation,
+                               mergeRecording: DioramaDateSystem.mergeWallRecording)
+    }
+
+    var tracks: [AnySystemTrack] {
+        [wall.erased]
+    }
+
+    func makeRecordState(in context: borrowing SystemStateContext) throws -> DateRecordState<Source> {
+        let lease = try context.lease(for: wall)
+        let recording = WallRecordingState(timeZone: timeZone())
+        return DateRecordState(source: sourceFactory(), values: lease, recording: recording)
+    }
+
+    func makeReplayState(in context: borrowing SystemStateContext) throws -> DateReplayState {
+        try DateReplayState(values: context.lease(for: wall))
+    }
+
+    func makeRecordDependency(using runtime: SystemRuntime<DateRecordState<Source>>) throws -> any DioramaDateSource {
+        try runtime.withActiveState { state, operation in
+            try operation.setHeader(on: state.values, capturing: { nil }, preparation: ValuePreparation<Int?>())
         }
+        return RecordingDateSource(runtime: runtime, last: runtime.snapshot(\.lastReturned))
+    }
+
+    func makeReplayDependency(using runtime: SystemRuntime<DateReplayState>) -> any DioramaDateSource {
+        ReplayingDateSource(runtime: runtime, last: runtime.snapshot(\.lastReturned))
+    }
+
+    func makePassthroughDependency() -> any DioramaDateSource {
+        sourceFactory()
     }
 }
