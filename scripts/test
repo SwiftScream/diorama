@@ -3,6 +3,7 @@ set -euo pipefail
 
 source "$(dirname "$0")/_common"
 cd "$repository_root"
+run "$script_directory/tests/coverage"
 run swift test -Xswiftc -warnings-as-errors "$@"
 run swift build -c release -Xswiftc -warnings-as-errors
 run swift build --package-path Examples -c release -Xswiftc -warnings-as-errors

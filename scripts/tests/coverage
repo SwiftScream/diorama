@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Exercise the real exporter with controlled tool outputs, including a renamed
+# target, both Linux coverage mapping objects, Apple bundles, and missing data.
+source "$(dirname "$0")/../_common"
+fixture=$(mktemp -d "${TMPDIR:-/tmp}/diorama-coverage.XXXXXXXX")
+trap 'rm -rf "$fixture"' EXIT
+mkdir -p "$fixture/scripts" "$fixture/bin" "$fixture/Sources" "$fixture/.build/old"
+cp "$script_directory/coverage" "$script_directory/_common" "$fixture/scripts/"
+touch "$fixture/.build/old/RemovedTests.xctest"
+chmod +x "$fixture/.build/old/RemovedTests.xctest"
+
+cat > "$fixture/bin/tool" <<'TOOL'
+#!/usr/bin/env bash
+set -euo pipefail
+tool=${0##*/}
+scratch=
+derived=
+for ((index = 1; index <= $#; index++)); do
+    argument=${!index}
+    next=$((index + 1))
+    case "$argument" in
+        --scratch-path) scratch=${!next} ;;
+        -derivedDataPath) derived=${!next} ;;
+    esac
+done
+case "$tool" in
+    test)
+        test -n "$scratch"
+        test ! -e "$scratch/products"
+        products="$scratch/products"
+        mkdir -p "$products/codecov"
+        touch "$products/codecov/current.json"
+        if [[ ${COVERAGE_FIXTURE_FAILURE:-} != profile ]]; then
+            touch "$products/codecov/default.profdata"
+        fi
+        if [[ ${COVERAGE_FIXTURE_FAILURE:-} != products ]]; then
+            touch "$products/CurrentTests.xctest" "$products/CurrentTests.so" "$products/Current-test-runner"
+            chmod +x "$products/CurrentTests.xctest" "$products/CurrentTests.so" "$products/Current-test-runner"
+        fi
+        ;;
+    swift)
+        test -n "$scratch"
+        printf '%s/products/codecov/current.json\n' "$scratch"
+        ;;
+    xcodebuild)
+        test -n "$derived"
+        if [[ $1 == test ]]; then
+            mkdir -p "$derived/Build/Products/Debug/CurrentTests.xctest" "$derived/Build/ProfileData/current"
+            touch "$derived/Build/Products/Debug/CurrentTests.xctest/CurrentTests"
+            chmod +x "$derived/Build/Products/Debug/CurrentTests.xctest/CurrentTests"
+            touch "$derived/Build/ProfileData/current/Coverage.profdata"
+        fi
+        ;;
+    llvm-cov | xcrun)
+        # Record object basenames to compare clean and incremental invocations
+        # independently of their intentionally unique build directory names.
+        for ((index = 1; index <= $#; index++)); do
+            argument=${!index}
+            if [[ $argument == --object ]]; then
+                next=$((index + 1))
+                object=${!next}
+                test -x "$object"
+                case "$object" in
+                    "$PWD"/.build/coverage/build.*/*) ;;
+                    *) exit 91 ;;
+                esac
+                printf 'TN:%s\n' "${object##*/}"
+            fi
+        done
+        printf 'SF:%s/Sources/Current.swift\nDA:1,1\nend_of_record\n' "$PWD"
+        ;;
+    *) exit 92 ;;
+esac
+TOOL
+chmod +x "$fixture/bin/tool"
+for tool in swift xcodebuild llvm-cov xcrun; do
+    ln -s tool "$fixture/bin/$tool"
+done
+cp "$fixture/bin/tool" "$fixture/scripts/test"
+
+export PATH="$fixture/bin:$PATH"
+for platform in macos linux; do
+    "$fixture/scripts/coverage" swiftpm "$platform" > "$fixture/run.log"
+    cp "$fixture/.build/coverage/$platform.lcov" "$fixture/first.lcov"
+    # Incremental consumer output must neither affect coverage nor be deleted.
+    touch "$fixture/.build/old/RenamedTests.so"
+    chmod +x "$fixture/.build/old/RenamedTests.so"
+    "$fixture/scripts/coverage" swiftpm "$platform" >> "$fixture/run.log"
+    cmp "$fixture/first.lcov" "$fixture/.build/coverage/$platform.lcov"
+    test -f "$fixture/.build/old/RemovedTests.xctest"
+    test -f "$fixture/.build/old/RenamedTests.so"
+    expected=$'TN:Current-test-runner\nTN:CurrentTests.so\nTN:CurrentTests.xctest\nSF:Sources/Current.swift\nDA:1,1\nend_of_record'
+    test "$(cat "$fixture/.build/coverage/$platform.lcov")" = "$expected"
+done
+"$fixture/scripts/coverage" ios > "$fixture/run.log"
+expected=$'TN:CurrentTests\nSF:Sources/Current.swift\nDA:1,1\nend_of_record'
+test "$(cat "$fixture/.build/coverage/ios.lcov")" = "$expected"
+test -z "$(find "$fixture/.build/coverage" -type d -name 'build.*' -print)"
+
+for failure in profile products; do
+    if COVERAGE_FIXTURE_FAILURE=$failure "$fixture/scripts/coverage" swiftpm macos > "$fixture/failure.log" 2>&1; then
+        printf 'Coverage unexpectedly succeeds without %s.\n' "$failure" >&2
+        exit 1
+    fi
+    case "$failure" in
+        profile) grep -q 'Coverage data was not produced' "$fixture/failure.log" ;;
+        products) grep -q 'No test binaries were produced' "$fixture/failure.log" ;;
+    esac
+done
+printf 'Coverage tooling fixtures pass.\n'

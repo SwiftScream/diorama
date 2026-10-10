@@ -16,7 +16,7 @@ discover_test_binaries() {
     test_binaries=()
     while IFS= read -r -d '' test_binary; do
         test_binaries+=("$test_binary")
-    done < <(find "$products_directory" -type f \( -name '*.xctest' -o -path '*.xctest/*' -o -name '*-test-runner' -o -name '*Tests.so' \) -perm -111 -print0)
+    done < <(find "$products_directory" -type f \( -name '*.xctest' -o -path '*.xctest/*' -o -name '*-test-runner' -o -name '*Tests.so' \) -perm -111 -print0 | LC_ALL=C sort -z)
 
     if [[ ${#test_binaries[@]} -eq 0 ]]; then
         printf 'No test binaries were produced under %s.\n' "$products_directory" >&2
@@ -55,6 +55,15 @@ export_lcov() {
         > ".build/coverage/$coverage_flag.lcov"
 }
 
+# Each invocation owns a new directory. Discovery must never include products
+# left behind by a removed target, another configuration, or an earlier run.
+# Keep ordinary SwiftPM and consumer Xcode outputs untouched.
+new_build_directory() {
+    run mkdir -p .build/coverage
+    coverage_build=$(mktemp -d "$repository_root/.build/coverage/build.XXXXXXXX")
+    trap 'rm -rf "$coverage_build"' EXIT
+}
+
 case ${1:-} in
     swiftpm)
         case ${2:-} in
@@ -66,8 +75,9 @@ case ${1:-} in
                 ;;
         esac
 
-        run "$script_directory/test" --enable-code-coverage
-        coverage_source=$(swift test --show-codecov-path)
+        new_build_directory
+        run "$script_directory/test" --scratch-path "$coverage_build" --enable-code-coverage
+        coverage_source=$(swift test --scratch-path "$coverage_build" --show-codecov-path)
         if [[ ! -f "$coverage_source" ]]; then
             printf 'SwiftPM did not produce coverage at %s.\n' "$coverage_source" >&2
             exit 1
@@ -80,14 +90,9 @@ case ${1:-} in
         export_lcov "$coverage_flag" "$profile_data"
         ;;
     ios)
-        result_bundle=.build/ios-tests.xcresult
-        derived_data=.build/ios-derived-data
-        if [[ -e "$result_bundle" ]]; then
-            run rm -rf "$result_bundle"
-        fi
-        if [[ -e "$derived_data" ]]; then
-            run rm -rf "$derived_data"
-        fi
+        new_build_directory
+        result_bundle="$coverage_build/ios-tests.xcresult"
+        derived_data="$coverage_build/ios-derived-data"
 
         destination='platform=iOS Simulator,name=iPhone 17,OS=27.0'
         common_settings=(
@@ -104,11 +109,15 @@ case ${1:-} in
             -derivedDataPath "$derived_data" \
             -enableCodeCoverage YES \
             -resultBundlePath "$result_bundle"
-        profile_data=$(find "$derived_data/Build/ProfileData" -type f -name Coverage.profdata -print -quit)
-        if [[ -z "$profile_data" ]]; then
-            printf 'Xcode did not produce a Coverage.profdata file.\n' >&2
+        profiles=()
+        while IFS= read -r -d '' profile; do
+            profiles+=("$profile")
+        done < <(find "$derived_data/Build/ProfileData" -type f -name Coverage.profdata -print0 | LC_ALL=C sort -z)
+        if [[ ${#profiles[@]} -ne 1 ]]; then
+            printf 'Expected one Xcode Coverage.profdata file; found %s under %s.\n' "${#profiles[@]}" "$derived_data" >&2
             exit 1
         fi
+        profile_data=${profiles[0]}
         discover_test_binaries "$derived_data/Build/Products"
         export_lcov ios "$profile_data"
         ;;
