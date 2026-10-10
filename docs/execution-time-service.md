@@ -21,6 +21,12 @@ persisted cross-track ordering constraint. Stable schemas retain only the
 capability-specific durations needed to reproduce behavior; synchronous random
 observations remain untimed. `logicalTime(after:from:)` adds a nonnegative delay
 to a captured anchor with overflow checking, without scheduling delivery.
+Checked addition and elapsed calculations accept nonnegative operands through
+`Int64.max` seconds plus 999,999,999,999,999,999 attoseconds. Larger `Duration`
+values fail safely before component extraction, even when subtracting two
+oversized values would produce a small result. Public delay addition reports
+`ExecutionTimeFailure` with `.logicalTime(.overflow)`; negative delays retain
+their `.negativeDelay` failure.
 
 The service rejects new clock reads before completed startup and after execution admission
 closes. A backward clock source, foreign or reversed captures, negative delay,
