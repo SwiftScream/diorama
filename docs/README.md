@@ -239,6 +239,10 @@ proposal for discussion, with its review gate recorded in the owning plan.
   records isolated coverage builds, stale-product exclusion, and portable
   artifact discovery.
 
+- [Portable wall-origin integrity evidence](evidence/003-Fa04-wall-origin-integrity.md)
+  records fixed numeric bounds, cross-offset round trips, and refusal of
+  unsupported live dates without changing their native return.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

@@ -1695,9 +1695,9 @@ evidence-driven lifecycle extension remain separately reviewed work.
 
 ### 003-Fa04 — Portable wall-origin persistence integrity
 
-- Status: Approved on 2026-10-11 with the fixed numeric range below; not
-  started. Protocol R scope and model confirmation remain required before
-  implementation.
+- Status: Complete on 2026-10-11.
+  [Evidence](../evidence/003-Fa04-wall-origin-integrity.md) records the fixed
+  range, admission, persistence, and native-return regressions.
 - Recommended model: GPT-6 Sol; reasoning: `high`. Foundation representability
   and millisecond normalization need evidence across the supported runtimes.
 - Prerequisites: 003-F01–003-F05; DD06, DD09, DD15's origin, normalization, and
