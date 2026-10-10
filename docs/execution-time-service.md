@@ -5,7 +5,7 @@ The origin is captured after all configured systems activate, immediately before
 startup returns. All attachments in that execution share the same time service
 and one-to-one rate; a later execution has its own origin.
 
-A system receives `ExecutionTime` through `SystemPreparationContext.time`. It
+A system receives `ExecutionTime` through `SystemRuntime.time`. It
 may retain the service in its per-execution dependency. `logicalNow()` returns
 the `Duration` since completed startup. `capture()` reserves an observation's
 monotonic time and execution-local order. Call it at the observation boundary,
@@ -39,7 +39,7 @@ cannot be captured. Systems register timed handoffs through the separate
 
 `DioramaCore.ScenarioClock` conforms to Swift `Clock` over that same execution
 origin and deadline engine. Obtain it from `ScenarioExecution.context.clock` or
-`SystemPreparationContext.clock`. It is available even in an execution with
+`SystemRuntime.clock`. It is available even in an execution with
 no systems. It requires no wall attachment, recording mode, track, or persistence
 registration. Monotonic reads and sleeps never add records or usage counts.
 
@@ -96,7 +96,7 @@ The `Diorama` facade's single `execute` operation always passes a
 in declaration order. The context currently exposes only `clock`. It is an
 immutable, `Sendable` value constructed by Core for each execution; retaining
 it does not extend execution lifetime or retain adapters. System preparation
-keeps its separate attachment-specific `SystemPreparationContext`.
+uses borrowed `SystemValidationContext` and `SystemStateContext` values for its attachment.
 The closure keeps its inferred actor isolation and the ordinary
 result/finalization policy. Bodies that need only dependencies may ignore
 the context parameter with `_`.

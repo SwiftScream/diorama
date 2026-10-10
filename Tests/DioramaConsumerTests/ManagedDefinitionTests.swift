@@ -7,6 +7,9 @@ private final class ManagedJournal: Sendable {
     let events = Mutex<[String]>([])
     let reenter = Mutex<(@Sendable () throws -> Void)?>(nil)
     let freezes = Mutex(0)
+    let validations = Mutex(0)
+    let transforms = Mutex(0)
+    let scheduling = Mutex<SchedulingLease?>(nil)
 }
 
 private struct ManagedCounter: Sendable {
@@ -73,6 +76,7 @@ private struct CounterDefinition: SystemDefinition {
     var failValidation = false
     var failDependency = false
     var failCleanup = false
+    var queueConstructionWork = false
 
     var tracks: [AnySystemTrack] {
         [values.erased, duplicate ? values.erased : headers.erased]
@@ -80,7 +84,11 @@ private struct CounterDefinition: SystemDefinition {
 
     init(journal: ManagedJournal = ManagedJournal(), initial: [Int] = []) throws {
         self.journal = journal
-        values = try SystemTrack("values", values: initial.map { try ValuePreparation<Int>().admitPrepared($0) })
+        values = try SystemTrack("values", values: initial.map { try ValuePreparation<Int>().admitPrepared($0) },
+                                 preparation: ValuePreparation(canonicalize: { value in
+                                     journal.transforms.withLock { $0 += 1 }
+                                     return value
+                                 }, validate: { _ in journal.validations.withLock { $0 += 1 } }))
         headers = try SystemTrack("headers", header: ValuePreparation<String>().admitPrepared("ready"))
     }
 
@@ -102,6 +110,7 @@ private struct CounterDefinition: SystemDefinition {
         let lease = try context.lease(for: foreign ? SystemTrack<Int, Void>("values") : values)
         let copy = values
         #expect(try lease === context.lease(for: copy))
+        #expect(try context.track(headers).header == "ready")
         return try ManagedCounter.State(key: context.attachmentID.key.rawValue,
                                         values: lease, headers: context.lease(for: headers))
     }
@@ -111,6 +120,19 @@ private struct CounterDefinition: SystemDefinition {
     }
 
     func makeRecordDependency(using runtime: SystemRuntime<ManagedCounter.State>) throws -> ManagedCounter {
+        if queueConstructionWork {
+            try runtime.withActiveState { state, operation in
+                let record = RecordIdentity(trackID: state.values.id, sequence: 0)
+                operation.afterCommit {
+                    journal.scheduling.withLock { $0 = runtime.scheduling }
+                    let capture = ManagedReleaseProbe { journal.events.withLock { $0.append("callback-released") } }
+                    _ = try? runtime.scheduling.schedule(after: .zero, for: record) { [capture] in
+                        withExtendedLifetime(capture) {}
+                        Issue.record("Construction work ran before successful startup")
+                    }
+                }
+            }
+        }
         if failDependency {
             throw ManagedFailure.expected
         }
@@ -138,6 +160,30 @@ private struct CounterDefinition: SystemDefinition {
 }
 
 struct ManagedDefinitionTests {
+    @Test func `failed construction releases queued callback captures and closes escaped scheduling`() throws {
+        var model = try CounterDefinition()
+        model.queueConstructionWork = true
+        model.failDependency = true
+        let system = try ScenarioSystem(named: "counter", definition: model)
+        do {
+            _ = try start(system)
+            Issue.record("Expected failed construction")
+        } catch let failure as ScenarioStartupFailure {
+            #expect(failure.report.diagnostics.contains {
+                $0.diagnostic.issue == .scheduling(.logicalTime(.notStarted))
+            })
+        }
+        #expect(model.journal.events.withLock { $0.contains("callback-released") })
+        let scheduling = try #require(model.journal.scheduling.withLock { $0 })
+        let record = RecordIdentity(trackID: system.attachment.trackIDs[0], sequence: 0)
+        do {
+            try scheduling.schedule(after: .zero, for: record) { Issue.record("Closed service delivered") }
+            Issue.record("Failed startup left scheduling open")
+        } catch {
+            #expect(error.diagnostic.issue == .scheduling(.logicalTime(.executionClosed)))
+        }
+    }
+
     @Test func `registration racing finish freezes once after unlocking managed state`() async throws {
         let model = try CounterDefinition()
         let system = try ScenarioSystem(named: "counter", definition: model)
@@ -260,6 +306,8 @@ struct ManagedDefinitionTests {
         #expect(Array(model.journal.events.withLock { $0 }.prefix(6)) == [
             "validate-first", "baseline-9", "validate-second", "baseline-1", "activate-first", "activate-second",
         ])
+        #expect(model.journal.validations.withLock { $0 } == 4)
+        #expect(model.journal.transforms.withLock { $0 } == 0)
     }
 
     @Test func `duplicate foreign and later validation failures`() throws {

@@ -1,288 +1,253 @@
-# Typed record services
+# Typed system authoring and record services
 
-This guide describes the shared services established by
-[accepted Decision 19](design-decisions/19-system-owned-records.md). It
-replaces the historical [grouped lifecycle API](grouped-lifecycle-recording.md).
-The owning system defines its strict record value and runtime lifecycle.
+[Decision 20](design-decisions/20-system-definitions-and-pure-passthrough.md)
+establishes `SystemDefinition` as the public system-authoring boundary.
+[Decision 19](design-decisions/19-system-owned-records.md) leaves strict records
+and domain lifecycle interpretation with each system. Stable values require
+`Sendable`, not `Codable`; optional persistence stays on `ScenarioSystemType`.
 
-## Record ownership
+## Definitions and typed declarations
 
-A `SequentialTrack<Value, Header>` supplies stable identities and ordering for
-any `Sendable` value. `Sequential` describes stored order and supports the
-simple `consumeNext` operation; it does not require matched operations to arrive
-in recorded order. The same claimed-record ledger serves both operations.
-
-Use `record(capturing:preparation:)` for immediate recording, as in the random
-system. It reserves a position before capture, prepares and admits the complete
-value, and returns its `RecordIdentity`:
+A definition supplies one application-facing `Dependency: Sendable` and separate
+`RecordState` and `ReplayState` types. Dependencies can be protocol existentials,
+ordinary structs, or concrete native classes. Core does not require a dependency
+protocol or base class. Application setup constructs a reusable instance with:
 
 ```swift
-let identity = try lease.record(
-    capturing: { value },
-    preparation: valuePolicy)
+let system = try ScenarioSystem(named: "service", definition: MySystemDefinition())
 ```
 
-Use `beginRecord(preparation:capturing:freeze:)` when capture continues over
-time, such as HTTP operations and location sessions. It reserves a position
-before the complete record exists and returns the system's accumulator:
+Store typed declarations on the definition. Core derives the attachment layout,
+prepares their policies, and retrieves the authoritative loaded content before
+activation. For example, a definition may store:
 
 ```swift
-let draft = try lease.beginRecord(
-    preparation: operationPolicy,
-    capturing: { identity in
-        try DomainDraft(identity: identity, preparedInput: capturePreparedInput())
-    },
-    freeze: { draft in draft.freeze() })
+let values = SystemTrack<UInt64, Void>("values")
+var tracks: [AnySystemTrack] { [values.erased] }
+
+func makeReplayState(in context: borrowing SystemStateContext) throws
+    -> HeaderlessSequentialTrackLease<UInt64>
+{
+    try context.lease(for: values)
+}
 ```
 
-`DomainDraft` and its record are system types, not Core protocols. Capture time
-comes from the system preparation context's `time` service. Core has no phase,
-subscription, response, or terminal model that the draft must instantiate.
+Headered declarations accept a `PreparedValue<Header>`, optional initial values,
+header/value admission policies, and a typed recording merge. Duplicate keys
+fail setup. Copies of a declaration preserve its private identity; a newly
+constructed declaration with the same string is foreign. Erasure and typed
+recovery stay inside Core. Reusing a definition across keyed instances or runs
+never shares their mutable state or cursors.
 
-Execution finalization invokes the supplied freeze closure; there is no separate
-`endRecord()` operation. Both recording paths contribute to the same ordered track.
+`validate(in:)` receives a borrowed, noncopyable `SystemValidationContext`.
+`context.track(declaration)` reads the resolved prepared header and complete
+ordered values without claims, consumption, or capture transformations.
+`context.validate(declaration, using:)` wraps domain validation with safe
+track-context failure reporting. Every system validates before any state or
+dependency factory runs. Passthrough permits setup/native configuration checks
+but has no track content or leases to inspect. Persisted decoding stays strict
+regardless of the selected mode.
 
-The factory runs after the record position is reserved and outside the lease
-state lock. A nested or slower factory cannot move the reserved position. A
-factory failure invalidates the candidate; it must clean up any resources it
-acquired before throwing. Only record mode accepts the operation.
+The borrowed `SystemStateContext` provides the same read-only content, repeated
+lookup of the already-created lease, and execution time, clock, and scheduling
+services. Repeated lookup performs no new admission or transformation. These
+contexts cannot be stored or returned. Stable reference values and factory
+captures still require ownership discipline: noncopyability does not prove
+that arbitrary reference aliases are harmless.
 
-The freeze callback must synchronize with observations, reject future changes,
-release runtime resources, and return a strict already-prepared value. Return
-nil if an observed conversion is unfinished or failed. An intentionally open
-operation returns an explicit open value in the domain model, not nil. Core
-validates the complete value without applying capture transformations again.
-A domain must prepare every observation before it enters the working record.
+## Managed state and dependencies
 
-Core freezes every successfully constructed draft exactly once. If construction
-returns after execution admission has closed, Core freezes it for cleanup,
-discards the value, and reports closed use. The incomplete reservation has
-already invalidated the frozen candidate. Escaped drafts must detach their own
-content and time/native references; Core releases its callback captures at
-closure. Finalization never waits for arbitrary application decisions or slow
-capture. Freeze/validation callbacks must not wait synchronously for finish.
+Core calls the selected state factory, creates `SystemRuntime<State>`, then
+calls the mode's dependency factory. State factories must unwind their own
+partial construction if they throw. If dependency construction throws after
+state creation, Core invokes that state's cleanup. Completed activations unwind
+in reverse order; cleanup failures remain safe diagnostics.
 
-The domain owns transition validity, within-record observation order, correlation,
-late calls, and diagnostics for incompatible phases. Its implementation must
-check admission and synchronize against freeze. The public lease's `isClosed`
-provides the admission check; a domain can also use its existing execution
-services. Core cannot prove an opaque draft follows this contract.
+Record and replay dependencies implement their application protocol directly
+through `runtime.withActiveState`. The closure receives the entire mutable
+state and a noncopyable `inout SystemOperation<State>` token. Core admits and
+serializes the operation, retains diagnostic facts, commits state and snapshots
+on both successful and throwing exits, unlocks, and then delivers notifications.
+A sink can reenter and observe the committed state. A throwing sink adds a
+retained `sinkFailed` fact without recursive notification.
+
+Protected closures, source calls, conversion policies, and snapshot projections
+must not reenter the runtime, suspend, wait for finish, invoke arbitrary
+callbacks, launch untracked work, or expose active-resource aliases. Swift
+rejects escaping inout references and operation tokens; copied reference
+aliases remain the author's responsibility. Publish native actions with
+`operation.afterCommit`, or perform them outside protection. Async delivery
+belongs in the scheduler's awaited delivery scope. Registration inside a
+protected operation fails with `scheduling(protectedOperation)` before work
+starts. Cancellation detaches pending callback captures for release outside
+protection, including destructors that reenter a dependency.
+
+A pure `runtime.snapshot { state in ... }` projection is registered during
+dependency construction. It updates before each unlock, including throwing
+operations and incremental freeze. At closure, Core releases projections and
+active state outside protection; retained snapshots hold only their detached
+values. A snapshot must not contain a live source, callback, lease, or other
+active-resource alias. Systems own continuation policy: Date keeps its last
+native or replayed Date in state and a snapshot, beginning at the Unix epoch;
+Random returns zero after diagnosed exhaustion or closure.
+
+`cleanUpRecordState` and `cleanUpReplayState` receive detached state outside
+protection, exactly once. The default uses ordinary Swift release. Explicit
+cleanup may throw safe reported failure. The current hooks are synchronous and
+nonisolated; they do not by themselves establish actor-owned native construction
+or awaited native shutdown. Those requirements need the separate actor/native
+lifecycle evidence. Do not substitute fire-and-forget cleanup.
+
+Passthrough calls only `makePassthroughDependency()`. It has no mode state,
+runtime, track lease, interception, continuation, or scenario-owned cancellation.
+Native dependencies retain their ordinary copy, concurrency, and lifetime rules,
+including after finish. Core drops its references; the consumer owns cleanup.
+
+## Immediate and incremental recording
+
+Reserve before capture so source order and record order agree:
+
+```swift
+try runtime.withActiveState { state, operation in
+    try operation.record(on: state.values,
+                         capturing: { state.source.next() },
+                         preparation: valuePolicy)
+}
+```
+
+A nonthrowing native facade can retain the source return separately when a late
+admission or conversion failure prevents recording. The Random and Date
+implementations demonstrate that rule explicitly. Failed reservations remain
+accounted for and cannot be reused.
+
+For incremental capture, keep the domain's drafts in managed state. The scoped
+operation reserves a record before creating a domain identifier or accumulator:
+
+```swift
+let identity = try runtime.withActiveState { state, operation in
+    try operation.beginRecord(
+        on: state.records, preparation: recordPolicy,
+        capturing: { identity in
+            state.drafts[identity] = try capturePreparedDraft()
+            return identity
+        },
+        freeze: { state, identity in
+            state.drafts.removeValue(forKey: identity)?.strictRecord()
+        })
+}
+```
+
+Observation facades retain a runtime and stable identifier, then update the
+corresponding draft through `withActiveState`. Capture observation time before
+slow conversion; prepare detached semantic data before committing it. Concurrent
+conversion can finish in another order, so the domain preserves observation
+order and derives delays from the original captures. Native/application work
+outside an admitted protected operation remains outside Core's join.
+
+Freeze receives protected mode state exactly once for each successfully created
+accumulator. It runs after admitted operations and notifications drain, before
+active state detaches. If capture races admission closure, Core defers that
+record's cleanup freeze until the current operation unlocks, discards its value,
+and diagnoses the incomplete reservation. This never reacquires a held state
+lock. Late observations are rejected. Freeze must not wait for finish or an
+application decision.
+
+Return a strict, already-prepared domain value. An intentionally open horizon
+is an explicit domain value; unfinished or failed conversion returns nil and
+invalidates the candidate. Core validates the result without repeating capture
+transformations. It has no subscription, response, terminal, or phase model.
+The [timed consumer](../Tests/DioramaConsumerTestSupport/ConsumerTimedSystem.swift)
+and [recursive operation proof](../Tests/DioramaConsumerTests/SystemOwnedRecordTests.swift)
+exercise this boundary with ordinary public imports and no consumer state locks.
 
 ## Recording merge
 
-A system can register a typed merge when preparing a lease. This combines the
-validated baseline with the newly captured track during in-memory finalization,
-before the complete candidate becomes available or optional publication begins:
+Declare a `RecordingMerge<Value, Header>` on `SystemTrack`. It receives validated
+baseline and fresh immutable tracks of the same type and identity, including
+headers. A fresh recording can be empty. The callback owns correspondence,
+override preservation, deletion, and complete domain validation; Date uses
+positions, but Core imposes no correspondence policy.
+
+Healthy record-mode finish invokes a configured merge once after scheduling,
+managed operations, and record freeze. It runs outside lease/state locks, uses
+only stable values, remains deterministic, and never reads a live source or
+waits for recursive finish. Replay, passthrough, unhealthy capture, and startup
+rollback do not invoke it. Without a merge, fresh content replaces the track.
+
+Core checks the result's identity and validates its header and values without
+rerunning capture transformations. A thrown merge or changed identity reports
+`recordingMergeFailed`; validation retains its usual evidence. Either failure
+invalidates the candidate and prevents file replacement. Native returns are
+unaffected. Usage describes this run's observations, independently of merged
+content. Closure releases baseline content and policy/callback captures.
+
+## Selection, claims, and consumption
+
+A selector examines prepared records, including claimed ones, and returns
+equivalent identities, no match, or ambiguity. It is pure and deterministic,
+uses no live services, and runs within the protected system operation:
 
 ```swift
-let lease = try context.lease(
-    for: trackID,
-    preparation: valuePolicy,
-    headerPreparation: headerPolicy,
-    mergeRecording: { baseline, fresh in
-        try mergePreparedDomainTrack(baseline: baseline, fresh: fresh)
-    })
+let claim = try runtime.withActiveState { state, operation in
+    try operation.claim(on: state.records, matching: preparedRequest,
+                        using: ReplaySelector<String, RequestRecord>.exactInput(\.requestKey))
+}
 ```
 
-`RecordingMerge<Value, Header>` receives two immutable tracks of the same type
-and identity, including their prepared headers. A fresh recording can be empty.
-The callback owns correspondence, override preservation, deletion policy, and
-complete domain validation. Clock uses numeric positions; Core does not infer
-correspondence or impose that policy on other systems.
+Core validates identities and claims the earliest available equivalent record
+in stored order. Empty, duplicate, foreign, and unknown identities are invalid.
+No match, exhaustion, and ambiguity produce distinct safe diagnostics; optional
+difference labels contain setup-authored fields, never payloads or error text.
+`ReplaySelector<Void, Value>.sequential()` supports selection without an input.
 
-Normal record-mode finish runs a configured callback once, after scheduler
-quiescence and record freeze. Capture is closed and the callback runs outside
-lease state locks. It must use only prepared stable values, remain deterministic,
-and never read a live source or wait for recursive finish. Replay, passthrough,
-unhealthy capture, and startup rollback do not invoke it. Without a callback,
-the existing whole-track replacement behavior remains.
+A claim starts unconsumed. Outside protection, deliver the domain behavior and
+acknowledge progress with `claim.advance(to:)` and `claim.markConsumed()`.
+Acknowledgement reports work already performed; it does not deliver anything or
+terminate an operation. Open recordings must reach their recorded horizon and
+may remain open afterward. Cancellation never returns a record to availability.
+Core cannot infer domain consumption from an empty scheduler or progress count.
 
-Core requires the returned track identity to stay unchanged and validates the
-returned header and each value with the setup policies. It does not repeat
-capture canonicalization, redaction, or normalization. Those validation policies
-and the callback are retained only until lease closure; escaped leases retain
-neither baseline content nor callback captures. Usage counts describe this
-run's captured observations, independently of merged content.
+`operation.consumeNext(on:)` combines claim and consumption for synchronous
+values. Explicit claims require acknowledgement even for scalar records. Both
+paths share availability and usage accounting. Consumption is idempotent until
+lease closure and prevents further progress updates. New claims stop at
+admission closure; in-flight delivery can still acknowledge its claim during
+scheduler drainage, before lease closure freezes usage.
 
-A thrown merge or changed track identity reports `recordingMergeFailed` without
-rendering the error or any value. Setup validation failures retain their normal
-preparation evidence. Either failure invalidates the whole recording candidate,
-so in-memory execution supplies no healthy definition and file publication
-preserves the previous document. Successfully captured native returns remain
-unchanged by merge outcomes.
+Two independent opt-in evaluations remain:
 
-## Record selection
+- `allRecordsClaimed` requires every record to be claimed, unless the attachment
+  allows unclaimed replay records.
+- `allClaimedRecordsConsumed` requires every claimed record to be fully replayed;
+  leftover policy and open horizons provide no exemption.
 
-A selector operates on prepared values and returns equivalent candidates,
-no match, or ambiguity. It is pure, deterministic, and does not call live
-services. All baseline records are supplied, including claimed records, so
-exhaustion can be distinguished from absence.
+Reports retain safe identities, progress, and consumption facts, never payloads.
+Diorama does not decide whether a test passes.
 
-```swift
-let selector = ReplaySelector<String, Operation>.exactInput(\.requestKey)
-let claim = try lease.claim(matching: preparedKey, using: selector)
-let operation = claim.record.value
-```
+## Execution services and finish
 
-The selector runs outside lease isolation. Core validates its identifiers and
-atomically chooses the earliest still-available equivalent record in stable
-sequence order. Empty/duplicate/foreign/unknown identifiers are invalid.
-Unresolved ambiguity, exhaustion, and no match are distinct safe diagnostics.
-The failure path can use the selector's setup-authored field labels for safe
-differences. Record payloads and arbitrary error descriptions are not rendered.
+`SystemRuntime.time` and `operation.time` share execution logical time. The
+runtime also exposes the execution clock and attachment scheduling lease. Register
+reachable replay work outside protection after committing its control state.
+Await actor/queue delivery inside the scheduling closure, and acknowledge the
+claim after actual delivery. Actor isolation alone does not order independent
+equal-deadline tasks; domains establish their own causal sequence.
 
-`ReplaySelector<Void, Value>.sequential()` supports the same claim API without
-matching an input. `consumeNext()` remains the small synchronous path used by
-random and wall observations. Neither path returns a claimed record to the
-available pool, even when later replay is canceled or fails.
+For decision-relative behavior, capture the current decision and use
+`logicalTime(after:from:)`; do not replay an earlier invocation deadline that
+includes recorded application wait time. Each execution has one monotonic origin
+and rate, while later executions have independent timing and mutable state.
 
-## Claiming and consuming
+Finish closes admission, cancels pending scheduling, joins claimed deliveries
+and admitted state operations including their effects, freezes records, merges
+healthy recordings, detaches state, performs reverse cleanup, and freezes the
+report. Repeated or canceled finish waiters still await the same owned result.
+Finish does not wait for arbitrary consumer work. Calls after closure can add
+separate diagnostics but cannot mutate frozen results or read detached sources.
 
-A claim reserves one record exclusively and starts unconsumed. The system
-acknowledges consumption after replaying all the behavior the record provides:
-
-```swift
-let claim = try lease.claim(matching: request, using: httpSelector)
-claim.advance(to: deliveredStepCount)
-claim.markConsumed() // After replay reaches the end of the recorded behavior.
-```
-
-`markConsumed()` reports work already performed; it does not deliver events or
-terminate the simulated operation. A record with an open horizon must replay
-its observations and reach that horizon before acknowledgement. The operation
-can remain open afterward. Core needs no terminal/open projection and cannot
-infer consumption from an empty scheduler queue or a progress count.
-
-`consumeNext()` combines claiming and consumption atomically for ordinary values
-whose replay consists of returning the value. Both APIs share availability and
-appear in `claimedRecords`; synchronous consumption has a progress count of zero.
-Explicit claims require acknowledgement even when their values are scalars.
-
-Progress is monotonic. Consumption prevents further progress updates and is
-idempotent until the lease closes. Admission closure stops new claims while
-in-flight replay can still acknowledge consumption during quiescence; lease
-closure freezes the report and rejects further updates. Cancellation or
-abandonment neither releases a claim nor automatically marks it consumed.
-
-Two independent opt-in evaluations use these facts:
-
-- `allRecordsClaimed`: every record was claimed, except for attachments whose
-  `allowsUnclaimedReplayRecords` policy permits leftovers.
-- `allClaimedRecordsConsumed`: every claimed record was fully replayed. The
-  leftover policy does not waive this check, and open records receive no exemption.
-
-Unclaimed records do not fail the second check; evaluate both to require every
-record to be selected and fully replayed. Neither check runs implicitly or
-changes a test outcome. Reports retain safe identities, progress counts, and
-`isConsumed` facts, never domain payloads. Systems determine when all recorded
-behavior has been replayed; Core cannot verify an opaque lifecycle's semantics.
-
-### Synchronous replay values and continuation
-
-`SequentialTrackLease<Value, Header>` returns its stored `Value` from
-`consumeNext()`. Systems translate those values into domain objects, using
-execution context where needed. Record types need no mapping protocol, and
-Core retains no conversion closure or separate replay representation.
-Lease preparation selects a `ReplayContinuationPolicy<Value>`, defaulting
-to `.error`:
-
-```swift
-let lease = try context.lease(
-    for: trackID,
-    preparation: ValuePreparation<OverridableValue<Date>>(),
-    continuationPolicy: .replayLast(defaultValue: .observed(Date(timeIntervalSince1970: 0))))
-let value: OverridableValue<Date> = try lease.consumeNext()
-let date: Date = value.value
-```
-
-Authorship remains available in returned values and intact for persistence
-and re-recording. The wall clock unwraps it when returning a `Date` to its
-consumer. Continuation uses the same stored type: the empty-track default above
-is an observed value, but it is never added to the track. Explicit selectors
-and claims still expose stored records and their identities.
-
-The policy is fixed at lease creation:
-
-| Policy | Exhausted or closed synchronous replay read |
-| --- | --- |
-| `.error` (default) | Report the failure and throw; retain no continuation value. |
-| `.fallback(value)` | Report the failure and return the configured value. |
-| `.replayLast(defaultValue:)` | Report the failure and return the most recently consumed stored value, or the default before any synchronous consumption. |
-
-Returning a continuation creates no record, identity, or consumption fact.
-Exhausted requests still receive distinct requested positions in diagnostics.
-Wrong-mode calls always throw. Explicit claims neither apply nor update the
-synchronous continuation policy. The method remains throwing because policy
-selection occurs at runtime.
-
-Consumption and continuation updates share one atomic order. Failure selects
-its continuation in that same order, then reports outside the lock before
-returning. Reentrant diagnostics cannot change the already-selected result.
-Closure releases the baseline records. Only replay leases configured for
-continuation retain their required fallback value;
-`replayLast` releases its default once the first consumption replaces it.
-Supplied continuation values must be safe stable values suitable for this
-post-finish lifetime, without live resources or execution references.
-
-## Timing and delivery
-
-A system uses `ExecutionTime` to derive local recording delays and current
-replay anchors. For HTTP, capture the current decision completion and schedule
-its continuation at `logicalTime(after: delay, from: currentDecision)`. Never
-reuse an invocation deadline that includes the recorded application's wait.
-Location independently accumulates successive delivery delays and preserves
-measurement timestamps. The monotonic clock schedules sleeps without recording
-a lifecycle.
-
-Core's scheduler owns deadline ordering, non-reentrant registration, atomic
-cancellation, delivery acknowledgement, and execution shutdown. The system
-owns which continuation is reachable and its callback state. Each domain must
-prove its cancellation and freeze behavior together with these services before
-native adapters depend on it.
-
-## Composing public services in a consumer system
-
-Preparation obtains a typed record lease, `context.time`, and
-`context.scheduling`. These services are available to consumer modules through
-the same public boundary used by first-party systems. Keep immutable setup
-separate from the fresh dependency and accumulator state created for each run.
-Several keyed attachments can share a system type while choosing different
-modes. Every attachment in a run receives the same time origin and rate; a
-separate run gets independent time, claims, scheduling, and finalization.
-
-At a live observation boundary, reserve a record or a position in the domain
-accumulator and capture its time before conversion. Prepare detached semantic
-data before committing it to the accumulator. Concurrent conversion may finish
-in another order; the domain must retain observation order and derive delays
-from the original captures. Replay delivery continues while live conversion is
-pending. Record and passthrough delivery remain controlled by the live source.
-
-At replay, claim one complete record, then register only its reachable delivery.
-The system chooses the current anchor for each domain delay. Await the adapter's
-actor or queue work inside the scheduling closure, report progress after actual
-delivery, and acknowledge consumption after reaching the recorded horizon.
-An actor hop determines isolation, but does not order independent equal-deadline
-tasks. Establish causal order in the domain through awaited traversal or another
-explicit sequencing mechanism.
-
-Finish closes new admission and cancels pending scheduling, then joins claimed
-delivery scopes before record freeze and report freeze. In-flight consumption
-acknowledgements remain accepted during that drain. A canceled pending delivery
-leaves its claim unconsumed; scheduling cancellation never returns the record.
-The domain freezes live capture without waiting for consumer-owned conversion
-or application decisions. Incomplete observed conversion returns no record
-and invalidates the candidate; a fully prepared open record remains valid.
-
-Escaped drafts must reject further observations and release their runtime
-references at freeze. Escaped dependencies must honor lease closure. Pending
-callback captures are released at shutdown, and terminal scheduling handles
-retain only their registration state. New calls after finish can add separate
-post-finish diagnostics; they cannot alter the frozen report or deliver work.
-See [execution scheduling](execution-scheduling.md#shutdown-and-ownership) for
-the delivery scope's ownership limits.
-
-The [external consumer fixture](../Tests/DioramaConsumerTestSupport/ConsumerTimedSystem.swift)
-demonstrate these obligations with open update sessions, batches, nonterminal
-failures, and decision-relative response delivery. They establish access to and
-composition of shared services. Production location and HTTP models and native
-adapters require their own domain and platform conformance evidence.
+The former closure-based `ScenarioSystem` constructor, `PreparedSystem`,
+`ActivatedSystem`, `SystemPreparationContext`, raw lease mutations, and generic
+lease continuation policies are internal. Public code uses typed definitions,
+scoped operations, and system-owned snapshot continuation. Canonical test runs
+compile a positive external definition and reject illegal context/token/state
+captures and old-surface access without compiler crashes.

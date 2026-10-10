@@ -5,6 +5,11 @@ source "$(dirname "$0")/_common"
 cd "$repository_root"
 run "$script_directory/tests/coverage"
 run swift test -Xswiftc -warnings-as-errors "$@"
+# Query with the same test options so probes use this run's scratch path and
+# configuration. The path query does not require coverage collection.
+coverage_path=$(swift test --show-codecov-path "$@")
+test_products=$(dirname "$(dirname "$coverage_path")")
+run "$script_directory/tests/system-authoring" "$test_products"
 run swift build -c release -Xswiftc -warnings-as-errors
 run swift build --package-path Examples -c release -Xswiftc -warnings-as-errors
 run swift run --package-path Examples -c release --skip-build DioramaRandomUsage

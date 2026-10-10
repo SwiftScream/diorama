@@ -11,7 +11,6 @@ public struct SystemTrack<Value: Sendable, Header: Sendable>: Sendable {
     private let values: [PreparedValue<Value>]
     private let preparation: ValuePreparation<Value>
     private let headerPreparation: ValuePreparation<Header>
-    private let continuation: ReplayContinuationPolicy<Value>
     private let merge: RecordingMerge<Value, Header>?
 
     /// Declares a headered track and its admission and recording policies.
@@ -19,7 +18,6 @@ public struct SystemTrack<Value: Sendable, Header: Sendable>: Sendable {
         _ key: String, header: PreparedValue<Header>, values: [PreparedValue<Value>] = [],
         preparation: ValuePreparation<Value> = .init(),
         headerPreparation: ValuePreparation<Header> = .init(),
-        continuationPolicy: ReplayContinuationPolicy<Value> = .error,
         mergeRecording: RecordingMerge<Value, Header>? = nil)
     {
         self.key = TrackKey(rawValue: key)
@@ -27,7 +25,6 @@ public struct SystemTrack<Value: Sendable, Header: Sendable>: Sendable {
         self.values = values
         self.preparation = preparation
         self.headerPreparation = headerPreparation
-        continuation = continuationPolicy
         merge = mergeRecording
     }
 
@@ -40,7 +37,7 @@ public struct SystemTrack<Value: Sendable, Header: Sendable>: Sendable {
             let id = TrackID(attachmentID: context.attachmentID, key: key)
             let lease = try context.lease(for: id, preparation: preparation,
                                           headerPreparation: headerPreparation,
-                                          continuationPolicy: continuation, mergeRecording: merge)
+                                          mergeRecording: merge)
             guard let header = lease.baselineHeader() else {
                 throw ScenarioLifecycleIssue.invalidTrackRequest
             }
@@ -54,11 +51,10 @@ public extension SystemTrack where Header == Void {
     /// Declares a headerless track and its system-owned policies.
     init(_ key: String, values: [PreparedValue<Value>] = [],
          preparation: ValuePreparation<Value> = .init(),
-         continuationPolicy: ReplayContinuationPolicy<Value> = .error,
          mergeRecording: RecordingMerge<Value, Void>? = nil)
     {
         self.init(key, header: .init(), values: values, preparation: preparation,
-                  continuationPolicy: continuationPolicy, mergeRecording: mergeRecording)
+                  mergeRecording: mergeRecording)
     }
 }
 

@@ -169,24 +169,59 @@ struct ScopedExecutionTests {
         failCleanup: Bool = false,
         expectUncancelledCleanup: Bool = false) throws -> ScenarioSystem<Dependency>
     {
-        try ScenarioSystem(
-            type: DioramaFixtures.type,
-            attachment: ScenarioAttachment(id: DioramaFixtures.attachment(key)))
-        { context in
+        try ScenarioSystem(named: key, definition: Definition(
+            key: key, dependency: dependency, journal: journal, failCleanup: failCleanup,
+            expectUncancelledCleanup: expectUncancelledCleanup))
+    }
+
+    private struct Definition<Dependency: Sendable>: SystemDefinition {
+        let systemType = DioramaFixtures.type
+        let values = SystemTrack<Int, Void>("values")
+        let key: String
+        let dependency: Dependency
+        let journal: DioramaFixtures.Journal
+        let failCleanup: Bool
+        let expectUncancelledCleanup: Bool
+        var tracks: [AnySystemTrack] {
+            [values.erased]
+        }
+
+        func validate(in _: borrowing SystemValidationContext) {
             journal.events.withLock { $0.append("prepare-" + key) }
-            _ = try context.lease(for: DioramaFixtures.track(key), preparation: ValuePreparation<Int>())
-            return PreparedSystem {
-                journal.events.withLock { $0.append("activate-" + key) }
-                return ActivatedSystem(dependency: dependency) {
-                    if expectUncancelledCleanup {
-                        #expect(!Task.isCancelled)
-                    }
-                    journal.events.withLock { $0.append("cleanup-" + key) }
-                    if failCleanup {
-                        throw BodyFailure.stopped
-                    }
-                }
+        }
+
+        func makeRecordState(in _: borrowing SystemStateContext) {
+            journal.events.withLock { $0.append("activate-" + key) }
+        }
+
+        func makeReplayState(in context: borrowing SystemStateContext) {
+            makeRecordState(in: context)
+        }
+
+        func makeRecordDependency(using _: SystemRuntime<Void>) -> Dependency {
+            dependency
+        }
+
+        func makeReplayDependency(using _: SystemRuntime<Void>) -> Dependency {
+            dependency
+        }
+
+        func makePassthroughDependency() -> Dependency {
+            dependency
+        }
+
+        func cleanUpRecordState(_: Void) throws {
+            if expectUncancelledCleanup {
+                #expect(!Task.isCancelled)
             }
+            journal.events.withLock { $0.append("cleanup-" + key) }
+            if failCleanup {
+                throw BodyFailure.stopped
+            }
+        }
+
+        func cleanUpReplayState(_: Void) throws {
+            try cleanUpRecordState(())
         }
     }
 }

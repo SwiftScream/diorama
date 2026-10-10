@@ -16,9 +16,11 @@ public protocol SystemDefinition: Sendable {
 
     /// Read-only validation of resolved content. Passthrough has no track access.
     func validate(in context: borrowing SystemValidationContext) throws
-    /// Creates record state after every system has validated.
+    /// Creates record state after every system has validated. A throwing state
+    /// factory must unwind its own partial resource construction.
     func makeRecordState(in context: borrowing SystemStateContext) throws -> RecordState
-    /// Creates replay state without contacting a live source.
+    /// Creates replay state without contacting a live source. A throwing state
+    /// factory must unwind its own partial resource construction.
     func makeReplayState(in context: borrowing SystemStateContext) throws -> ReplayState
     /// Creates the recording facade. Do not publish it before startup returns.
     func makeRecordDependency(using runtime: SystemRuntime<RecordState>) throws -> Dependency
@@ -90,6 +92,13 @@ public struct SystemStateContext: ~Copyable {
     public let clock: ScenarioClock
     /// Ordered handoffs, registered outside state protection after startup.
     public let scheduling: SchedulingLease
+
+    /// Reads the resolved stable header and values without claims or transforms.
+    public func track<Value: Sendable, Header: Sendable>(
+        _ declaration: SystemTrack<Value, Header>) throws -> SequentialTrack<Value, Header>
+    {
+        try registry.entry(for: declaration).content
+    }
 
     /// Returns this declaration's fresh lease for the current execution.
     public func lease<Value: Sendable, Header: Sendable>(
