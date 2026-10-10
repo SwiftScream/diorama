@@ -247,6 +247,10 @@ proposal for discussion, with its review gate recorded in the owning plan.
   records safe operand rejection, public overflow diagnostics, and retained
   scheduler and execution-clock behavior.
 
+- [Pure passthrough evidence](evidence/003-Fa01-pure-passthrough.md) records native
+  copying and lifetime, lease-free startup, baseline preservation, and cleanup
+  boundaries.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its
