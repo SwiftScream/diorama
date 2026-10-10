@@ -1539,8 +1539,9 @@ evidence-driven lifecycle extension remain separately reviewed work.
 
 ### 003-Fa01 — Pure passthrough with native dependency lifetime
 
-- Status: Approved on 2026-10-10; not started. Protocol R scope and
-  model confirmation are required before implementation.
+- Status: Complete on 2026-10-11.
+  [Evidence](../evidence/003-Fa01-pure-passthrough.md) records native lifetime,
+  no-lease preparation, persistence preservation, and consumer migrations.
 - Recommended model: GPT-6 Sol; reasoning: `high`. This bounded behavior change
   crosses startup, resource ownership, mixed-mode persistence, and public tests.
 - Prerequisites: 003-F07, 003-E08, 003-C07; DD05, DD07–DD10, DD13, DD15, DD18,
