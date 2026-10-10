@@ -61,13 +61,14 @@ that arbitrary reference aliases are harmless.
 
 ## Managed state and dependencies
 
-Core calls the selected state factory, creates `SystemRuntime<State>`, then
-calls the mode's dependency factory. State factories must unwind their own
-partial construction if they throw. If dependency construction throws after
+Core calls the selected state factory, creates `SystemExecution<State>`, then
+calls the mode's dependency factory. Each keyed attachment receives its own
+system execution for a record or replay run. State factories must unwind their
+own partial construction if they throw. If dependency construction throws after
 state creation, Core invokes that state's cleanup. Completed activations unwind
 in reverse order; cleanup failures remain safe diagnostics.
 
-Dependencies use `runtime.withActiveState` for managed state operations. The
+Dependencies use `execution.withActiveState` for managed state operations. The
 closure receives the entire mutable state and a noncopyable
 `inout SystemOperation<State>` token. Core admits and serializes the operation,
 retains diagnostic facts, commits state on both successful and throwing exits,
@@ -77,7 +78,7 @@ consumer code and needs no buffering or delivery phase.
 immutable completed report. Late facts enter its separate post-finish log.
 
 Protected closures, source calls within them, and conversion policies
-must not reenter the runtime, suspend, wait for finish, invoke arbitrary
+must not reenter the system execution, suspend, wait for finish, invoke arbitrary
 callbacks, launch untracked work, or expose active-resource aliases. Swift
 rejects escaping inout references and operation tokens; copied reference
 aliases remain the author's responsibility. Publish native actions with
@@ -114,8 +115,8 @@ or awaited native shutdown. Those requirements need the separate actor/native
 lifecycle evidence. Do not substitute fire-and-forget cleanup.
 
 Passthrough calls only `makePassthroughDependency()`. It has no mode state,
-runtime, track lease, interception, continuation, or scenario-owned cancellation.
-Native dependencies retain their ordinary copy, concurrency, and lifetime rules,
+`SystemExecution`, track lease, interception, continuation, or scenario-owned
+cancellation. Native dependencies retain their ordinary copy, concurrency, and lifetime rules,
 including after finish. Core drops its references; the consumer owns cleanup.
 
 ## Immediate and incremental recording
@@ -123,7 +124,7 @@ including after finish. Core drops its references; the consumer owns cleanup.
 Reserve before capture so source order and record order agree:
 
 ```swift
-try runtime.withActiveState { state, operation in
+try execution.withActiveState { state, operation in
     try operation.record(on: state.values,
                          capturing: { state.source.next() },
                          preparation: valuePolicy)
@@ -139,7 +140,7 @@ For incremental capture, keep the domain's drafts in managed state. The scoped
 operation reserves a record before creating a domain identifier or accumulator:
 
 ```swift
-let identity = try runtime.withActiveState { state, operation in
+let identity = try execution.withActiveState { state, operation in
     try operation.beginRecord(
         on: state.records, preparation: recordPolicy,
         capturing: { identity in
@@ -152,8 +153,8 @@ let identity = try runtime.withActiveState { state, operation in
 }
 ```
 
-Observation facades retain a runtime and stable identifier, then update the
-corresponding draft through `withActiveState`. Capture observation time before
+Observation facades retain a system execution and stable identifier, then update
+the corresponding draft through `withActiveState`. Capture observation time before
 slow conversion; prepare detached semantic data before committing it. Concurrent
 conversion can finish in another order, so the domain preserves observation
 order and derives delays from the original captures. Native/application work
@@ -203,7 +204,7 @@ equivalent identities, no match, or ambiguity. It is pure and deterministic,
 uses no live services, and runs within the protected system operation:
 
 ```swift
-let claim = try runtime.withActiveState { state, operation in
+let claim = try execution.withActiveState { state, operation in
     try operation.claim(on: state.records, matching: preparedRequest,
                         using: ReplaySelector<String, RequestRecord>.exactInput(\.requestKey))
 }
@@ -223,7 +224,7 @@ may remain open afterward. Cancellation never returns a record to availability.
 Core cannot infer domain consumption from an empty scheduler or progress count.
 
 `lease.consumeNext()` combines claim and consumption for synchronous values.
-It is safe outside `withActiveState`, including after runtime closure. Use
+It is safe outside `withActiveState`, including after system execution closure. Use
 `operation.consumeNext(on:)` when consumption belongs in a larger state operation;
 that operation itself still rejects closed access before consulting the lease.
 Explicit claims require acknowledgement even for scalar records. Both
@@ -244,9 +245,9 @@ Diorama does not decide whether a test passes.
 
 ## Execution services and finish
 
-`SystemRuntime.time` and `operation.time` share execution logical time. The
-runtime also exposes the execution clock and attachment scheduling lease. Register
-reachable replay work outside protection after committing its control state.
+`SystemExecution.time` and `operation.time` share execution logical time. The
+system execution also exposes the execution clock and attachment scheduling
+lease. Register reachable replay work outside protection after committing its control state.
 Await actor/queue delivery inside the scheduling closure, and acknowledge the
 claim after actual delivery. Actor isolation alone does not order independent
 equal-deadline tasks; domains establish their own causal sequence.

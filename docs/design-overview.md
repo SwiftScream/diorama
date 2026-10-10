@@ -160,13 +160,14 @@ Selection and claim are one atomic action. A claim exclusively reserves a
 record and never returns it to the available pool. It starts unconsumed;
 `markConsumed()` acknowledges that the system has replayed all recorded behavior.
 `consumeNext()` combines both steps for synchronous value delivery.
-The lease returns stored values, including authorship. Systems translate them
-into domain objects and may use execution context for that translation. Lease setup selects whether
-exhausted or closed replay reads throw, return a fixed value, or repeat the last
-consumed value with an initial default. Every failed read still diagnoses;
-continuation creates no record or consumption fact. Only opted-in leases retain
-their required continuation value after closure. See the
-[DD19 replay conversion refinement](design-decisions/19-system-owned-records.md#system-owned-replay-conversion-refinement--accepted-2026-10-07).
+Leases return stored values, including authorship. Systems translate them into
+domain objects and select an error, fixed-fallback, or replay-last policy on
+`TrackDefinition`. Direct `consumeNext()` reads reach that policy even after managed
+state closes. Retained replay leases keep only their selected continuation,
+without live resources or baseline records. Failed reads still diagnose;
+continuation creates no record or consumption fact. This preserves the stable-value boundary of the
+[DD19 replay conversion refinement](design-decisions/19-system-owned-records.md#system-owned-replay-conversion-refinement--accepted-2026-10-07)
+under [DD20's managed-state ownership](design-decisions/20-system-definitions-and-pure-passthrough.md).
 
 `allRecordsClaimed` and `allClaimedRecordsConsumed` evaluate these independent
 facts only when requested. Open recordings must reach their recorded horizon
@@ -295,8 +296,9 @@ path becomes an internal implementation detail under DD20.
 of an escaped managed dependency enters a separately inspectable diagnostic log
 without notification. Its small reporter can
 outlive the execution without retaining sessions, live sources, recordings, or
-scheduling machinery; escaped handles also retain only their required frozen
-state. There is no global registry. Retaining a new diagnostic does not restart
+scheduling machinery. Escaped replay handles retain only required continuation
+state; recording handles may retain live sources under their system contract.
+There is no global registry. Retaining a new diagnostic does not restart
 replay or weaken quiescent shutdown. Test integrations must respect their test
 context's lifetime, not promise to change an already completed test. The
 owner-approved amendments in

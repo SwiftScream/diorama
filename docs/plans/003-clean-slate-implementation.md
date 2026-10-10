@@ -1596,8 +1596,10 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
 
 ### 003-Fa02 — SystemDefinition and Core-owned managed state
 
-- Status: In progress on 2026-10-11 under the owner-approved ordered Fa stack.
-  Uses this session's current model/settings for all implementation and review.
+- Status: Complete on 2026-10-12, revised on the merged Fa09 baseline.
+  [Evidence](../evidence/003-Fa02-system-definitions.md) records the public API
+  replacement, managed concurrency, complete consumer migration, and platform
+  verification. Uses the owner-approved current session model/settings.
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Public API replacement,
   managed work, freeze/finalization races, and migration of every existing
   extension capability need coordinated concurrency and ownership review.
@@ -1608,7 +1610,7 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
   derives layout from typed `TrackDefinition` values, prepares their tracks,
   and runs optional read-only validation before all activation, then calls
   separate record/replay state factories and dependency factories receiving
-  `SystemRuntime<State>`.
+  `SystemExecution<State>`.
   Passthrough has only `makePassthroughDependency()`, without managed state.
   Use one common `Dependency: Sendable`, including concrete native types.
 - State and ownership: Core serializes whole-state operations, reserves and

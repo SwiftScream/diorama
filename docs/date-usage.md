@@ -97,7 +97,7 @@ use the track's replay-last policy, defaulting to Unix epoch before any value
 has been consumed.
 
 All handles obtained from `ScenarioExecution.context.clock`,
-`SystemRuntime.clock`, and the `execute` body context use that execution's
+`SystemExecution.clock`, and the `execute` body context use that execution's
 scheduler. Applications can exchange deadlines with their systems as logical
 offsets. A transferred instant means the same offset from the receiving
 execution's origin; it carries no execution identity or wall date.

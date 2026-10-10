@@ -11,6 +11,11 @@
 - Delivery: [Plan 003, Phase Fa](../plans/003-clean-slate-implementation.md#phase-fa--passthrough-and-system-authoring).
 - Implementation guidance: [Fa01/Fa02 handoff](../plans/003-Fa-system-authoring-handoff.md).
 
+Naming note — owner-approved 2026-10-14: the implementation uses
+`SystemExecution<State>` for the state owner called `SystemRuntime<State>` below.
+This changes the API spelling only; its ownership and lifecycle contracts remain
+unchanged.
+
 ## Pure passthrough
 
 Passthrough provides the ordinary live dependency with its native behavior,

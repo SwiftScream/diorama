@@ -12,7 +12,7 @@ unmerged commit, temporary directory, or unpublished file is a prerequisite.
 At handoff, the integrated implementation includes F01–F07 and the DioramaDate
 rename. Its authoring path uses public `PreparedSystem`, `ActivatedSystem`,
 `SystemPreparationContext`, and the closure-based `ScenarioSystem` initializer.
-The proposed `SystemDefinition`, `SystemRuntime`, typed track declarations,
+The proposed `SystemDefinition`, `SystemExecution`, typed track declarations,
 and scoped operation token are not already delivered on that baseline. Fa02
 implements the needed machinery. Fa09 now precedes it and removes live sinks;
 managed diagnostic buffering is no longer needed or part of Fa02's scope.
@@ -83,8 +83,8 @@ public protocol SystemDefinition: Sendable {
     func makeRecordState(in context: borrowing SystemStateContext) throws -> RecordState
     func makeReplayState(in context: borrowing SystemStateContext) throws -> ReplayState
 
-    func makeRecordDependency(using runtime: SystemRuntime<RecordState>) throws -> Dependency
-    func makeReplayDependency(using runtime: SystemRuntime<ReplayState>) throws -> Dependency
+    func makeRecordDependency(using execution: SystemExecution<RecordState>) throws -> Dependency
+    func makeReplayDependency(using execution: SystemExecution<ReplayState>) throws -> Dependency
     func makePassthroughDependency() throws -> Dependency
 }
 ```
@@ -226,7 +226,7 @@ Migrate every public-only consumer proof, not just the first-party systems:
 | --- | --- |
 | Non-Codable values, repeated keyed systems, mixed modes | Public `SystemDefinition` implementations with independent state and unchanged setup inference. |
 | Optional persistence and authored re-record merge | Existing descriptor/codec registration, typed declaration policy, preserved baseline and publication behavior. |
-| Execution time, clock, and scheduling | Appropriate scoped services in the new context/runtime; retain delayed handoff, cancellation, state-before-callback, and acknowledgement semantics. |
+| Execution time, clock, and scheduling | Appropriate scoped services in the context and `SystemExecution`; retain delayed handoff, cancellation, state-before-callback, and acknowledgement semantics. |
 | Incremental `beginRecord` and freeze | Safe registration/finalization races, one freeze, rejection of late observations, detached resources, and no reacquisition of a held state lock. |
 | Selection, exclusive claims, consumption | Scoped Core operations and preserved claim ownership/accounting; no domain lifecycle interpretation added to Core. |
 | Diagnostic and cleanup outcomes | Thrown operations, immediate retained facts/health, rollback, cleanup failures, and immutable final reports. |
@@ -254,7 +254,7 @@ Do not weaken prior assertions simply to make the API migration compile.
 
 Complete native lifecycle design is deferred to G08 and I01. A concrete
 `Dependency = URLSession` works with two factories returning differently
-configured sessions and a bridge routing to the selected runtime. It still
+configured sessions and a bridge routing to the selected system execution. It still
 needs explicit native invalidation, routing release, replay callback drainage,
 and detached forwarding for already-running live work. A Core state lock must
 not surround reentrant native calls. Location similarly needs actor-aware
