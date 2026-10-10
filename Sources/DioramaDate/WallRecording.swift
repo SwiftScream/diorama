@@ -28,7 +28,7 @@ enum WallRecordingError: Error, Equatable, Sendable {
     case nonzeroFirstObservation
     /// Adding effective successive deltas would overflow `Int64`.
     case cumulativeOverflow(position: Int)
-    /// An authored position-zero shift or accumulated wall value is not finite.
+    /// A wall value is outside the portable range or loses millisecond meaning.
     case unrepresentableWallValue(position: Int)
     /// A track has an unexpected identity, type, or value order.
     case invalidTrackLayout

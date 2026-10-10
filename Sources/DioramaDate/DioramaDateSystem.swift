@@ -9,6 +9,12 @@ public enum DioramaDateSystem {
 
     private static let wallTrackKey = TrackKey(rawValue: "wall")
 
+    static let valuePreparation = ValuePreparation<OverridableValue<Date>>(validate: { value in
+        guard StableTimeCodec.roundedToMillisecond(value.value) == value.value else {
+            throw WallRecordingError.unrepresentableWallValue(position: 0)
+        }
+    })
+
     static func trackID(for key: AttachmentKey) -> TrackID {
         TrackID(
             attachmentID: AttachmentID(systemTypeID: type.id, key: key),
@@ -30,7 +36,7 @@ public enum DioramaDateSystem {
         id trackID: TrackID,
         recording: WallRecording) throws -> SequentialTrack<OverridableValue<Date>, Int?>
     {
-        let preparation = ValuePreparation<OverridableValue<Date>>()
+        let preparation = valuePreparation
         let prepared = try recording.effectiveValues.enumerated().map { position, value in
             try preparation.admitPrepared(
                 value,
@@ -88,7 +94,7 @@ public enum DioramaDateSystem {
                                   allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
         { context in
             let lease = try context.lease(
-                for: trackID, preparation: ValuePreparation<OverridableValue<Date>>(),
+                for: trackID, preparation: valuePreparation,
                 headerPreparation: ValuePreparation<Int?>(),
                 continuationPolicy: .replayLast(defaultValue: .observed(ReplayDateSource.unixEpoch)),
                 mergeRecording: mergeWallRecording)

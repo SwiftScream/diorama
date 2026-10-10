@@ -309,12 +309,12 @@ extension WallSourceTests {
         ])
     }
 
-    @Test(arguments: [[0.0, 1e16], [0.0, 2e15, 1e16]])
-    func `unrepresentable successive or cumulative deltas preserve native returns`(
-        seconds: [TimeInterval]) async throws
+    @Test(arguments: [([0.0, 1e16], 1), ([0.0, 2e15, 1e16], 2)])
+    func `out of range observations preserve native returns and last value`(
+        seconds: [TimeInterval], failures: Int) async throws
     {
-        // The first case exceeds one Int64 delta. In the second, each delta
-        // fits individually, but their cumulative sum exceeds Int64.max.
+        // Both extreme values now fail the portable Date range before delta
+        // arithmetic. Each unsupported read retains its own conversion fact.
         let native = seconds.map { Date(timeIntervalSince1970: $0) }
         let probe = WallSourceProbe(values: native)
         let system = try recordingSystem(named: "overflow", timeZone: .gmt) { probe.makeSource() }
@@ -326,7 +326,8 @@ extension WallSourceTests {
         }
         let result = await execution.finish()
         #expect(result.definition == nil)
-        #expect(result.report.diagnostics.map(\.diagnostic.issue) == [.conversionFailed])
+        #expect(result.report.diagnostics.map(\.diagnostic.issue)
+            == Array(repeating: .conversionFailed, count: failures))
         #expect(probe.readCount == native.count)
         #expect(probe.releaseCount == 1)
         #expect(wall.now == native.last)

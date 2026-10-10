@@ -214,7 +214,9 @@ struct WallOverrideMergeTests {
 
     @Test
     func `invalid merged cumulative deltas refuse whole publication and preserve the previous document`() async throws {
-        let large: Int64 = 5_000_000_000_000_000_000
+        // Each input is portable, but retaining the override and adding the
+        // fresh final delta moves the merged date beyond the supported range.
+        let large: Int64 = 200_000_000_000_000
         let original = try WallMergeFixtures.recording(
             origin: .observed(Date(timeIntervalSince1970: 0)),
             deltas: [.observed(0), .override(large), .observed(-large)], offset: 0)

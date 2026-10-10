@@ -6,6 +6,10 @@ import Foundation
 /// field. System readers validate elapsed durations and wall deltas separately.
 public enum StableTimeCodec {
     private static let maximumPortableOffsetMinutes = 14 * 60
+    // 0001-01-04T02:53:20.000Z in Foundation's calendar interpretation.
+    private static let minimumWallUnixSeconds: Double = -62_135_500_000
+    // 9999-12-31T09:53:20.000Z; leaves room for every supported display offset.
+    private static let maximumWallUnixSeconds: Double = 253_402_250_000
 
     /// Reads signed integral milliseconds or seconds with up to three decimals.
     ///
@@ -73,11 +77,16 @@ public enum StableTimeCodec {
     /// Independently rounds one absolute `Date` to millisecond precision.
     ///
     /// Exact halfway values in the represented `Date` round away from the Unix
-    /// epoch.
+    /// epoch. Returns nil when the rounded instant is outside the portable
+    /// inclusive Unix-second range `-62_135_500_000...253_402_250_000`.
     public static func roundedToMillisecond(_ date: Date) -> Date? {
         let milliseconds = (date.timeIntervalSince1970 * 1000).rounded(.toNearestOrAwayFromZero)
         guard milliseconds.isFinite else { return nil }
-        return Date(timeIntervalSince1970: milliseconds / 1000)
+        let rounded = Date(timeIntervalSince1970: milliseconds / 1000)
+        guard rounded.timeIntervalSince1970 >= minimumWallUnixSeconds,
+              rounded.timeIntervalSince1970 <= maximumWallUnixSeconds
+        else { return nil }
+        return rounded
     }
 
     /// Reads an ISO 8601 origin as an absolute `Date` and numeric UTC offset.

@@ -45,8 +45,12 @@ Foundation's ISO 8601 format style. Canonical output always writes exactly three
 fractional digits, including `.000` for a whole second. Zero offset writes as
 `Z`, which the Foundation parser also accepts.
 The formatter's numeric offset is a display choice; no regional timezone or
-daylight-saving rule is persisted. The writer declines a nonfinite `Date` or an
-offset outside the portable fixed-timezone range. Some Foundation releases
+daylight-saving rule is persisted. After millisecond rounding, wall dates must
+fall within inclusive Unix seconds `-62_135_500_000...253_402_250_000`.
+These fixed numeric bounds are independent of the display offset. Parsing,
+formatting, Date's strict model, capture, and prepared-value admission enforce
+the same range. The writer declines nonfinite or out-of-range dates and offsets
+outside the portable fixed-timezone range. Some Foundation releases
 format an exact millisecond as the preceding millisecond; the writer formats
 from within the selected millisecond to avoid that rounding artifact.
 
