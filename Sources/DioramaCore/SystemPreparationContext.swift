@@ -2,10 +2,10 @@ import Synchronization
 
 /// The short-lived preparation boundary for one execution's system instance.
 ///
-/// Every declared track must receive a typed lease and policy before activation.
+/// Every record/replay track receives a typed lease and policy before activation.
 /// Existing stable values receive validation-only persisted admission under
-/// that setup policy. A passthrough lease validates identity but never reads
-/// content. An escaped context is closed and releases all definition content
+/// that setup policy. Passthrough creates no leases and runs no content policies.
+/// An escaped context is closed and releases all definition content
 /// and leases.
 public final class SystemPreparationContext: Sendable {
     private struct State: Sendable {
@@ -48,7 +48,8 @@ public final class SystemPreparationContext: Sendable {
 
     /// Prepares one declared track and creates its fresh sequential lease.
     ///
-    /// Call exactly once for each declared track. Existing values are validated
+    /// Call exactly once for each declared record/replay track. Passthrough
+    /// rejects lease requests. Existing values are validated
     /// outside the context lock without rerunning capture transformations;
     /// failed or abandoned requests cannot authorize activation. The selected
     /// preparation policy is retained only when a recording merge needs final
@@ -110,6 +111,7 @@ public final class SystemPreparationContext: Sendable {
         recordingMerge: FinalRecordingMerge<Value, Header>?)
         throws(PreparationFailure) -> SequentialTrackLease<Value, Header>
     {
+        guard mode != .passthrough else { throw failure(.invalidTrackRequest, context: .track(id)) }
         let original: SequentialTrack<Value, Header>
         do {
             original = try state.withLock { state in
@@ -129,22 +131,11 @@ public final class SystemPreparationContext: Sendable {
             throw failure(issue, context: .track(id))
         }
 
-        let admittedHeader: Header? = if mode == .passthrough {
-            nil
-        } else {
-            try admitHeader(original.header)
-        }
-
-        let records: [SequentialRecord<Value>] = if mode == .passthrough {
-            []
-        } else {
-            try original.records.map { record throws(PreparationFailure) in
-                let prepared = try preparation.admitPrepared(
-                    record.value,
-                    reporter: reporter,
-                    context: .record(record.identity))
-                return SequentialRecord(identity: record.identity, value: prepared.value)
-            }
+        let admittedHeader = try admitHeader(original.header)
+        let records = try original.records.map { record throws(PreparationFailure) in
+            let prepared = try preparation.admitPrepared(
+                record.value, reporter: reporter, context: .record(record.identity))
+            return SequentialRecord(identity: record.identity, value: prepared.value)
         }
         let lease = SequentialTrackLease(
             track: original, baseline: records, baselineHeader: admittedHeader,
@@ -169,7 +160,7 @@ public final class SystemPreparationContext: Sendable {
             return detached
         }
         let prepared = Set(detached.leases.map(\.id))
-        let missing = detached.attachment?.trackIDs.filter { !prepared.contains($0) } ?? []
+        let missing = mode == .passthrough ? [] : detached.attachment?.trackIDs.filter { !prepared.contains($0) } ?? []
         return (detached.leases, missing)
     }
 

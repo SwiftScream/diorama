@@ -88,6 +88,10 @@ its source and sequential observation cursor. One can record while another
 replays and a third passes through. Replay never invokes its live source
 factory, and passthrough never changes baseline wall content. Setup is reusable;
 each execution has fresh cursors and a fresh execution-clock origin.
+Passthrough returns the native source directly. A retained source keeps reading
+live dates after finish, with its own concurrency and cleanup requirements;
+Diorama neither freezes its last value nor reports those reads as misuse.
+Record/replay handles retain their existing closed-handle behavior.
 
 All handles obtained from `ScenarioExecution.context.clock`,
 `SystemPreparationContext.clock`, and the `execute` body context use that execution's
@@ -95,7 +99,7 @@ scheduler. Applications can exchange deadlines with their systems as logical
 offsets. A transferred instant means the same offset from the receiving
 execution's origin; it carries no execution identity or wall date.
 
-Concurrent wall reads acquire one serialized observation order per attachment.
+Concurrent record/replay wall reads acquire one serialized observation order per attachment.
 Which racing task receives each value is not reproducible. Coordinate calls
 when their assignment matters, or use separately named walls for independent
 domains. Concurrent execution-clock sleeps also have no application task

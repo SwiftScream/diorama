@@ -23,23 +23,36 @@ public enum ConsumerSystemFailure: Error, Equatable, Sendable {
 public final class ConsumerSequentialDependency: Sendable {
     /// The effective whole-attachment mode supplied during preparation.
     public var mode: ScenarioMode {
-        lease.mode
+        switch behavior {
+        case let .managed(lease, _): lease.mode
+        case .passthrough: .passthrough
+        }
     }
 
     /// Whether the execution has closed this dependency's track lease.
     public var isClosed: Bool {
-        lease.isClosed
+        switch behavior {
+        case let .managed(lease, _): lease.isClosed
+        case .passthrough: false
+        }
     }
 
-    private let lease: HeaderlessSequentialTrackLease<ConsumerStableValue>
-    private let preparation: ValuePreparation<ConsumerStableValue>
+    private enum Behavior: Sendable {
+        case managed(HeaderlessSequentialTrackLease<ConsumerStableValue>, ValuePreparation<ConsumerStableValue>)
+        case passthrough
+    }
+
+    private let behavior: Behavior
+
+    init() {
+        behavior = .passthrough
+    }
 
     init(
         lease: HeaderlessSequentialTrackLease<ConsumerStableValue>,
         preparation: ValuePreparation<ConsumerStableValue>)
     {
-        self.lease = lease
-        self.preparation = preparation
+        behavior = .managed(lease, preparation)
     }
 
     /// Performs one synchronous dependency operation under the attachment mode.
@@ -49,10 +62,11 @@ public final class ConsumerSequentialDependency: Sendable {
     /// returns the live value without using track content.
     ///
     /// - Parameter liveValue: A live value evaluated only in record or
-    ///   passthrough mode while the dependency remains open.
+    ///   passthrough mode. Passthrough retains its native lifetime after finish.
     /// - Returns: The live or replayed stable value selected by the mode.
     /// - Throws: Public sequential-operation evidence or ``ConsumerSystemFailure/closed``.
     public func next(capturing liveValue: () -> ConsumerStableValue) throws -> ConsumerStableValue {
+        guard case let .managed(lease, preparation) = behavior else { return liveValue() }
         guard !lease.isClosed else {
             _ = lease.report(.system(DiagnosticLabel("consumer-operation-after-close")))
             throw ConsumerSystemFailure.closed
@@ -87,7 +101,8 @@ public final class ConsumerSequentialDependency: Sendable {
     /// - Returns: Whether the fact entered the active execution report.
     @discardableResult
     public func reportUnusedRecord() -> Bool {
-        lease.report(.system(DiagnosticLabel("consumer-unused-record")))
+        guard case let .managed(lease, _) = behavior else { return false }
+        return lease.report(.system(DiagnosticLabel("consumer-unused-record")))
     }
 }
 
@@ -139,6 +154,11 @@ public enum ConsumerSequentialSystem {
             id: attachmentID(for: key)).adding(track)
         let trackID = trackID(for: key)
         return try ScenarioSystem(type: type, attachment: attachment) { context in
+            if context.mode == .passthrough {
+                return PreparedSystem {
+                    ActivatedSystem(dependency: ConsumerSequentialDependency(), deactivate: {})
+                }
+            }
             let preparation = ValuePreparation<ConsumerStableValue>()
             let lease = try context.lease(for: trackID, preparation: preparation, mergeRecording: mergeRecording)
             return PreparedSystem {

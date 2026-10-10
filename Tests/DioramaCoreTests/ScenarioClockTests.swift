@@ -111,7 +111,9 @@ struct ScenarioClockTests {
         let modes: [ScenarioMode] = [.record, .replay, .passthrough]
         let systems = try definition.attachments.enumerated().map { index, attachment in
             try ScenarioSystem(type: ExecutionFixtures.type, attachment: attachment) { context in
-                _ = try context.lease(for: attachment.trackIDs[0], preparation: ValuePreparation<Int>())
+                if context.mode != .passthrough {
+                    _ = try context.lease(for: attachment.trackIDs[0], preparation: ValuePreparation<Int>())
+                }
                 let clock = context.clock
                 return PreparedSystem { ActivatedSystem(dependency: clock, deactivate: {}) }
             }.withMode(modes[index])

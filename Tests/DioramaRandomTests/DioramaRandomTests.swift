@@ -149,12 +149,12 @@ struct DioramaRandomTests {
         ])
     }
 
-    @Test(arguments: [ScenarioMode.record, .passthrough])
-    func `mutable value sources advance through shared generator references`(mode: ScenarioMode) async throws {
+    @Test
+    func `recorded mutable value sources advance through shared generator references`() async throws {
         let instance = try DioramaRandomSystem.instance(named: "value-source") {
             ValueSource(nextValue: 7)
         }
-        let execution = try start(mode: mode, instance: instance)
+        let execution = try start(mode: .record, instance: instance)
         var generator = try execution.dependency(instance)
         var alias = generator
 
@@ -164,12 +164,28 @@ struct DioramaRandomTests {
         let result = await execution.finish()
         let attachment = try #require(result.definition).attachments[0]
         let track = try #require(try attachment.track(attachment.trackIDs[0], as: UInt64.self))
-        #expect(track.records.map(\.value) == (mode == .record ? [7, 8, 9] : []))
+        #expect(track.records.map(\.value) == [7, 8, 9])
         #expect(result.report.diagnostics.isEmpty)
         #expect(alias.next() == 0)
         #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [
             .lifecycle(.leaseClosed),
         ])
+    }
+
+    @Test
+    func `passthrough value generators preserve native independent copies after finish`() async throws {
+        let instance = try DioramaRandomSystem.instance(named: "value-source") { ValueSource(nextValue: 7) }
+        let execution = try start(mode: .passthrough, instance: instance)
+        var first = try execution.dependency(instance)
+        var second = first
+        #expect(first.next() == 7)
+        #expect(first.next() == 8)
+        #expect(second.next() == 7)
+        let result = await execution.finish()
+        #expect(first.next() == 9)
+        #expect(second.next() == 8)
+        #expect(result.report.diagnostics.isEmpty)
+        #expect(execution.reporter.postFinishDiagnostics.isEmpty)
     }
 
     @Test
@@ -181,6 +197,58 @@ struct DioramaRandomTests {
 
         _ = generator.next()
         #expect(await execution.finish().report.diagnostics.isEmpty)
+    }
+
+    @Test
+    func `passthrough reference sources share native state and release with their last handle`() async throws {
+        let probe = SourceProbe(sequences: [[5, 6, 7]])
+        let instance = try DioramaRandomSystem.instance(named: "native-lifetime") { probe.makeSource() }
+        let execution = try start(mode: .passthrough, instance: instance)
+        var first: (any RandomNumberGenerator & Sendable)? = try execution.dependency(instance)
+        var second = first
+        #expect(first?.next() == 5)
+        let result = await execution.finish()
+        #expect(probe.creationCount == 1)
+        #expect(probe.releaseCount == 0)
+        #expect(second?.next() == 6)
+        first = nil
+        #expect(second?.next() == 7)
+        second = nil
+        #expect(probe.releaseCount == 1)
+        #expect(result.report.diagnostics.isEmpty)
+        #expect(execution.reporter.postFinishDiagnostics.isEmpty)
+    }
+
+    @Test
+    func `finish does not wait for an in flight native passthrough read`() async throws {
+        let entered = AsyncStream<Void>.makeStream()
+        let release = DispatchSemaphore(value: 0)
+        defer { release.signal() }
+        let instance = try DioramaRandomSystem.instance(named: "native-work") {
+            GatedSource(entered: entered.continuation, release: release)
+        }
+        let execution = try start(mode: .passthrough, instance: instance)
+        let generator = try execution.dependency(instance)
+        let reading = Task {
+            var generator = generator
+            return generator.next()
+        }
+        for await _ in entered.stream {}
+        let finishedWithoutLiveCompletion = await withTaskGroup(of: Bool.self) { group in
+            group.addTask { _ = await execution.finish(); return true }
+            group.addTask {
+                try? await ContinuousClock().sleep(for: .seconds(5))
+                return false
+            }
+            let completed = await group.next() == true
+            release.signal()
+            group.cancelAll()
+            return completed
+        }
+        #expect(finishedWithoutLiveCompletion)
+        #expect(await reading.value == 17)
+        #expect(execution.reporter.report.diagnostics.isEmpty)
+        #expect(execution.reporter.postFinishDiagnostics.isEmpty)
     }
 
     private func start(
@@ -316,5 +384,16 @@ private struct ValueSource: RandomNumberGenerator, Sendable {
     mutating func next() -> UInt64 {
         defer { nextValue += 1 }
         return nextValue
+    }
+}
+
+private struct GatedSource: RandomNumberGenerator, Sendable {
+    let entered: AsyncStream<Void>.Continuation
+    let release: DispatchSemaphore
+
+    func next() -> UInt64 {
+        entered.finish()
+        release.wait()
+        return 17
     }
 }

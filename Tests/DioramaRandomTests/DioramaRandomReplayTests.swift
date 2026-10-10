@@ -142,9 +142,8 @@ struct DioramaRandomReplayTests {
     }
 
     @Test
-    func `finish closes escaped generators offline in every mode`() async throws {
+    func `finish closes escaped managed generators offline`() async throws {
         try await assertClosedGenerator(mode: .record, expectedSourceCount: 1)
-        try await assertClosedGenerator(mode: .passthrough, expectedSourceCount: 1)
         try await assertClosedGenerator(mode: .replay, expectedSourceCount: 0)
     }
 }

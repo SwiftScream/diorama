@@ -56,6 +56,9 @@ struct ConsumerSequentialSystemTests {
         }) == ConsumerStableValue(22))
         #expect(liveCallCount == 2)
         #expect(await execution.finish().report.diagnostics.isEmpty)
+        #expect(try dependency.next(capturing: { ConsumerStableValue(23) }) == ConsumerStableValue(23))
+        #expect(!dependency.isClosed)
+        #expect(execution.reporter.postFinishDiagnostics.isEmpty)
     }
 
     @Test

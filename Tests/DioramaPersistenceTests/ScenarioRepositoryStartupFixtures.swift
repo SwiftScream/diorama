@@ -27,7 +27,7 @@ final class StartupProbe: Sendable {
 
     func system(
         key: String, allowsUnclaimedReplayRecords: Bool = false)
-        throws -> ScenarioSystem<HeaderlessSequentialTrackLease<UInt64>>
+        throws -> ScenarioSystem<StartupDependency>
     {
         let attachmentKey = AttachmentKey(rawValue: key)
         let trackID = DioramaRandomSystem.trackID(for: attachmentKey)
@@ -38,6 +38,12 @@ final class StartupProbe: Sendable {
                                   allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
         { [self] context in
             state.withLock { $0.preparations += 1 }
+            if context.mode == .passthrough {
+                return PreparedSystem { [self] in
+                    state.withLock { $0.activations += 1 }
+                    return ActivatedSystem(dependency: StartupDependency.passthrough, deactivate: {})
+                }
+            }
             let preparation = ValuePreparation<UInt64>(validate: { [failValidation] _ in
                 if failValidation {
                     throw StartupFault()
@@ -46,9 +52,32 @@ final class StartupProbe: Sendable {
             let lease = try context.lease(for: trackID, preparation: preparation)
             return PreparedSystem { [self] in
                 state.withLock { $0.activations += 1 }
-                return ActivatedSystem(dependency: lease, deactivate: {})
+                return ActivatedSystem(dependency: StartupDependency.managed(lease), deactivate: {})
             }
         }
+    }
+}
+
+enum StartupDependency: Sendable {
+    case managed(HeaderlessSequentialTrackLease<UInt64>)
+    case passthrough
+
+    func report(_ issue: DiagnosticIssue, recordingImpact: RecordingImpact = .none) -> Bool {
+        guard case let .managed(lease) = self else { return false }
+        return lease.report(issue, recordingImpact: recordingImpact)
+    }
+
+    func consumeNext() throws -> UInt64 {
+        guard case let .managed(lease) = self else { throw StartupFault() }
+        return try lease.consumeNext()
+    }
+
+    func record(capturing capture: () throws -> UInt64, preparation: ValuePreparation<UInt64>) throws {
+        guard case let .managed(lease) = self else {
+            _ = try capture()
+            return
+        }
+        try lease.record(capturing: capture, preparation: preparation)
     }
 }
 

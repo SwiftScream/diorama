@@ -143,13 +143,16 @@ struct ScenarioStartupTests {
         let instance = try ScenarioSystem(type: ExecutionFixtures.type,
                                           attachment: definitions.attachments[0])
         { context in
-            let lease = try context.lease(
+            if context.mode == .passthrough {
+                return PreparedSystem { ActivatedSystem(dependency: 0, deactivate: {}) }
+            }
+            _ = try context.lease(
                 for: ExecutionFixtures.track("a"),
                 preparation: ValuePreparation<Int>(validate: { value in
                     calls.withLock { $0.append(value) }
                     throw ExecutionFixtures.SecretError(journal: ExecutionFixtures.Journal())
                 }))
-            return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
+            return PreparedSystem { ActivatedSystem(dependency: 0, deactivate: {}) }
         }
         do {
             let execution = try ScenarioExecution.start(

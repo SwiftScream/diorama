@@ -18,7 +18,7 @@ public struct PreparedSystem<Dependency: Sendable>: Sendable {
     }
 }
 
-/// An installed sequential adapter and its execution-owned cleanup obligation.
+/// An installed dependency and its record/replay cleanup obligation.
 public struct ActivatedSystem<Dependency: Sendable>: Sendable {
     let dependency: Dependency
     let deactivate: @Sendable () throws -> Void
@@ -26,10 +26,12 @@ public struct ActivatedSystem<Dependency: Sendable>: Sendable {
     /// Creates a successful activation.
     ///
     /// - Parameters:
-    ///   - dependency: The consumer-facing handle. It should own leases, not
-    ///     the execution or live resources that must be released at finish.
+    ///   - dependency: The consumer-facing handle. Record/replay handles own
+    ///     leases; passthrough returns the ordinary native dependency directly.
     ///   - deactivate: Synchronous sequential-adapter cleanup, called exactly
-    ///     once by finish or startup rollback. Release Diorama-owned resources;
+    ///     once for record/replay by finish or startup rollback. Passthrough
+    ///     ignores this callback and only releases its dependency references.
+    ///     Release Diorama-owned resources;
     ///     do not close or cancel consumer-owned sources. Native asynchronous
     ///     quiescence is not part of this sequential extension boundary.
     public init(dependency: Dependency, deactivate: @escaping @Sendable () throws -> Void) {
@@ -131,13 +133,15 @@ public struct AnyScenarioSystem: Sendable {
         modeOverride = system.modeOverride
         allowsUnclaimedReplayRecords = system.allowsUnclaimedReplayRecords
         self.prepare = { context in
+            let mode = context.mode
             let prepared = try prepare(context)
             return AnyPreparedSystem {
                 let activation = try prepared.activate()
+                let nativeCleanup: @Sendable () throws -> Void = {}
                 return AnyActivatedSystem(
                     attachmentID: attachmentID,
                     dependency: activation.dependency,
-                    deactivate: activation.deactivate)
+                    deactivate: mode == .passthrough ? nativeCleanup : activation.deactivate)
             }
         }
     }

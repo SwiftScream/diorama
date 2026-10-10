@@ -178,19 +178,9 @@ struct SequentialTrackOperationTests {
             .lifecycle(.leaseClosed), .lifecycle(.leaseClosed),
         ])
 
-        let (passthroughExecution, passthroughLease) = try makeExecution(mode: .passthrough, values: [1, 2])
-        #expect(passthroughLease.baselineRecords().isEmpty)
-        #expect(passthroughLease.recordedRecords().isEmpty)
-        #expect(throws: SequentialOperationFailure.self) { try passthroughLease.consumeNext() }
-        #expect(throws: SequentialOperationFailure.self) {
-            try passthroughLease.record(capturing: { 3 }, preparation: ValuePreparation<Int>())
+        #expect(throws: ScenarioStartupFailure.self) {
+            _ = try makeExecution(mode: .passthrough, values: [1, 2])
         }
-        #expect(passthroughLease.baselineRecords().isEmpty)
-        #expect(passthroughLease.recordedRecords().isEmpty)
-        #expect(await (passthroughExecution.finish()).report.diagnostics.map(\.diagnostic.issue) == [
-            .sequential(.wrongMode(expected: .replay, actual: .passthrough)),
-            .sequential(.wrongMode(expected: .record, actual: .passthrough)),
-        ])
     }
 
     @Test

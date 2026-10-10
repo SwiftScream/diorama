@@ -15,7 +15,9 @@ Re-recording clears the old header and produces a fresh observed origin and
 offset. Finalization preserves an authored whole-origin override, including
 its offset; there is no independent offset override. With no new observations,
 the empty payload drops the old origin and offset.
-Passthrough returns native values without changing the track. Replay claims
+Passthrough returns the ordinary live source, creates no track lease, and keeps
+native lifetime after finish without post-finish diagnostics or a frozen date.
+Loaded passthrough content is preserved independently of leases. Replay claims
 effective values sequentially and never activates the live source factory.
 The lease returns stored `OverridableValue<Date>` entries; the date source extracts
 their effective `Date` without changing stored authorship. The lease's configured
@@ -25,7 +27,7 @@ identity and never become additional observations.
 Repeated and backward dates are returned as recorded without waits. Exhaustion
 reports a replay diagnostic and continues with the last successfully claimed
 date, or Unix epoch when no value was claimed. Finishing the execution closes
-claims; escaped wall handles continue with the last date and report the
+claims; escaped record/replay wall handles continue with the last date and report the
 separate lifecycle diagnostic.
 An offset with subminute precision cannot be written in this schema; recording
 reports a conversion failure while the live read still returns its native Date.

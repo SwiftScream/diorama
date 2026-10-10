@@ -77,8 +77,9 @@ public enum DioramaDateSystem {
 
     /// Creates one named date source with an injected live source factory.
     ///
-    /// The factory runs only after successful preparation. Each attachment
-    /// serializes reads of its source and the corresponding track operations.
+    /// The factory runs only after successful preparation. Record mode
+    /// serializes source reads with track operations. Passthrough returns the
+    /// native source with its ordinary concurrency and lifetime requirements.
     /// Recording selects the current timezone for origin display at activation;
     /// it never changes the absolute `Date` returned to the consumer.
     public static func instance(
@@ -93,6 +94,11 @@ public enum DioramaDateSystem {
         return try ScenarioSystem(type: type, attachment: attachment,
                                   allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
         { context in
+            if context.mode == .passthrough {
+                return PreparedSystem {
+                    ActivatedSystem(dependency: sourceFactory() as any DioramaDateSource, deactivate: {})
+                }
+            }
             let lease = try context.lease(
                 for: trackID, preparation: valuePreparation,
                 headerPreparation: ValuePreparation<Int?>(),
@@ -102,21 +108,15 @@ public enum DioramaDateSystem {
             case .record:
                 return PreparedSystem {
                     try lease.setHeader(capturing: { nil }, preparation: ValuePreparation<Int?>())
-                    let mode = LiveWallMode.record(WallRecordingState())
+                    let recording = WallRecordingState()
                     let dates = LiveDateSource(
-                        mode: mode, lease: lease, source: sourceFactory())
+                        recording: recording, lease: lease, source: sourceFactory())
                     return ActivatedSystem(
                         dependency: dates as any DioramaDateSource,
                         deactivate: { dates.close() })
                 }
             case .passthrough:
-                return PreparedSystem {
-                    let dates = LiveDateSource(
-                        mode: .passthrough, lease: lease, source: sourceFactory())
-                    return ActivatedSystem(
-                        dependency: dates as any DioramaDateSource,
-                        deactivate: { dates.close() })
-                }
+                preconditionFailure("Passthrough returns its native dependency before lease preparation")
             case .replay:
                 return PreparedSystem {
                     let dates = ReplayDateSource(lease: lease)

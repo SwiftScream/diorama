@@ -33,11 +33,23 @@ enum ExecutionFixtures {
         failActivation: Bool = false,
         failCleanup: Bool = false) throws -> AnyScenarioSystem
     {
-        try AnyScenarioSystem(ScenarioSystem(
+        try AnyScenarioSystem(ScenarioSystem<any Sendable>(
             type: ExecutionFixtures.type,
             attachment: ScenarioAttachment(id: attachment(key)))
         { context in
             journal.events.withLock { $0.append("prepare-" + key) }
+            if context.mode == .passthrough {
+                if failPreparation {
+                    throw SecretError(journal: journal)
+                }
+                return PreparedSystem {
+                    journal.events.withLock { $0.append("activate-" + key) }
+                    if failActivation {
+                        throw SecretError(journal: journal)
+                    }
+                    return ActivatedSystem(dependency: 0 as any Sendable, deactivate: {})
+                }
+            }
             let lease = try context.lease(for: track(key), preparation: ValuePreparation<Int>())
             journal.leases.withLock { $0.append(lease) }
             if failPreparation {
@@ -48,7 +60,7 @@ enum ExecutionFixtures {
                 if failActivation {
                     throw SecretError(journal: journal)
                 }
-                return ActivatedSystem(dependency: lease) {
+                return ActivatedSystem(dependency: lease as any Sendable) {
                     journal.events.withLock { $0.append("cleanup-" + key) }
                     if failCleanup {
                         throw SecretError(journal: journal)
