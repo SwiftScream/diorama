@@ -1,4 +1,5 @@
 import DioramaCore
+import Foundation
 import Synchronization
 import Testing
 
@@ -10,6 +11,7 @@ private final class ManagedJournal: Sendable {
 
 private struct ManagedCounter: Sendable {
     struct State: Sendable {
+        let key: String
         let values: HeaderlessSequentialTrackLease<Int>
         let headers: SequentialTrackLease<Int, String>
         var count = 0
@@ -31,10 +33,11 @@ private struct ManagedCounter: Sendable {
         }
     }
 
-    func begin(journal: ManagedJournal) throws -> RecordIdentity {
+    func begin(journal: ManagedJournal, captured: @Sendable () -> Void = {}) throws -> RecordIdentity {
         try runtime.withActiveState { state, operation in
             try operation.beginRecord(on: state.values, preparation: .init(), capturing: { identity in
                 state.drafts[identity] = 40
+                captured()
                 return identity
             }, freeze: { state, identity in
                 journal.freezes.withLock { $0 += 1 }
@@ -49,6 +52,15 @@ private struct ManagedCounter: Sendable {
 }
 
 private enum ManagedFailure: Error { case expected }
+
+private final class ManagedReleaseProbe: Sendable {
+    let released: @Sendable () -> Void
+    init(released: @escaping @Sendable () -> Void) {
+        self.released = released
+    }
+
+    deinit { released() }
+}
 
 private struct CounterDefinition: SystemDefinition {
     static let type = ScenarioSystemType("consumer.managed-counter")
@@ -90,7 +102,8 @@ private struct CounterDefinition: SystemDefinition {
         let lease = try context.lease(for: foreign ? SystemTrack<Int, Void>("values") : values)
         let copy = values
         #expect(try lease === context.lease(for: copy))
-        return try ManagedCounter.State(values: lease, headers: context.lease(for: headers))
+        return try ManagedCounter.State(key: context.attachmentID.key.rawValue,
+                                        values: lease, headers: context.lease(for: headers))
     }
 
     func makeReplayState(in context: borrowing SystemStateContext) throws -> ManagedCounter.State {
@@ -112,8 +125,8 @@ private struct CounterDefinition: SystemDefinition {
         throw ManagedFailure.expected
     }
 
-    func cleanUpRecordState(_: ManagedCounter.State) throws {
-        journal.events.withLock { $0.append("cleanup") }
+    func cleanUpRecordState(_ state: ManagedCounter.State) throws {
+        journal.events.withLock { $0.append("cleanup-" + state.key) }
         if failCleanup {
             throw ManagedFailure.expected
         }
@@ -125,6 +138,101 @@ private struct CounterDefinition: SystemDefinition {
 }
 
 struct ManagedDefinitionTests {
+    @Test func `registration racing finish freezes once after unlocking managed state`() async throws {
+        let model = try CounterDefinition()
+        let system = try ScenarioSystem(named: "counter", definition: model)
+        let execution = try start(system)
+        let counter = try execution.dependency(system)
+        let captured = AsyncStream<Void>.makeStream()
+        let release = DispatchSemaphore(value: 0)
+        let timeout = DispatchWorkItem { release.signal() }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: timeout)
+        defer { timeout.cancel(); release.signal() }
+        let registering = Task {
+            try? counter.begin(journal: model.journal) {
+                captured.continuation.finish()
+                release.wait()
+            }
+        }
+        for await _ in captured.stream {}
+        let finishing = Task { await execution.finish() }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(4))
+        while !counter.runtime.isClosed, ContinuousClock.now < deadline {
+            await Task.yield()
+        }
+        #expect(counter.runtime.isClosed)
+        release.signal()
+        #expect(await registering.value == nil)
+        let final = await finishing.value
+        #expect(model.journal.freezes.withLock { $0 } == 1)
+        #expect(final.definition == nil)
+        #expect(final.usage[0].tracks[0].activity == .record(recordedCount: 0, incompleteCount: 1))
+        #expect(final.report.diagnostics.map(\.diagnostic.issue) == [
+            .lifecycle(.leaseClosed), .verification(.recordingNotAdmitted),
+        ])
+    }
+
+    @Test func `failed dependency construction unwinds all managed states in reverse order`() throws {
+        var model = try CounterDefinition()
+        let first = try ScenarioSystem(named: "first", definition: model)
+        let second = try ScenarioSystem(named: "second", definition: model)
+        model.failDependency = true
+        let third = try ScenarioSystem(named: "third", definition: model)
+        #expect(throws: ScenarioStartupFailure.self) {
+            try ScenarioExecution.start(
+                definition: ScenarioDefinition(attachments: [first.attachment, second.attachment, third.attachment]),
+                scenarioID: .init(rawValue: "rollback"), defaultMode: .record,
+                systems: [AnyScenarioSystem(third), AnyScenarioSystem(first), AnyScenarioSystem(second)])
+        }
+        #expect(Array(model.journal.events.withLock { $0 }.suffix(3)) == [
+            "cleanup-third", "cleanup-second", "cleanup-first",
+        ])
+    }
+
+    @Test func `callbacks and cancellation destruction reenter only after state commits`() async throws {
+        let model = try CounterDefinition()
+        let system = try ScenarioSystem(named: "counter", definition: model)
+        let execution = try start(system)
+        let counter = try execution.dependency(system)
+        let callbacks = Mutex<[Int]>([])
+        var capture: ManagedReleaseProbe? = ManagedReleaseProbe {
+            callbacks.withLock { $0.append(counter.snapshot.value) }
+            #expect((try? counter.increment()) == 8)
+        }
+        let record = RecordIdentity(trackID: system.attachment.trackIDs[0], sequence: 0)
+        let pending = try counter.runtime.scheduling.schedule(after: .seconds(3600), for: record) { [capture] in
+            withExtendedLifetime(capture) {}
+            Issue.record("Canceled callback ran")
+        }
+        capture = nil
+        try counter.runtime.withActiveState { state, operation in
+            state.count = 7
+            #expect(pending.cancel())
+            #expect(callbacks.withLock { $0.isEmpty })
+            operation.afterCommit { callbacks.withLock { $0.append(counter.snapshot.value) } }
+        }
+        #expect(callbacks.withLock { $0 } == [7, 8])
+        #expect(await execution.finish().report.diagnostics.isEmpty)
+    }
+
+    @Test func `registration under protection rejects before launching callbacks`() async throws {
+        let model = try CounterDefinition()
+        let system = try ScenarioSystem(named: "counter", definition: model)
+        let execution = try start(system)
+        let counter = try execution.dependency(system)
+        let record = RecordIdentity(trackID: system.attachment.trackIDs[0], sequence: 0)
+        #expect(throws: SchedulingFailure.self) {
+            try counter.runtime.withActiveState { _, _ in
+                try counter.runtime.scheduling.schedule(after: .zero, for: record) {
+                    Issue.record("Protected registration launched work")
+                }
+            }
+        }
+        #expect(await execution.finish().report.diagnostics.map(\.diagnostic.issue) == [
+            .scheduling(.protectedOperation),
+        ])
+    }
+
     @Test func `typed declarations resolved validation and independent runs`() async throws {
         let model = try CounterDefinition(initial: [1])
         let first = try ScenarioSystem(named: "first", definition: model)
@@ -199,7 +307,7 @@ struct ManagedDefinitionTests {
         #expect(final.report.diagnostics.map(\.diagnostic.issue) == [
             .system(DiagnosticLabel("counter-mutated")), .sinkFailed,
         ])
-        #expect(model.journal.events.withLock { $0.last } == "cleanup")
+        #expect(model.journal.events.withLock { $0.last } == "cleanup-counter")
     }
 
     @Test func `incremental freeze uses managed state once and rejects late observations`() async throws {
@@ -233,7 +341,7 @@ struct ManagedDefinitionTests {
             #expect(failure.report.diagnostics.contains { $0.diagnostic.issue == .lifecycle(.cleanupFailed) })
             #expect(failure.report.diagnostics.contains { $0.diagnostic.issue == .lifecycle(.activationFailed) })
         }
-        #expect(model.journal.events.withLock { $0.filter { $0 == "cleanup" }.count } == 1)
+        #expect(model.journal.events.withLock { $0.filter { $0 == "cleanup-counter" }.count } == 1)
     }
 
     private func start(_ system: ScenarioSystem<ManagedCounter>, sink: DiagnosticSink? = nil)

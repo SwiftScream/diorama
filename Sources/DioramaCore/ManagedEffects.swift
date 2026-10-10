@@ -12,12 +12,15 @@ final class ManagedEffects: Sendable {
     }
 
     func deliver() {
-        let detached = actions.withLock { actions in
+        var detached = actions.withLock { actions in
             let detached = actions
             actions = []
             return detached
         }
-        for action in detached {
+        detached.reverse()
+        // Drop each callback's captures before publishing the next effect.
+        // Destruction is itself allowed to reenter the committed runtime.
+        while let action = detached.popLast() {
             action()
         }
     }
@@ -28,6 +31,7 @@ final class ManagedEffects: Sendable {
 final class ManagedOperations: Sendable {
     private struct State: Sendable {
         var count = 0
+        var closed = false
         var waiters: [CheckedContinuation<Void, Never>] = []
     }
 
@@ -40,10 +44,18 @@ final class ManagedOperations: Sendable {
 
     func enter() -> Bool {
         state.withLock { state in
-            guard !admission.isClosed else { return false }
+            guard !state.closed, !admission.isClosed else { return false }
             state.count += 1
             return true
         }
+    }
+
+    var isClosed: Bool {
+        admission.isClosed || state.withLock { $0.closed }
+    }
+
+    func close() {
+        state.withLock { $0.closed = true }
     }
 
     func leave() {

@@ -24,7 +24,7 @@ public final class ConsumerSequentialDependency: Sendable {
     /// The effective whole-attachment mode supplied during preparation.
     public var mode: ScenarioMode {
         switch behavior {
-        case let .managed(lease, _): lease.mode
+        case let .managed(_, mode): mode
         case .passthrough: .passthrough
         }
     }
@@ -32,13 +32,13 @@ public final class ConsumerSequentialDependency: Sendable {
     /// Whether the execution has closed this dependency's track lease.
     public var isClosed: Bool {
         switch behavior {
-        case let .managed(lease, _): lease.isClosed
+        case let .managed(runtime, _): runtime.isClosed
         case .passthrough: false
         }
     }
 
     private enum Behavior: Sendable {
-        case managed(HeaderlessSequentialTrackLease<ConsumerStableValue>, ValuePreparation<ConsumerStableValue>)
+        case managed(SystemRuntime<HeaderlessSequentialTrackLease<ConsumerStableValue>>, ScenarioMode)
         case passthrough
     }
 
@@ -48,11 +48,8 @@ public final class ConsumerSequentialDependency: Sendable {
         behavior = .passthrough
     }
 
-    init(
-        lease: HeaderlessSequentialTrackLease<ConsumerStableValue>,
-        preparation: ValuePreparation<ConsumerStableValue>)
-    {
-        behavior = .managed(lease, preparation)
+    init(runtime: SystemRuntime<HeaderlessSequentialTrackLease<ConsumerStableValue>>, mode: ScenarioMode) {
+        behavior = .managed(runtime, mode)
     }
 
     /// Performs one synchronous dependency operation under the attachment mode.
@@ -66,30 +63,26 @@ public final class ConsumerSequentialDependency: Sendable {
     /// - Returns: The live or replayed stable value selected by the mode.
     /// - Throws: Public sequential-operation evidence or ``ConsumerSystemFailure/closed``.
     public func next(capturing liveValue: () -> ConsumerStableValue) throws -> ConsumerStableValue {
-        guard case let .managed(lease, preparation) = behavior else { return liveValue() }
-        guard !lease.isClosed else {
-            _ = lease.report(.system(DiagnosticLabel("consumer-operation-after-close")))
-            throw ConsumerSystemFailure.closed
-        }
-
-        switch lease.mode {
-        case .record:
-            var observation: ConsumerStableValue?
-            try lease.record(
-                capturing: {
+        guard case let .managed(runtime, mode) = behavior else { return liveValue() }
+        do {
+            return try runtime.withActiveState { lease, operation in
+                if mode == .replay {
+                    return try operation.consumeNext(on: lease)
+                }
+                var observation: ConsumerStableValue?
+                try operation.record(on: lease, capturing: {
                     let value = liveValue()
                     observation = value
                     return value
-                },
-                preparation: preparation)
-            guard let observation else {
-                preconditionFailure("Successful record append must capture one value")
+                }, preparation: ValuePreparation<ConsumerStableValue>())
+                guard let observation else { preconditionFailure("Successful capture supplies one value") }
+                return observation
             }
-            return observation
-        case .replay:
-            return try lease.consumeNext()
-        case .passthrough:
-            return liveValue()
+        } catch {
+            if runtime.isClosed {
+                throw ConsumerSystemFailure.closed
+            }
+            throw error
         }
     }
 
@@ -101,8 +94,10 @@ public final class ConsumerSequentialDependency: Sendable {
     /// - Returns: Whether the fact entered the active execution report.
     @discardableResult
     public func reportUnusedRecord() -> Bool {
-        guard case let .managed(lease, _) = behavior else { return false }
-        return lease.report(.system(DiagnosticLabel("consumer-unused-record")))
+        guard case let .managed(runtime, _) = behavior else { return false }
+        return (try? runtime.withActiveState { lease, operation in
+            operation.report(on: lease, .system(DiagnosticLabel("consumer-unused-record")))
+        }) ?? false
     }
 }
 
@@ -147,28 +142,8 @@ public enum ConsumerSequentialSystem {
         mergeRecording: RecordingMerge<ConsumerStableValue, Void>? = nil)
         throws -> ScenarioSystem<ConsumerSequentialDependency>
     {
-        let track = try SequentialTrack(
-            id: trackID(for: key),
-            values: prepared(values))
-        let attachment = try ScenarioAttachment(
-            id: attachmentID(for: key)).adding(track)
-        let trackID = trackID(for: key)
-        return try ScenarioSystem(type: type, attachment: attachment) { context in
-            if context.mode == .passthrough {
-                return PreparedSystem {
-                    ActivatedSystem(dependency: ConsumerSequentialDependency(), deactivate: {})
-                }
-            }
-            let preparation = ValuePreparation<ConsumerStableValue>()
-            let lease = try context.lease(for: trackID, preparation: preparation, mergeRecording: mergeRecording)
-            return PreparedSystem {
-                ActivatedSystem(
-                    dependency: ConsumerSequentialDependency(
-                        lease: lease,
-                        preparation: preparation),
-                    deactivate: {})
-            }
-        }
+        try ScenarioSystem(named: key.rawValue, definition: ConsumerSequentialDefinition(
+            systemType: type, values: SystemTrack("values", values: prepared(values), mergeRecording: mergeRecording)))
     }
 
     private static func prepared(
@@ -185,5 +160,41 @@ public enum ConsumerSequentialSystem {
                 purpose: .replay,
                 reporter: reporter)
         }
+    }
+}
+
+struct ConsumerSequentialDefinition: SystemDefinition {
+    let systemType: ScenarioSystemType
+    let values: SystemTrack<ConsumerStableValue, Void>
+    var tracks: [AnySystemTrack] {
+        [values.erased]
+    }
+
+    func makeRecordState(in context: borrowing SystemStateContext) throws
+        -> HeaderlessSequentialTrackLease<ConsumerStableValue>
+    {
+        try context.lease(for: values)
+    }
+
+    func makeReplayState(in context: borrowing SystemStateContext) throws
+        -> HeaderlessSequentialTrackLease<ConsumerStableValue>
+    {
+        try context.lease(for: values)
+    }
+
+    func makeRecordDependency(using runtime: SystemRuntime<HeaderlessSequentialTrackLease<ConsumerStableValue>>)
+        -> ConsumerSequentialDependency
+    {
+        ConsumerSequentialDependency(runtime: runtime, mode: .record)
+    }
+
+    func makeReplayDependency(using runtime: SystemRuntime<HeaderlessSequentialTrackLease<ConsumerStableValue>>)
+        -> ConsumerSequentialDependency
+    {
+        ConsumerSequentialDependency(runtime: runtime, mode: .replay)
+    }
+
+    func makePassthroughDependency() -> ConsumerSequentialDependency {
+        ConsumerSequentialDependency()
     }
 }

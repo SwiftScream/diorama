@@ -179,7 +179,11 @@ final class DeadlineEngine: Sendable {
         // The worker or stop owns canceled-sleep completion. A caller paused
         // here cannot resume a continuation after finalization has returned.
         // Capture destruction may reenter scheduling or reporting.
-        withExtendedLifetime(removed) {}
+        if let effects = ManagedEffects.current {
+            effects.append { withExtendedLifetime(removed) {} }
+        } else {
+            withExtendedLifetime(removed) {}
+        }
         return true
     }
 

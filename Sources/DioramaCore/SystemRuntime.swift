@@ -35,7 +35,9 @@ public final class SystemRuntime<State: Sendable>: Sendable {
 
     private let storage: Mutex<Storage>
     private let operations: ManagedOperations
-    private let reporter: DiagnosticReporter
+    /// Independently retainable safe diagnostic ledger. Notifications produced
+    /// under state protection are buffered automatically by Core.
+    public let reporter: DiagnosticReporter
     private let attachmentID: AttachmentID
 
     /// Logical-time capture and checked arithmetic shared by this execution.
@@ -44,6 +46,12 @@ public final class SystemRuntime<State: Sendable>: Sendable {
     public let clock: ScenarioClock
     /// Ordered handoffs; register and cancel outside protected operations.
     public let scheduling: SchedulingLease
+
+    /// Whether managed operation admission is closed. This inspection does not
+    /// itself diagnose; an attempted operation after closure does.
+    public var isClosed: Bool {
+        operations.isClosed
+    }
 
     init(state: State, context: SystemPreparationContext) {
         storage = Mutex(Storage(active: state))
@@ -88,6 +96,7 @@ public final class SystemRuntime<State: Sendable>: Sendable {
     }
 
     func close(cleanup: (State) throws -> Void) throws {
+        operations.close()
         let detached = storage.withLock { storage in
             let detached = storage
             storage = Storage()

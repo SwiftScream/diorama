@@ -5,6 +5,19 @@ public struct SystemOperation<State: Sendable>: ~Copyable {
     let runtime: SystemRuntime<State>
     let reporter: DiagnosticReporter
 
+    /// Captures logical time under the same protected observation order.
+    public var time: ExecutionTime {
+        runtime.time
+    }
+
+    /// Publishes synchronous work after state and snapshots commit. Core joins
+    /// the callback before finish. Awaited async delivery belongs in scheduling;
+    /// this callback must not launch untracked work or wait for finish.
+    public func afterCommit(_ action: @escaping @Sendable () -> Void) {
+        precondition(ManagedEffects.current != nil, "Operations require Core state protection")
+        ManagedEffects.current?.append(action)
+    }
+
     /// Reserves a position before capture and admits a complete stable value.
     @discardableResult
     public func record<Value: Sendable>(
