@@ -1,4 +1,4 @@
-import DioramaCore
+@testable import DioramaCore
 import Testing
 
 @Suite(.timeLimit(.minutes(1)))

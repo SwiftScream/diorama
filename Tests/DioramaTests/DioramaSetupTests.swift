@@ -75,13 +75,8 @@ struct DioramaSetupTests {
         #expect(throws: ScenarioDefinitionError.duplicateAttachment(system.attachment.id)) {
             try Diorama(scenarioID: "setup", mode: .record, systems: system, system)
         }
-        let otherID = AttachmentID(systemTypeID: SystemTypeID(rawValue: "other"), key: system.attachment.id.key)
-        let other = try ScenarioSystem(
-            type: ScenarioSystemType(id: otherID.systemTypeID),
-            attachment: ScenarioAttachment(id: otherID))
-        { _ in
-            PreparedSystem { ActivatedSystem(dependency: true, deactivate: {}) }
-        }
+        let other = try ScenarioSystem(named: system.attachment.id.key.rawValue,
+                                       definition: OtherSetupDefinition())
         #expect(throws: ScenarioDefinitionError.self) {
             try Diorama(scenarioID: "setup", mode: .record, systems: system, other)
         }
@@ -103,8 +98,17 @@ struct DioramaSetupTests {
         let incompatible = try Diorama(
             definition: ScenarioDefinition(attachments: [first.attachment, invalidTrack]),
             scenarioID: "setup", mode: .replay, systems: first, second)
-        await #expect(throws: ScenarioStartupFailure.self) { try await incompatible.execute { _, _, _ in () } }
-        #expect(probe.events.withLock { $0 } == ["prepare-a", "prepare-b"])
+        do {
+            _ = try await incompatible.execute { _, _, _ in () }
+            Issue.record("Incompatible typed content activated")
+        } catch let failure as ScenarioStartupFailure {
+            #expect(failure.report.diagnostics.contains {
+                $0.diagnostic.issue == .lifecycle(.invalidTrackRequest)
+                    && $0.diagnostic.context == .track(DioramaFixtures.track("b"))
+            })
+        }
+        #expect(probe.events.withLock { $0 } == ["prepare-a"])
+        // Core rejects the second declaration before its validation hook or any activation.
     }
 
     @Test
@@ -130,22 +134,103 @@ final class DioramaSetupProbe: Sendable {
 
     func system(
         _ key: String, values: [Int] = [], allowsUnclaimedReplayRecords: Bool = false)
-        throws -> ScenarioSystem<HeaderlessSequentialTrackLease<Int>>
+        throws -> ScenarioSystem<SetupDependency>
     {
-        let attachment = try ScenarioAttachment(id: DioramaFixtures.attachment(key)).adding(
-            SequentialTrack(id: DioramaFixtures.track(key), values: preparedValues(values)))
-        return try ScenarioSystem(type: DioramaFixtures.type, attachment: attachment,
-                                  allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
-        { [self] context in
-            events.withLock { $0.append("prepare-" + key) }
-            let lease = try context.lease(for: DioramaFixtures.track(key), preparation: ValuePreparation<Int>())
-            return PreparedSystem { [self] in
-                events.withLock { $0.append("activate-" + key) }
-                return ActivatedSystem(dependency: lease) { [self] in
-                    #expect(!Task.isCancelled)
-                    events.withLock { $0.append("cleanup-" + key) }
-                }
-            }
+        try ScenarioSystem(named: key, definition: Definition(
+            probe: self, key: key, values: TrackDefinition("values", values: preparedValues(values))),
+        allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
+    }
+
+    private struct Definition: SystemDefinition {
+        let systemType = DioramaFixtures.type
+        let probe: DioramaSetupProbe
+        let key: String
+        let values: TrackDefinition<Int, Void>
+        var tracks: [AnyTrackDefinition] {
+            [values.erased]
         }
+
+        func validate(in _: borrowing SystemValidationContext) {
+            probe.events.withLock { $0.append("prepare-" + key) }
+        }
+
+        func makeRecordState(in context: borrowing SystemStateContext) throws
+            -> HeaderlessSequentialTrackLease<Int>
+        {
+            probe.events.withLock { $0.append("activate-" + key) }
+            return try context.lease(for: values)
+        }
+
+        func makeReplayState(in context: borrowing SystemStateContext) throws
+            -> HeaderlessSequentialTrackLease<Int>
+        {
+            try makeRecordState(in: context)
+        }
+
+        func makeRecordDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<Int>>)
+            -> SetupDependency
+        {
+            SetupDependency(execution: execution, mode: .record)
+        }
+
+        func makeReplayDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<Int>>)
+            -> SetupDependency
+        {
+            SetupDependency(execution: execution, mode: .replay)
+        }
+
+        func makePassthroughDependency() throws -> SetupDependency {
+            throw ConsumerSetupFailure.unsupported
+        }
+
+        func cleanUpRecordState(_: HeaderlessSequentialTrackLease<Int>) {
+            #expect(!Task.isCancelled)
+            probe.events.withLock { $0.append("cleanup-" + key) }
+        }
+
+        func cleanUpReplayState(_ state: HeaderlessSequentialTrackLease<Int>) {
+            cleanUpRecordState(state)
+        }
+    }
+}
+
+struct SetupDependency: Sendable {
+    let execution: SystemExecution<HeaderlessSequentialTrackLease<Int>>
+    let mode: ScenarioMode
+    var isClosed: Bool {
+        execution.isClosed
+    }
+
+    func report(_ issue: DiagnosticIssue) -> Bool {
+        (try? execution.withActiveState { lease, operation in operation.report(on: lease, issue) }) ?? false
+    }
+
+    func consumeNext() throws -> Int {
+        try execution.withActiveState { lease, operation in try operation.consumeNext(on: lease) }
+    }
+
+    func record(capturing capture: () throws -> Int, preparation: ValuePreparation<Int>) throws {
+        _ = try execution.withActiveState { lease, operation in
+            try operation.record(on: lease, capturing: capture, preparation: preparation)
+        }
+    }
+}
+
+private enum ConsumerSetupFailure: Error { case unsupported }
+
+private struct OtherSetupDefinition: SystemDefinition {
+    let systemType = ScenarioSystemType("other")
+    func makeRecordState(in _: borrowing SystemStateContext) {}
+    func makeReplayState(in _: borrowing SystemStateContext) {}
+    func makeRecordDependency(using _: SystemExecution<Void>) -> Bool {
+        true
+    }
+
+    func makeReplayDependency(using _: SystemExecution<Void>) -> Bool {
+        true
+    }
+
+    func makePassthroughDependency() -> Bool {
+        true
     }
 }

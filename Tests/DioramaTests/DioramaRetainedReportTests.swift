@@ -34,13 +34,8 @@ struct DioramaRetainedReportTests {
 
     @Test
     func `body errors retain cleanup diagnostics before escaping and allow reuse`() async throws {
-        let system = try ScenarioSystem(
-            type: DioramaFixtures.type, attachment: ScenarioAttachment(id: DioramaFixtures.attachment("a")))
-        { _ in
-            PreparedSystem {
-                ActivatedSystem(dependency: 42, deactivate: { throw BodyFailure.stopped })
-            }
-        }
+        let system = try ScenarioSystem(named: "a", definition: LifecycleDefinition(
+            factory: { 42 }, cleanup: { throw BodyFailure.stopped }))
         let setup = try Diorama(scenarioID: "failed-body", mode: .record, systems: system)
         do {
             _ = try await setup.execute { _, _ async throws(BodyFailure) -> Int in throw .stopped }
@@ -58,20 +53,16 @@ struct DioramaRetainedReportTests {
     func `failed startup clears an older report and releases admission after rollback`() async throws {
         let probe = DioramaSetupProbe()
         let attempts = Mutex(0)
-        let second = try ScenarioSystem(
-            type: DioramaFixtures.type, attachment: ScenarioAttachment(id: DioramaFixtures.attachment("b")))
-        { _ in
-            PreparedSystem {
-                let attempt = attempts.withLock { count in
-                    count += 1
-                    return count
-                }
-                if attempt == 2 {
-                    throw BodyFailure.stopped
-                }
-                return ActivatedSystem(dependency: true, deactivate: {})
+        let second = try ScenarioSystem(named: "b", definition: LifecycleDefinition(factory: {
+            let attempt = attempts.withLock { count in
+                count += 1
+                return count
             }
-        }
+            if attempt == 2 {
+                throw BodyFailure.stopped
+            }
+            return true
+        }))
         let setup = try Diorama(scenarioID: "retry", mode: .record, systems: probe.system("a"), second)
         let first = try await setup.execute { _, _, _ in }
         #expect(setup.report == first.report)
@@ -93,14 +84,9 @@ struct DioramaRetainedReportTests {
     func `retained reports release body values errors and activated dependencies`() async throws {
         let releases = Mutex(0)
         let descriptions = Mutex(0)
-        let system = try ScenarioSystem(
-            type: DioramaFixtures.type, attachment: ScenarioAttachment(id: DioramaFixtures.attachment("a")))
-        { _ in
-            PreparedSystem {
-                ActivatedSystem(dependency: ReportLifetimeProbe(onRelease: { releases.withLock { $0 += 1 } }),
-                                deactivate: {})
-            }
-        }
+        let system = try ScenarioSystem(named: "a", definition: LifecycleDefinition(factory: {
+            ReportLifetimeProbe(onRelease: { releases.withLock { $0 += 1 } })
+        }))
         let setup = try Diorama(scenarioID: "lifetime", mode: .record, systems: system)
         do {
             let result = try await setup.execute { _, dependency in dependency }

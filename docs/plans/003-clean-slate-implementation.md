@@ -307,7 +307,10 @@ URLSession invalidation exception excludes calls that crash before interception;
 that returned session must not be used beyond execution.
 These facts do not reopen the execution ledger or alter the returned report.
 
-Escaped dependencies retain only reporting context and their required frozen state, not sessions, scheduling machinery, recordings, or live sources.
+Escaped replay dependencies retain only reporting context and required
+continuation state, without live sources, recordings, or scheduling machinery.
+DD20's 2026-10-11 amendment lets recording Date/Random dependencies retain their
+live sources; Location/URLSession keep explicit managed shutdown.
 The reporter has no global registry and is released with its remaining owners.
 New misuse reporting does not restart execution or schedule replay callbacks.
 Testing integrations must respect their test context's lifetime; retention does not retroactively change a completed test.
@@ -1593,8 +1596,8 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
 
 ### 003-Fa02 — SystemDefinition and Core-owned managed state
 
-- Status: Approved on 2026-10-10; not started. Protocol R scope and
-  model confirmation are required before implementation.
+- Status: In progress on 2026-10-11 under the owner-approved ordered Fa stack.
+  Uses this session's current model/settings for all implementation and review.
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Public API replacement,
   managed work, freeze/finalization races, and migration of every existing
   extension capability need coordinated concurrency and ownership review.
@@ -1602,15 +1605,20 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
   record/time/scheduling services and external-system proofs. Read the Fa
   handoff; the managed runtime is part of this unit; diagnostic delivery follows Fa09.
 - Scope: Establish `SystemDefinition` as the sole public authoring path. Core
-  derives layout and prepares typed track declarations, runs optional read-only
-  validation before all activation, then calls separate record/replay state
-  factories and dependency factories receiving `SystemRuntime<State>`.
+  derives layout from typed `TrackDefinition` values, prepares their tracks,
+  and runs optional read-only validation before all activation, then calls
+  separate record/replay state factories and dependency factories receiving
+  `SystemRuntime<State>`.
   Passthrough has only `makePassthroughDependency()`, without managed state.
   Use one common `Dependency: Sendable`, including concrete native types.
 - State and ownership: Core serializes whole-state operations, reserves and
   records in source order, and retains diagnostic facts without live callbacks
-  under DD05's final-report-only amendment. It owns admitted work joins,
-  cancellation, reverse rollback, resource release, and detached frozen views.
+  under DD05's final-report-only amendment. It owns admitted operation/work joins,
+  cancellation, reverse rollback, and managed-state release. Under DD20's
+  2026-10-11 amendment, recording Date/Random dependencies retain their live
+  sources after closure and diagnose unrecorded late reads. Sequential replay
+  retains a closed-safe lease with a public continuation policy. Remove generic
+  runtime snapshots; preserve explicit Location/URLSession shutdown.
   Scoped operation tokens must not escape. Document no reentry, suspension,
   arbitrary callbacks, finish waits, or live-resource aliases inside protection.
 - Existing capabilities: Provide the appropriate scoped time/clock/scheduling
@@ -1623,21 +1631,23 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
   redundant paths and superseded preparation/state-owner APIs. Migrate Random,
   Date, all public-only consumer systems, examples, and documentation. Keep
   `.instance()` consumer conveniences and schemas. Use explicit record/replay
-  dependency structs with direct `withActiveState` operations; avoid hiding
-  the examples behind a mandatory value-reader abstraction.
+  dependency structs with `withActiveState` for managed state and direct lease
+  reads for sequential replay; avoid a mandatory value-reader abstraction.
 - Expected files/modules: Core authoring/runtime/operation/work and
   execution integration; Random/Date definitions; existing consumer support
   and tests, compiler probes, examples and public guides. Record evidence in
   `docs/evidence/003-Fa02-system-definitions.md`.
 - Tests/verification: V-code; migrate every existing external proof using
-  public imports only. Prove typed headered/same-value tracks, duplicate and
-  foreign declarations, repeated lookup, fresh keyed executions, preparation
+  public imports only. Prove typed headered/same-value tracks, duplicate keys,
+  unknown keys and incompatible lookup types, reconstructed same-key lookup,
+  registered-policy authority, repeated lookup, fresh keyed executions, preparation
   failure before any activation, and reverse rollback. Exercise retained facts
   on conversion failure and throwing operations, source/record order, queued
   construction work, callback/cancellation reentry, concurrent finish, canceled
   finish waiters, one incremental freeze, claim acknowledgement, resource
-  release, and immutable reports. Compile negative probes for scoped context,
-  operation and state escapes and old public constructor access; retain a
+  release, immutable reports, post-closure live recording reads, and direct
+  replay lease continuation/join behavior. Compile negative probes for scoped context,
+  operation and state escapes and raw track mutation; retain a
   positive external conformance proof. Ordinary compiler rejection is required,
   not a crash. Preserve Fa01 semantics in every relevant migration.
 - Review acceptance: Fa09 resolves diagnostic-sink reentry by removing callbacks.

@@ -12,21 +12,16 @@ struct DioramaAdmissionTests {
         let gate = AdmissionTestGate()
         defer { gate.release() }
         let preparations = Mutex(0)
-        let system = try ScenarioSystem(
-            type: DioramaFixtures.type, attachment: ScenarioAttachment(id: DioramaFixtures.attachment("a")))
-        { _ in
+        let system = try ScenarioSystem(named: "a", definition: LifecycleDefinition(validation: {
             preparations.withLock { $0 += 1 }
             if phase == "startup" {
                 gate.pause()
             }
-            return PreparedSystem {
-                ActivatedSystem(dependency: true) {
-                    if phase == "cleanup" || phase == "rollback" {
-                        gate.pause()
-                    }
-                }
+        }, factory: { true }, cleanup: {
+            if phase == "cleanup" || phase == "rollback" {
+                gate.pause()
             }
-        }
+        }))
         let second = try secondSystem(fails: phase == "rollback")
         let setup = try Diorama(scenarioID: "admission", mode: .record, systems: system, second)
         let alias = setup
@@ -103,21 +98,15 @@ struct DioramaAdmissionTests {
         let gate = AdmissionTestGate()
         defer { gate.release() }
         let cleanupCount = Mutex(0)
-        let system = try ScenarioSystem(
-            type: DioramaFixtures.type, attachment: ScenarioAttachment(id: DioramaFixtures.attachment("a")))
-        { _ in
-            PreparedSystem {
-                ActivatedSystem(dependency: true) {
-                    let count = cleanupCount.withLock { count in
-                        count += 1
-                        return count
-                    }
-                    if count == 1 {
-                        gate.pause()
-                    }
-                }
+        let system = try ScenarioSystem(named: "a", definition: LifecycleDefinition(factory: { true }, cleanup: {
+            let count = cleanupCount.withLock { count in
+                count += 1
+                return count
             }
-        }
+            if count == 1 {
+                gate.pause()
+            }
+        }))
         let setup = try Diorama(scenarioID: "cancel", mode: .record, systems: system)
         let started = AsyncStream<Void>.makeStream()
         let task = Task {
@@ -149,16 +138,12 @@ struct DioramaAdmissionTests {
     }
 
     private func secondSystem(fails: Bool) throws -> ScenarioSystem<Bool> {
-        try ScenarioSystem(
-            type: DioramaFixtures.type, attachment: ScenarioAttachment(id: DioramaFixtures.attachment("b")))
-        { _ in
-            PreparedSystem {
-                if fails {
-                    throw AdmissionTestFailure.startup
-                }
-                return ActivatedSystem(dependency: true, deactivate: {})
+        try ScenarioSystem(named: "b", definition: LifecycleDefinition(factory: {
+            if fails {
+                throw AdmissionTestFailure.startup
             }
-        }
+            return true
+        }))
     }
 }
 

@@ -49,17 +49,61 @@ struct RecordSelectorConsumerTests {
     private func makeSystem(
         type: ScenarioSystemType, key: String, values: [ConsumerRecord],
         policy: ValuePreparation<ConsumerRecord>) throws
-        -> (attachment: ScenarioAttachment, system: ScenarioSystem<HeaderlessSequentialTrackLease<ConsumerRecord>>)
+        -> (attachment: ScenarioAttachment, system: ScenarioSystem<SelectorDependency>)
     {
-        let attachmentID = AttachmentID(systemTypeID: type.id, key: AttachmentKey(rawValue: key))
-        let trackID = TrackID(attachmentID: attachmentID, key: TrackKey(rawValue: "groups"))
-        let prepared = try values.map { try policy.admitPrepared($0) }
-        let attachment = try ScenarioAttachment(id: attachmentID)
-            .adding(SequentialTrack(id: trackID, values: prepared))
-        let system = try ScenarioSystem(type: type, attachment: attachment) { context in
-            let lease = try context.lease(for: trackID, preparation: policy)
-            return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
-        }
-        return (attachment, system)
+        let definition = try SelectorDefinition(systemType: type, records: TrackDefinition(
+            "groups", values: values.map { try policy.admitPrepared($0) }, preparation: policy))
+        let system = try ScenarioSystem(named: key, definition: definition)
+        return (system.attachment, system)
     }
 }
+
+private struct SelectorDependency: Sendable {
+    let execution: SystemExecution<HeaderlessSequentialTrackLease<ConsumerRecord>>
+
+    func claim(matching input: String, using selector: ReplaySelector<String, ConsumerRecord>) throws
+        -> ReplayClaim<ConsumerRecord>
+    {
+        try execution.withActiveState { lease, operation in
+            try operation.claim(on: lease, matching: input, using: selector)
+        }
+    }
+}
+
+private struct SelectorDefinition: SystemDefinition {
+    let systemType: ScenarioSystemType
+    let records: TrackDefinition<ConsumerRecord, Void>
+    var tracks: [AnyTrackDefinition] {
+        [records.erased]
+    }
+
+    func makeRecordState(in context: borrowing SystemStateContext) throws
+        -> HeaderlessSequentialTrackLease<ConsumerRecord>
+    {
+        try context.lease(for: records)
+    }
+
+    func makeReplayState(in context: borrowing SystemStateContext) throws
+        -> HeaderlessSequentialTrackLease<ConsumerRecord>
+    {
+        try context.lease(for: records)
+    }
+
+    func makeRecordDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<ConsumerRecord>>)
+        -> SelectorDependency
+    {
+        SelectorDependency(execution: execution)
+    }
+
+    func makeReplayDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<ConsumerRecord>>)
+        -> SelectorDependency
+    {
+        SelectorDependency(execution: execution)
+    }
+
+    func makePassthroughDependency() throws -> SelectorDependency {
+        throw SelectorFailure.unsupported
+    }
+}
+
+private enum SelectorFailure: Error { case unsupported }

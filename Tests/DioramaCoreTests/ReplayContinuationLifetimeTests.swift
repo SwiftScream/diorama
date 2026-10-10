@@ -1,4 +1,5 @@
 @testable import DioramaCore
+import Dispatch
 import Synchronization
 import Testing
 
@@ -85,6 +86,85 @@ struct ReplayContinuationLifetimeTests {
         #expect(observed.withLock { $0 } == [2])
         lease.close()
         #expect(try lease.consumeNext().value == 2)
+    }
+
+    @Test
+    func `default destruction waits for enclosing managed state protection`() throws {
+        let protected = Mutex(0)
+        let actions = PostUnlockActions()
+        let lease: HeaderlessSequentialTrackLease<Probe>
+        do {
+            let initial = Probe(-1) { protected.withLock { $0 += 1 } }
+            let track = try SequentialTrack(id: ExecutionFixtures.track("managed-release"),
+                                            values: preparedValues([Probe(1)]))
+            lease = try SequentialTrackLease(
+                track: track, baseline: track.records, baselineHeader: (), mode: .replay,
+                reporter: DiagnosticReporter(
+                    scenarioID: .init(rawValue: "managed-release"), definition: ScenarioDefinition()),
+                admission: ExecutionAdmission(), continuationPolicy: .replayLast(defaultValue: initial))
+        }
+        try PostUnlockActions.$current.withValue(actions) {
+            try protected.withLock { count in
+                let value = try lease.consumeNext().value
+                #expect(value == 1)
+                #expect(count == 0)
+            }
+        }
+        actions.drain()
+        #expect(protected.withLock { $0 } == 1)
+        lease.close()
+    }
+
+    @Test
+    func `finish joins direct reads through continuation destruction and retained facts`() async throws {
+        let entered = AsyncStream<Void>.makeStream()
+        let release = DispatchSemaphore(value: 0)
+        defer { release.signal() }
+        let finished = Mutex(false)
+        let id = ExecutionFixtures.track("joined-release")
+        let track = try SequentialTrack(id: id, values: preparedValues([Probe(1)]))
+        let attachment = try ScenarioAttachment(id: id.attachmentID).adding(track)
+        let system = try ScenarioSystem(type: ScenarioSystemType(id.attachmentID.systemTypeID.rawValue),
+                                        attachment: attachment)
+        { context in
+            let reporter = context.reporter
+            let lease = try context.lease(for: id, preparation: ValuePreparation<Probe>(),
+                                          continuationPolicy: .replayLast(defaultValue: Probe(-1) {
+                                              entered.continuation.finish()
+                                              #expect(release.wait(timeout: .now() + 10) == .success)
+                                              reporter.record(Diagnostic(issue: .system(DiagnosticLabel("released"))))
+                                          }))
+            return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
+        }
+        let execution = try ScenarioExecution.start(
+            definition: ScenarioDefinition(attachments: [attachment]), scenarioID: .init(rawValue: "joined-release"),
+            defaultMode: .replay, systems: [AnyScenarioSystem(system)])
+        let lease = try execution.dependency(system)
+        let reading = Task {
+            await withCheckedContinuation { continuation in
+                DispatchQueue.global().async {
+                    continuation.resume(returning: try? lease.consumeNext().value)
+                }
+            }
+        }
+        for await _ in entered.stream {}
+        let finishing = Task {
+            let result = await execution.finish()
+            finished.withLock { $0 = true }
+            return result
+        }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(4))
+        while !lease.isClosed, ContinuousClock.now < deadline {
+            await Task.yield()
+        }
+        #expect(lease.isClosed)
+        #expect(!finished.withLock { $0 })
+        #expect(execution.reporter.report == nil)
+        release.signal()
+        #expect(await reading.value == 1)
+        let final = await finishing.value
+        #expect(final.report.diagnostics.map(\.diagnostic.issue) == [.system(DiagnosticLabel("released"))])
+        #expect(execution.reporter.postFinishDiagnostics.isEmpty)
     }
 
     @Test(arguments: [ScenarioMode.record, .passthrough])

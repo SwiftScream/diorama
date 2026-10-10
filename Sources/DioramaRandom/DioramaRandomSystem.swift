@@ -1,95 +1,6 @@
 import DioramaCore
 import Synchronization
 
-private enum SourceOperationResult: Sendable {
-    case value(UInt64)
-    case failedTrackOperation
-    case unavailable
-}
-
-private final class LiveRandomNumberGenerator<Source: RandomNumberGenerator & Sendable>:
-    RandomNumberGenerator, Sendable
-{
-    private struct State: Sendable {
-        var source: Source?
-    }
-
-    private let lease: HeaderlessSequentialTrackLease<UInt64>
-    private let preparation: ValuePreparation<UInt64>
-    private let state: Mutex<State>
-
-    init(
-        lease: HeaderlessSequentialTrackLease<UInt64>,
-        preparation: ValuePreparation<UInt64>,
-        source: Source)
-    {
-        self.lease = lease
-        self.preparation = preparation
-        state = Mutex(State(source: source))
-    }
-
-    func next() -> UInt64 {
-        let result = nextRecording()
-
-        switch result {
-        case let .value(value):
-            return value
-        case .failedTrackOperation:
-            return 0
-        case .unavailable:
-            _ = lease.report(.system(DiagnosticLabel("random-operation-after-close")))
-            return 0
-        }
-    }
-
-    private func nextRecording() -> SourceOperationResult {
-        state.withLock { state in
-            guard var source = state.source else { return .unavailable }
-            var liveValue: UInt64?
-            do {
-                try lease.record(
-                    capturing: {
-                        let value = source.next()
-                        state.source = source
-                        liveValue = value
-                        return value
-                    },
-                    preparation: preparation)
-                guard let liveValue else {
-                    preconditionFailure("Successful random recording must capture one value")
-                }
-                return .value(liveValue)
-            } catch {
-                if let liveValue {
-                    return .value(liveValue)
-                }
-                return .failedTrackOperation
-            }
-        }
-    }
-
-    func close() {
-        let detached = state.withLock { state in
-            let source = state.source
-            state.source = nil
-            return source
-        }
-        withExtendedLifetime(detached) {}
-    }
-}
-
-private final class ReplayRandomNumberGenerator: RandomNumberGenerator, Sendable {
-    private let lease: HeaderlessSequentialTrackLease<UInt64>
-
-    init(lease: HeaderlessSequentialTrackLease<UInt64>) {
-        self.lease = lease
-    }
-
-    func next() -> UInt64 {
-        (try? lease.consumeNext()) ?? 0
-    }
-}
-
 /// Setup helpers for Diorama's first-party random system.
 public enum DioramaRandomSystem {
     static let type = ScenarioSystemType("diorama.random", persistence: DioramaRandomPersistence.registration)
@@ -143,6 +54,10 @@ public enum DioramaRandomSystem {
     /// var generator = try execution.dependency(random)
     /// ```
     ///
+    /// Recording copies share one serialized source, including after finish.
+    /// Later reads diagnose closure and return live values without recording.
+    /// Replay uses the track's zero fallback and never creates a live source.
+    ///
     /// Passthrough returns that source directly. Value-generator copies advance
     /// independently; reference sources keep native sharing. Retained sources
     /// remain usable after finish without Diorama operation diagnostics.
@@ -159,35 +74,86 @@ public enum DioramaRandomSystem {
         sourceFactory: @escaping @Sendable () -> some RandomNumberGenerator & Sendable)
         throws -> ScenarioSystem<any RandomNumberGenerator & Sendable>
     {
-        let attachmentKey = AttachmentKey(rawValue: name)
-        let trackID = trackID(for: attachmentKey)
-        let attachment = try ScenarioAttachment(
-            id: attachmentID(for: attachmentKey)).adding(
-            HeaderlessSequentialTrack<UInt64>(id: trackID))
-        return try ScenarioSystem(type: type, attachment: attachment,
-                                  allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
-        { context in
-            if context.mode == .passthrough {
-                return PreparedSystem {
-                    ActivatedSystem(dependency: sourceFactory() as any RandomNumberGenerator & Sendable, deactivate: {})
-                }
+        try ScenarioSystem(named: name, definition: RandomDefinition(sourceFactory: sourceFactory),
+                           allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
+    }
+}
+
+/// Native generator ownership follows the recording dependency, including
+/// after recording closes. Its copies share one serialized source.
+private final class RecordingRandomSource<Source: RandomNumberGenerator & Sendable>: Sendable {
+    private let source: Mutex<Source>
+
+    init(_ source: Source) {
+        self.source = Mutex(source)
+    }
+
+    func next() -> UInt64 {
+        source.withLock { $0.next() }
+    }
+}
+
+private struct RecordingRandom<Source: RandomNumberGenerator & Sendable>: RandomNumberGenerator, Sendable {
+    let execution: SystemExecution<HeaderlessSequentialTrackLease<UInt64>>
+    let source: RecordingRandomSource<Source>
+
+    func next() -> UInt64 {
+        do {
+            return try execution.withActiveState { values, operation in
+                var result: UInt64?
+                // Reserve before reading; a rejected recording must not lose or
+                // repeat a native read that already happened.
+                _ = try? operation.record(on: values, capturing: {
+                    let native = source.next()
+                    result = native
+                    return native
+                }, preparation: ValuePreparation<UInt64>())
+                return result ?? source.next()
             }
-            let preparation = ValuePreparation<UInt64>()
-            let lease = try context.lease(for: trackID, preparation: preparation)
-            if context.mode == .replay {
-                return PreparedSystem {
-                    ActivatedSystem(
-                        dependency: ReplayRandomNumberGenerator(lease: lease) as any RandomNumberGenerator & Sendable,
-                        deactivate: {})
-                }
-            }
-            return PreparedSystem {
-                let generator = LiveRandomNumberGenerator(
-                    lease: lease, preparation: preparation, source: sourceFactory())
-                return ActivatedSystem(
-                    dependency: generator as any RandomNumberGenerator & Sendable,
-                    deactivate: { generator.close() })
-            }
+        } catch {
+            return source.next()
         }
+    }
+}
+
+private struct ReplayingRandom: RandomNumberGenerator, Sendable {
+    let values: HeaderlessSequentialTrackLease<UInt64>
+
+    func next() -> UInt64 {
+        (try? values.consumeNext()) ?? 0
+    }
+}
+
+private struct RandomDefinition<Source: RandomNumberGenerator & Sendable>: SystemDefinition {
+    let systemType = DioramaRandomSystem.type
+    let values = TrackDefinition<UInt64, Void>("values", continuationPolicy: .fallback(0))
+    let sourceFactory: @Sendable () -> Source
+
+    var tracks: [AnyTrackDefinition] {
+        [values.erased]
+    }
+
+    func makeRecordState(in context: borrowing SystemStateContext) throws -> HeaderlessSequentialTrackLease<UInt64> {
+        try context.lease(for: values)
+    }
+
+    func makeReplayState(in context: borrowing SystemStateContext) throws -> HeaderlessSequentialTrackLease<UInt64> {
+        try context.lease(for: values)
+    }
+
+    func makeRecordDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<UInt64>>)
+        -> any RandomNumberGenerator & Sendable
+    {
+        RecordingRandom(execution: execution, source: RecordingRandomSource(sourceFactory()))
+    }
+
+    func makeReplayDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<UInt64>>)
+        throws -> any RandomNumberGenerator & Sendable
+    {
+        try execution.withActiveState { values, _ in ReplayingRandom(values: values) }
+    }
+
+    func makePassthroughDependency() -> any RandomNumberGenerator & Sendable {
+        sourceFactory()
     }
 }

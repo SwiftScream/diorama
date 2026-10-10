@@ -160,6 +160,43 @@ across modes, and recordability restrictions on native passthrough operations.
 The owner accepts those tradeoffs. No dependency, persistence schema, HTTP
 record shape, deployment-floor, or automatic test-outcome change is approved.
 
+## Recording lifetime and replay continuation amendment — 2026-10-11
+
+The owner approves this simplification during the Fa02 review and requests its
+implementation. This amendment supersedes the uniform recording closure and
+snapshot requirements above and the corresponding portions of DD10, DD13,
+and DD15.
+
+Core closes recording admission, freezes the result, drains admitted managed
+operations and notifications, and releases managed state. Each system defines
+its dependency's behavior after recording closes. Date and Random retain their
+live source in the returned dependency: later calls diagnose closure and invoke
+that same source exactly once without recording. Random copies continue to
+share its serialized source. Releasing the last dependency releases its source;
+finish does not promise to release a deliberately retained live source.
+Startup failure still unwinds unpublished dependencies and managed resources.
+
+Location and URLSession keep their explicitly specified shutdown behavior.
+This change does not permit live replay fallback, extend the recording horizon,
+mutate a finalized result, or restart scenario-owned scheduling. Late diagnostics
+remain separately inspectable and cannot retroactively change the final report.
+
+Sequential replay uses the public track-level `ReplayContinuationPolicy` for
+exhaustion and closure. Date selects replay-last with a Unix-epoch default;
+Random selects zero fallback. Error continuation remains available. Public
+`consumeNext()` is safe outside a managed state operation, and Core joins
+admitted reads and their notification delivery before freezing the report.
+Retained leases release track contents and keep only the selected continuation.
+Other track mutations remain scoped Core services.
+
+Remove `SystemRuntime.snapshot()` and `SystemSnapshot<Value>`, including generic
+projection registration and updating. Core still commits managed state on
+throwing exits before delivering notifications. A system requiring frozen
+properties after shutdown must define its retained stable values explicitly;
+there is no general runtime snapshot facility. A returned dependency may retain
+a closed-safe replay lease; this deliberate capability does not authorize
+extracting arbitrary active resources from protected state.
+
 ## Managed diagnostic reporting — owner-approved amendment 2026-10-12
 
 [Decision 5's final-report-only amendment](05-consumption-and-verification.md#final-report-only-diagnostics--owner-approved-2026-10-12)

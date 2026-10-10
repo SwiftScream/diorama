@@ -3,7 +3,7 @@
 /// Preparation must not install adapters or expose usable dependencies. The
 /// activation closure runs only after every attachment and declared track is
 /// prepared.
-public struct PreparedSystem<Dependency: Sendable>: Sendable {
+struct PreparedSystem<Dependency: Sendable>: Sendable {
     let activate: @Sendable () throws -> ActivatedSystem<Dependency>
 
     /// Creates a prepared system for one fresh execution.
@@ -13,15 +13,16 @@ public struct PreparedSystem<Dependency: Sendable>: Sendable {
     ///   unwind its own partial installation; only returned activations can
     ///   participate in execution-owned rollback. Do not publish dependencies
     ///   from the callback; retrieve them from the successfully started run.
-    public init(activate: @escaping @Sendable () throws -> ActivatedSystem<Dependency>) {
+    init(activate: @escaping @Sendable () throws -> ActivatedSystem<Dependency>) {
         self.activate = activate
     }
 }
 
 /// An installed dependency and its record/replay cleanup obligation.
-public struct ActivatedSystem<Dependency: Sendable>: Sendable {
+struct ActivatedSystem<Dependency: Sendable>: Sendable {
     let dependency: Dependency
     let deactivate: @Sendable () throws -> Void
+    var quiesce: @Sendable () async -> Void = {}
 
     /// Creates a successful activation.
     ///
@@ -34,9 +35,17 @@ public struct ActivatedSystem<Dependency: Sendable>: Sendable {
     ///     Release Diorama-owned resources;
     ///     do not close or cancel consumer-owned sources. Native asynchronous
     ///     quiescence is not part of this sequential extension boundary.
-    public init(dependency: Dependency, deactivate: @escaping @Sendable () throws -> Void) {
+    init(dependency: Dependency, deactivate: @escaping @Sendable () throws -> Void) {
         self.dependency = dependency
         self.deactivate = deactivate
+    }
+
+    init(dependency: Dependency, deactivate: @escaping @Sendable () throws -> Void,
+         quiesce: @escaping @Sendable () async -> Void)
+    {
+        self.dependency = dependency
+        self.deactivate = deactivate
+        self.quiesce = quiesce
     }
 }
 
@@ -64,6 +73,52 @@ public struct ScenarioSystem<Dependency: Sendable>: Sendable {
 
     let prepare: @Sendable (SystemPreparationContext) throws -> PreparedSystem<Dependency>
 
+    /// Derives layout, validates resolved content, and installs fresh managed
+    /// state using one typed public system definition. Duplicate keys fail setup.
+    public init<Definition: SystemDefinition>(
+        named name: String, definition: Definition, allowsUnclaimedReplayRecords: Bool = false) throws
+        where Definition.Dependency == Dependency
+    {
+        let id = AttachmentID(systemTypeID: definition.systemType.id, key: AttachmentKey(rawValue: name))
+        let tracks = definition.tracks
+        var attachment = ScenarioAttachment(id: id)
+        for track in tracks {
+            attachment = try track.add(attachment)
+        }
+        try self.init(type: definition.systemType, attachment: attachment,
+                      allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
+        { context in
+            var entries: [TrackKey: any PreparedTrackEntry] = [:]
+            if context.mode != .passthrough {
+                for track in tracks {
+                    entries[track.key] = try track.prepare(context)
+                }
+            }
+            let registry = PreparedTrackRegistry(entries: entries, attachmentID: id, reporter: context.reporter)
+            try definition.validate(in: SystemValidationContext(
+                registry: registry, attachmentID: id, mode: context.mode))
+            return PreparedSystem {
+                let stateContext = SystemStateContext(
+                    registry: registry, attachmentID: id,
+                    time: context.time, clock: context.clock, scheduling: context.scheduling)
+                switch context.mode {
+                case .passthrough:
+                    return try ActivatedSystem(dependency: definition.makePassthroughDependency(), deactivate: {})
+                case .record:
+                    return try Self.activateManaged(
+                        state: definition.makeRecordState(in: stateContext), context: context,
+                        dependency: definition.makeRecordDependency,
+                        cleanup: definition.cleanUpRecordState)
+                case .replay:
+                    return try Self.activateManaged(
+                        state: definition.makeReplayState(in: stateContext), context: context,
+                        dependency: definition.makeReplayDependency,
+                        cleanup: definition.cleanUpReplayState)
+                }
+            }
+        }
+    }
+
     /// Creates one reusable typed system.
     ///
     /// The attachment and dependency key always derive from the attachment's
@@ -78,7 +133,7 @@ public struct ScenarioSystem<Dependency: Sendable>: Sendable {
     ///     for this attachment. A system factory chooses whether to expose this option.
     ///   - prepare: Creates a fresh prepared system for each execution.
     /// - Throws: An attachment identity belonging to another system type.
-    public init(
+    init(
         type: ScenarioSystemType,
         attachment: ScenarioAttachment,
         allowsUnclaimedReplayRecords: Bool = false,
@@ -103,6 +158,25 @@ public struct ScenarioSystem<Dependency: Sendable>: Sendable {
         var copy = self
         copy.modeOverride = mode
         return copy
+    }
+
+    private static func activateManaged<State: Sendable>(
+        state: State, context: SystemPreparationContext,
+        dependency: (SystemExecution<State>) throws -> Dependency,
+        cleanup: @escaping @Sendable (State) throws -> Void) throws -> ActivatedSystem<Dependency>
+    {
+        let execution = SystemExecution(state: state, context: context)
+        do {
+            return try ActivatedSystem(dependency: dependency(execution),
+                                       deactivate: { try execution.close(cleanup: cleanup) },
+                                       quiesce: { await execution.join() })
+        } catch {
+            do { try execution.close(cleanup: cleanup) } catch {
+                context.reporter.record(Diagnostic(issue: .lifecycle(.cleanupFailed),
+                                                   context: .attachment(context.attachmentID)))
+            }
+            throw error
+        }
     }
 }
 
@@ -141,7 +215,8 @@ public struct AnyScenarioSystem: Sendable {
                 return AnyActivatedSystem(
                     attachmentID: attachmentID,
                     dependency: activation.dependency,
-                    deactivate: mode == .passthrough ? nativeCleanup : activation.deactivate)
+                    deactivate: mode == .passthrough ? nativeCleanup : activation.deactivate,
+                    quiesce: activation.quiesce)
             }
         }
     }
@@ -160,4 +235,5 @@ struct AnyActivatedSystem: Sendable {
     let attachmentID: AttachmentID
     let dependency: any Sendable
     let deactivate: @Sendable () throws -> Void
+    var quiesce: @Sendable () async -> Void = {}
 }

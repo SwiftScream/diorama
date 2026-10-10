@@ -17,6 +17,7 @@ final class ExecutionAdmission: Sendable {
 
 protocol AnySequentialLease: Sendable {
     var id: TrackID { get }
+    func join() async
     @discardableResult
     func close(mergingRecording: Bool) -> ClosedSequentialTrack
 }

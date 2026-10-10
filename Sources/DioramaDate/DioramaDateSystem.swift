@@ -80,6 +80,8 @@ public enum DioramaDateSystem {
     /// The factory runs only after successful preparation. Record mode
     /// serializes source reads with track operations. Passthrough returns the
     /// native source with its ordinary concurrency and lifetime requirements.
+    /// After recording closes, the returned dependency keeps its live source:
+    /// reads diagnose closure and return native dates without recording them.
     /// Recording selects the current timezone for origin display at activation;
     /// it never changes the absolute `Date` returned to the consumer.
     public static func instance(
@@ -88,43 +90,59 @@ public enum DioramaDateSystem {
         sourceFactory: @escaping @Sendable () -> some DioramaDateSource)
         throws -> ScenarioSystem<any DioramaDateSource>
     {
-        let key = AttachmentKey(rawValue: name)
-        let trackID = trackID(for: key)
-        let attachment = try attachment(named: name)
-        return try ScenarioSystem(type: type, attachment: attachment,
-                                  allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
-        { context in
-            if context.mode == .passthrough {
-                return PreparedSystem {
-                    ActivatedSystem(dependency: sourceFactory() as any DioramaDateSource, deactivate: {})
-                }
-            }
-            let lease = try context.lease(
-                for: trackID, preparation: valuePreparation,
-                headerPreparation: ValuePreparation<Int?>(),
-                continuationPolicy: .replayLast(defaultValue: .observed(ReplayDateSource.unixEpoch)),
-                mergeRecording: mergeWallRecording)
-            switch context.mode {
-            case .record:
-                return PreparedSystem {
-                    try lease.setHeader(capturing: { nil }, preparation: ValuePreparation<Int?>())
-                    let recording = WallRecordingState()
-                    let dates = LiveDateSource(
-                        recording: recording, lease: lease, source: sourceFactory())
-                    return ActivatedSystem(
-                        dependency: dates as any DioramaDateSource,
-                        deactivate: { dates.close() })
-                }
-            case .passthrough:
-                preconditionFailure("Passthrough returns its native dependency before lease preparation")
-            case .replay:
-                return PreparedSystem {
-                    let dates = ReplayDateSource(lease: lease)
-                    return ActivatedSystem(
-                        dependency: dates as any DioramaDateSource,
-                        deactivate: {})
-                }
-            }
+        try ScenarioSystem(named: name, definition: DateDefinition(sourceFactory: sourceFactory),
+                           allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
+    }
+}
+
+struct DateDefinition<Source: DioramaDateSource>: SystemDefinition {
+    let systemType = DioramaDateSystem.type
+    let wall: TrackDefinition<OverridableValue<Date>, Int?>
+    let sourceFactory: @Sendable () -> Source
+    let timeZone: @Sendable () -> TimeZone
+
+    init(sourceFactory: @escaping @Sendable () -> Source,
+         timeZone: @escaping @Sendable () -> TimeZone = { .current }) throws
+    {
+        self.sourceFactory = sourceFactory
+        self.timeZone = timeZone
+        wall = try TrackDefinition(
+            "wall", header: ValuePreparation<Int?>().admitPrepared(nil),
+            preparation: DioramaDateSystem.valuePreparation,
+            continuationPolicy: .replayLast(defaultValue: .observed(ReplayingDateSource.unixEpoch)),
+            mergeRecording: DioramaDateSystem.mergeWallRecording)
+    }
+
+    var tracks: [AnyTrackDefinition] {
+        [wall.erased]
+    }
+
+    func makeRecordState(in context: borrowing SystemStateContext) throws -> DateRecordState {
+        let lease = try context.lease(for: wall)
+        let recording = WallRecordingState(timeZone: timeZone())
+        return DateRecordState(values: lease, recording: recording)
+    }
+
+    func makeReplayState(in context: borrowing SystemStateContext) throws
+        -> SequentialTrackLease<OverridableValue<Date>, Int?>
+    {
+        try context.lease(for: wall)
+    }
+
+    func makeRecordDependency(using execution: SystemExecution<DateRecordState>) throws -> any DioramaDateSource {
+        try execution.withActiveState { state, operation in
+            try operation.setHeader(on: state.values, capturing: { nil }, preparation: ValuePreparation<Int?>())
         }
+        return RecordingDateSource(execution: execution, source: sourceFactory())
+    }
+
+    func makeReplayDependency(using execution: SystemExecution<SequentialTrackLease<OverridableValue<Date>, Int?>>)
+        throws -> any DioramaDateSource
+    {
+        try execution.withActiveState { values, _ in ReplayingDateSource(values: values) }
+    }
+
+    func makePassthroughDependency() -> any DioramaDateSource {
+        sourceFactory()
     }
 }

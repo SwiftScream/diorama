@@ -91,10 +91,13 @@ each execution has fresh cursors and a fresh execution-clock origin.
 Passthrough returns the native source directly. A retained source keeps reading
 live dates after finish, with its own concurrency and cleanup requirements;
 Diorama neither freezes its last value nor reports those reads as misuse.
-Record/replay handles retain their existing closed-handle behavior.
+Recording handles also retain their live source after finish, but diagnose each
+late read and never add it to the recording. Replay handles remain offline and
+use the track's replay-last policy, defaulting to Unix epoch before any value
+has been consumed.
 
 All handles obtained from `ScenarioExecution.context.clock`,
-`SystemPreparationContext.clock`, and the `execute` body context use that execution's
+`SystemRuntime.clock`, and the `execute` body context use that execution's
 scheduler. Applications can exchange deadlines with their systems as logical
 offsets. A transferred instant means the same offset from the receiving
 execution's origin; it carries no execution identity or wall date.
@@ -146,9 +149,11 @@ Finish cancels pending sleeps, joins claimed system delivery, and freezes the
 execution clock at its admission-closing horizon. A claimed sleep completes
 normally. The scheduler joins sleep handoffs; it does not join application work
 that runs after a sleep resumes. Await application tasks within their scope.
-Escaped wall and execution-clock handles diagnose use after closure. Wall reads
-repeat their last value or Unix epoch, execution `now` returns the frozen
-horizon, and a new sleep throws an execution-closed scheduling failure.
+Escaped recording and replay wall handles and execution-clock handles diagnose
+use after closure. Recording wall reads continue using the live source; replay
+wall reads repeat their last consumed value or Unix epoch. The execution clock's
+`now` returns the frozen horizon, and a new sleep throws an execution-closed
+scheduling failure. Late reads never change the frozen recording or report.
 
 The portable clock contract is tested on macOS, iOS Simulator, and Linux.
 The scalar and wall/composition suites also run on iOS 18.0; this targeted

@@ -183,38 +183,39 @@ struct WallSourceTests {
             probe.makeSource()
         }
         let execution = try start(system)
-        let wall = try execution.dependency(system)
+        var wall: (any DioramaDateSource)? = try execution.dependency(system)
 
-        #expect(wall.now.timeIntervalSince1970.isInfinite)
+        #expect(wall?.now.timeIntervalSince1970.isInfinite == true)
         #expect(execution.reporter.report == nil)
-        #expect(wall.now == valid)
+        #expect(wall?.now == valid)
         #expect(execution.reporter.report == nil)
         let result = await execution.finish()
         #expect(result.definition == nil)
         #expect(result.report.diagnostics.map(\.diagnostic.issue) == [.conversionFailed])
         #expect(probe.readCount == 2)
+        #expect(probe.releaseCount == 0)
+        wall = nil
         #expect(probe.releaseCount == 1)
     }
 
     @Test
-    func `finish detaches the source from an escaped wall handle`() async throws {
+    func `recording source survives finish and releases with the retained wall handle`() async throws {
         let date = Date(timeIntervalSince1970: 17)
-        let probe = WallSourceProbe(values: [date])
-        let system = try DioramaDateSystem.instance(named: "closed") {
-            probe.makeSource()
-        }
+        let later = Date(timeIntervalSince1970: 18)
+        let probe = WallSourceProbe(values: [date, later])
+        let system = try DioramaDateSystem.instance(named: "closed") { probe.makeSource() }
         let execution = try start(system)
-        let wall = try execution.dependency(system)
-        #expect(wall.now == date)
+        var wall: (any DioramaDateSource)? = try execution.dependency(system)
+        #expect(wall?.now == date)
+        let final = await execution.finish()
         #expect(probe.releaseCount == 0)
-
-        _ = await execution.finish()
+        #expect(wall?.now == later)
+        #expect(probe.readCount == 2)
+        wall = nil
         #expect(probe.releaseCount == 1)
-        #expect(wall.now == date)
-        #expect(probe.readCount == 1)
-        #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [
-            .lifecycle(.leaseClosed),
-        ])
+        #expect(try DioramaDateSystem.recording(in: #require(final.definition).attachments[0]).effectiveDates == [date])
+        #expect(await execution.finish().report == final.report)
+        #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [.lifecycle(.leaseClosed)])
     }
 
     @Test
@@ -261,19 +262,8 @@ struct WallSourceTests {
         sourceFactory: @escaping @Sendable () -> some DioramaDateSource)
         throws -> ScenarioSystem<any DioramaDateSource>
     {
-        let attachment = try DioramaDateSystem.attachment(named: name)
-        let trackID = DioramaDateSystem.trackID(for: attachment.id.key)
-        return try ScenarioSystem(type: DioramaDateSystem.type, attachment: attachment) { context in
-            let lease = try context.lease(
-                for: trackID, preparation: ValuePreparation<OverridableValue<Date>>(),
-                headerPreparation: ValuePreparation<Int?>())
-            return PreparedSystem {
-                let clock = LiveDateSource(
-                    recording: WallRecordingState(timeZone: timeZone),
-                    lease: lease, source: sourceFactory())
-                return ActivatedSystem(dependency: clock as any DioramaDateSource, deactivate: { clock.close() })
-            }
-        }
+        try ScenarioSystem(named: name, definition: DateDefinition(sourceFactory: sourceFactory,
+                                                                   timeZone: { timeZone }))
     }
 
     private func start(
@@ -326,7 +316,8 @@ extension WallSourceTests {
         }
         #expect(result.report.diagnostics.isEmpty)
         if mode == .record {
-            #expect(wall.now == observed)
+            let later = Date()
+            #expect(wall.now >= later)
             #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [.lifecycle(.leaseClosed)])
         } else {
             let later = Date()
@@ -336,13 +327,14 @@ extension WallSourceTests {
     }
 
     @Test(arguments: [([0.0, 1e16], 1), ([0.0, 2e15, 1e16], 2)])
-    func `out of range observations preserve native returns and last value`(
+    func `out of range observations preserve native returns and subsequent live reads`(
         seconds: [TimeInterval], failures: Int) async throws
     {
         // Both extreme values now fail the portable Date range before delta
         // arithmetic. Each unsupported read retains its own conversion fact.
         let native = seconds.map { Date(timeIntervalSince1970: $0) }
-        let probe = WallSourceProbe(values: native)
+        let later = Date(timeIntervalSince1970: 42)
+        let probe = WallSourceProbe(values: native + [later])
         let system = try recordingSystem(named: "overflow", timeZone: .gmt) { probe.makeSource() }
         let execution = try start(system)
         let wall = try execution.dependency(system)
@@ -355,23 +347,24 @@ extension WallSourceTests {
         #expect(result.report.diagnostics.map(\.diagnostic.issue)
             == Array(repeating: .conversionFailed, count: failures))
         #expect(probe.readCount == native.count)
-        #expect(probe.releaseCount == 1)
-        #expect(wall.now == native.last)
-        #expect(probe.readCount == native.count)
+        #expect(probe.releaseCount == 0)
+        #expect(wall.now == later)
+        #expect(probe.readCount == native.count + 1)
     }
 
     @Test
-    func `closing recording before the first wall read returns the epoch without accessing the source`() async throws {
-        let probe = WallSourceProbe(values: [])
+    func `closing recording before the first wall read still returns a live value`() async throws {
+        let probe = WallSourceProbe(values: [Date(timeIntervalSince1970: 42)])
         let system = try DioramaDateSystem.instance(named: "unread") { probe.makeSource() }
         let execution = try start(system, mode: .record)
         let wall = try execution.dependency(system)
 
         let result = await execution.finish()
         #expect(result.report.diagnostics.isEmpty)
-        #expect(probe.releaseCount == 1)
-        #expect(wall.now == Date(timeIntervalSince1970: 0))
-        #expect(probe.readCount == 0)
+        #expect(probe.releaseCount == 0)
+        #expect(wall.now == Date(timeIntervalSince1970: 42))
+        #expect(probe.readCount == 1)
+        #expect(result.usage[0].tracks[0].activity == .record(recordedCount: 0, incompleteCount: 0))
         #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [
             .lifecycle(.leaseClosed),
         ])

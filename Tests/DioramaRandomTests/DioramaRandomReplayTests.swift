@@ -134,7 +134,7 @@ struct DioramaRandomReplayTests {
     }
 
     @Test
-    func `finish closes escaped managed generators offline`() async throws {
+    func `closed recording remains live while closed replay stays offline`() async throws {
         try await assertClosedGenerator(mode: .record, expectedSourceCount: 1)
         try await assertClosedGenerator(mode: .replay, expectedSourceCount: 0)
     }
@@ -158,9 +158,9 @@ private func assertClosedGenerator(
     #expect(generator.next() == 51)
     #expect(await (execution.finish()).report.diagnostics.isEmpty)
     #expect(probe.factoryCallCount == expectedSourceCount)
-    #expect(probe.releaseCount == expectedSourceCount)
-    #expect(generator.next() == 0)
-    #expect(probe.sourceCallCount == expectedSourceCount)
+    #expect(probe.releaseCount == 0)
+    #expect(generator.next() == (mode == .record ? 51 : 0))
+    #expect(probe.sourceCallCount == expectedSourceCount * 2)
     #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [
         .lifecycle(.leaseClosed),
     ])

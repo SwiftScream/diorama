@@ -21,7 +21,7 @@ struct DioramaRandomTests {
         #expect(generator.next() == 13)
         #expect(probe.callCount == 3)
         #expect(await execution.finish().report.diagnostics.isEmpty)
-        #expect(probe.releaseCount == 1)
+        withExtendedLifetime((generator, alias)) { #expect(probe.releaseCount == 0) }
     }
 
     @Test
@@ -99,17 +99,20 @@ struct DioramaRandomTests {
         _ = await secondExecution.finish()
 
         #expect(probe.creationCount == 2)
-        #expect(probe.releaseCount == 2)
+        withExtendedLifetime((first, second)) { #expect(probe.releaseCount == 0) }
     }
 
-    @Test
-    func `one attachment serializes concurrent source access and recording`() async throws {
+    @Test(arguments: [false, true])
+    func `one recording attachment serializes native access before and after finish`(closed: Bool) async throws {
         let key = AttachmentKey(rawValue: "concurrent")
         let values = Array(0..<UInt64(100))
         let probe = SourceProbe(sequences: [values], operationDelay: 0.001)
         let instance = try DioramaRandomSystem.instance(named: key.rawValue) { probe.makeSource() }
         let execution = try start(mode: .record, instance: instance)
         let generator = try execution.dependency(instance)
+        if closed {
+            _ = await execution.finish()
+        }
         let observed = await withTaskGroup(of: UInt64.self, returning: [UInt64].self) { group in
             for _ in values {
                 group.addTask {
@@ -127,25 +130,33 @@ struct DioramaRandomTests {
         #expect(observed.sorted() == values)
         #expect(probe.maximumConcurrentCalls == 1)
         #expect(probe.callCount == values.count)
-        #expect(await execution.finish().report.diagnostics.isEmpty)
+        let final = await execution.finish()
+        #expect(final.report.diagnostics.isEmpty)
+        #expect(final.usage[0].tracks[0].activity == .record(recordedCount: closed ? 0 : 100, incompleteCount: 0))
+        #expect(execution.reporter.postFinishDiagnostics.count == (closed ? values.count : 0))
     }
 
     @Test
-    func `finish releases the source and closes an escaped generator`() async throws {
-        let key = AttachmentKey(rawValue: "closed")
-        let probe = SourceProbe(sequences: [[51, 52]])
-        let instance = try DioramaRandomSystem.instance(named: key.rawValue) { probe.makeSource() }
+    func `recording source survives finish and releases with its last dependency`() async throws {
+        let probe = SourceProbe(sequences: [[51, 52, 53]])
+        let instance = try DioramaRandomSystem.instance(named: "closed") { probe.makeSource() }
         let execution = try start(mode: .record, instance: instance)
-        var generator = try execution.dependency(instance)
-
-        #expect(generator.next() == 51)
+        var generator: (any RandomNumberGenerator & Sendable)? = try execution.dependency(instance)
+        var alias = generator
+        #expect(generator?.next() == 51)
         let result = await execution.finish()
         #expect(result.report.diagnostics.isEmpty)
+        #expect(probe.releaseCount == 0)
+        #expect(generator?.next() == 52)
+        generator = nil
+        #expect(alias?.next() == 53)
+        alias = nil
         #expect(probe.releaseCount == 1)
-        #expect(generator.next() == 0)
-        #expect(probe.callCount == 1)
+        #expect(probe.callCount == 3)
+        #expect(result.usage[0].tracks[0].activity == .record(recordedCount: 1, incompleteCount: 0))
+        #expect(await execution.finish().report == result.report)
         #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [
-            .lifecycle(.leaseClosed),
+            .lifecycle(.leaseClosed), .lifecycle(.leaseClosed),
         ])
     }
 
@@ -166,7 +177,7 @@ struct DioramaRandomTests {
         let track = try #require(try attachment.track(attachment.trackIDs[0], as: UInt64.self))
         #expect(track.records.map(\.value) == [7, 8, 9])
         #expect(result.report.diagnostics.isEmpty)
-        #expect(alias.next() == 0)
+        #expect(alias.next() == 10)
         #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [
             .lifecycle(.leaseClosed),
         ])

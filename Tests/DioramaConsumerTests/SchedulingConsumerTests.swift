@@ -69,14 +69,9 @@ struct SchedulingConsumerTests {
     }
 
     private func start() throws -> Setup {
-        let type = ScenarioSystemType("scheduled-consumer")
-        let id = AttachmentID(systemTypeID: type.id, key: AttachmentKey(rawValue: "consumer"))
-        let track = TrackID(attachmentID: id, key: TrackKey(rawValue: "events"))
-        let attachment = try ScenarioAttachment(id: id).adding(HeaderlessSequentialTrack<Int>(id: track))
-        let system = try ScenarioSystem(type: type, attachment: attachment) { context in
-            _ = try context.lease(for: track, preparation: ValuePreparation<Int>())
-            return PreparedSystem { ActivatedSystem(dependency: context.scheduling, deactivate: {}) }
-        }
+        let system = try ScenarioSystem(named: "consumer", definition: SchedulingDefinition())
+        let attachment = system.attachment
+        let track = attachment.trackIDs[0]
         let execution = try ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]), scenarioID: ScenarioID(rawValue: "consumer"),
             defaultMode: .replay, systems: [AnyScenarioSystem(system)])
@@ -85,3 +80,27 @@ struct SchedulingConsumerTests {
         return Setup(execution: execution, scheduling: scheduling, record: record)
     }
 }
+
+private struct SchedulingDefinition: SystemDefinition {
+    let systemType = ScenarioSystemType("scheduled-consumer")
+    let events = TrackDefinition<Int, Void>("events")
+    var tracks: [AnyTrackDefinition] {
+        [events.erased]
+    }
+
+    func makeRecordState(in _: borrowing SystemStateContext) {}
+    func makeReplayState(in _: borrowing SystemStateContext) {}
+    func makeRecordDependency(using execution: SystemExecution<Void>) -> SchedulingLease {
+        execution.scheduling
+    }
+
+    func makeReplayDependency(using execution: SystemExecution<Void>) -> SchedulingLease {
+        execution.scheduling
+    }
+
+    func makePassthroughDependency() throws -> SchedulingLease {
+        throw SchedulingConsumerFailure.unsupported
+    }
+}
+
+private enum SchedulingConsumerFailure: Error { case unsupported }

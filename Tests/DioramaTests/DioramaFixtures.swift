@@ -33,3 +33,37 @@ func preparedValues<Value: Sendable>(_ values: [Value]) throws -> [PreparedValue
         try preparation.prepare(capturing: { value }, purpose: .replay, reporter: reporter)
     }
 }
+
+/// Track-free fixture for consumer admission and retained-report lifecycle tests.
+struct LifecycleDefinition<Dependency: Sendable>: SystemDefinition {
+    let systemType = DioramaFixtures.type
+    var validation: @Sendable () throws -> Void = {}
+    let factory: @Sendable () throws -> Dependency
+    var cleanup: @Sendable () throws -> Void = {}
+
+    func validate(in _: borrowing SystemValidationContext) throws {
+        try validation()
+    }
+
+    func makeRecordState(in _: borrowing SystemStateContext) {}
+    func makeReplayState(in _: borrowing SystemStateContext) {}
+    func makeRecordDependency(using _: SystemExecution<Void>) throws -> Dependency {
+        try factory()
+    }
+
+    func makeReplayDependency(using _: SystemExecution<Void>) throws -> Dependency {
+        try factory()
+    }
+
+    func makePassthroughDependency() throws -> Dependency {
+        try factory()
+    }
+
+    func cleanUpRecordState(_: Void) throws {
+        try cleanup()
+    }
+
+    func cleanUpReplayState(_: Void) throws {
+        try cleanup()
+    }
+}

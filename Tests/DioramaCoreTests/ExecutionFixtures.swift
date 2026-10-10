@@ -1,4 +1,4 @@
-import DioramaCore
+@testable import DioramaCore
 import Synchronization
 
 enum ExecutionFixtures {
