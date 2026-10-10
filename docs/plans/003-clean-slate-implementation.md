@@ -1823,8 +1823,9 @@ evidence-driven lifecycle extension remain separately reviewed work.
 
 ### 003-Fa07 — Coverage export from current build products
 
-- Status: Approved review follow-up for R6 on 2026-10-11; not started.
-  Protocol R scope and model confirmation are required before implementation.
+- Status: Complete on 2026-10-11.
+  [Evidence](../evidence/003-Fa07-current-build-coverage.md) records current-build
+  isolation, stale-product regression, and macOS/iOS/Linux verification.
 - Recommended model: GPT-6 Sol; reasoning: `medium`. Artifact selection is
   bounded but must preserve the different Apple and Linux coverage layouts.
 - Prerequisites: 003-A04, 003-B10 and the quality/coverage policy. This tooling
