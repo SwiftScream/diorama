@@ -6,13 +6,16 @@ extension Duration {
 
     /// Adds a nonnegative delay without exceeding the supported logical range.
     func checkedLogicalTime(adding delay: Duration) -> Duration? {
-        guard self >= .zero, delay >= .zero else { return nil }
+        // Duration's storage is wider than its Int64 seconds component.
+        // Reject oversized operands before asking for components, which traps.
+        guard self >= .zero, self <= .maximumLogicalTime,
+              delay >= .zero, delay <= .maximumLogicalTime else { return nil }
         return Self.checkedLogicalDuration(attoseconds: logicalAttoseconds + delay.logicalAttoseconds)
     }
 
     /// Measures a nonnegative interval between execution-relative times.
     func checkedElapsed(since earlier: Duration) -> Duration? {
-        guard earlier >= .zero, self >= earlier else { return nil }
+        guard earlier >= .zero, self >= earlier, self <= .maximumLogicalTime else { return nil }
         return Self.checkedLogicalDuration(attoseconds: logicalAttoseconds - earlier.logicalAttoseconds)
     }
 

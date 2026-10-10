@@ -5,6 +5,36 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 struct TemporalConformanceTests {
     @Test
+    func `public logical delay API diagnoses oversized Duration without trapping`() async throws {
+        let system = try ConsumerTimedSystem.instance(key: "duration-bounds")
+        let execution = try start(system, mode: .record)
+        let time = try execution.dependency(system).time
+        let anchor = try time.capture()
+        let base = try time.logicalTime(at: anchor)
+        #expect(try time.logicalTime(after: .zero, from: anchor) == base)
+        #expect(try time.logicalTime(after: .milliseconds(125), from: anchor) == base + .milliseconds(125))
+        let outside = Duration.seconds(Int64.max) * 2
+        for delay in [outside, .seconds(Int64.max) + .seconds(1)] {
+            do {
+                _ = try time.logicalTime(after: delay, from: anchor)
+                Issue.record("An oversized delay must fail safely")
+            } catch {
+                #expect(error.diagnostic.issue == .logicalTime(.overflow))
+            }
+        }
+        do {
+            _ = try time.logicalTime(after: .zero - outside, from: anchor)
+            Issue.record("A negative delay must retain its existing failure")
+        } catch {
+            #expect(error.diagnostic.issue == .logicalTime(.negativeDelay))
+        }
+        let result = await execution.finish()
+        #expect(result.report.diagnostics.map(\.diagnostic.issue) == [
+            .logicalTime(.overflow), .logicalTime(.overflow), .logicalTime(.negativeDelay),
+        ])
+    }
+
+    @Test
     func `live capture preserves native order while replay runs and conversion is suspended`() async throws {
         let setup = try mixedSetup()
         let execution = setup.execution
