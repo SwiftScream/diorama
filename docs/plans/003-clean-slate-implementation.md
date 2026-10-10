@@ -1753,8 +1753,9 @@ evidence-driven lifecycle extension remain separately reviewed work.
 
 ### 003-Fa05 — Checked logical-time operand bounds
 
-- Status: Approved review follow-up for R4 on 2026-10-11; not started.
-  Protocol R scope and model confirmation are required before implementation.
+- Status: Complete on 2026-10-11.
+  [Evidence](../evidence/003-Fa05-checked-duration-bounds.md) records the isolated
+  crash reproduction, checked operand bounds, and public API regression.
 - Recommended model: GPT-6 Sol; reasoning: `medium`. This is a bounded numeric
   fix with a precise process-crash reproduction and existing error semantics.
 - Prerequisites: 003-E01–003-E03, 003-F06; DD14–DD15 and the execution-time

@@ -243,6 +243,10 @@ proposal for discussion, with its review gate recorded in the owning plan.
   records fixed numeric bounds, cross-offset round trips, and refusal of
   unsupported live dates without changing their native return.
 
+- [Checked logical-duration evidence](evidence/003-Fa05-checked-duration-bounds.md)
+  records safe operand rejection, public overflow diagnostics, and retained
+  scheduler and execution-clock behavior.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its
