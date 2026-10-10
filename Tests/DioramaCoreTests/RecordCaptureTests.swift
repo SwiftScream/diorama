@@ -123,7 +123,7 @@ struct RecordCaptureTests {
         #expect(result.report.diagnostics.count == 1)
     }
 
-    @Test(arguments: [ScenarioMode.replay, .passthrough])
+    @Test(arguments: [ScenarioMode.replay])
     func `wrong mode and closed admission do not call factories`(mode: ScenarioMode) async throws {
         let (execution, lease) = try RecordCaptureFixtures.start(mode: mode)
         #expect(throws: SequentialOperationFailure.self) {

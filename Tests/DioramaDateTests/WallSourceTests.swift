@@ -264,7 +264,7 @@ struct WallSourceTests {
                 headerPreparation: ValuePreparation<Int?>())
             return PreparedSystem {
                 let clock = LiveDateSource(
-                    mode: .record(WallRecordingState(timeZone: timeZone)),
+                    recording: WallRecordingState(timeZone: timeZone),
                     lease: lease, source: sourceFactory())
                 return ActivatedSystem(dependency: clock as any DioramaDateSource, deactivate: { clock.close() })
             }
@@ -284,6 +284,23 @@ struct WallSourceTests {
 }
 
 extension WallSourceTests {
+    @Test
+    func `passthrough dates remain live after finish and release with the retained handle`() async throws {
+        let probe = WallSourceProbe(values: [Date(timeIntervalSince1970: 1), Date(timeIntervalSince1970: 2)])
+        let system = try DioramaDateSystem.instance(named: "native-lifetime") { probe.makeSource() }
+        let execution = try start(system, mode: .passthrough)
+        var wall: (any DioramaDateSource)? = try execution.dependency(system)
+        #expect(wall?.now == Date(timeIntervalSince1970: 1))
+        let result = await execution.finish()
+        #expect(probe.releaseCount == 0)
+        #expect(wall?.now == Date(timeIntervalSince1970: 2))
+        wall = nil
+        #expect(probe.releaseCount == 1)
+        #expect(probe.readCount == 2)
+        #expect(result.report.diagnostics.isEmpty)
+        #expect(execution.reporter.postFinishDiagnostics.isEmpty)
+    }
+
     @Test(arguments: [ScenarioMode.record, .passthrough])
     func `default source returns live wall dates and honors the selected mode`(mode: ScenarioMode) async throws {
         let system = try DioramaDateSystem.instance(named: "platform-wall")
@@ -303,10 +320,14 @@ extension WallSourceTests {
             #expect(recording == .empty)
         }
         #expect(result.report.diagnostics.isEmpty)
-        #expect(wall.now == observed)
-        #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [
-            .lifecycle(.leaseClosed),
-        ])
+        if mode == .record {
+            #expect(wall.now == observed)
+            #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [.lifecycle(.leaseClosed)])
+        } else {
+            let later = Date()
+            #expect(wall.now >= later)
+            #expect(execution.reporter.postFinishDiagnostics.isEmpty)
+        }
     }
 
     @Test(arguments: [([0.0, 1e16], 1), ([0.0, 2e15, 1e16], 2)])
@@ -334,13 +355,11 @@ extension WallSourceTests {
         #expect(probe.readCount == native.count)
     }
 
-    @Test(arguments: [ScenarioMode.record, .passthrough])
-    func `closing before the first wall read returns the epoch without accessing the source`(
-        mode: ScenarioMode) async throws
-    {
+    @Test
+    func `closing recording before the first wall read returns the epoch without accessing the source`() async throws {
         let probe = WallSourceProbe(values: [])
         let system = try DioramaDateSystem.instance(named: "unread") { probe.makeSource() }
-        let execution = try start(system, mode: mode)
+        let execution = try start(system, mode: .record)
         let wall = try execution.dependency(system)
 
         let result = await execution.finish()

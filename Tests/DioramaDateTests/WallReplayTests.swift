@@ -219,7 +219,7 @@ struct WallReplayTests {
     }
 
     @Test
-    func `escaped passthrough handle repeats its last value after finish`() async throws {
+    func `escaped passthrough handle keeps reading its native source after finish`() async throws {
         let original = try recording([1, 2])
         let attachment = try DioramaDateSystem.attachment(named: "passthrough", recording: original)
         let factory = ReplaySourceFactoryProbe()
@@ -233,9 +233,7 @@ struct WallReplayTests {
 
         _ = await execution.finish()
         #expect(wall.now == native)
-        #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [
-            .lifecycle(.leaseClosed),
-        ])
+        #expect(execution.reporter.postFinishDiagnostics.isEmpty)
         #expect(factory.creationCount == 1)
     }
 

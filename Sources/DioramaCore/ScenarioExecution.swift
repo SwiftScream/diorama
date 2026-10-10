@@ -20,7 +20,8 @@ private struct StartupServices {
 /// adapters in reverse order, and retains one immutable result.
 /// Neither cleanup nor diagnostic notification runs under the execution lock.
 /// Correct cleanup requires awaiting ``finish()``; deinitialization is not a
-/// lifecycle substitute. Returned dependencies must honor their lease closure.
+/// lifecycle substitute. Record/replay dependencies honor lease closure;
+/// passthrough dependencies retain their native lifetime and cleanup obligations.
 public final class ScenarioExecution: Sendable {
     private struct ResourceContents: Sendable {
         var systems: [AnyActivatedSystem] = []
@@ -238,8 +239,9 @@ public final class ScenarioExecution: Sendable {
 
     /// Retrieves an activated dependency while the execution remains running.
     ///
-    /// Retaining a returned handle does not extend its lease lifetime. A lookup
-    /// racing finish may return a handle that has already closed by first use.
+    /// Retaining a record/replay handle does not extend its lease lifetime. A
+    /// lookup racing finish may return a managed handle already closed by first
+    /// use. Passthrough handles retain their ordinary native lifetime.
     ///
     /// - Parameter key: The configured system's typed dependency key.
     /// - Returns: The same activated dependency for repeated lookups in this run.

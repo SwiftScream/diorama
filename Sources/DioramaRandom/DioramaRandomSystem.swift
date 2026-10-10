@@ -7,11 +7,6 @@ private enum SourceOperationResult: Sendable {
     case unavailable
 }
 
-private enum LiveRandomMode: Sendable {
-    case record
-    case passthrough
-}
-
 private final class LiveRandomNumberGenerator<Source: RandomNumberGenerator & Sendable>:
     RandomNumberGenerator, Sendable
 {
@@ -19,30 +14,22 @@ private final class LiveRandomNumberGenerator<Source: RandomNumberGenerator & Se
         var source: Source?
     }
 
-    private let mode: LiveRandomMode
     private let lease: HeaderlessSequentialTrackLease<UInt64>
     private let preparation: ValuePreparation<UInt64>
     private let state: Mutex<State>
 
     init(
-        mode: LiveRandomMode,
         lease: HeaderlessSequentialTrackLease<UInt64>,
         preparation: ValuePreparation<UInt64>,
         source: Source)
     {
-        self.mode = mode
         self.lease = lease
         self.preparation = preparation
         state = Mutex(State(source: source))
     }
 
     func next() -> UInt64 {
-        let result: SourceOperationResult = switch mode {
-        case .record:
-            nextRecording()
-        case .passthrough:
-            nextPassthrough()
-        }
+        let result = nextRecording()
 
         switch result {
         case let .value(value):
@@ -78,13 +65,6 @@ private final class LiveRandomNumberGenerator<Source: RandomNumberGenerator & Se
                 }
                 return .failedTrackOperation
             }
-        }
-    }
-
-    private func nextPassthrough() -> SourceOperationResult {
-        state.withLock { state in
-            guard !lease.isClosed, state.source != nil else { return .unavailable }
-            return .value(state.source!.next())
         }
     }
 
@@ -127,7 +107,7 @@ public enum DioramaRandomSystem {
     /// Creates one reusable random system.
     ///
     /// Recording forms a new `UInt64` sequence, replay consumes existing values,
-    /// and passthrough ignores content. Select a mode on the returned system.
+    /// and passthrough returns the native source directly. Select a mode on the returned system.
     ///
     /// - Parameters:
     ///   - name: The caller-selected random-domain name.
@@ -163,6 +143,10 @@ public enum DioramaRandomSystem {
     /// var generator = try execution.dependency(random)
     /// ```
     ///
+    /// Passthrough returns that source directly. Value-generator copies advance
+    /// independently; reference sources keep native sharing. Retained sources
+    /// remain usable after finish without Diorama operation diagnostics.
+    ///
     /// - Parameters:
     ///   - name: The caller-selected random-domain name.
     ///   - allowsUnclaimedReplayRecords: Whether replay may leave random values unclaimed.
@@ -183,24 +167,23 @@ public enum DioramaRandomSystem {
         return try ScenarioSystem(type: type, attachment: attachment,
                                   allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
         { context in
+            if context.mode == .passthrough {
+                return PreparedSystem {
+                    ActivatedSystem(dependency: sourceFactory() as any RandomNumberGenerator & Sendable, deactivate: {})
+                }
+            }
             let preparation = ValuePreparation<UInt64>()
             let lease = try context.lease(for: trackID, preparation: preparation)
-            let mode: LiveRandomMode
-            switch context.mode {
-            case .replay:
+            if context.mode == .replay {
                 return PreparedSystem {
                     ActivatedSystem(
                         dependency: ReplayRandomNumberGenerator(lease: lease) as any RandomNumberGenerator & Sendable,
                         deactivate: {})
                 }
-            case .record:
-                mode = .record
-            case .passthrough:
-                mode = .passthrough
             }
             return PreparedSystem {
                 let generator = LiveRandomNumberGenerator(
-                    mode: mode, lease: lease, preparation: preparation, source: sourceFactory())
+                    lease: lease, preparation: preparation, source: sourceFactory())
                 return ActivatedSystem(
                     dependency: generator as any RandomNumberGenerator & Sendable,
                     deactivate: { generator.close() })

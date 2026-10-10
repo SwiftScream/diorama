@@ -124,7 +124,7 @@ struct RecordingMergeTests {
         #expect(result.report.diagnostics.isEmpty)
     }
 
-    @Test(arguments: [ScenarioMode.replay, .passthrough])
+    @Test(arguments: [ScenarioMode.replay])
     func `non recording modes preserve baseline and never run the merge`(mode: ScenarioMode) async throws {
         let (execution, lease) = try RecordingMergeFixtures.start(mode: mode, merge: { _, _ in
             Issue.record("Non-recording execution ran the merge")

@@ -60,7 +60,7 @@ struct ReplayContinuationTests {
         #expect(await execution.finish().usage == result.usage)
     }
 
-    @Test(arguments: [ScenarioMode.record, .passthrough])
+    @Test(arguments: [ScenarioMode.record])
     func `continuation cannot make wrong mode reads succeed`(_ mode: ScenarioMode) async throws {
         let (execution, lease) = try ReplayContinuationFixtures.start(
             values: [9], policy: .fallback(-1), mode: mode)

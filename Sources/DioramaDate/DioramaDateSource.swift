@@ -17,11 +17,6 @@ struct SystemWallDateSource: DioramaDateSource {
     }
 }
 
-enum LiveWallMode: Sendable {
-    case record(WallRecordingState)
-    case passthrough
-}
-
 private enum WallReadResult {
     case value(Date)
     case unavailable
@@ -34,33 +29,25 @@ final class LiveDateSource<Source: DioramaDateSource>: DioramaDateSource, Sendab
     private struct State: Sendable {
         var source: Source?
         var lastReturned: Date?
-        var mode: LiveWallMode
+        var recording: WallRecordingState
     }
 
     private let lease: SequentialTrackLease<OverridableValue<Date>, Int?>
     private let state: Mutex<State>
 
-    init(mode: LiveWallMode, lease: SequentialTrackLease<OverridableValue<Date>, Int?>,
+    init(recording: WallRecordingState, lease: SequentialTrackLease<OverridableValue<Date>, Int?>,
          source: Source)
     {
         self.lease = lease
-        state = Mutex(State(source: source, mode: mode))
+        state = Mutex(State(source: source, recording: recording))
     }
 
     var now: Date {
         let result = state.withLock { state -> WallReadResult in
             guard !lease.isClosed, let source = state.source else { return .unavailable }
-            switch state.mode {
-            case var .record(recording):
-                let native = recording.read(
-                    capturing: { source.now }, lease: lease, lastReturned: &state.lastReturned)
-                state.mode = .record(recording)
-                return native.map(WallReadResult.value) ?? .alreadyReported
-            case .passthrough:
-                let native = source.now
-                state.lastReturned = native
-                return .value(native)
-            }
+            let native = state.recording.read(
+                capturing: { source.now }, lease: lease, lastReturned: &state.lastReturned)
+            return native.map(WallReadResult.value) ?? .alreadyReported
         }
         switch result {
         case let .value(date):

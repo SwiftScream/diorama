@@ -116,12 +116,12 @@ struct DateSchedulingConformanceTests {
         #expect(deliveries.withLock { $0 } == 1)
         #expect(result.evaluate(.allClaimedRecordsConsumed).isSatisfied)
         #expect(result.report.diagnostics.isEmpty)
-        #expect(wall.now == Date(timeIntervalSince1970: 0))
-        #expect(wallSource.count == 0)
+        #expect(wall.now == Date(timeIntervalSince1970: mode == .passthrough ? 123 : 0))
+        #expect(wallSource.count == (mode == .passthrough ? 1 : 0))
         let horizon = execution.context.clock.now
         #expect(services.clock.now == horizon)
         #expect(await execution.finish().report == result.report)
-        #expect(execution.reporter.postFinishDiagnostics.count == 3)
+        #expect(execution.reporter.postFinishDiagnostics.count == (mode == .passthrough ? 2 : 3))
     }
 
     private func traverse(

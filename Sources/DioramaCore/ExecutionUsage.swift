@@ -25,6 +25,10 @@ struct ExecutionUsage: Sendable {
             AttachmentUsage(attachmentID: attachment.id, mode: attachment.mode,
                             allowsUnclaimedReplayRecords: attachment.allowsUnclaimedReplayRecords,
                             tracks: attachment.tracks.map { id in
+                                if attachment.mode == .passthrough {
+                                    return SequentialTrackUsage(id: id, activity: .passthrough,
+                                                                unclaimedRecords: [], claimedRecords: [])
+                                }
                                 guard let track = tracks.first(where: { $0.id == id }) else {
                                     preconditionFailure("An activated track must contribute final usage")
                                 }

@@ -53,7 +53,9 @@ struct ExecutionTimeTests {
             type: ExecutionFixtures.type, attachment: attachment)
         { context in
             events?.append("prepare-\(key)")
-            _ = try context.lease(for: ExecutionFixtures.track(key), preparation: ValuePreparation<Int>())
+            if context.mode != .passthrough {
+                _ = try context.lease(for: ExecutionFixtures.track(key), preparation: ValuePreparation<Int>())
+            }
             let time = context.time
             return PreparedSystem {
                 events?.append("activate-\(key)")
@@ -71,7 +73,9 @@ struct ExecutionTimeTests {
                 type: ExecutionFixtures.type,
                 attachment: definition.attachments[index])
             { context in
-                _ = try context.lease(for: ExecutionFixtures.track(key), preparation: ValuePreparation<Int>())
+                if context.mode != .passthrough {
+                    _ = try context.lease(for: ExecutionFixtures.track(key), preparation: ValuePreparation<Int>())
+                }
                 let time = context.time
                 return PreparedSystem { ActivatedSystem(dependency: time, deactivate: {}) }
             }
@@ -117,7 +121,9 @@ struct ExecutionTimeTests {
         let system = try ScenarioSystem<ExecutionTime>(type: ExecutionFixtures.type,
                                                        attachment: definition.attachments[0])
         { context in
-            _ = try context.lease(for: ExecutionFixtures.track("a"), preparation: ValuePreparation<Int>())
+            if context.mode != .passthrough {
+                _ = try context.lease(for: ExecutionFixtures.track("a"), preparation: ValuePreparation<Int>())
+            }
             let time = context.time
             holder.value.withLock { $0 = time }
             return PreparedSystem<ExecutionTime> {
