@@ -116,6 +116,7 @@ enum ReportText {
         case .invalidTrack: "scheduling-invalid-track"
         case .registrationOverflow: "scheduling-registration-overflow"
         case .clockWaitFailed: "scheduling-clock-wait-failed"
+        case .protectedOperation: "scheduling-protected-operation"
         }
     }
 

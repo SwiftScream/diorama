@@ -8,6 +8,9 @@ public enum SchedulingIssue: Error, Equatable, Sendable {
     case registrationOverflow
     /// The internal clock failed to wait for a deadline.
     case clockWaitFailed
+    /// Registration was attempted inside a protected state operation. Register
+    /// outside protection or publish the registration with `afterCommit`.
+    case protectedOperation
 }
 
 /// A scheduling failure already retained by the execution's reporter.
@@ -74,6 +77,9 @@ public struct SchedulingLease: Sendable {
                           delivery: @escaping @Sendable () async -> Void)
         throws(SchedulingFailure) -> ScheduledItemHandle
     {
+        guard ManagedEffects.current == nil else {
+            throw failure(.protectedOperation, context: .record(record))
+        }
         guard let trackOrder = tracks.firstIndex(of: record.trackID) else {
             throw failure(.invalidTrack, context: .attachment(attachmentID))
         }
