@@ -67,10 +67,21 @@ public final class ScenarioExecution: Sendable {
                 reporter.record(Diagnostic(issue: .logicalTime(horizonIssue), recordingImpact: .invalidatesCandidate))
             }
             await scheduler.stop()?.value
+            await quiesce()
             let final = release(reporter: reporter)
             let report = reporter.freeze()
             return ScenarioFinalizationResult(definition: report.recordingHealth.isHealthy ? final.definition : nil,
                                               report: report, cleanup: final.cleanup, usage: final.usage)
+        }
+
+        private func quiesce() async {
+            let owners = contents.withLock { ($0.systems, $0.leases) }
+            for system in owners.0 {
+                await system.quiesce()
+            }
+            for lease in owners.1 {
+                await lease.join()
+            }
         }
 
         private func release(reporter: DiagnosticReporter) -> FinalizedContents {

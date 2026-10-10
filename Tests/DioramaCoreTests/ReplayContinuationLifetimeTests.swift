@@ -87,6 +87,33 @@ struct ReplayContinuationLifetimeTests {
         #expect(try lease.consumeNext().value == 2)
     }
 
+    @Test
+    func `default destruction waits for enclosing managed state protection`() throws {
+        let protected = Mutex(0)
+        let effects = ManagedEffects()
+        let lease: HeaderlessSequentialTrackLease<Probe>
+        do {
+            let initial = Probe(-1) { protected.withLock { $0 += 1 } }
+            let track = try SequentialTrack(id: ExecutionFixtures.track("managed-release"),
+                                            values: preparedValues([Probe(1)]))
+            lease = try SequentialTrackLease(
+                track: track, baseline: track.records, baselineHeader: (), mode: .replay,
+                reporter: DiagnosticReporter(
+                    scenarioID: .init(rawValue: "managed-release"), definition: ScenarioDefinition()),
+                admission: ExecutionAdmission(), continuationPolicy: .replayLast(defaultValue: initial))
+        }
+        try ManagedEffects.$current.withValue(effects) {
+            try protected.withLock { count in
+                let value = try lease.consumeNext().value
+                #expect(value == 1)
+                #expect(count == 0)
+            }
+        }
+        effects.deliver()
+        #expect(protected.withLock { $0 } == 1)
+        lease.close()
+    }
+
     @Test(arguments: [ScenarioMode.record, .passthrough])
     func `nonreplay leases retain no continuation`(_ mode: ScenarioMode) throws {
         weak var retained: Probe?

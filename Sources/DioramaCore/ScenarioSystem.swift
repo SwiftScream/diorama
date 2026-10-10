@@ -22,6 +22,7 @@ public struct PreparedSystem<Dependency: Sendable>: Sendable {
 public struct ActivatedSystem<Dependency: Sendable>: Sendable {
     let dependency: Dependency
     let deactivate: @Sendable () throws -> Void
+    var quiesce: @Sendable () async -> Void = {}
 
     /// Creates a successful activation.
     ///
@@ -37,6 +38,14 @@ public struct ActivatedSystem<Dependency: Sendable>: Sendable {
     public init(dependency: Dependency, deactivate: @escaping @Sendable () throws -> Void) {
         self.dependency = dependency
         self.deactivate = deactivate
+    }
+
+    init(dependency: Dependency, deactivate: @escaping @Sendable () throws -> Void,
+         quiesce: @escaping @Sendable () async -> Void)
+    {
+        self.dependency = dependency
+        self.deactivate = deactivate
+        self.quiesce = quiesce
     }
 }
 
@@ -141,7 +150,8 @@ public struct AnyScenarioSystem: Sendable {
                 return AnyActivatedSystem(
                     attachmentID: attachmentID,
                     dependency: activation.dependency,
-                    deactivate: mode == .passthrough ? nativeCleanup : activation.deactivate)
+                    deactivate: mode == .passthrough ? nativeCleanup : activation.deactivate,
+                    quiesce: activation.quiesce)
             }
         }
     }
@@ -160,4 +170,5 @@ struct AnyActivatedSystem: Sendable {
     let attachmentID: AttachmentID
     let dependency: any Sendable
     let deactivate: @Sendable () throws -> Void
+    var quiesce: @Sendable () async -> Void = {}
 }

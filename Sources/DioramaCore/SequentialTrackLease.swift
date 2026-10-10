@@ -79,6 +79,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
     private let state: Mutex<State>
     private let closing = Mutex(())
     private let admission: ExecutionAdmission
+    private let reads: ManagedOperations
 
     init(track: SequentialTrack<Value, Header>, baseline: [SequentialRecord<Value>],
          baselineHeader: Header?, mode: ScenarioMode,
@@ -90,6 +91,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
         self.mode = mode
         self.reporter = reporter
         self.admission = admission
+        reads = ManagedOperations(admission: admission)
         state = Mutex(State(baseline: baseline, baselineHeader: baselineHeader,
                             continuation: ReplayContinuationState(mode == .replay ? continuationPolicy : .error),
                             recordingMerge: mode == .record ? recordingMerge : nil))
@@ -187,13 +189,15 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
     /// - Returns: The next stored value or the configured continuation.
     /// - Throws: Safe, already-reported wrong-mode or noncontinuable failure evidence.
     public func consumeNext() throws(SequentialOperationFailure) -> Value {
+        let admitted = reads.enter()
+        defer { if admitted { reads.leave() } }
         let (result, previous) = state.withLock { state in
             // Replacing a reference-valued default must not run its destruction
             // while holding the lease lock; it may report or reenter the lease.
             let previous = state.continuation
             return (consumeNext(state: &state), previous)
         }
-        defer { withExtendedLifetime(previous) {} }
+        defer { ManagedEffects.perform { withExtendedLifetime(previous) {} } }
         return try result.report(using: reporter)
     }
 
@@ -420,7 +424,9 @@ public extension SequentialTrackLease {
             return true
         }
         guard admitted else {
-            _ = freeze(accumulator)
+            ManagedEffects.perform {
+                _ = freeze(accumulator)
+            }
             let failure = operationFailure(.leaseClosed, context: .record(identity))
             reporter.record(failure.diagnostic)
             throw failure
@@ -451,6 +457,10 @@ public extension SequentialTrackLease {
 }
 
 extension SequentialTrackLease: AnySequentialLease {
+    func join() async {
+        await reads.join()
+    }
+
     @discardableResult
     func close(mergingRecording: Bool = false) -> ClosedSequentialTrack {
         closing.withLock { _ in finishClosing(mergingRecording: mergingRecording) }
