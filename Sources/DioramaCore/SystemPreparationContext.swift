@@ -30,7 +30,7 @@ public final class SystemPreparationContext: Sendable {
     public let scheduling: SchedulingLease
 
     private let state: Mutex<State>
-    private let admission: ExecutionAdmission
+    let admission: ExecutionAdmission
 
     init(attachment: ScenarioAttachment, mode: ScenarioMode,
          reporter: DiagnosticReporter, admission: ExecutionAdmission, time: ExecutionTime, clock: ScenarioClock,

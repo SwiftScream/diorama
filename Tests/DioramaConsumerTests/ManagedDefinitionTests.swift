@@ -1,0 +1,246 @@
+import DioramaCore
+import Synchronization
+import Testing
+
+private final class ManagedJournal: Sendable {
+    let events = Mutex<[String]>([])
+    let reenter = Mutex<(@Sendable () throws -> Void)?>(nil)
+    let freezes = Mutex(0)
+}
+
+private struct ManagedCounter: Sendable {
+    struct State: Sendable {
+        let values: HeaderlessSequentialTrackLease<Int>
+        let headers: SequentialTrackLease<Int, String>
+        var count = 0
+        var drafts: [RecordIdentity: Int] = [:]
+    }
+
+    let runtime: SystemRuntime<State>
+    let snapshot: SystemSnapshot<Int>
+
+    func increment(fail: Bool = false) throws -> Int {
+        try runtime.withActiveState { state, operation in
+            state.count += 1
+            if fail {
+                operation.report(Diagnostic(issue: .system(DiagnosticLabel("counter-mutated"))))
+                throw ManagedFailure.expected
+            }
+            try operation.record(on: state.values, capturing: { state.count }, preparation: .init())
+            return state.count
+        }
+    }
+
+    func begin(journal: ManagedJournal) throws -> RecordIdentity {
+        try runtime.withActiveState { state, operation in
+            try operation.beginRecord(on: state.values, preparation: .init(), capturing: { identity in
+                state.drafts[identity] = 40
+                return identity
+            }, freeze: { state, identity in
+                journal.freezes.withLock { $0 += 1 }
+                return state.drafts.removeValue(forKey: identity)
+            })
+        }
+    }
+
+    func observe(_ identity: RecordIdentity) throws {
+        try runtime.withActiveState { state, _ in state.drafts[identity, default: 0] += 1 }
+    }
+}
+
+private enum ManagedFailure: Error { case expected }
+
+private struct CounterDefinition: SystemDefinition {
+    static let type = ScenarioSystemType("consumer.managed-counter")
+    let systemType = type
+    let values: SystemTrack<Int, Void>
+    let headers: SystemTrack<Int, String>
+    let journal: ManagedJournal
+    var duplicate = false
+    var foreign = false
+    var failValidation = false
+    var failDependency = false
+    var failCleanup = false
+
+    var tracks: [AnySystemTrack] {
+        [values.erased, duplicate ? values.erased : headers.erased]
+    }
+
+    init(journal: ManagedJournal = ManagedJournal(), initial: [Int] = []) throws {
+        self.journal = journal
+        values = try SystemTrack("values", values: initial.map { try ValuePreparation<Int>().admitPrepared($0) })
+        headers = try SystemTrack("headers", header: ValuePreparation<String>().admitPrepared("ready"))
+    }
+
+    func validate(in context: borrowing SystemValidationContext) throws {
+        journal.events.withLock { $0.append("validate-" + context.attachmentID.key.rawValue) }
+        guard context.mode != .passthrough else { return }
+        #expect(try context.track(headers).header == "ready")
+        #expect(try context.track(headers).records.isEmpty)
+        try context.validate(values) { content in
+            journal.events.withLock { $0.append("baseline-" + content.records.map { String($0.value) }.joined()) }
+            if failValidation {
+                throw ManagedFailure.expected
+            }
+        }
+    }
+
+    func makeRecordState(in context: borrowing SystemStateContext) throws -> ManagedCounter.State {
+        journal.events.withLock { $0.append("activate-" + context.attachmentID.key.rawValue) }
+        let lease = try context.lease(for: foreign ? SystemTrack<Int, Void>("values") : values)
+        let copy = values
+        #expect(try lease === context.lease(for: copy))
+        return try ManagedCounter.State(values: lease, headers: context.lease(for: headers))
+    }
+
+    func makeReplayState(in context: borrowing SystemStateContext) throws -> ManagedCounter.State {
+        try makeRecordState(in: context)
+    }
+
+    func makeRecordDependency(using runtime: SystemRuntime<ManagedCounter.State>) throws -> ManagedCounter {
+        if failDependency {
+            throw ManagedFailure.expected
+        }
+        return ManagedCounter(runtime: runtime, snapshot: runtime.snapshot(\.count))
+    }
+
+    func makeReplayDependency(using runtime: SystemRuntime<ManagedCounter.State>) throws -> ManagedCounter {
+        try makeRecordDependency(using: runtime)
+    }
+
+    func makePassthroughDependency() throws -> ManagedCounter {
+        throw ManagedFailure.expected
+    }
+
+    func cleanUpRecordState(_: ManagedCounter.State) throws {
+        journal.events.withLock { $0.append("cleanup") }
+        if failCleanup {
+            throw ManagedFailure.expected
+        }
+    }
+
+    func cleanUpReplayState(_ state: ManagedCounter.State) throws {
+        try cleanUpRecordState(state)
+    }
+}
+
+struct ManagedDefinitionTests {
+    @Test func `typed declarations resolved validation and independent runs`() async throws {
+        let model = try CounterDefinition(initial: [1])
+        let first = try ScenarioSystem(named: "first", definition: model)
+        let second = try ScenarioSystem(named: "second", definition: model)
+        let loadedFirst = try ScenarioAttachment(id: first.attachment.id)
+            .adding(HeaderlessSequentialTrack(id: first.attachment.trackIDs[0], values: [
+                ValuePreparation<Int>().admitPrepared(9),
+            ]))
+            .adding(SequentialTrack<Int, String>(id: first.attachment.trackIDs[1],
+                                                 header: ValuePreparation<String>().admitPrepared("ready")))
+        let baseline = try ScenarioDefinition(attachments: [loadedFirst, second.attachment])
+        for _ in 0..<2 {
+            let execution = try ScenarioExecution.start(definition: baseline, scenarioID: .init(rawValue: "counter"),
+                                                        defaultMode: .record,
+                                                        systems: [AnyScenarioSystem(second), AnyScenarioSystem(first)])
+            let firstCounter = try execution.dependency(first)
+            let secondCounter = try execution.dependency(second)
+            #expect(try firstCounter.increment() == 1)
+            #expect(try firstCounter.increment() == 2)
+            #expect(try secondCounter.increment() == 1)
+            _ = await execution.finish()
+            #expect(firstCounter.snapshot.value == 2)
+            #expect(throws: (any Error).self) { try firstCounter.increment() }
+        }
+        #expect(Array(model.journal.events.withLock { $0 }.prefix(6)) == [
+            "validate-first", "baseline-9", "validate-second", "baseline-1", "activate-first", "activate-second",
+        ])
+    }
+
+    @Test func `duplicate foreign and later validation failures`() throws {
+        var model = try CounterDefinition()
+        model.duplicate = true
+        #expect(throws: ScenarioDefinitionError.self) { try ScenarioSystem(named: "counter", definition: model) }
+        model.duplicate = false
+        model.foreign = true
+        let foreign = try ScenarioSystem(named: "foreign", definition: model)
+        #expect(throws: ScenarioStartupFailure.self) { try start(foreign) }
+        model.foreign = false
+        let first = try ScenarioSystem(named: "first", definition: model)
+        model.failValidation = true
+        let last = try ScenarioSystem(named: "last", definition: model)
+        model.journal.events.withLock { $0 = [] }
+        #expect(throws: ScenarioStartupFailure.self) {
+            try ScenarioExecution.start(
+                definition: ScenarioDefinition(attachments: [first.attachment, last.attachment]),
+                scenarioID: .init(rawValue: "counter"), defaultMode: .record,
+                systems: [AnyScenarioSystem(first), AnyScenarioSystem(last)])
+        }
+        #expect(model.journal.events.withLock { !$0.contains(where: { $0.hasPrefix("activate") }) })
+    }
+
+    @Test func `throwing operation commits snapshot before reentrant throwing sink`() async throws {
+        let model = try CounterDefinition()
+        let system = try ScenarioSystem(named: "counter", definition: model)
+        let execution = try start(system, sink: DiagnosticSink { _ in
+            let callback = model.journal.reenter.withLock { callback in
+                let result = callback
+                callback = nil
+                return result
+            }
+            try callback?()
+            throw ManagedFailure.expected
+        })
+        let counter = try execution.dependency(system)
+        model.journal.reenter.withLock { $0 = { () throws in
+            #expect(counter.snapshot.value == 1)
+            #expect(try counter.increment() == 2)
+        } }
+        #expect(throws: ManagedFailure.self) { try counter.increment(fail: true) }
+        #expect(counter.snapshot.value == 2)
+        let final = await execution.finish()
+        #expect(final.report.diagnostics.map(\.diagnostic.issue) == [
+            .system(DiagnosticLabel("counter-mutated")), .sinkFailed,
+        ])
+        #expect(model.journal.events.withLock { $0.last } == "cleanup")
+    }
+
+    @Test func `incremental freeze uses managed state once and rejects late observations`() async throws {
+        let model = try CounterDefinition()
+        let system = try ScenarioSystem(named: "counter", definition: model)
+        let execution = try start(system)
+        let counter = try execution.dependency(system)
+        let record = try counter.begin(journal: model.journal)
+        try counter.observe(record)
+        async let firstFinish = execution.finish()
+        async let secondFinish = execution.finish()
+        let (first, second) = await (firstFinish, secondFinish)
+        #expect(first.report == second.report)
+        #expect(first.report.recordingHealth.isHealthy)
+        let attachment = try #require(first.definition?.attachments.first)
+        #expect(try attachment.track(system.attachment.trackIDs[0], as: Int.self)?.records.map(\.value) == [41])
+        #expect(model.journal.freezes.withLock { $0 } == 1)
+        #expect(throws: (any Error).self) { try counter.observe(record) }
+        #expect(first.report.diagnostics.isEmpty)
+    }
+
+    @Test func `dependency failure cleans created state and retains cleanup failure`() throws {
+        var model = try CounterDefinition()
+        model.failDependency = true
+        model.failCleanup = true
+        let system = try ScenarioSystem(named: "counter", definition: model)
+        do {
+            _ = try start(system)
+            Issue.record("Expected dependency construction failure")
+        } catch let failure as ScenarioStartupFailure {
+            #expect(failure.report.diagnostics.contains { $0.diagnostic.issue == .lifecycle(.cleanupFailed) })
+            #expect(failure.report.diagnostics.contains { $0.diagnostic.issue == .lifecycle(.activationFailed) })
+        }
+        #expect(model.journal.events.withLock { $0.filter { $0 == "cleanup" }.count } == 1)
+    }
+
+    private func start(_ system: ScenarioSystem<ManagedCounter>, sink: DiagnosticSink? = nil)
+        throws -> ScenarioExecution
+    {
+        try ScenarioExecution.start(definition: ScenarioDefinition(attachments: [system.attachment]),
+                                    scenarioID: .init(rawValue: "counter"), defaultMode: .record,
+                                    systems: [AnyScenarioSystem(system)], sink: sink)
+    }
+}

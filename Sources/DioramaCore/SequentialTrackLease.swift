@@ -420,7 +420,11 @@ public extension SequentialTrackLease {
             return true
         }
         guard admitted else {
-            _ = freeze(accumulator)
+            if let effects = ManagedEffects.current {
+                effects.append { _ = freeze(accumulator) }
+            } else {
+                _ = freeze(accumulator)
+            }
             let failure = operationFailure(.leaseClosed, context: .record(identity))
             reporter.record(failure.diagnostic)
             throw failure
