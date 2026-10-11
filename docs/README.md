@@ -21,7 +21,7 @@ The owner approved the consolidated design and implementation plan on
 9. [Execution scheduling](execution-scheduling.md)
 10. [Stable time scalars](stable-time-scalars.md)
 11. [Date payload schema version 1](date-schema-v1.md)
-12. [Typed record services](record-services.md)
+12. [Typed system authoring and record services](record-services.md)
 13. [System-owned records and shared services](design-decisions/19-system-owned-records.md)
 14. [System definitions and pure passthrough](design-decisions/20-system-definitions-and-pure-passthrough.md)
 
@@ -250,6 +250,10 @@ proposal for discussion, with its review gate recorded in the owning plan.
 - [Pure passthrough evidence](evidence/003-Fa01-pure-passthrough.md) records native
   copying and lifetime, lease-free startup, baseline preservation, and cleanup
   boundaries.
+
+- [System-definition evidence](evidence/003-Fa02-system-definitions.md) records
+  typed authoring, Core-managed state and effects, complete public-consumer
+  migration, compiler rejection probes, and the reentrant-sink regressions.
 
 ## Historical boundary
 

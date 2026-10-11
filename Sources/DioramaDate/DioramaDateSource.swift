@@ -1,6 +1,5 @@
 import DioramaCore
 import Foundation
-import Synchronization
 
 /// A synchronous, nonthrowing source of civil time.
 ///
@@ -17,70 +16,50 @@ struct SystemWallDateSource: DioramaDateSource {
     }
 }
 
-private enum WallReadResult {
-    case value(Date)
-    case unavailable
-    case alreadyReported
+struct DateRecordState<Source: DioramaDateSource>: Sendable {
+    let source: Source
+    let values: SequentialTrackLease<OverridableValue<Date>, Int?>
+    var recording: WallRecordingState
+    var lastReturned = Date(timeIntervalSince1970: 0)
 }
 
-/// The lock keeps one source read and its track operation in one atomic order.
-/// Finish detaches the source so escaped handles cannot read it again.
-final class LiveDateSource<Source: DioramaDateSource>: DioramaDateSource, Sendable {
-    private struct State: Sendable {
-        var source: Source?
-        var lastReturned: Date?
-        var recording: WallRecordingState
-    }
+struct DateReplayState: Sendable {
+    let values: SequentialTrackLease<OverridableValue<Date>, Int?>
+    var lastReturned = Date(timeIntervalSince1970: 0)
+}
 
-    private let lease: SequentialTrackLease<OverridableValue<Date>, Int?>
-    private let state: Mutex<State>
-
-    init(recording: WallRecordingState, lease: SequentialTrackLease<OverridableValue<Date>, Int?>,
-         source: Source)
-    {
-        self.lease = lease
-        state = Mutex(State(source: source, recording: recording))
-    }
+struct RecordingDateSource<Source: DioramaDateSource>: DioramaDateSource {
+    let runtime: SystemRuntime<DateRecordState<Source>>
+    let last: SystemSnapshot<Date>
 
     var now: Date {
-        let result = state.withLock { state -> WallReadResult in
-            guard !lease.isClosed, let source = state.source else { return .unavailable }
-            let native = state.recording.read(
-                capturing: { source.now }, lease: lease, lastReturned: &state.lastReturned)
-            return native.map(WallReadResult.value) ?? .alreadyReported
+        do {
+            return try runtime.withActiveState { state, operation in
+                let source = state.source
+                _ = state.recording.read(capturing: { source.now }, lease: state.values,
+                                         lastReturned: &state.lastReturned, operation: &operation)
+                return state.lastReturned
+            }
+        } catch {
+            return last.value
         }
-        switch result {
-        case let .value(date):
-            return date
-        case .unavailable:
-            _ = lease.report(.system(DiagnosticLabel("clock-wall-operation-after-close")))
-        case .alreadyReported:
-            break
-        }
-        return state.withLock { $0.lastReturned } ?? Date(timeIntervalSince1970: 0)
-    }
-
-    func close() {
-        let detached = state.withLock { state in
-            let source = state.source
-            state.source = nil
-            return source
-        }
-        withExtendedLifetime(detached) {}
     }
 }
 
-/// Replays effective dates; the lease owns atomic consumption and continuation.
-final class ReplayDateSource: DioramaDateSource, Sendable {
-    static let unixEpoch = Date(timeIntervalSince1970: 0)
-
-    private let lease: SequentialTrackLease<OverridableValue<Date>, Int?>
-
-    init(lease: SequentialTrackLease<OverridableValue<Date>, Int?>) {
-        self.lease = lease
-    }
+struct ReplayingDateSource: DioramaDateSource {
+    let runtime: SystemRuntime<DateReplayState>
+    let last: SystemSnapshot<Date>
 
     var now: Date {
-        (try? lease.consumeNext().value) ?? Self.unixEpoch
+        do {
+            return try runtime.withActiveState { state, operation in
+                if let value = try? operation.consumeNext(on: state.values) {
+                    state.lastReturned = value.value
+                }
+                return state.lastReturned
+            }
+        } catch {
+            return last.value
+        }
     }
 }

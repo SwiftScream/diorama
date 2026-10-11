@@ -94,7 +94,7 @@ Diorama neither freezes its last value nor reports those reads as misuse.
 Record/replay handles retain their existing closed-handle behavior.
 
 All handles obtained from `ScenarioExecution.context.clock`,
-`SystemPreparationContext.clock`, and the `execute` body context use that execution's
+`SystemRuntime.clock`, and the `execute` body context use that execution's
 scheduler. Applications can exchange deadlines with their systems as logical
 offsets. A transferred instant means the same offset from the receiving
 execution's origin; it carries no execution identity or wall date.

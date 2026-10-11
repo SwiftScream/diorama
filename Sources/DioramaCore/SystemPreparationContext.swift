@@ -7,7 +7,7 @@ import Synchronization
 /// that setup policy. Passthrough creates no leases and runs no content policies.
 /// An escaped context is closed and releases all definition content
 /// and leases.
-public final class SystemPreparationContext: Sendable {
+final class SystemPreparationContext: Sendable {
     private struct State: Sendable {
         var attachment: ScenarioAttachment?
         var requested: Set<TrackID> = []
@@ -15,22 +15,22 @@ public final class SystemPreparationContext: Sendable {
     }
 
     /// The attachment being prepared.
-    public let attachmentID: AttachmentID
+    let attachmentID: AttachmentID
     /// The resolved whole-attachment mode.
-    public let mode: ScenarioMode
+    let mode: ScenarioMode
     /// The independent reporter for this startup attempt and execution.
-    public let reporter: DiagnosticReporter
+    let reporter: DiagnosticReporter
     /// The execution's shared logical-time and observation-capture service.
     /// Its origin becomes available after all systems activate.
-    public let time: ExecutionTime
+    let time: ExecutionTime
     /// The same execution clock exposed to application consumers after startup.
-    public let clock: ScenarioClock
+    let clock: ScenarioClock
     /// This attachment's ordered handoff registration service.
     /// Scheduling becomes available when execution startup completes.
-    public let scheduling: SchedulingLease
+    let scheduling: SchedulingLease
 
     private let state: Mutex<State>
-    private let admission: ExecutionAdmission
+    let admission: ExecutionAdmission
 
     init(attachment: ScenarioAttachment, mode: ScenarioMode,
          reporter: DiagnosticReporter, admission: ExecutionAdmission, time: ExecutionTime, clock: ScenarioClock,
@@ -65,7 +65,7 @@ public final class SystemPreparationContext: Sendable {
     ///     The result receives validation only, with capture transforms omitted.
     /// - Returns: A fresh typed lease, closed on rollback or finalization.
     /// - Throws: Safe, already-reported admission or track-request evidence.
-    public func lease<Value: Sendable>(
+    func lease<Value: Sendable>(
         for id: TrackID,
         preparation: ValuePreparation<Value>,
         continuationPolicy: ReplayContinuationPolicy<Value> = .error,
@@ -84,7 +84,7 @@ public final class SystemPreparationContext: Sendable {
     /// when its record sequence is empty.
     /// An optional recording merge receives typed baseline and fresh tracks,
     /// including their headers. Its output is validated with these policies.
-    public func lease<Value: Sendable, Header: Sendable>(
+    func lease<Value: Sendable, Header: Sendable>(
         for id: TrackID,
         preparation: ValuePreparation<Value>,
         headerPreparation: ValuePreparation<Header>,

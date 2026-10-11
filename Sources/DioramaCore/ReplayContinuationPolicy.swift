@@ -4,7 +4,7 @@
 /// Configured fallback and default values are setup-authored stable values.
 /// Returning a continuation creates no record identity or consumption fact.
 /// Wrong-mode and explicit-claim failures always throw, regardless of this policy.
-public enum ReplayContinuationPolicy<Value: Sendable>: Sendable {
+enum ReplayContinuationPolicy<Value: Sendable>: Sendable {
     /// Throw after reporting the failed read. Retain no continuation value.
     case error
     /// Return this value after reporting exhaustion or closure.

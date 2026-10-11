@@ -19,10 +19,10 @@ Passthrough returns the ordinary live source, creates no track lease, and keeps
 native lifetime after finish without post-finish diagnostics or a frozen date.
 Loaded passthrough content is preserved independently of leases. Replay claims
 effective values sequentially and never activates the live source factory.
-The lease returns stored `OverridableValue<Date>` entries; the date source extracts
-their effective `Date` without changing stored authorship. The lease's configured
-replay-last continuation repeats the last consumed entry or uses
-`.observed(unixEpoch)` before any consumption. Continuation values have no record
+Scoped consumption returns stored `OverridableValue<Date>` entries; the date source
+extracts their effective `Date` without changing stored authorship. Managed replay
+state retains the last returned Date, beginning at Unix epoch. A detached snapshot
+preserves that continuation after closure. Continuation values have no record
 identity and never become additional observations.
 Repeated and backward dates are returned as recorded without waits. Exhaustion
 reports a replay diagnostic and continues with the last successfully claimed

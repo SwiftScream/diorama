@@ -3,7 +3,7 @@
 /// Preparation must not install adapters or expose usable dependencies. The
 /// activation closure runs only after every attachment and declared track is
 /// prepared.
-public struct PreparedSystem<Dependency: Sendable>: Sendable {
+struct PreparedSystem<Dependency: Sendable>: Sendable {
     let activate: @Sendable () throws -> ActivatedSystem<Dependency>
 
     /// Creates a prepared system for one fresh execution.
@@ -13,15 +13,16 @@ public struct PreparedSystem<Dependency: Sendable>: Sendable {
     ///   unwind its own partial installation; only returned activations can
     ///   participate in execution-owned rollback. Do not publish dependencies
     ///   from the callback; retrieve them from the successfully started run.
-    public init(activate: @escaping @Sendable () throws -> ActivatedSystem<Dependency>) {
+    init(activate: @escaping @Sendable () throws -> ActivatedSystem<Dependency>) {
         self.activate = activate
     }
 }
 
 /// An installed dependency and its record/replay cleanup obligation.
-public struct ActivatedSystem<Dependency: Sendable>: Sendable {
+struct ActivatedSystem<Dependency: Sendable>: Sendable {
     let dependency: Dependency
     let deactivate: @Sendable () throws -> Void
+    var quiesce: @Sendable () async -> Void = {}
 
     /// Creates a successful activation.
     ///
@@ -34,9 +35,17 @@ public struct ActivatedSystem<Dependency: Sendable>: Sendable {
     ///     Release Diorama-owned resources;
     ///     do not close or cancel consumer-owned sources. Native asynchronous
     ///     quiescence is not part of this sequential extension boundary.
-    public init(dependency: Dependency, deactivate: @escaping @Sendable () throws -> Void) {
+    init(dependency: Dependency, deactivate: @escaping @Sendable () throws -> Void) {
         self.dependency = dependency
         self.deactivate = deactivate
+    }
+
+    init(dependency: Dependency, deactivate: @escaping @Sendable () throws -> Void,
+         quiesce: @escaping @Sendable () async -> Void)
+    {
+        self.dependency = dependency
+        self.deactivate = deactivate
+        self.quiesce = quiesce
     }
 }
 
@@ -78,7 +87,7 @@ public struct ScenarioSystem<Dependency: Sendable>: Sendable {
     ///     for this attachment. A system factory chooses whether to expose this option.
     ///   - prepare: Creates a fresh prepared system for each execution.
     /// - Throws: An attachment identity belonging to another system type.
-    public init(
+    init(
         type: ScenarioSystemType,
         attachment: ScenarioAttachment,
         allowsUnclaimedReplayRecords: Bool = false,
@@ -141,7 +150,8 @@ public struct AnyScenarioSystem: Sendable {
                 return AnyActivatedSystem(
                     attachmentID: attachmentID,
                     dependency: activation.dependency,
-                    deactivate: mode == .passthrough ? nativeCleanup : activation.deactivate)
+                    deactivate: mode == .passthrough ? nativeCleanup : activation.deactivate,
+                    quiesce: activation.quiesce)
             }
         }
     }
@@ -160,4 +170,5 @@ struct AnyActivatedSystem: Sendable {
     let attachmentID: AttachmentID
     let dependency: any Sendable
     let deactivate: @Sendable () throws -> Void
+    var quiesce: @Sendable () async -> Void = {}
 }

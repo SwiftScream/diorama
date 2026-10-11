@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/../_common"
+cd "$repository_root"
+products=${1:-$(swift build --show-bin-path)}
+probe_root=$(mktemp -d "${TMPDIR:-/tmp}/diorama-authoring.XXXXXXXX")
+trap 'rm -rf "$probe_root"' EXIT
+compiler=(swiftc -swift-version 6 -strict-concurrency=complete -warnings-as-errors
+    -parse-as-library -I "$products" -I "$products/Modules")
+if [[ $(uname -s) == Darwin ]]; then
+    compiler+=(-target "$(uname -m)-apple-macos15.0" -sdk "$(xcrun --sdk macosx --show-sdk-path)")
+fi
+
+cat > "$probe_root/positive.swift" <<'SWIFT'
+import DioramaCore
+
+enum ProbeError: Error { case unsupported }
+struct ExternalDefinition: SystemDefinition {
+    enum Dependency: Sendable {
+        case managed(SystemRuntime<HeaderlessSequentialTrackLease<Int>>)
+        case native
+    }
+    let systemType = ScenarioSystemType("compiler.external")
+    let values = SystemTrack<Int, Void>("values")
+    var tracks: [AnySystemTrack] { [values.erased] }
+    func validate(in context: borrowing SystemValidationContext) throws {
+        if context.mode != .passthrough { _ = try context.track(values) }
+    }
+    func makeRecordState(in context: borrowing SystemStateContext) throws -> HeaderlessSequentialTrackLease<Int> {
+        try context.lease(for: values)
+    }
+    func makeReplayState(in context: borrowing SystemStateContext) throws -> HeaderlessSequentialTrackLease<Int> {
+        try context.lease(for: values)
+    }
+    func makeRecordDependency(using runtime: SystemRuntime<HeaderlessSequentialTrackLease<Int>>) -> Dependency {
+        .managed(runtime)
+    }
+    func makeReplayDependency(using runtime: SystemRuntime<HeaderlessSequentialTrackLease<Int>>) -> Dependency {
+        .managed(runtime)
+    }
+    func makePassthroughDependency() -> Dependency { .native }
+}
+func use(_ runtime: SystemRuntime<HeaderlessSequentialTrackLease<Int>>) throws -> Int {
+    try runtime.withActiveState { state, operation in try operation.consumeNext(on: state) }
+}
+func setup() throws -> ScenarioSystem<ExternalDefinition.Dependency> {
+    try ScenarioSystem(named: "positive", definition: ExternalDefinition())
+}
+SWIFT
+"${compiler[@]}" -c "$probe_root/positive.swift" -o "$probe_root/positive.o"
+
+reject() {
+    local name=$1 pattern=$2 status=0
+    { printf '%s\n' 'import DioramaCore'; cat; } > "$probe_root/$name.swift"
+    "${compiler[@]}" -c "$probe_root/$name.swift" -o "$probe_root/$name.o" \
+        > "$probe_root/$name.log" 2>&1 || status=$?
+    if [[ $status != 1 ]] || ! grep -Eq "$pattern" "$probe_root/$name.log" \
+        || grep -Eq 'Stack dump|signal [0-9]+|Assertion failed' "$probe_root/$name.log"; then
+        cat "$probe_root/$name.log" >&2
+        printf 'Expected ordinary compiler rejection: %s (exit %s)\n' "$name" "$status" >&2
+        exit 1
+    fi
+    printf 'Compiler rejected %s\n' "$name"
+}
+
+reject validation-return 'borrowed|consum' <<'SWIFT'
+func escape(_ context: borrowing SystemValidationContext) -> SystemValidationContext { consume context }
+SWIFT
+reject state-context-return 'borrowed|consum' <<'SWIFT'
+func escape(_ context: borrowing SystemStateContext) -> SystemStateContext { consume context }
+SWIFT
+reject context-capture 'escap|borrowed|consum' <<'SWIFT'
+func escape(_ context: borrowing SystemStateContext) -> () -> AttachmentID { { context.attachmentID } }
+SWIFT
+reject operation-return 'Copyable|consum' <<'SWIFT'
+func escape(_ runtime: SystemRuntime<Int>) throws -> SystemOperation<Int> {
+    try runtime.withActiveState { _, operation in operation }
+}
+SWIFT
+reject operation-capture 'escap|inout' <<'SWIFT'
+func escape(_ runtime: SystemRuntime<Int>) throws -> () -> Void {
+    try runtime.withActiveState { _, operation in
+        { operation.report(Diagnostic(issue: .system(DiagnosticLabel("escaped")))) }
+    }
+}
+SWIFT
+reject state-reference-capture 'escap|inout' <<'SWIFT'
+func escape(_ runtime: SystemRuntime<Int>) throws -> () -> Int {
+    try runtime.withActiveState { state, _ in { state } }
+}
+SWIFT
+reject legacy-authoring 'inaccessible|cannot find|extra arguments' <<'SWIFT'
+func old(_ type: ScenarioSystemType, attachment: ScenarioAttachment) throws {
+    _ = try ScenarioSystem(type: type, attachment: attachment) { _ in
+        PreparedSystem { ActivatedSystem(dependency: 1, deactivate: {}) }
+    }
+}
+SWIFT
+reject legacy-preparation-context 'cannot find|inaccessible' <<'SWIFT'
+func old(_ context: SystemPreparationContext) {}
+SWIFT
+reject raw-track-mutation 'inaccessible' <<'SWIFT'
+func old(_ lease: HeaderlessSequentialTrackLease<Int>) throws { _ = try lease.consumeNext() }
+SWIFT
+printf '%s\n' 'Public system authoring compiler probes passed (1 positive, 9 negative).'

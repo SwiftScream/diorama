@@ -1,5 +1,4 @@
 import DioramaCore
-import Synchronization
 
 /// Test-only domain observations resembling location and HTTP delivery.
 public enum ConsumerTimedEvent: Equatable, Sendable {
@@ -40,76 +39,20 @@ public struct ConsumerTimedRecord: Equatable, Sendable {
     }
 }
 
-/// An external domain accumulator that separates observation from conversion.
-public final class ConsumerTimedDraft: Sendable {
-    private struct Slot {
+struct TimedDraftState: Sendable {
+    struct Slot: Sendable {
         let capture: LogicalTimeCapture
         var event: ConsumerTimedEvent?
     }
 
-    private struct State {
-        var time: ExecutionTime?
-        var anchor: LogicalTimeCapture?
-        var isClosed: (@Sendable () -> Bool)?
-        var input: String?
-        var slots: [Slot] = []
-        var freezeCount = 0
-    }
+    let input: String
+    let anchor: LogicalTimeCapture
+    var slots: [Slot] = []
 
-    private let state: Mutex<State>
-
-    /// The stable identity reserved before this draft is constructed.
-    public let identity: RecordIdentity
-
-    /// The number of freeze callbacks received from Core.
-    public var freezeCount: Int {
-        state.withLock { $0.freezeCount }
-    }
-
-    init(identity: RecordIdentity, input: PreparedValue<String>, anchor: LogicalTimeCapture,
-         time: ExecutionTime, isClosed: @escaping @Sendable () -> Bool)
-    {
-        self.identity = identity
-        state = Mutex(State(time: time, anchor: anchor, isClosed: isClosed, input: input.value))
-    }
-
-    /// Reserves observation time before potentially slow stable conversion.
-    /// Concurrent reservations sort by capture order when the draft freezes.
-    public func observe() throws -> Int {
-        let time = try state.withLock { state in
-            guard let time = state.time else { throw ConsumerSystemFailure.closed }
-            return time
-        }
-        let capture = try time.capture()
-        return try state.withLock { state in
-            guard state.time != nil else { throw ConsumerSystemFailure.closed }
-            let position = state.slots.count
-            state.slots.append(Slot(capture: capture))
-            return position
-        }
-    }
-
-    /// Commits a prepared observation to its reserved position exactly once.
-    /// Rejects completion after admission closes, including before freeze.
-    public func complete(_ position: Int, with event: PreparedValue<ConsumerTimedEvent>) -> Bool {
-        guard let isClosed = state.withLock({ $0.isClosed }), !isClosed() else { return false }
-        return state.withLock { state in
-            guard state.time != nil, state.slots.indices.contains(position),
-                  state.slots[position].event == nil else { return false }
-            state.slots[position].event = event.value
-            return true
-        }
-    }
-
-    func freeze() -> ConsumerTimedRecord? {
-        let detached = state.withLock { state in
-            let detached = state
-            state = State(freezeCount: state.freezeCount + 1)
-            return detached
-        }
-        guard let time = detached.time, var previous = detached.anchor, let input = detached.input else { return nil }
+    func freeze(time: ExecutionTime) -> ConsumerTimedRecord? {
         do {
-            let ordered = try detached.slots.sorted { try time.capturedBefore($0.capture, $1.capture) }
+            let ordered = try slots.sorted { try time.capturedBefore($0.capture, $1.capture) }
+            var previous = anchor
             var observations: [ConsumerTimedObservation] = []
             for slot in ordered {
                 guard let event = slot.event else { return nil }
@@ -118,32 +61,116 @@ public final class ConsumerTimedDraft: Sendable {
                 previous = slot.capture
             }
             return ConsumerTimedRecord(input: input, observations: observations)
-        } catch {
-            return nil
+        } catch { return nil }
+    }
+}
+
+struct TimedSystemState: Sendable {
+    let records: HeaderlessSequentialTrackLease<ConsumerTimedRecord>
+    var drafts: [RecordIdentity: TimedDraftState] = [:]
+    var freezes: [RecordIdentity: Int] = [:]
+}
+
+/// A domain facade whose entire accumulator state is protected by Core.
+public struct ConsumerTimedDraft: Sendable {
+    let runtime: SystemRuntime<TimedSystemState>
+    let freezes: SystemSnapshot<[RecordIdentity: Int]>
+    /// Stable identity reserved before construction.
+    public let identity: RecordIdentity
+    /// Number of Core freeze callbacks, including after state detaches.
+    public var freezeCount: Int {
+        freezes.value[identity, default: 0]
+    }
+
+    /// Reserves observation time before potentially slow stable conversion.
+    public func observe() throws -> Int {
+        guard !runtime.isClosed else { throw ConsumerSystemFailure.closed }
+        return try runtime.withActiveState { state, operation in
+            guard var draft = state.drafts[identity] else { throw ConsumerSystemFailure.closed }
+            let capture = try operation.time.capture()
+            let position = draft.slots.count
+            draft.slots.append(TimedDraftState.Slot(capture: capture))
+            state.drafts[identity] = draft
+            return position
+        }
+    }
+
+    /// Admits prepared conversion at its reserved position once, before closure.
+    public func complete(_ position: Int, with event: PreparedValue<ConsumerTimedEvent>) -> Bool {
+        guard !runtime.isClosed else { return false }
+        return (try? runtime.withActiveState { state, _ in
+            guard var draft = state.drafts[identity], draft.slots.indices.contains(position),
+                  draft.slots[position].event == nil else { return false }
+            draft.slots[position].event = event.value
+            state.drafts[identity] = draft
+            return true
+        }) ?? false
+    }
+}
+
+/// A typed domain selection facade using scoped Core operations.
+public struct ConsumerTimedRecords: Sendable {
+    let runtime: SystemRuntime<TimedSystemState>
+    /// Stable record-track identity.
+    public let id: TrackID
+    /// The attachment's selected mode.
+    public let mode: ScenarioMode
+    /// Whether operation admission has closed.
+    public var isClosed: Bool {
+        runtime.isClosed
+    }
+
+    /// Exclusively selects a record, leaving acknowledgement to domain delivery.
+    public func claim<Input: Sendable>(matching input: Input,
+                                       using selector: ReplaySelector<Input, ConsumerTimedRecord>) throws
+        -> ReplayClaim<ConsumerTimedRecord>
+    {
+        try runtime.withActiveState { state, operation in
+            try operation.claim(on: state.records, matching: input, using: selector)
         }
     }
 }
 
 /// Public services received by a separately compiled consumer system.
 public struct ConsumerTimedServices: Sendable {
-    /// The typed record lease, shared across capture and selection APIs.
-    public let records: HeaderlessSequentialTrackLease<ConsumerTimedRecord>
-    /// The execution's shared logical-time service.
-    public let time: ExecutionTime
-    /// The same runtime clock exposed to scoped application code.
-    public let clock: ScenarioClock
-    /// The attachment's scheduling service; delivery isolation stays external.
-    public let scheduling: SchedulingLease
+    let runtime: SystemRuntime<TimedSystemState>
+    let freezes: SystemSnapshot<[RecordIdentity: Int]>
+    /// Typed domain record access, serialized with all other managed state.
+    public let records: ConsumerTimedRecords
+    /// Execution logical-time capture and checked arithmetic.
+    public var time: ExecutionTime {
+        runtime.time
+    }
+
+    /// Shared clock, used outside protected operations.
+    public var clock: ScenarioClock {
+        runtime.clock
+    }
+
+    /// Ordered async delivery, registered outside protected operations.
+    public var scheduling: SchedulingLease {
+        runtime.scheduling
+    }
 
     /// Begins incremental capture at a domain boundary before input conversion.
     public func begin(input: String) throws -> ConsumerTimedDraft {
-        try records.beginRecord(preparation: ConsumerTimedSystem.policy, capturing: { identity in
-            let anchor = try time.capture()
-            let prepared = try ValuePreparation<String>().prepare(
-                capturing: { input }, purpose: .recording, reporter: records.reporter, context: .record(identity))
-            return ConsumerTimedDraft(identity: identity, input: prepared, anchor: anchor,
-                                      time: time, isClosed: { records.isClosed })
-        }, freeze: { $0.freeze() })
+        let time = runtime.time
+        let identity = try runtime.withActiveState { state, operation in
+            try operation.beginRecord(
+                on: state.records, preparation: ConsumerTimedSystem.policy,
+                capturing: { identity in
+                    let anchor = try time.capture()
+                    let prepared = try ValuePreparation<String>().prepare(
+                        capturing: { input }, purpose: .recording,
+                        reporter: runtime.reporter, context: .record(identity))
+                    state.drafts[identity] = TimedDraftState(input: prepared.value, anchor: anchor)
+                    return identity
+                }, freeze: { state, identity in
+                    state.freezes[identity, default: 0] += 1
+                    return state.drafts.removeValue(forKey: identity)?.freeze(time: time)
+                })
+        }
+        return ConsumerTimedDraft(runtime: runtime, freezes: freezes, identity: identity)
     }
 }
 
@@ -162,15 +189,38 @@ public enum ConsumerTimedSystem {
     public static func instance(key: String, values: [ConsumerTimedRecord] = []) throws
         -> ScenarioSystem<ConsumerTimedServices>
     {
-        let id = AttachmentID(systemTypeID: type.id, key: AttachmentKey(rawValue: key))
-        let trackID = TrackID(attachmentID: id, key: TrackKey(rawValue: "sessions"))
-        let values = try values.map { try policy.admitPrepared($0) }
-        let attachment = try ScenarioAttachment(id: id).adding(SequentialTrack(id: trackID, values: values))
-        return try ScenarioSystem(type: type, attachment: attachment) { context in
-            let records = try context.lease(for: trackID, preparation: policy)
-            let dependency = ConsumerTimedServices(
-                records: records, time: context.time, clock: context.clock, scheduling: context.scheduling)
-            return PreparedSystem { ActivatedSystem(dependency: dependency, deactivate: {}) }
-        }
+        try ScenarioSystem(named: key, definition: TimedDefinition(records: SystemTrack(
+            "sessions", values: values.map { try policy.admitPrepared($0) }, preparation: policy)))
+    }
+}
+
+private struct TimedDefinition: SystemDefinition {
+    let systemType = ConsumerTimedSystem.type
+    let records: SystemTrack<ConsumerTimedRecord, Void>
+    var tracks: [AnySystemTrack] {
+        [records.erased]
+    }
+
+    func makeRecordState(in context: borrowing SystemStateContext) throws -> TimedSystemState {
+        try TimedSystemState(records: context.lease(for: records))
+    }
+
+    func makeReplayState(in context: borrowing SystemStateContext) throws -> TimedSystemState {
+        try makeRecordState(in: context)
+    }
+
+    func makeRecordDependency(using runtime: SystemRuntime<TimedSystemState>) throws -> ConsumerTimedServices {
+        let metadata = try runtime.withActiveState { state, _ in (state.records.id, state.records.mode) }
+        return ConsumerTimedServices(runtime: runtime, freezes: runtime.snapshot(\.freezes), records:
+            ConsumerTimedRecords(runtime: runtime, id: metadata.0, mode: metadata.1))
+    }
+
+    func makeReplayDependency(using runtime: SystemRuntime<TimedSystemState>) throws -> ConsumerTimedServices {
+        try makeRecordDependency(using: runtime)
+    }
+
+    func makePassthroughDependency() throws -> ConsumerTimedServices {
+        // This synthetic domain only advertises managed capture and playback.
+        throw ConsumerSystemFailure.closed
     }
 }

@@ -1,13 +1,13 @@
 # Execution scheduling
 
 A system receives an attachment-scoped `SchedulingLease` through
-`SystemPreparationContext.scheduling`. After startup completes, it can register
+`SystemRuntime.scheduling`. After startup completes, it can register
 a delivery handoff at an absolute logical `Duration`, or after a delay from
 registration. Every attachment uses the same origin as
 [execution logical time](execution-time-service.md).
 
 ```swift
-let scheduling = context.scheduling
+let scheduling = runtime.scheduling
 
 // Later, after execution startup, with a record identity from this attachment:
 let handle = try scheduling.schedule(after: .milliseconds(25), for: record) {
@@ -53,8 +53,10 @@ in either order. An adapter must enforce any causal order its own stream needs.
 Zero and already-passed deadlines, including offsets before the execution
 origin, are queued for the next drain.
 Registration never invokes a handoff inline. The worker may run concurrently
-with the registering caller, so shared system state still needs its own
-synchronization. The worker submits tasks serially outside scheduler and
+with the registering caller. Commit shared system state through
+`withActiveState` before registering; runtime state is serialized by Core.
+Registration inside protection rejects with `protectedOperation`. Use
+`operation.afterCommit` to publish synchronous registration after state commits. The worker submits tasks serially outside scheduler and
 execution locks. Delivery tasks may register additional work.
 
 ## Cancellation
@@ -118,7 +120,9 @@ after the final result returns. New misuse of an escaped lease may still
 produce a diagnostic in the reporter's post-finish log.
 
 Cancellation, delivery, and finalization resume continuations and release
-callback captures outside scheduler isolation. Terminal handles retain only
+callback captures outside scheduler isolation and managed state protection.
+Cancellation inside a state operation retains detached callback captures until
+that operation unlocks, so capture destruction can safely reenter committed state. Terminal handles retain only
 their small registration state, with no callback captures, execution, scheduler,
 clock source, or reporter ownership.
 

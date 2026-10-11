@@ -5,7 +5,7 @@ private enum WallPreparationError: Error {
     case invalidObservation
 }
 
-/// Recording-only state, accessed under the live source's serialization lock.
+/// Recording-only state, accessed under Core's managed state protection.
 struct WallRecordingState: Sendable {
     private struct Progress: Sendable {
         let origin: Date
@@ -26,19 +26,19 @@ struct WallRecordingState: Sendable {
     mutating func read(
         capturing capture: () -> Date,
         lease: SequentialTrackLease<OverridableValue<Date>, Int?>,
-        lastReturned: inout Date?) -> Date?
+        lastReturned: inout Date, operation: inout SystemOperation<some Sendable>) -> Date?
     {
         var native: Date?
         var next: Progress?
         do {
-            try lease.record(capturing: {
+            try operation.record(on: lease, capturing: {
                 let observed = capture()
                 native = observed
                 lastReturned = observed
                 let prepared = try prepare(observed)
                 if progress == nil {
-                    try lease.setHeader(
-                        capturing: { prepared.offsetMinutes }, preparation: ValuePreparation<Int?>())
+                    try operation.setHeader(
+                        on: lease, capturing: { prepared.offsetMinutes }, preparation: ValuePreparation<Int?>())
                 }
                 next = prepared
                 return .observed(prepared.previous)

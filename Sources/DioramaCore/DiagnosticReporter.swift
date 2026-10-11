@@ -89,10 +89,18 @@ public final class DiagnosticReporter: Sendable {
     /// - Parameter diagnostic: Already safe infrastructure or verification data.
     public func record(_ diagnostic: Diagnostic) {
         let entry = retain(diagnostic)
+        if let effects = ManagedEffects.current {
+            effects.append { self.deliver(entry, context: diagnostic.context) }
+        } else {
+            deliver(entry, context: diagnostic.context)
+        }
+    }
+
+    private func deliver(_ entry: ReportedDiagnostic, context: DiagnosticContext) {
         do {
             try sink?.receive(entry)
         } catch {
-            _ = retain(Diagnostic(issue: .sinkFailed, context: diagnostic.context))
+            _ = retain(Diagnostic(issue: .sinkFailed, context: context))
         }
     }
 

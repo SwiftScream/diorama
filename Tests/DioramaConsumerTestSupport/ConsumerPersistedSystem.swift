@@ -33,23 +33,8 @@ public enum ConsumerPersistedSystem {
 
     /// Creates a public-only persistent consumer instance.
     public static func instance(key: AttachmentKey) throws -> ScenarioSystem<ConsumerSequentialDependency> {
-        let trackID = trackID(for: key)
-        let attachment = try ScenarioAttachment(id: attachmentID(for: key)).adding(
-            HeaderlessSequentialTrack<ConsumerStableValue>(id: trackID))
-        return try ScenarioSystem(type: type, attachment: attachment) { context in
-            if context.mode == .passthrough {
-                return PreparedSystem {
-                    ActivatedSystem(dependency: ConsumerSequentialDependency(), deactivate: {})
-                }
-            }
-            let preparation = ValuePreparation<ConsumerStableValue>()
-            let lease = try context.lease(for: trackID, preparation: preparation)
-            return PreparedSystem {
-                ActivatedSystem(
-                    dependency: ConsumerSequentialDependency(lease: lease, preparation: preparation),
-                    deactivate: {})
-            }
-        }
+        try ScenarioSystem(named: key.rawValue, definition: ConsumerSequentialDefinition(
+            systemType: type, values: SystemTrack("values")))
     }
 
     /// Identity for one caller-selected attachment key.
