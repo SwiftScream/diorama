@@ -1,5 +1,4 @@
 import DioramaCore
-import Synchronization
 import Testing
 
 /// A small HTTP-shaped ownership proof, not the production HTTP schema.
@@ -20,61 +19,98 @@ private struct ConsumerOperation: Equatable, Sendable {
     let path: Path
 }
 
-private final class ConsumerOperationDraft: Sendable {
-    private let state: Mutex<ConsumerOperation?>
+private struct ConsumerOperationState: Sendable {
+    let records: HeaderlessSequentialTrackLease<ConsumerOperation>
+    var drafts: [RecordIdentity: ConsumerOperation] = [:]
+}
 
-    init(input: PreparedValue<String>) {
-        state = Mutex(ConsumerOperation(request: input.value, path: .open))
-    }
+private struct ConsumerOperationDraft: Sendable {
+    let runtime: SystemRuntime<ConsumerOperationState>
+    let identity: RecordIdentity
 
     func observe(_ path: PreparedValue<ConsumerOperation.Path>) -> Bool {
-        state.withLock { value in
-            guard let current = value else { return false }
-            value = ConsumerOperation(request: current.request, path: path.value)
+        guard !runtime.isClosed else { return false }
+        return (try? runtime.withActiveState { state, _ in
+            guard let current = state.drafts[identity] else { return false }
+            state.drafts[identity] = ConsumerOperation(request: current.request, path: path.value)
             return true
-        }
+        }) ?? false
+    }
+}
+
+private struct OperationDependency: Sendable {
+    let runtime: SystemRuntime<ConsumerOperationState>
+    var reporter: DiagnosticReporter {
+        runtime.reporter
     }
 
-    func freeze() -> ConsumerOperation? {
-        state.withLock { value in
-            let detached = value
-            value = nil
-            return detached
+    func begin(input: String) throws -> ConsumerOperationDraft {
+        let identity = try runtime.withActiveState { state, operation in
+            try operation.beginRecord(
+                on: state.records, preparation: ValuePreparation<ConsumerOperation>(),
+                capturing: { identity in
+                    let prepared = try ValuePreparation<String>().prepare(
+                        capturing: { input }, purpose: .recording, reporter: reporter, context: .record(identity))
+                    state.drafts[identity] = ConsumerOperation(request: prepared.value, path: .open)
+                    return identity
+                }, freeze: { state, identity in state.drafts.removeValue(forKey: identity) })
+        }
+        return ConsumerOperationDraft(runtime: runtime, identity: identity)
+    }
+
+    func claim(matching input: String, using selector: ReplaySelector<String, ConsumerOperation>) throws
+        -> ReplayClaim<ConsumerOperation>
+    {
+        try runtime.withActiveState { state, operation in
+            try operation.claim(on: state.records, matching: input, using: selector)
         }
     }
 }
 
+private struct OperationDefinition: SystemDefinition {
+    let systemType = ScenarioSystemType("consumer.operations")
+    let records = SystemTrack<ConsumerOperation, Void>("operations")
+    var tracks: [AnySystemTrack] {
+        [records.erased]
+    }
+
+    func makeRecordState(in context: borrowing SystemStateContext) throws -> ConsumerOperationState {
+        try ConsumerOperationState(records: context.lease(for: records))
+    }
+
+    func makeReplayState(in context: borrowing SystemStateContext) throws -> ConsumerOperationState {
+        try makeRecordState(in: context)
+    }
+
+    func makeRecordDependency(using runtime: SystemRuntime<ConsumerOperationState>) -> OperationDependency {
+        OperationDependency(runtime: runtime)
+    }
+
+    func makeReplayDependency(using runtime: SystemRuntime<ConsumerOperationState>) -> OperationDependency {
+        OperationDependency(runtime: runtime)
+    }
+
+    func makePassthroughDependency() throws -> OperationDependency {
+        throw OperationFailure.unsupported
+    }
+}
+
+private enum OperationFailure: Error { case unsupported }
+
 struct SystemOwnedRecordTests {
     @Test
     func `consumer owns recursive partial and open records across capture and selection`() async throws {
-        let type = ScenarioSystemType("consumer.operations")
-        let id = AttachmentID(systemTypeID: type.id, key: AttachmentKey(rawValue: "one"))
-        let trackID = TrackID(attachmentID: id, key: TrackKey(rawValue: "operations"))
-        let attachment = try ScenarioAttachment(id: id)
-            .adding(HeaderlessSequentialTrack<ConsumerOperation>(id: trackID))
-        let policy = ValuePreparation<ConsumerOperation>()
-        let system = try ScenarioSystem(type: type, attachment: attachment) { context in
-            let lease = try context.lease(for: trackID, preparation: policy)
-            return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
-        }
+        let system = try ScenarioSystem(named: "one", definition: OperationDefinition())
+        let attachment = system.attachment
         let recording = try ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
             scenarioID: ScenarioID(rawValue: "domain-records"), defaultMode: .record,
             systems: [AnyScenarioSystem(system)])
         let lease = try recording.dependency(system)
-        let draft = try lease.beginRecord(preparation: policy, capturing: { identity in
-            let input = try ValuePreparation<String>().prepare(capturing: { "request" },
-                                                               purpose: .recording, reporter: lease.reporter,
-                                                               context: .record(identity))
-            return ConsumerOperationDraft(input: input)
-        }, freeze: { $0.freeze() })
+        let draft = try lease.begin(input: "request")
         let path = try preparedPath(reporter: lease.reporter)
         #expect(draft.observe(path))
-        _ = try lease.beginRecord(preparation: policy, capturing: { _ in
-            let input = try ValuePreparation<String>().prepare(
-                capturing: { "pending" }, purpose: .recording, reporter: lease.reporter)
-            return ConsumerOperationDraft(input: input)
-        }, freeze: { $0.freeze() })
+        _ = try lease.begin(input: "pending")
         let result = await recording.finish()
         let definition = try #require(result.definition)
         #expect(!draft.observe(path))

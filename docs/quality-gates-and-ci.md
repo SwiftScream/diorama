@@ -71,6 +71,14 @@ scripts/test         # tests on the current host
 scripts/check        # non-mutating local quality, build, and test gate
 ```
 
+`scripts/test` also runs the coverage-export fixture and public system-authoring
+compiler probes. The latter compile one external `SystemDefinition` and require
+ordinary compiler rejection for nine scoped-context, operation/state escape,
+and retired-API examples. Compiler crashes and unexpected acceptance fail the
+gate. These probes use the current test build's Core module, with the same
+scratch path and configuration, on macOS and Linux;
+iOS separately compiles and executes the public consumer conformance tests.
+
 Exact names can follow existing SwiftScream convention if another convention
 is preferred. CI must invoke these entry points or the same subordinate
 commands so local success and CI success do not represent different policies.

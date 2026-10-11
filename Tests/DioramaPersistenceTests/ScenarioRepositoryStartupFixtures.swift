@@ -29,55 +29,85 @@ final class StartupProbe: Sendable {
         key: String, allowsUnclaimedReplayRecords: Bool = false)
         throws -> ScenarioSystem<StartupDependency>
     {
-        let attachmentKey = AttachmentKey(rawValue: key)
-        let trackID = DioramaRandomSystem.trackID(for: attachmentKey)
-        let attachment = try ScenarioAttachment(
-            id: DioramaRandomSystem.attachmentID(for: attachmentKey))
-            .adding(HeaderlessSequentialTrack<UInt64>(id: trackID))
-        return try ScenarioSystem(type: DioramaRandomSystem.type, attachment: attachment,
-                                  allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
-        { [self] context in
-            state.withLock { $0.preparations += 1 }
-            if context.mode == .passthrough {
-                return PreparedSystem { [self] in
-                    state.withLock { $0.activations += 1 }
-                    return ActivatedSystem(dependency: StartupDependency.passthrough, deactivate: {})
+        try ScenarioSystem(named: key, definition: Definition(probe: self),
+                           allowsUnclaimedReplayRecords: allowsUnclaimedReplayRecords)
+    }
+
+    private struct Definition: SystemDefinition {
+        let probe: StartupProbe
+        let systemType = DioramaRandomSystem.type
+        let values = SystemTrack<UInt64, Void>("values")
+        var tracks: [AnySystemTrack] {
+            [values.erased]
+        }
+
+        func validate(in context: borrowing SystemValidationContext) throws {
+            probe.state.withLock { $0.preparations += 1 }
+            if context.mode != .passthrough {
+                try context.validate(values) { track in
+                    if probe.failValidation, !track.records.isEmpty {
+                        throw StartupFault()
+                    }
                 }
             }
-            let preparation = ValuePreparation<UInt64>(validate: { [failValidation] _ in
-                if failValidation {
-                    throw StartupFault()
-                }
-            })
-            let lease = try context.lease(for: trackID, preparation: preparation)
-            return PreparedSystem { [self] in
-                state.withLock { $0.activations += 1 }
-                return ActivatedSystem(dependency: StartupDependency.managed(lease), deactivate: {})
-            }
+        }
+
+        func makeRecordState(in context: borrowing SystemStateContext) throws
+            -> HeaderlessSequentialTrackLease<UInt64>
+        {
+            probe.state.withLock { $0.activations += 1 }
+            return try context.lease(for: values)
+        }
+
+        func makeReplayState(in context: borrowing SystemStateContext) throws
+            -> HeaderlessSequentialTrackLease<UInt64>
+        {
+            try makeRecordState(in: context)
+        }
+
+        func makeRecordDependency(using runtime: SystemRuntime<HeaderlessSequentialTrackLease<UInt64>>)
+            -> StartupDependency
+        {
+            .managed(runtime)
+        }
+
+        func makeReplayDependency(using runtime: SystemRuntime<HeaderlessSequentialTrackLease<UInt64>>)
+            -> StartupDependency
+        {
+            .managed(runtime)
+        }
+
+        func makePassthroughDependency() -> StartupDependency {
+            probe.state.withLock { $0.activations += 1 }
+            return .passthrough
         }
     }
 }
 
 enum StartupDependency: Sendable {
-    case managed(HeaderlessSequentialTrackLease<UInt64>)
+    case managed(SystemRuntime<HeaderlessSequentialTrackLease<UInt64>>)
     case passthrough
 
     func report(_ issue: DiagnosticIssue, recordingImpact: RecordingImpact = .none) -> Bool {
-        guard case let .managed(lease) = self else { return false }
-        return lease.report(issue, recordingImpact: recordingImpact)
+        guard case let .managed(runtime) = self else { return false }
+        return (try? runtime.withActiveState { lease, operation in
+            operation.report(on: lease, issue, recordingImpact: recordingImpact)
+        }) ?? false
     }
 
     func consumeNext() throws -> UInt64 {
-        guard case let .managed(lease) = self else { throw StartupFault() }
-        return try lease.consumeNext()
+        guard case let .managed(runtime) = self else { throw StartupFault() }
+        return try runtime.withActiveState { lease, operation in try operation.consumeNext(on: lease) }
     }
 
     func record(capturing capture: () throws -> UInt64, preparation: ValuePreparation<UInt64>) throws {
-        guard case let .managed(lease) = self else {
+        guard case let .managed(runtime) = self else {
             _ = try capture()
             return
         }
-        try lease.record(capturing: capture, preparation: preparation)
+        _ = try runtime.withActiveState { lease, operation in
+            try operation.record(on: lease, capturing: capture, preparation: preparation)
+        }
     }
 }
 

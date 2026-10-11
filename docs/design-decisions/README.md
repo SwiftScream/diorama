@@ -142,3 +142,9 @@ The initial twelve decisions and their combined
 URLSession direction. Follow-up decisions 13 through 17 resolve the proving
 system, scheduler, clock, location, and concrete HTTP lifecycle needed before
 synthesis of the clean-slate implementation plan.
+
+The 2026-10-11 [DD20 lifetime amendment](20-system-definitions-and-pure-passthrough.md#recording-lifetime-and-replay-continuation-amendment--2026-10-11)
+lets each recording system define post-closure behavior: Date and Random retain
+live sources with late-call diagnostics, while managed native systems keep their
+shutdown contracts. Sequential replay uses public track continuation policies;
+the generic runtime snapshot facility is removed.

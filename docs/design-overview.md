@@ -133,6 +133,14 @@ The decisions combine into this design:
     messages and typed adapter supplements, with mutually exclusive returned,
     failed, and open leaves.
 
+Recording dependencies define their post-closure behavior. Date and Random
+retain live sources in the returned dependency and diagnose late reads without
+recording them. Location and URLSession retain their explicit shutdown
+requirements. Sequential replay uses the track's error, fixed-fallback, or
+replay-last policy, including after closure, without live access. Core releases
+managed state and has no general runtime snapshot facility. See the
+[DD20 lifetime amendment](design-decisions/20-system-definitions-and-pure-passthrough.md#recording-lifetime-and-replay-continuation-amendment--2026-10-11).
+
 ## Reconciled tensions
 
 ### Track order and matcher-based replay

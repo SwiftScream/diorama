@@ -4,7 +4,9 @@ import Synchronization
 ///
 /// Protected closures and source calls are synchronous and must
 /// not reenter, invoke arbitrary callbacks, schedule tasks, wait for finish, or
-/// expose active-resource aliases. Use scoped operations for Core effects.
+/// expose active-resource aliases. A replay dependency may retain its sequential
+/// lease for reads governed by the track continuation policy. Use scoped
+/// operations for other Core effects.
 /// Deliver native callbacks and register/cancel scheduled work outside state
 /// protection. Passthrough never creates a runtime.
 public final class SystemRuntime<State: Sendable>: Sendable {

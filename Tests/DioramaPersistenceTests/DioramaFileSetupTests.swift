@@ -147,16 +147,12 @@ struct DioramaFileSetupTests {
     }
 
     @Test
-    func `conflicting descriptors missing capabilities and mismatched attachments are rejected`() throws {
+    func `conflicting descriptors and missing capabilities reject setup with derived identities`() throws {
         let location = try ScenarioFileLocation(
             rootDirectory: FileManager.default.temporaryDirectory, relativePath: "unused.json")
         let probe = StartupProbe()
         let system = try probe.system(key: "random")
-        #expect(throws: ScenarioDefinitionError.self) {
-            try ScenarioSystem(type: extraRegistration(), attachment: system.attachment) { _ in
-                PreparedSystem { ActivatedSystem(dependency: true, deactivate: {}) }
-            }
-        }
+        #expect(system.type.id == system.attachment.id.systemTypeID)
         let firstType = extraRegistration()
         let first = try persistentExtra("first", registration: firstType)
         let second = try persistentExtra("second", registration: extraRegistration())
@@ -196,10 +192,23 @@ struct DioramaFileSetupTests {
     private func persistentExtra(
         _ key: String, registration: ScenarioSystemType) throws -> ScenarioSystem<Bool>
     {
-        let attachment = ScenarioAttachment(id: AttachmentID(
-            systemTypeID: registration.id, key: AttachmentKey(rawValue: key)))
-        return try ScenarioSystem(type: registration, attachment: attachment) { _ in
-            PreparedSystem { ActivatedSystem(dependency: true, deactivate: {}) }
-        }
+        try ScenarioSystem(named: key, definition: ExtraDefinition(systemType: registration))
+    }
+}
+
+private struct ExtraDefinition: SystemDefinition {
+    let systemType: ScenarioSystemType
+    func makeRecordState(in _: borrowing SystemStateContext) {}
+    func makeReplayState(in _: borrowing SystemStateContext) {}
+    func makeRecordDependency(using _: SystemRuntime<Void>) -> Bool {
+        true
+    }
+
+    func makeReplayDependency(using _: SystemRuntime<Void>) -> Bool {
+        true
+    }
+
+    func makePassthroughDependency() -> Bool {
+        true
     }
 }

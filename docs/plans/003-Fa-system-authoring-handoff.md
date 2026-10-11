@@ -157,19 +157,20 @@ The explored solution combined these responsibilities in Core:
 2. Supply a noncopyable scoped operation token for recording, selection,
    consumption, and diagnostics. Retain facts immediately in the shared ledger,
    while buffering sink notifications for this operation.
-3. Publish detached snapshots before unlocking, including on throwing exits.
+3. Commit managed state before unlocking, including on throwing exits.
 4. Unlock before delivering diagnostic notifications, publishing queued work,
    or invoking cancellation handlers. Reentry then sees committed state.
 5. Track admitted work/notifications so finish joins them before freezing its
    report. New calls after closure diagnose without extending the finish join.
-6. Detach active resources and snapshot projections at closure, releasing them
-   outside the state lock so destruction cannot reenter that lock. Escaped
-   record/replay handles retain only the minimum frozen values and reporter.
+6. Detach managed state at closure and release it outside the state lock.
+   Under the approved 2026-10-11 DD20 amendment, recording dependencies may
+   retain their own live source; replay dependencies may retain a closed-safe
+   sequential lease with its selected continuation value.
 
 System implementations should not need their own locks or manual notification
 flushes for these managed operations. Protected closures cannot reenter Core
 through unadapted services, invoke arbitrary callbacks, suspend, wait for
-finish, or return active-resource aliases. Source, conversion, and snapshot
+finish, or return arbitrary active-resource aliases. Source and conversion
 closures inherit these rules. Native delivery happens outside protection.
 
 Use a nonescaping `inout` operation token if retaining the demonstrated
@@ -181,50 +182,34 @@ with positive and negative compiler checks instead of unsafe annotations.
 ### Readable Random and Date implementations
 
 Prefer distinct record and replay dependency structs implementing the
-application protocol directly through `withActiveState`. The owner found this
-clearer than a `SystemValueReader` plus behavior hidden in factory closures or
-state methods. A reader helper is not a required production API.
+application protocol directly. The approved
+[DD20 lifetime amendment](../design-decisions/20-system-definitions-and-pure-passthrough.md#recording-lifetime-and-replay-continuation-amendment--2026-10-11)
+supersedes the earlier snapshot experiment described in this handoff.
 
-Random's record state contains the mutable source and a UInt64 lease. Replay
-state may be the lease itself. Passthrough returns the source directly. The
-record dependency can express its native-return rule explicitly:
+Recording Random keeps its native mutable generator in a shared serialized
+source owned by the returned dependency. Managed state contains the UInt64
+lease. Reserve through `withActiveState` before reading, preserve a captured
+native return if subsequent admission fails, and read the source exactly once
+if closure prevents capture. Deliver diagnostics outside both state and native
+source protection. Copied dependencies share that source after finish.
 
-```swift
-func next() -> UInt64 {
-    do {
-        return try runtime.withActiveState { state, operation in
-            var result: UInt64 = 0
-            // Reserve before invoking the source; keep its return on a late failure.
-            _ = try? operation.record(on: state.values, capturing: {
-                result = state.source.next()
-                return result
-            }, preparation: ValuePreparation<UInt64>())
-            return result
-        }
-    } catch {
-        return 0 // Core has retained and delivered the closure diagnostic.
-    }
-}
-```
+Recording Date similarly owns its live source in the returned dependency.
+Managed state contains wall-conversion progress and the headered lease. Capture
+the recording timezone before constructing the source. Keep conversion and
+merge logic shared; preserve the native return on conversion failure. After
+closure, return live dates with diagnostics and no new recording.
 
-Replay consumes under protection and returns zero after diagnosed exhaustion or
-closure. Copied record/replay dependencies still share a runtime and one source
-or cursor. The factory for pure passthrough simply returns `sourceFactory()`.
+Replay dependencies retain the sequential lease and call public `consumeNext()`
+directly so closure reaches its `ReplayContinuationPolicy`. Random selects
+`.fallback(0)`; Date selects `.replayLast(defaultValue: .observed(unixEpoch))`.
+Core joins admitted direct reads and their notification delivery. No live
+source is constructed for replay. Remove `SystemRuntime.snapshot()` and
+`SystemSnapshot`, their projections, and duplicate last-value state.
 
-Date's record state contains the source, existing wall-conversion progress,
-headered lease, and last native date. Replay state contains the lease and last
-returned effective date. Both last-value fields begin at the Unix epoch. Capture
-the recording timezone before constructing the source, preserving existing
-behavior. Keep wall conversion/merge logic shared; preserve the native return
-and continuation even when subsequent conversion or recording fails.
-
-The experiment used `runtime.snapshot { $0.lastReturned }`: a pure projection
-updated under protection, then frozen without retaining active resources.
-Replay exhaustion resolves from `state.lastReturned` inside the same protected
-operation as consumption. A closed runtime can return the detached snapshot.
-Handle a lease closing after operation admission, and distinguish other errors
-according to the existing Date contract. Pure passthrough needs none of this
-state. Do not restore its last-date policy accidentally.
+Pure passthrough continues to return `sourceFactory()` directly, preserving
+native copy semantics and undiagnosed live use after finish. Location and
+URLSession retain their explicit managed shutdown contracts; any future frozen
+property view should use small system-specific stable state.
 
 ### Complete the existing extension boundary
 
@@ -254,7 +239,8 @@ use internal access; external-system proofs must keep ordinary imports.
 
 Use controlled tests for live capture racing finish, sink/callback/cancellation
 reentry, repeated/concurrent finish, queued work during activation failure,
-claim acknowledgement, snapshot freshness, and release through escaped handles.
+claim acknowledgement, post-closure recording/replay behavior, and ownership
+through escaped handles.
 Do not weaken prior assertions simply to make the API migration compile.
 
 ### Native follow-up and evidence limits

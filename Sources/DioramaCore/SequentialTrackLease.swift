@@ -1,11 +1,11 @@
 import Foundation
 import Synchronization
 
-/// An execution-owned, reference-semantic lifetime for one typed track.
-/// References share a lifetime within a run; new runs get fresh leases.
-/// Recording builds a new sequence, replay claims the baseline, and
-/// passthrough retains neither. Closed leases release track content and keep only
-/// the continuation value explicitly requested by replay setup.
+/// Opaque execution-owned storage for one typed track. Obtain it from a scoped
+/// state context and operate through `SystemOperation` under managed protection.
+/// References share a lifetime within one run; new runs get fresh leases.
+/// Recording builds a new sequence and replay claims the baseline. Passthrough
+/// has no leases. Closure releases stable content and recording callbacks.
 public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Sendable {
     private enum HeaderSlot: Sendable {
         case empty
@@ -74,7 +74,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
     /// The effective whole-attachment mode for this run.
     public let mode: ScenarioMode
     /// Lightweight reporting context that may safely outlive the execution.
-    public let reporter: DiagnosticReporter
+    let reporter: DiagnosticReporter
 
     private let state: Mutex<State>
     private let closing = Mutex(())
@@ -118,7 +118,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
     /// - Returns: The stable identity reserved at observation time.
     /// - Throws: Safe, already-reported operation or preparation evidence.
     @discardableResult
-    public func record(
+    func record(
         capturing capture: () throws -> Value,
         preparation: ValuePreparation<Value>,
         fieldPath: [DiagnosticLabel] = [],
@@ -183,14 +183,20 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
     /// exhausted request receives a stable requested position and a diagnostic,
     /// but continuation never creates a record or consumption fact. Exhausted and
     /// closed replay reads follow the setup-selected continuation policy; wrong
-    /// mode always throws. Diagnostic handlers run outside the lease lock.
+    /// mode always throws. Admitted reads and diagnostic delivery join finish.
+    /// Diagnostic handlers run outside the lease lock; when called in a managed
+    /// operation, delivery waits until the protected state commits.
     /// Use `claim(matching:using:)` for identity or later consumption acknowledgement.
     ///
     /// - Returns: The next stored value or the configured continuation.
     /// - Throws: Safe, already-reported wrong-mode or noncontinuable failure evidence.
     public func consumeNext() throws(SequentialOperationFailure) -> Value {
         let admitted = reads.enter()
-        defer { if admitted { reads.leave() } }
+        defer {
+            if admitted {
+                reads.leave()
+            }
+        }
         let (result, previous) = state.withLock { state in
             // Replacing a reference-valued default must not run its destruction
             // while holding the lease lock; it may report or reenter the lease.
@@ -237,7 +243,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
     ///   - issue: A safe infrastructure fact, not a dependency error payload.
     ///   - recordingImpact: Its effect on candidate health while open.
     /// - Returns: Whether the lease accepted the system fact before closure.
-    public func report(_ issue: DiagnosticIssue, recordingImpact: RecordingImpact = .none) -> Bool {
+    func report(_ issue: DiagnosticIssue, recordingImpact: RecordingImpact = .none) -> Bool {
         let open = !isClosed
         reporter.record(Diagnostic(
             issue: open ? issue : .lifecycle(.leaseClosed),
@@ -291,7 +297,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
     }
 }
 
-public extension SequentialTrackLease {
+extension SequentialTrackLease {
     /// Returns the validated baseline header without consuming a record.
     func baselineHeader() -> Header? {
         state.withLock { $0.baselineHeader }
@@ -366,7 +372,7 @@ public extension SequentialTrackLease {
 }
 
 /// Incremental recording retains a system-owned accumulator until finalization.
-public extension SequentialTrackLease {
+extension SequentialTrackLease {
     /// Reserves a record position before constructing its system-owned accumulator.
     ///
     /// Core does not interpret the accumulator's phases, timing, or conclusion.
@@ -607,7 +613,7 @@ extension SequentialTrackLease: AnySequentialLease {
     }
 }
 
-public extension SequentialTrackLease {
+extension SequentialTrackLease {
     /// Selects and atomically claims a complete record once.
     ///
     /// The system selector sees all baseline records so exhaustion differs from
