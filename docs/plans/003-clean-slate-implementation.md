@@ -450,7 +450,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | D     | 003-D01–003-D05      | Isolated URLProtocol evidence and reviewed native capability boundaries.     |
 | E     | 003-E01–003-E08      | Shared real-time scheduler and system-owned record services.           |
 | F     | 003-F01–003-F07; 003-F03A abandoned | Portable wall system and Core execution clock. |
-| Fa    | 003-Fa01–003-Fa07 | Pure passthrough, managed system authoring, and infrastructure-review follow-ups with explicit dependency deadlines. |
+| Fa    | 003-Fa01–003-Fa07; 003-Fa09 | Pure passthrough, managed system authoring, infrastructure-review follow-ups, and diagnostic-delivery simplification. |
 | G     | 003-G01–003-G09      | Portable location replay and narrow Apple live/delegate integration.         |
 | H     | 003-H01–003-H14      | Shared HTTP domain, resource publication, strict URLSession lifecycle data.  |
 | I     | 003-I01–003-I09      | Incremental production URLSession conformance across platform bridges.       |
@@ -1537,6 +1537,12 @@ coverage evidence is needed. These follow-ups do not make every cleanup a
 prerequisite for G01. Native Location and URLSession implementation and any
 evidence-driven lifecycle extension remain separately reviewed work.
 
+Fa09 explores relaxing immediate diagnostic notification while preserving
+immediate retention of facts and recording health. Resolve its delivery contract
+before J01/J02 build test-framework integrations around that behavior. It is not
+an additional prerequisite for Location or HTTP domain work. Fa08 is reserved
+for the separately reviewed managed native lifecycle design.
+
 ### 003-Fa01 — Pure passthrough with native dependency lifetime
 
 - Status: Complete on 2026-10-11.
@@ -1854,6 +1860,68 @@ evidence-driven lifecycle extension remain separately reviewed work.
 - Checkpoint: R; complete before the next coverage-baseline or coverage-dependent
   review decision. Until then, explicitly exclude stale products when using
   local coverage as evidence; do not treat historical totals as repaired.
+
+### 003-Fa09 — Simplify diagnostic delivery
+
+- Status: Approved planned exploration and implementation on 2026-10-11; not
+  started. The owner requests this work item after reviewing the complexity of
+  immediate, reentrant diagnostic callbacks. No replacement delivery contract
+  is selected yet; normal scope confirmation under R still applies.
+- Prerequisites: 003-Fa02, 003-B08–003-B09, 003-C06; DD05, DD10, and DD20.
+  Inspect the integrated reporter, managed effects, and finalization behavior.
+- Trigger: A synchronous diagnostic sink can throw, overlap other notifications,
+  or reenter a dependency. Supporting that delivery timing couples operation
+  completion, deferred effects, reporter failure handling, and finish joins.
+- Exploration: Compare the current contract with report-only inspection and
+  explicit delivery checkpoints, such as a consumer-requested drain or a batch
+  at finish. Retain facts and update recording health immediately in every
+  option. Identify which callback, reentry, and lifetime machinery each option
+  actually removes, and which obligations move to consumers or integrations.
+  Do not assume that adding a background task or async sequence is simpler.
+- Decision questions: Specify notification timing, delivery ownership and
+  ordering, sink failure handling, and behavior during startup failure, body
+  failure, cancellation, concurrent finish, and post-finish use. Explain whether
+  drains can overlap or reenter and how duplicate or lost notifications are
+  avoided. Compare the loss of immediate test notification or intervention with
+  the smaller concurrency contract, including test-context expiry and diagnostics
+  retained after the immutable final report freezes.
+- Design checkpoint: Present the concrete alternatives, public API examples,
+  and implementation savings for owner selection before production changes.
+  Record any selected contract revision as an approved decision or explicit
+  amendment to DD05/DD10/DD20. This planned unit does not supersede them. If the
+  alternatives do not materially simplify the design, report that result for
+  review rather than implementing a nominal redesign.
+- Implementation: After selection, implement the agreed delivery contract and
+  remove machinery made redundant by it. Migrate reporter configuration, public
+  authoring examples, and tests together. Preserve immediate diagnostic facts
+  and health changes, sanitization, deterministic report order, immutable finish
+  results, separately inspectable post-finish facts, and replay isolation.
+  Keep test pass/fail policy outside Core.
+- Scope boundary: Audit every managed-effect use before removing anything.
+  Deferred work such as `afterCommit`, cancellation callbacks, and destruction
+  of retained captures still needs safe execution outside state protection even
+  if immediate diagnostic sinks disappear. Coordinate with any accepted native
+  lifecycle changes; do not silently weaken their drainage guarantees.
+- Expected files/modules: Core diagnostics, managed effects and finalization;
+  focused Random/Date and public consumer tests; affected authoring/reporting
+  documentation and examples. Record alternatives, the selected contract, and
+  completed evidence in `docs/evidence/003-Fa09-diagnostic-delivery.md`. Update
+  J01/J02's integration requirements to match the approved result.
+- Tests/verification: V-doc for the design review; V-spike if an isolated probe
+  is needed; V-code for implementation. Prove immediate health invalidation and
+  retained facts independently of notification timing, the chosen delivery and
+  sink-failure semantics, reentry where supported, cancellation and finish races,
+  startup/body failure, post-finish inspection, and no lost or duplicate delivery.
+  Retain relevant Date conversion-failure and Random finish-race regressions
+  while updating assertions tied to deliberately superseded notification timing.
+  Verify public-only use and test-context limits; record the actual reduction in
+  lifecycle obligations rather than treating fewer lines as sufficient evidence.
+- Exclusions: New test-framework integrations, generalized event infrastructure,
+  changes to system continuation policies, capture or admission validation,
+  persistence schemas, dependencies, or native HTTP capability scope.
+- Checkpoint: R; review the contract choice before implementation, then the
+  complete implementation and evidence. Complete before J01/J02 rely on a
+  diagnostic-delivery policy; do not start either integration automatically.
 
 ## Phase G — Location domain and Apple bridge
 
@@ -2390,7 +2458,7 @@ the accepted Linux milestone profile; its upstream repair is not required.
 ### 003-J01 — Opt-in XCTest integration
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Opt-in XCTest reporting must honor context lifetime, concurrent diagnostics, and explicit core finalization.
-- Prerequisites: 003-B08–003-B09, 003-C06; DD05, DD10, resolved Q3, quality policy.
+- Prerequisites: 003-B08–003-B09, 003-C06, 003-Fa09; DD05, DD10, resolved Q3, quality policy.
 - Scope: Provide a separate, explicit XCTest diagnostic/evaluation convenience using supported lifecycle APIs and captured setup source locations.
 - Expected files/modules: `DioramaXCTest`, integration tests and usage example; target availability separated from core.
 - Public behavior: Consumers select categories and install reporting themselves; core never calls XCTest.
