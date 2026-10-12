@@ -163,6 +163,8 @@ struct DioramaPublicationTests {
                 #expect(error as? PublicationFixtures.Failure == .body)
             }
         }
+        #expect(setup.report?.disposition == (unhealthy ? .refusedUnhealthy : .published))
+        #expect(setup.report?.candidate.isComplete == !unhealthy)
         #expect(storage.writeCount == (unhealthy ? 0 : 1))
         if unhealthy {
             #expect(storage.document == bytes)

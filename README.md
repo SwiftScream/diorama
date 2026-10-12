@@ -46,6 +46,34 @@ Import `Diorama` when writing tests, together with the systems you use, such as
 `DioramaRandom`. Setup takes a string scenario ID and default mode, accepts a
 file URL, and coordinates in-memory or file-backed runs.
 
+`Diorama` is a final class that supports sequential reuse. References to the
+same instance share one execution gate: overlapping or nested `execute` calls
+throw `DioramaExecutionError.executionAlreadyInProgress` before startup.
+Separate instances can execute concurrently.
+
+After `execute` returns or rethrows the original body error, `diorama.report`
+contains immutable finalization and publication evidence. A new admitted
+attempt clears it; it is nil during execution and after startup failure.
+Startup errors carry their own evidence. Inspect or retain the report before
+starting another attempt. For example, a test can use `defer` to render the
+report while allowing its body error to reach the test framework:
+
+```swift
+defer {
+    if let report = diorama.report {
+        print(report.rendered())
+    }
+}
+_ = try await diorama.execute { context, dependency in
+    try await exerciseApplication(using: dependency)
+}
+```
+
+The example assumes an existing setup with one dependency. Reporting does not
+decide whether the test passes; body errors still propagate unchanged, and
+configured publication still depends on recording health rather than body
+success.
+
 `DioramaCore` provides the execution engine and system authoring contracts.
 `DioramaPersistence` provides codecs, repositories, and storage over core
 definitions. Both remain available independently. Importing the consumer module

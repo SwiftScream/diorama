@@ -1,15 +1,39 @@
 import DioramaCore
 import DioramaPersistence
 import Foundation
+import Synchronization
 
-/// Complete reusable setup retaining a heterogeneous, statically typed system list.
+private enum DioramaExecutionState: Sendable {
+    case idle(DioramaReport?)
+    case executing
+}
+
+/// Sequentially reusable setup with shared reference identity and a final report.
 ///
 /// Construction validates declarations without preparing systems or accessing
 /// storage. Each start owns independent runtime state. System attachment values
 /// supply layout only; recorded content comes exclusively from the selected baseline.
-public struct Diorama<each Dependency: Sendable>: Sendable {
+/// One instance admits one execution at a time; separate instances may run concurrently.
+public final class Diorama<each Dependency: Sendable>: Sendable {
     private let systems: (repeat ScenarioSystem<each Dependency>)
     private let startup: @Sendable () throws -> DioramaRun
+    private let state = Mutex<DioramaExecutionState>(.idle(nil))
+
+    /// Safe completed evidence from the latest admitted execution attempt.
+    ///
+    /// Nil before execution, during an attempt, and after startup failure. A new
+    /// admitted attempt clears the previous report; rejected overlapping calls
+    /// leave it untouched. Body failure or cancellation still stores a report
+    /// before the original error escapes. Retain this immutable value before
+    /// starting another attempt; it contains no live dependencies or body error.
+    public var report: DioramaReport? {
+        state.withLock { state in
+            switch state {
+            case let .idle(report): report
+            case .executing: nil
+            }
+        }
+    }
 
     /// Creates in-memory setup without a baseline.
     ///
@@ -19,7 +43,7 @@ public struct Diorama<each Dependency: Sendable>: Sendable {
     ///   - mode: Mode inherited by systems without an override.
     ///   - systems: Active systems in dependency and activation order.
     /// - Throws: Invalid attachment identities.
-    public init(
+    public convenience init(
         scenarioID: String, mode: ScenarioMode,
         systems: repeat ScenarioSystem<each Dependency>) throws
     {
@@ -34,7 +58,7 @@ public struct Diorama<each Dependency: Sendable>: Sendable {
     ///   - mode: Mode inherited by systems without an override.
     ///   - systems: Active systems in dependency and activation order.
     /// - Throws: Invalid attachment identities.
-    public init(
+    public convenience init(
         definition: ScenarioDefinition, scenarioID: String, mode: ScenarioMode,
         systems: repeat ScenarioSystem<each Dependency>) throws
     {
@@ -55,7 +79,7 @@ public struct Diorama<each Dependency: Sendable>: Sendable {
     ///   - mode: Mode inherited by systems without an override.
     ///   - systems: Active typed systems in dependency and activation order.
     /// - Throws: Invalid declarations.
-    public init(
+    public convenience init(
         repository: JSONScenarioRepository, scenarioID: String, mode: ScenarioMode,
         systems: repeat ScenarioSystem<each Dependency>) throws
     {
@@ -79,7 +103,7 @@ public struct Diorama<each Dependency: Sendable>: Sendable {
     ///   - mode: Mode inherited by systems without an override.
     ///   - systems: Typed instances sharing system-wide persistence descriptors.
     /// - Throws: Invalid declarations, policy, conflicting types, or missing persistence.
-    public init(
+    public convenience init(
         file: URL, scenarioID: String, mode: ScenarioMode,
         systems: repeat ScenarioSystem<each Dependency>) throws
     {
@@ -103,7 +127,7 @@ public struct Diorama<each Dependency: Sendable>: Sendable {
                       systems: repeat each systems)
     }
 
-    private init(
+    private convenience init(
         baseline: ScenarioDefinition?, scenarioID: String, defaultMode: ScenarioMode,
         systems: repeat ScenarioSystem<each Dependency>) throws
     {
@@ -138,6 +162,9 @@ public struct Diorama<each Dependency: Sendable>: Sendable {
     /// A body error is rethrown after finalization. Startup failure throws
     /// without invoking the body. The explicit isolation annotation
     /// preserves the caller's actor through the stored parameter pack.
+    /// Overlapping or nested calls on this instance throw before startup; they
+    /// are not queued. Admission covers rollback, finalization, and publication.
+    /// The completed report is stored before returning or rethrowing a body error.
     /// - Parameters:
     ///   - body: Work receiving execution context followed by fresh dependencies
     ///     in declaration order, on its inferred actor. Context is available even
@@ -145,14 +172,23 @@ public struct Diorama<each Dependency: Sendable>: Sendable {
     /// - Returns: Successful body value, finalization, resulting definition,
     ///   publication disposition, and the exact load outcome. A failed publication
     ///   is reported without discarding the body value or healthy definition.
-    /// - Throws: Startup or body failure, after finalization when the body throws.
+    /// - Throws: `DioramaExecutionError.executionAlreadyInProgress`, startup
+    ///   failure, or the original body error after finalization and publication.
     public func execute<Success: Sendable, Failure: Error>(
         _ body: @isolated(any) (ScenarioExecutionContext, repeat each Dependency) async throws(Failure) -> Success)
         async throws -> DioramaResult<Success>
     {
+        let admitted = state.withLock { state in
+            guard case .idle = state else { return false }
+            state = .executing
+            return true
+        }
+        guard admitted else { throw DioramaExecutionError.executionAlreadyInProgress }
+        var completedReport: DioramaReport?
+        defer { state.withLock { $0 = .idle(completedReport) } }
         let run = try startup()
         let dependencies = (repeat run.requiredDependency(for: each systems))
-        return try await run.runScoped { () async throws(Failure) -> Success in
+        return try await run.runScoped(report: &completedReport) { () async throws(Failure) -> Success in
             try await body(run.context, repeat each dependencies)
         }
     }

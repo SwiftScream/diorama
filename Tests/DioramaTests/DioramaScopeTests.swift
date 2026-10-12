@@ -26,6 +26,7 @@ struct DioramaScopeTests {
         }
         #expect(state.value == 1)
         #expect(probe.events.withLock { $0.last } == "cleanup-a")
+        #expect(setup.report?.scenarioID.rawValue == "actor")
     }
 
     @Test
@@ -64,6 +65,7 @@ struct DioramaScopeTests {
                 #expect(result.body)
                 #expect(result.finalization.cleanup.map(\.disposition) == [.completed])
             }
+            #expect(setup.report != nil)
         }
         #expect(probe.events.withLock { $0.filter { $0 == "cleanup-a" }.count } == 2)
     }

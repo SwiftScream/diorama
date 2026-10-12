@@ -50,10 +50,16 @@ struct DioramaPublicationLifetimeTests {
         _ = await iterator.next()
         task.cancel()
         #expect(storage.document == nil)
+        #expect(setup.report == nil)
+        await #expect(throws: DioramaExecutionError.executionAlreadyInProgress) {
+            try await setup.execute { _, _ in Issue.record("An overlapping publication was admitted") }
+        }
+        #expect(storage.readCount == 1)
         release.signal()
 
         let result = try await task.value
         #expect(result.body == 123)
+        #expect(setup.report == result.report)
         #expect(try PublicationFixtures.values("record", in: #require(result.definition)) == [42])
         if fail {
             guard case .failed(.storage) = result.publication else {
@@ -68,5 +74,31 @@ struct DioramaPublicationLifetimeTests {
         #expect(storage.writeCount == 1)
         #expect(storage.readCount == 1)
         #expect((storage.document == nil) == fail)
+    }
+
+    @Test
+    func `publication failure remains visible alongside the original body error`() async throws {
+        let storage = PublicationStorage(beforeCommit: { throw PublicationFixtures.Failure.storage })
+        let system = try StartupProbe().system(key: "record")
+        let setup = try Diorama(repository: randomRepository(storage: storage),
+                                scenarioID: "both-failed", mode: .record, systems: system)
+        do {
+            _ = try await setup.execute { _, lease in
+                try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
+                throw PublicationFixtures.Failure.body
+            }
+            Issue.record("Expected the original body error")
+        } catch {
+            #expect(error as? PublicationFixtures.Failure == .body)
+            let report = try #require(setup.report)
+            #expect(report.disposition == .failed)
+            #expect(report.candidate.isComplete)
+            #expect(report.issues.map(\.stage) == [.storage(nil)])
+            #expect(storage.writeCount == 1)
+        }
+        let next = try await setup.execute { _, _ in 7 }
+        #expect(next.body == 7)
+        #expect(setup.report == next.report)
+        #expect(storage.writeCount == 2)
     }
 }
