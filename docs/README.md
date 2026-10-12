@@ -251,6 +251,10 @@ proposal for discussion, with its review gate recorded in the owning plan.
   copying and lifetime, lease-free startup, baseline preservation, and cleanup
   boundaries.
 
+- [Sequential execution and retained-report evidence](evidence/003-Fa09A-sequential-execution-and-reports.md)
+  records consumer reference identity, overlap rejection, sequential reuse,
+  and final-report access after body failure or cancellation.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

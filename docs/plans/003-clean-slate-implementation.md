@@ -1867,9 +1867,11 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
 
 ### 003-Fa09A — Sequential consumer execution and retained reports
 
-- Status: Approved and scope confirmed by the owner on 2026-10-12; in progress.
-  The owner authorizes documenting the decision, implementation, and a PR into
-  master as one preparatory review unit before Fa09.
+- Status: Complete on 2026-10-12. The owner confirms scope and authorizes
+  documenting the decision, implementation, and a PR into master as one
+  preparatory review unit before Fa09. The
+  [evidence](../evidence/003-Fa09A-sequential-execution-and-reports.md) records
+  the public contract, lifecycle proofs, and platform verification.
 - Prerequisites: 003-C04B, 003-C06, 003-B08–003-B09; DD18's
   [sequential reuse amendment](../design-decisions/18-diorama-setup-and-scenario-data.md#sequential-reuse-and-retained-final-reports--owner-approved-2026-10-12),
   DD10's finalization and publication policy. Fa02/Fa08 are not prerequisites.
