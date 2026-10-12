@@ -1909,10 +1909,14 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
 
 ### 003-Fa09 — Final-report-only diagnostics
 
-- Status: In progress on 2026-10-12. The owner selects final-report-only
+- Status: Complete on 2026-10-12. The owner selects final-report-only
   diagnostics, approves documentation and implementation, and requests a PR
   stacked on Fa09A. This resolves the earlier exploration checkpoint. The same
   instruction selects execution before Fa02; no managed runtime is assumed.
+  [Evidence](../evidence/003-Fa09-diagnostic-delivery.md) records the selected
+  contract, concurrency audit, API migration, and passing local platform gates.
+  Fa09A merges before PR creation, so this unit targets master directly while
+  retaining Fa09A as its base; the implementation scope is unchanged.
 - Prerequisites: 003-Fa09A, 003-B08–003-B09, 003-C06; DD05's 2026-10-12 amendment,
   reconciled DD10/DD20, and DD18's retained-report amendment.
 - Scope: Remove `DiagnosticSink`, startup sink configuration, and `sinkFailed`.

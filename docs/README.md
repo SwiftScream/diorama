@@ -258,6 +258,9 @@ test-integration design. They do not authorize those APIs.
 - [Sequential execution and retained-report evidence](evidence/003-Fa09A-sequential-execution-and-reports.md)
   records consumer reference identity, overlap rejection, sequential reuse,
   and final-report access after body failure or cancellation.
+- [Final-report-only diagnostic evidence](evidence/003-Fa09-diagnostic-delivery.md)
+  records the delivery contract, API migration, concurrency simplification,
+  deferred inspection considerations, and local platform verification.
 
 ## Historical boundary
 

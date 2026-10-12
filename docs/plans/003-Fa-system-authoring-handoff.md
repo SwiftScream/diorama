@@ -13,8 +13,9 @@ At handoff, the integrated implementation includes F01–F07 and the DioramaDate
 rename. Its authoring path uses public `PreparedSystem`, `ActivatedSystem`,
 `SystemPreparationContext`, and the closure-based `ScenarioSystem` initializer.
 The proposed `SystemDefinition`, `SystemRuntime`, typed track declarations,
-scoped operation token, and managed diagnostic buffering are not prerequisites
-already delivered on that baseline. Fa02 must implement the needed machinery.
+and scoped operation token are not already delivered on that baseline. Fa02
+implements the needed machinery. Fa09 now precedes it and removes live sinks;
+managed diagnostic buffering is no longer needed or part of Fa02's scope.
 
 Read these implementation areas and their proving tests together:
 

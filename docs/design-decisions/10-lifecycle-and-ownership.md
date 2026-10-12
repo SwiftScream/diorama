@@ -1,7 +1,7 @@
 # Decision 10: Lifecycle and ownership
 
 - Status: Accepted
-- Last updated: 2026-09-16
+- Last updated: 2026-10-12
 - Depends on: [Decision 1: Common abstraction](01-common-abstraction.md),
   [Decision 2: Shared and system-specific semantics](02-shared-vs-system-semantics.md),
   [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
