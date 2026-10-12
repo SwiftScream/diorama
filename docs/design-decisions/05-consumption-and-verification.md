@@ -497,3 +497,54 @@ supersedes this record's use of consumption to mean selection and its opt-in
 terminal-completion assertion. Claiming reserves a record; consumption separately
 acknowledges that all its behavior has been replayed. Open recordings must reach
 their horizon to count as consumed, without terminating the simulated operation.
+
+## Final-report-only diagnostics — owner-approved 2026-10-12
+
+The owner selects final-report-only diagnostics and authorizes implementation
+as 003-Fa09 stacked on 003-Fa09A. This amendment supersedes the live sink and
+in-flight ledger-inspection contracts above and all earlier requirements for
+diagnostic sinks, including Decisions 8, 10, 13–16, and 20.
+It does not change diagnostic facts, system continuation, or test-outcome policy.
+
+- Remove `DiagnosticSink`, its configuration, and the sink-failure issue. Core
+  records safe facts synchronously without calling consumer code. There is no
+  replacement completion callback, background delivery task, or stream.
+- Retain each fact and its recording impact atomically when detected. Internal
+  publication/merge health decisions must see earlier invalidating facts even
+  though consumers cannot inspect a running ledger.
+- `DiagnosticReporter.report` is an optional **completed** diagnostic report:
+  nil until the execution owner freezes it, then immutable. This is not a
+  running snapshot API. A startup failure carries its completed evidence;
+  `finish()` returns the completed Core result. The consumer's `Diorama.report`
+  additionally includes publication outcomes, under Decision 18's retained-report
+  contract, before `execute` returns or rethrows the original body error.
+- Preserve deterministic context ordering, exactly-once routing at freeze,
+  repeated/concurrent finish, and the separately inspectable post-finish log.
+  Late facts never change the frozen report or recording health. An escaped
+  reporter retains safe facts and identity metadata, not active resources or a
+  test context. No notification is made for post-finish facts.
+- Reporting itself is nonthrowing and executes no user closure. It therefore
+  needs no sink reentry rules, sink serialization, notification buffering, or
+  notification-completion joins. It still needs synchronization for concurrent
+  writers, freeze, and post-finish snapshots.
+- Removal of diagnostic callbacks does not remove admission, claim/consumption
+  atomicity, source ordering, scheduler cancellation, replay-delivery joins,
+  rollback, cleanup, or safe release of captures outside protection. Any future
+  managed `afterCommit` work and cancellation callbacks still need that boundary.
+- Consumers explicitly evaluate completed reports. No automatic test failure,
+  severity threshold, or abort policy is introduced. Native errors and existing
+  nonthrowing continuation values retain their current behavior.
+
+The tradeoff is loss of immediate diagnostic-driven test notification and early
+intervention. A restricted sink using only its diagnostic input could log a test
+failure in principle, but documentation cannot enforce that restriction or
+remove arbitrary closure captures, throwing behavior, test-context lifetime,
+and overlapping calls. Explicit drains, snapshots, and streams each introduce
+additional observation semantics. The owner prefers the smallest current
+contract and defers all in-flight inspection, including a simple
+`context.hasNoDiagnostics()`, to design alongside test-framework integration.
+See [the inspection considerations](../diagnostic-inspection-design-notes.md).
+
+Fa09 precedes the still-unimplemented Fa02. Fa02 must adopt this amended
+contract instead of building notification machinery that Fa09 would remove.
+Its managed state, work, and native lifetime obligations remain separate.

@@ -217,7 +217,8 @@ selection occurs at runtime.
 
 Consumption and continuation updates share one atomic order. Failure selects
 its continuation in that same order, then reports outside the lock before
-returning. Reentrant diagnostics cannot change the already-selected result.
+returning. Retention invokes no consumer callback, and the selected result is
+independent of later report evaluation.
 Closure releases the baseline records. Only replay leases configured for
 continuation retain their required fallback value;
 `replayLast` releases its default once the first consumption replaces it.

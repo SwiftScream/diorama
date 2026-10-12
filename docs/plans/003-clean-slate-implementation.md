@@ -165,7 +165,7 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [DD02: Ownership layers](../design-decisions/02-shared-vs-system-semantics.md)               | Whole-attachment mode overrides; public system services; domain and adapter boundaries. 003-B01–003-B07A, 003-C04A–003-C04B, 003-E08, 003-H02–003-H04, 003-I01.                                                                                                                                                      |
 | [DD03: Recorded behaviors](../design-decisions/03-recorded-behaviors.md)                     | Mutually exclusive grouped conclusions, explicit open horizons, capability-specific timing, observed/override normalization. 003-E04R, revised 003-E05, 003-F01–003-F05, 003-G03–003-G06 (including G03A), 003-H05–003-H14 (including H12A/H12B).                                                                                                                     |
 | [DD04: Selection](../design-decisions/04-replay-selection.md)                                | Stable inputs, deterministic system selectors, FIFO among equivalent candidates, explicit ambiguity and no live replay fallback. 003-B04, 003-E05, 003-H04, 003-H14, 003-I01–003-I09.                                                                                                                        |
-| [DD05: Consumption and verification](../design-decisions/05-consumption-and-verification.md) | Whole groups claimed once at selection; usage differs from completion; retention precedes sink; immutable reports have no test outcome; later diagnostics remain separately inspectable; unmatched loaded attachments are diagnosed then discarded. 003-B02, 003-B04, 003-B08, 003-C04, revised 003-E05, 003-G04–003-G05, 003-H12B, 003-J01–003-J03. DD15 supersedes the old example of persisted clock sleeps. |
+| [DD05: Consumption and verification](../design-decisions/05-consumption-and-verification.md) | Whole groups claimed once at selection; usage differs from completion; immediate retention with final-report-only observation under the 2026-10-12 amendment; immutable reports have no test outcome; later diagnostics remain separately inspectable; unmatched loaded attachments are diagnosed then discarded. 003-B02, 003-B04, 003-B08, 003-C04, revised 003-E05, 003-G04–003-G05, 003-H12B, 003-J01–003-J03. DD15 supersedes the old example of persisted clock sleeps. |
 | [DD06: Stable conversion](../design-decisions/06-runtime-to-snapshot-conversion.md)          | Reserve order and needed time at observation; detach native values in their valid isolation; preserve live results on late conversion failure and refuse unhealthy publication. 003-B02–003-B04, 003-C06, 003-G08, 003-I01–003-I08.                                                                          |
 | [DD07: Persistence](../design-decisions/07-persistence-boundary.md)                          | Optional at the core; load once; replace whole healthy candidates; preserve configured untouched baseline tracks while discarding diagnosed unmatched attachments; logical atomicity and last writer wins. 003-C01–003-C07 including 003-C04A–003-C04B, 003-H07.                                                                                                              |
 | [DD08: Schema compatibility](../design-decisions/08-schema-compatibility.md)                 | Independent non-negative `UInt32` envelope/system versions, explicit registration, strict first-party fields, deterministic JSON, no POC importer. 003-C01–003-C04A–003-C04B, 003-F02, 003-G03, 003-H02–003-H13.                                                                                                       |
@@ -1523,7 +1523,7 @@ the new API compiles.
 
 | Review item | Owning unit and outcome | Latest dependency gate |
 | --- | --- | --- |
-| R1 — Diagnostic reentry under source locks | Fa02: Core-owned serialization, unlocked notification, and both original regressions | Before G01 |
+| R1 — Diagnostic reentry under source locks | Fa09 removes live callbacks; Fa02 retains Core-owned serialization and non-diagnostic work/release guarantees | Before G01 |
 | R2 — Whole-track preparation validation | Fa02: public typed hook; Fa03: Date admission and external validation proof | Before G03 |
 | R3 — Extreme origins change during persistence | Fa04: representability checks and portable round-trip evidence | Before G02/G03 |
 | R4 — Oversized Duration traps | Fa05: checked operand bounds and public-path regression | Before G04 or HTTP timing integration |
@@ -1537,11 +1537,13 @@ coverage evidence is needed. These follow-ups do not make every cleanup a
 prerequisite for G01. Native Location and URLSession implementation and any
 evidence-driven lifecycle extension remain separately reviewed work.
 
-Fa09 explores relaxing immediate diagnostic notification while preserving
-immediate retention of facts and recording health. Resolve its delivery contract
-before J01/J02 build test-framework integrations around that behavior. It is not
-an additional prerequisite for Location or HTTP domain work. Fa08 is reserved
-for the separately reviewed managed native lifecycle design.
+Fa09 implements the owner-selected final-report-only diagnostic contract before
+J01/J02 design test-framework integrations. On 2026-10-12 the owner requests it
+stacked directly on Fa09A, ahead of the still-unimplemented Fa02. Fa02 therefore
+must not add live sink machinery. In-flight health checks, non-consuming
+snapshots, and cursors are deferred for consideration with test integration.
+Fa09 precedes Fa02; it adds no separate Location or HTTP domain capability. Fa08
+is reserved for the separately reviewed managed native lifecycle design.
 
 Fa09A is an independently implementable prerequisite to Fa09: it gives the
 consumer sequential execution ownership and final-report access after body
@@ -1594,12 +1596,11 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
 - Status: Approved on 2026-10-10; not started. Protocol R scope and
   model confirmation are required before implementation.
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Public API replacement,
-  diagnostic reentry, freeze/finalization races, and migration of every existing
+  managed work, freeze/finalization races, and migration of every existing
   extension capability need coordinated concurrency and ownership review.
-- Prerequisites: 003-Fa01; DD02, DD05, DD09–DD10, DD13–DD15, DD18–DD20; current
+- Prerequisites: 003-Fa01, 003-Fa09; DD02, DD05, DD09–DD10, DD13–DD15, DD18–DD20; current
   record/time/scheduling services and external-system proofs. Read the Fa
-  handoff; the managed runtime and earlier diagnostic fix are part of this unit,
-  not assumed integrated prerequisites.
+  handoff; the managed runtime is part of this unit; diagnostic delivery follows Fa09.
 - Scope: Establish `SystemDefinition` as the sole public authoring path. Core
   derives layout and prepares typed track declarations, runs optional read-only
   validation before all activation, then calls separate record/replay state
@@ -1607,8 +1608,8 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
   Passthrough has only `makePassthroughDependency()`, without managed state.
   Use one common `Dependency: Sendable`, including concrete native types.
 - State and ownership: Core serializes whole-state operations, reserves and
-  records in source order, retains diagnostic facts before notification, and
-  invokes sinks outside protection. It owns admitted notification/work joins,
+  records in source order, and retains diagnostic facts without live callbacks
+  under DD05's final-report-only amendment. It owns admitted work joins,
   cancellation, reverse rollback, resource release, and detached frozen views.
   Scoped operation tokens must not escape. Document no reentry, suspension,
   arbitrary callbacks, finish waits, or live-resource aliases inside protection.
@@ -1624,14 +1625,14 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
   `.instance()` consumer conveniences and schemas. Use explicit record/replay
   dependency structs with direct `withActiveState` operations; avoid hiding
   the examples behind a mandatory value-reader abstraction.
-- Expected files/modules: Core authoring/runtime/operation/notification and
+- Expected files/modules: Core authoring/runtime/operation/work and
   execution integration; Random/Date definitions; existing consumer support
   and tests, compiler probes, examples and public guides. Record evidence in
   `docs/evidence/003-Fa02-system-definitions.md`.
 - Tests/verification: V-code; migrate every existing external proof using
   public imports only. Prove typed headered/same-value tracks, duplicate and
   foreign declarations, repeated lookup, fresh keyed executions, preparation
-  failure before any activation, and reverse rollback. Exercise reentrant sinks
+  failure before any activation, and reverse rollback. Exercise retained facts
   on conversion failure and throwing operations, source/record order, queued
   construction work, callback/cancellation reentry, concurrent finish, canceled
   finish waiters, one incremental freeze, claim acknowledgement, resource
@@ -1639,10 +1640,10 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
   operation and state escapes and old public constructor access; retain a
   positive external conformance proof. Ordinary compiler rejection is required,
   not a crash. Preserve Fa01 semantics in every relevant migration.
-- Review acceptance: R1 belongs in this unit. Retain regressions for a Date
-  conversion-failure sink rereading its dependency and a Random sink reentering
-  after a reserved live read races finish. Prove retained facts, unlocked
-  delivery, source/record ordering, preserved live return, and bounded finish.
+- Review acceptance: Fa09 resolves diagnostic-sink reentry by removing callbacks.
+  Retain Date conversion-failure and Random reserved-read/finish regressions
+  across this migration. Prove retained facts, source/record ordering, preserved
+  live return, bounded finish, and safe non-diagnostic callbacks/destruction.
   The typed validation hook and validation-before-activation tests also belong
   here; Fa03 adds Date whole-track admission and R2-specific coverage.
 - Commit structure: Keep behavioral changes and their proofs together. Prefer
@@ -1906,70 +1907,45 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
   request selecting this unit. Present the implementation and verification in
   that PR; merge still requires a separate owner request and passing CI.
 
-### 003-Fa09 — Simplify diagnostic delivery
+### 003-Fa09 — Final-report-only diagnostics
 
-- Status: Approved planned exploration and implementation on 2026-10-11; not
-  started. The owner requests this work item after reviewing the complexity of
-  immediate, reentrant diagnostic callbacks. On 2026-10-12, the owner selects
-  the final-report-only direction, with in-flight diagnostic inspection deferred
-  to later test-integration design. Fa09A first establishes retained consumer
-  reports; Fa09's detailed contract amendments and implementation remain a
-  separate review unit under R.
-- Prerequisites: 003-Fa09A, 003-Fa02, 003-B08–003-B09, 003-C06; DD05, DD10, and DD20.
-  Inspect the integrated reporter, managed effects, and finalization behavior.
-- Trigger: A synchronous diagnostic sink can throw, overlap other notifications,
-  or reenter a dependency. Supporting that delivery timing couples operation
-  completion, deferred effects, reporter failure handling, and finish joins.
-- Exploration: Compare the current contract with report-only inspection and
-  explicit delivery checkpoints, such as a consumer-requested drain or a batch
-  at finish. Retain facts and update recording health immediately in every
-  option. Identify which callback, reentry, and lifetime machinery each option
-  actually removes, and which obligations move to consumers or integrations.
-  Do not assume that adding a background task or async sequence is simpler.
-- Decision questions: Specify notification timing, delivery ownership and
-  ordering, sink failure handling, and behavior during startup failure, body
-  failure, cancellation, concurrent finish, and post-finish use. Explain whether
-  drains can overlap or reenter and how duplicate or lost notifications are
-  avoided. Compare the loss of immediate test notification or intervention with
-  the smaller concurrency contract, including test-context expiry and diagnostics
-  retained after the immutable final report freezes.
-- Design checkpoint: Present the concrete alternatives, public API examples,
-  and implementation savings for owner selection before production changes.
-  Record any selected contract revision as an approved decision or explicit
-  amendment to DD05/DD10/DD20. This planned unit does not supersede them. If the
-  alternatives do not materially simplify the design, report that result for
-  review rather than implementing a nominal redesign.
-- Implementation: After selection, implement the agreed delivery contract and
-  remove machinery made redundant by it. Migrate reporter configuration, public
-  authoring examples, and tests together. Preserve immediate diagnostic facts
-  and health changes, sanitization, deterministic report order, immutable finish
-  results, separately inspectable post-finish facts, and replay isolation.
-  Keep test pass/fail policy outside Core.
-- Scope boundary: Audit every managed-effect use before removing anything.
-  Deferred work such as `afterCommit`, cancellation callbacks, and destruction
-  of retained captures still needs safe execution outside state protection even
-  if immediate diagnostic sinks disappear. Coordinate with any accepted native
-  lifecycle changes; do not silently weaken their drainage guarantees.
-- Expected files/modules: Core diagnostics, managed effects and finalization;
-  focused Random/Date and public consumer tests; affected authoring/reporting
-  documentation and examples. Record alternatives, the selected contract, and
-  completed evidence in `docs/evidence/003-Fa09-diagnostic-delivery.md`. Update
-  J01/J02's integration requirements to match the approved result.
-- Tests/verification: V-doc for the design review; V-spike if an isolated probe
-  is needed; V-code for implementation. Prove immediate health invalidation and
-  retained facts independently of notification timing, the chosen delivery and
-  sink-failure semantics, reentry where supported, cancellation and finish races,
-  startup/body failure, post-finish inspection, and no lost or duplicate delivery.
-  Retain relevant Date conversion-failure and Random finish-race regressions
-  while updating assertions tied to deliberately superseded notification timing.
-  Verify public-only use and test-context limits; record the actual reduction in
-  lifecycle obligations rather than treating fewer lines as sufficient evidence.
-- Exclusions: New test-framework integrations, generalized event infrastructure,
-  changes to system continuation policies, capture or admission validation,
-  persistence schemas, dependencies, or native HTTP capability scope.
-- Checkpoint: R; review the contract choice before implementation, then the
-  complete implementation and evidence. Complete before J01/J02 rely on a
-  diagnostic-delivery policy; do not start either integration automatically.
+- Status: In progress on 2026-10-12. The owner selects final-report-only
+  diagnostics, approves documentation and implementation, and requests a PR
+  stacked on Fa09A. This resolves the earlier exploration checkpoint. The same
+  instruction selects execution before Fa02; no managed runtime is assumed.
+- Prerequisites: 003-Fa09A, 003-B08–003-B09, 003-C06; DD05's 2026-10-12 amendment,
+  reconciled DD10/DD20, and DD18's retained-report amendment.
+- Scope: Remove `DiagnosticSink`, startup sink configuration, and `sinkFailed`.
+  Expose only completed diagnostic reports; no public running-ledger inspection.
+  Preserve synchronous retention and internal recording-health decisions,
+  deterministic ordering, immutable final results, and separate post-finish logs.
+  Preserve original body errors and the retained consumer aggregate from Fa09A.
+- Concurrency: Remove consumer notification execution, sink failure handling,
+  reentry and capture lifetime obligations. Audit actual production machinery;
+  do not claim removal of managed effects that Fa02 has not implemented.
+  Preserve source serialization, operation admission, scheduler/replay joins,
+  rollback, cleanup, and destruction outside protection. Future `afterCommit`
+  work and cancellation callbacks remain Fa02 obligations.
+- Documentation: Amend DD05/DD10/DD20, update the combined overview and active
+  Fa02 handoff, and record alternatives plus completed evidence in
+  `docs/evidence/003-Fa09-diagnostic-delivery.md`. Link
+  [inspection considerations](../diagnostic-inspection-design-notes.md) from
+  J01/J02: simple checks, non-consuming snapshots, cursor watermarks, health
+  classification, early abandonment, and test-context/deduplication policy.
+- Tests/verification: V-code and V-doc. Prove immediate internal health effects,
+  final-report-only exposure, deterministic exactly-once retention across freeze,
+  concurrent and canceled finish, startup/body errors, safe conversion failures,
+  Random source/finish races, post-finish inspection, and resource release.
+  Replace sink-driven synchronization in scheduler tests with owned-work signals;
+  preserve real callback cancellation/destruction reentry coverage.
+- Exclusions: In-flight checks/checkpoints/cursors, live/completion callbacks,
+  test-framework integrations, Fa02 managed-state implementation, new generic
+  event machinery, changes to continuation, capture/admission policy, schemas,
+  dependencies, or native HTTP capability scope.
+- Checkpoint: R; implementation and PR creation are owner-authorized. Present
+  the complete stacked diff and evidence. The owner requests no CI monitoring;
+  merge still requires separate authorization and passing required checks.
+  Do not begin J01/J02 or Fa02 automatically.
 
 ## Phase G — Location domain and Apple bridge
 
@@ -2505,26 +2481,34 @@ the accepted Linux milestone profile; its upstream repair is not required.
 
 ### 003-J01 — Opt-in XCTest integration
 
-- Recommended model: GPT-6 Sol; reasoning: `high`. Opt-in XCTest reporting must honor context lifetime, concurrent diagnostics, and explicit core finalization.
+- Recommended model: GPT-6 Sol; reasoning: `high`. Opt-in XCTest reporting must honor context lifetime, completed reports, and explicit core finalization.
 - Prerequisites: 003-B08–003-B09, 003-C06, 003-Fa09; DD05, DD10, resolved Q3, quality policy.
-- Scope: Provide a separate, explicit XCTest diagnostic/evaluation convenience using supported lifecycle APIs and captured setup source locations.
+- Scope: Provide a separate, explicit XCTest final-report evaluation convenience
+  using supported lifecycle APIs and captured setup source locations. Review
+  [in-flight inspection considerations](../diagnostic-inspection-design-notes.md)
+  with the common integration policy before deciding whether a separately
+  approved inspection unit is warranted. Fa09 adds no such API.
 - Expected files/modules: `DioramaXCTest`, integration tests and usage example; target availability separated from core.
-- Public behavior: Consumers select categories and install reporting themselves; core never calls XCTest.
+- Public behavior: Consumers select final-report conditions and invoke reporting themselves; core never calls XCTest.
   Lifecycle completion still awaits explicit/scoped finish; reporting a test issue does not replace a nonthrowing continuation or affect candidate health.
   Reporting honors the captured test context's lifetime; retained diagnostics cannot retroactively change a test.
-- Tests/verification: V-code with controlled expected-issue capture; concurrent diagnostics, source location, setup/runtime/publication issues, final report evaluation, context expiry with later diagnostics still retained, no implicit installation, platform availability and no core imports.
+- Tests/verification: V-code with controlled expected-issue capture; concurrently retained facts, source location, startup/runtime/publication issues, final report evaluation after success or original body error, context expiry with later diagnostics still retained, no implicit installation, platform availability and no core imports.
 - Exclusions: Trap as recommended default, undocumented framework teardown hooks, automatic failure policies, adding a third-party testing dependency.
 - Checkpoint: R; review small opt-in policy/API and framework-boundary evidence.
 
 ### 003-J02 — Opt-in Swift Testing integration
 
-- Recommended model: GPT-6 Sol; reasoning: `high`. Swift Testing task context and issue delivery need framework-specific feasibility evidence and retained-reporter lifetime tests.
-- Prerequisites: 003-J01's reviewed common integration policy, 003-B09, 003-C06; DD05, DD10.
-- Scope: Add a separate Swift Testing diagnostic/evaluation convenience using the selected toolchain's supported test context and lifecycle facilities.
+- Recommended model: GPT-6 Sol; reasoning: `high`. Swift Testing task context and final-report evaluation need framework-specific feasibility evidence and retained-report lifetime tests.
+- Prerequisites: 003-J01's reviewed common integration policy, 003-B09, 003-C06, 003-Fa09; amended DD05, DD10, DD18.
+- Scope: Add a separate Swift Testing final-report evaluation convenience using
+  the selected toolchain's supported test context and lifecycle facilities.
+  Apply J01's reviewed [inspection considerations](../diagnostic-inspection-design-notes.md),
+  including simple checks versus snapshots/cursors and duplicate issue policy;
+  implement an inspection API only under its own owner-approved work item.
 - Expected files/modules: `DioramaTesting`, integration tests and example; framework-independent shared helpers only where actual duplication warrants it.
-- Public behavior: Opt-in selected facts become test issues with useful source attribution; structured execution outcomes and deterministic system continuation remain authoritative.
+- Public behavior: Opt-in selected completed-report facts become test issues with useful source attribution; structured execution outcomes and deterministic system continuation remain authoritative.
   Test context is not inferred from arbitrary global state or kept valid by a retained reporter after the test ends.
-- Tests/verification: V-code; supported task/test context, concurrent issue delivery, source attribution, publication/cleanup failures, explicit policy, context expiry with later diagnostics still retained, no implicit installation, availability across the selected toolchain matrix.
+- Tests/verification: V-code; supported task/test context, final-report evaluation on successful and throwing bodies with the original error preserved, source attribution, publication/cleanup failures, explicit policy, context expiry with later diagnostics still retained, no implicit installation, availability across the selected toolchain matrix.
 - Exclusions: Adding swift-testing as a production package without a demonstrated need/adoption record, conflating reported issues with thrown scope errors, changing core runtime semantics for a framework convenience.
 - Checkpoint: R; review API feasibility and any framework-specific limitation.
 

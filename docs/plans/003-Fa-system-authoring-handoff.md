@@ -143,34 +143,30 @@ throws, release the state and unwind completed activations in reverse order.
 
 ### Core-owned state and the diagnostic deadlock
 
-The original concurrency concern must be fixed in this refactor. A Date or
-Random source lock can span a lease operation; conversion/admission failure
-then calls a diagnostic sink synchronously. If that sink reads the same
-dependency, it attempts to reacquire the source lock and deadlocks. Merely
-moving that lock into Core recreates the problem unless notification delivery
-also moves outside the protected operation.
+The original concern was a Date or Random source lock spanning an operation
+that called a diagnostic sink synchronously. A sink rereading that dependency
+could deadlock. The owner-selected Fa09 removes these callbacks before Fa02;
+see [DD05's amendment](../design-decisions/05-consumption-and-verification.md#final-report-only-diagnostics--owner-approved-2026-10-12).
+Fa02 must not implement the prototype's buffered notifications or their joins.
 
-The explored solution combined these responsibilities in Core:
+Core still has these responsibilities:
 
-1. Admit one synchronous operation and serialize access to the entire mode's
-   mutable state, not just reads or live source calls.
-2. Supply a noncopyable scoped operation token for recording, selection,
-   consumption, and diagnostics. Retain facts immediately in the shared ledger,
-   while buffering sink notifications for this operation.
+1. Admit one synchronous operation and serialize the entire mutable mode state.
+2. Supply a scoped operation token for recording, selection, consumption, and
+   immediate retention of safe diagnostic facts and recording impact.
 3. Publish detached snapshots before unlocking, including on throwing exits.
-4. Unlock before delivering diagnostic notifications, publishing queued work,
-   or invoking cancellation handlers. Reentry then sees committed state.
-5. Track admitted work/notifications so finish joins them before freezing its
+4. Unlock before publishing queued work or invoking cancellation handlers.
+   Reentry must see committed state; `afterCommit` work is not a diagnostic sink.
+5. Track admitted work so finish joins owned delivery before freezing its
    report. New calls after closure diagnose without extending the finish join.
-6. Detach active resources and snapshot projections at closure, releasing them
-   outside the state lock so destruction cannot reenter that lock. Escaped
-   record/replay handles retain only the minimum frozen values and reporter.
+6. Detach resources and snapshot projections at closure; destroy captures
+   outside the state lock. Escaped managed handles retain only frozen values
+   and the small reporter, whose report is available only after freezing.
 
-System implementations should not need their own locks or manual notification
-flushes for these managed operations. Protected closures cannot reenter Core
-through unadapted services, invoke arbitrary callbacks, suspend, wait for
-finish, or return active-resource aliases. Source, conversion, and snapshot
-closures inherit these rules. Native delivery happens outside protection.
+Protected closures cannot reenter Core through unadapted services, invoke
+arbitrary callbacks, suspend, wait for finish, or return active-resource aliases.
+Source, conversion, and snapshot closures inherit these rules. Native delivery
+happens outside protection. Diagnostic retention itself calls no consumer code.
 
 Use a nonescaping `inout` operation token if retaining the demonstrated
 noncopyable shape. One Swift 6.4 experimental spelling with an explicitly
@@ -202,7 +198,7 @@ func next() -> UInt64 {
             return result
         }
     } catch {
-        return 0 // Core has retained and delivered the closure diagnostic.
+        return 0 // Core has retained the closure diagnostic for the final report.
     }
 }
 ```
@@ -237,7 +233,7 @@ Migrate every public-only consumer proof, not just the first-party systems:
 | Execution time, clock, and scheduling | Appropriate scoped services in the new context/runtime; retain delayed handoff, cancellation, state-before-callback, and acknowledgement semantics. |
 | Incremental `beginRecord` and freeze | Safe registration/finalization races, one freeze, rejection of late observations, detached resources, and no reacquisition of a held state lock. |
 | Selection, exclusive claims, consumption | Scoped Core operations and preserved claim ownership/accounting; no domain lifecycle interpretation added to Core. |
-| Diagnostic and cleanup outcomes | Reentrant sinks, thrown operations, sink failure, rollback, cleanup failure reporting, and immutable final reports. |
+| Diagnostic and cleanup outcomes | Thrown operations, immediate retained facts/health, rollback, cleanup failures, and immutable final reports. |
 
 The prototype did not finish time/scheduler context integration or managed
 incremental freeze. Those are existing supported capabilities and must be
@@ -252,7 +248,7 @@ keeping a second implementation path. Audit related public preparation,
 synchronous-state, and operation surfaces for obsolete leaks. Core tests may
 use internal access; external-system proofs must keep ordinary imports.
 
-Use controlled tests for live capture racing finish, sink/callback/cancellation
+Use controlled tests for live capture racing finish, callback/cancellation
 reentry, repeated/concurrent finish, queued work during activation failure,
 claim acknowledgement, snapshot freshness, and release through escaped handles.
 Do not weaken prior assertions simply to make the API migration compile.

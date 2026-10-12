@@ -71,6 +71,10 @@ examines first-party HTTP requirements, shared lifecycle services, and an
 ordered phase alternative to the accepted recursive recording model. It is a
 proposal for discussion, with its review gate recorded in the owning plan.
 
+The [in-flight diagnostic inspection considerations](diagnostic-inspection-design-notes.md)
+compare simple checks and non-consuming checkpoint/cursor snapshots for future
+test-integration design. They do not authorize those APIs.
+
 ## Delivery policies
 
 - [Dependency approval policy](dependency-policy.md) requires approval before a

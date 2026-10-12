@@ -39,7 +39,7 @@ On 2026-10-10, the owner accepts
 [Decision 20](design-decisions/20-system-definitions-and-pure-passthrough.md).
 Systems use one public `SystemDefinition` protocol with typed track declarations
 and separate record/replay state and dependency factories. Core owns managed
-state synchronization and lifecycle, including notification outside protection.
+state synchronization and lifecycle, including work and callbacks outside protection.
 Passthrough directly supplies the ordinary live dependency with native copy
 semantics and consumer-owned lifetime; it has no Core operation wrapper or
 post-finish policy. The execution clock remains execution-owned in all setups.
@@ -195,6 +195,17 @@ also returned through the native operation's failure channel where one exists.
 That does not mean the core fails the enclosing test. Testing integrations and
 explicit report evaluators decide which diagnostics become test issues.
 
+### Diagnostic observation
+
+[Decision 5's final-report-only amendment](design-decisions/05-consumption-and-verification.md#final-report-only-diagnostics--owner-approved-2026-10-12)
+retains diagnostic facts and recording impact immediately without calling user
+code. Consumers inspect completed reports; the small reporter exposes no
+running snapshot, and late misuse remains in a separate post-finish log.
+There are no live sinks, notification queues, or automatic test-failure policy.
+Future simple health checks or checkpoint/cursor snapshots are considered
+alongside test integration in the [inspection notes](diagnostic-inspection-design-notes.md).
+Source ordering, synchronization, cleanup, and replay quiescence still apply.
+
 ### Body outcome and candidate health
 
 A scoped body returning, throwing, or being canceled does not alter the
@@ -274,10 +285,10 @@ path becomes an internal implementation detail under DD20.
 
 `finish()` freezes one result; repeated calls return it unchanged. New misuse
 of an escaped managed dependency enters a separately inspectable diagnostic log
-before sink notification, even without an installed sink. Its small reporter can
+without notification. Its small reporter can
 outlive the execution without retaining sessions, live sources, recordings, or
 scheduling machinery; escaped handles also retain only their required frozen
-state. There is no global registry. New diagnostic notification does not restart
+state. There is no global registry. Retaining a new diagnostic does not restart
 replay or weaken quiescent shutdown. Test integrations must respect their test
 context's lifetime, not promise to change an already completed test. The
 owner-approved amendments in
@@ -467,7 +478,7 @@ Status: Resolved by
 
 DD20 makes `SystemDefinition` the single public authoring path, preserving
 existing services and public-only proofs while Core manages synchronization,
-notification delivery, and record/replay lifetime. Pure passthrough has native
+safe diagnostic retention and record/replay lifetime. Pure passthrough has native
 lifetime and needs no managed state. Native lifecycle integration is proved
 with the first applicable adapter, without requiring a universal abstraction.
 

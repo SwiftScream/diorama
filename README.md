@@ -74,6 +74,14 @@ decide whether the test passes; body errors still propagate unchanged, and
 configured publication still depends on recording health rather than body
 success.
 
+Diagnostics are retained as they occur and exposed in completed reports. There
+are no live diagnostic handlers or in-flight health checks. At the Core level,
+`DiagnosticReporter.report` is nil until freezing; `finish()` and startup errors
+provide the completed evidence. Later misuse enters a separately inspectable
+`postFinishDiagnostics` snapshot without changing the final report. Future
+checks and checkpoint/cursor APIs are considered with test integration in the
+[inspection notes](docs/diagnostic-inspection-design-notes.md).
+
 `DioramaCore` provides the execution engine and system authoring contracts.
 `DioramaPersistence` provides codecs, repositories, and storage over core
 definitions. Both remain available independently. Importing the consumer module

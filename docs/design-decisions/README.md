@@ -15,6 +15,13 @@ amendments on 2026-09-07, together with the consolidated
 historical records; no architectural contract changes with this status update.
 
 On 2026-10-12, the owner approves
+[Decision 5's final-report-only amendment](05-consumption-and-verification.md#final-report-only-diagnostics--owner-approved-2026-10-12),
+explicitly reconciling Decisions 10 and 20. Remove live diagnostic callbacks and
+public running-ledger inspection; preserve completed reports, immediate fact
+retention, publication health, and separate post-finish logs. Consider future
+health checks and snapshots alongside test integration.
+
+On 2026-10-12, the owner approves
 [Decision 18's sequential reuse and retained-report amendment](18-diorama-setup-and-scenario-data.md#sequential-reuse-and-retained-final-reports--owner-approved-2026-10-12).
 `Diorama` becomes a final class that rejects overlapping executions, supports
 sequential reuse, and stores a completed report before returning or rethrowing

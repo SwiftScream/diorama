@@ -159,3 +159,16 @@ misuse reporting for escaped passthrough dependencies, uniform copy behavior
 across modes, and recordability restrictions on native passthrough operations.
 The owner accepts those tradeoffs. No dependency, persistence schema, HTTP
 record shape, deployment-floor, or automatic test-outcome change is approved.
+
+## Managed diagnostic reporting — owner-approved amendment 2026-10-12
+
+[Decision 5's final-report-only amendment](05-consumption-and-verification.md#final-report-only-diagnostics--owner-approved-2026-10-12)
+supersedes this document's diagnostic sink, notification buffering, unlocked
+notification delivery, and notification-join requirements. Retain facts and
+recording impact synchronously; expose only completed reports and a separate
+post-finish log. There are no live consumer diagnostic callbacks or in-flight
+inspection APIs. All other admission, resource ownership, source ordering,
+rollback, cleanup, cancellation, and replay/work drainage requirements remain.
+Captures, queued work, and cancellation callbacks still execute or release
+outside state protection. Test integrations and possible later inspection are
+designed together under a separate review unit.
