@@ -450,7 +450,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | D     | 003-D01–003-D05      | Isolated URLProtocol evidence and reviewed native capability boundaries.     |
 | E     | 003-E01–003-E08      | Shared real-time scheduler and system-owned record services.           |
 | F     | 003-F01–003-F07; 003-F03A abandoned | Portable wall system and Core execution clock. |
-| Fa    | 003-Fa01–003-Fa07; 003-Fa09 | Pure passthrough, managed system authoring, infrastructure-review follow-ups, and diagnostic-delivery simplification. |
+| Fa    | 003-Fa01–003-Fa07; 003-Fa09A; 003-Fa09 | Pure passthrough, managed system authoring, infrastructure-review follow-ups, retained consumer reports, and diagnostic-delivery simplification. |
 | G     | 003-G01–003-G09      | Portable location replay and narrow Apple live/delegate integration.         |
 | H     | 003-H01–003-H14      | Shared HTTP domain, resource publication, strict URLSession lifecycle data.  |
 | I     | 003-I01–003-I09      | Incremental production URLSession conformance across platform bridges.       |
@@ -1543,6 +1543,10 @@ before J01/J02 build test-framework integrations around that behavior. It is not
 an additional prerequisite for Location or HTTP domain work. Fa08 is reserved
 for the separately reviewed managed native lifecycle design.
 
+Fa09A is an independently implementable prerequisite to Fa09: it gives the
+consumer sequential execution ownership and final-report access after body
+failure, without depending on Fa02 or changing Core diagnostic delivery.
+
 ### 003-Fa01 — Pure passthrough with native dependency lifetime
 
 - Status: Complete on 2026-10-11.
@@ -1861,13 +1865,55 @@ for the separately reviewed managed native lifecycle design.
   review decision. Until then, explicitly exclude stale products when using
   local coverage as evidence; do not treat historical totals as repaired.
 
+### 003-Fa09A — Sequential consumer execution and retained reports
+
+- Status: Approved and scope confirmed by the owner on 2026-10-12; in progress.
+  The owner authorizes documenting the decision, implementation, and a PR into
+  master as one preparatory review unit before Fa09.
+- Prerequisites: 003-C04B, 003-C06, 003-B08–003-B09; DD18's
+  [sequential reuse amendment](../design-decisions/18-diorama-setup-and-scenario-data.md#sequential-reuse-and-retained-final-reports--owner-approved-2026-10-12),
+  DD10's finalization and publication policy. Fa02/Fa08 are not prerequisites.
+- Scope: Convert `Diorama` to a final Sendable class with one per-instance
+  execution gate and immutable completed `report`. Admit before any startup
+  side effect, reject overlapping/nested attempts immediately, and hold the
+  gate through rollback, finalization, and publication. Preserve sequential
+  reuse, independent instances, original body errors, actor isolation, and
+  cancellation-safe finalization.
+- Public behavior: References share admission and report state. The report is
+  nil initially and throughout an admitted attempt; admission clears its
+  predecessor. Successful and throwing body exits store the completed safe
+  report before releasing admission and returning/rethrowing. Startup failure
+  retains its existing error evidence, leaves the report nil, and allows reuse
+  after rollback. Rejected attempts do not mutate the admitted run. Consumers
+  retain reports before starting another attempt; the gate does not reserve
+  a completed report for the caller after execution ends.
+- Expected files/modules: Consumer `Diorama` and internal scoped orchestration,
+  consumer and persistence tests, DD18 amendment, public usage documentation,
+  and `docs/evidence/003-Fa09A-sequential-execution-and-reports.md`.
+- Tests/verification: V-code; controlled overlap through startup, body,
+  finalization, and publication; nested rejection; shared reference identity;
+  concurrent independent instances; report visibility on success, original
+  body error, cleanup/publication failure, and cancellation; clearing and reuse
+  after failed startup; unchanged retained reports and no active-resource
+  retention. Preserve existing actor-isolation and sequential replay proofs.
+- Exclusions: Core sink removal or delivery changes, Fa02/Fa08 implementation,
+  live diagnostic inspection, checkpoints/cursors, completion callbacks,
+  automatic queuing, test integrations, persistence-schema/dependency changes,
+  and changes to publication eligibility or system continuation policies.
+- Checkpoint: R; owner confirms the scope and authorizes PR creation in the
+  request selecting this unit. Present the implementation and verification in
+  that PR; merge still requires a separate owner request and passing CI.
+
 ### 003-Fa09 — Simplify diagnostic delivery
 
 - Status: Approved planned exploration and implementation on 2026-10-11; not
   started. The owner requests this work item after reviewing the complexity of
-  immediate, reentrant diagnostic callbacks. No replacement delivery contract
-  is selected yet; normal scope confirmation under R still applies.
-- Prerequisites: 003-Fa02, 003-B08–003-B09, 003-C06; DD05, DD10, and DD20.
+  immediate, reentrant diagnostic callbacks. On 2026-10-12, the owner selects
+  the final-report-only direction, with in-flight diagnostic inspection deferred
+  to later test-integration design. Fa09A first establishes retained consumer
+  reports; Fa09's detailed contract amendments and implementation remain a
+  separate review unit under R.
+- Prerequisites: 003-Fa09A, 003-Fa02, 003-B08–003-B09, 003-C06; DD05, DD10, and DD20.
   Inspect the integrated reporter, managed effects, and finalization behavior.
 - Trigger: A synchronous diagnostic sink can throw, overlap other notifications,
   or reenter a dependency. Supporting that delivery timing couples operation

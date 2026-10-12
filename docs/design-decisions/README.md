@@ -14,6 +14,13 @@ amendments on 2026-09-07, together with the consolidated
 [design overview](../design-overview.md). Individual decision dates remain
 historical records; no architectural contract changes with this status update.
 
+On 2026-10-12, the owner approves
+[Decision 18's sequential reuse and retained-report amendment](18-diorama-setup-and-scenario-data.md#sequential-reuse-and-retained-final-reports--owner-approved-2026-10-12).
+`Diorama` becomes a final class that rejects overlapping executions, supports
+sequential reuse, and stores a completed report before returning or rethrowing
+the original body error. This consumer ownership change preserves independent
+Core executions and the existing publication-health policy.
+
 On 2026-10-10, the owner accepts
 [Decision 20: System definitions and pure passthrough](20-system-definitions-and-pure-passthrough.md).
 Passthrough provides ordinary live behavior and consumer-owned lifetime;

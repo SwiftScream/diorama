@@ -83,8 +83,10 @@ synthesis or implementation.
 
 The decisions combine into this design:
 
-1. A reusable `Diorama` describes complete runtime setup: system declarations,
-   live configuration, modes, policies, identity, and optional repository.
+1. A sequentially reusable `Diorama` final class describes complete runtime
+   setup: system declarations, live configuration, modes, policies, identity,
+   and optional repository. It admits one execution at a time and retains that
+   attempt's completed report; separate instances can run concurrently.
    An immutable `ScenarioDefinition` contains attachment identities and their
    prepared recorded tracks, independent of runtime configuration.
 2. Starting a `Diorama` creates a concurrency-safe scenario execution that
@@ -226,8 +228,9 @@ System implementations depend on core and may use persistence schema helpers.
 `Diorama.execute` supplies a Core-owned `ScenarioExecutionContext` followed by
 typed dependencies in declaration order and finalizes the run. Context currently
 exposes the shared execution clock; retaining it does not extend run lifetime.
-Startup and body
-errors throw, with finalization awaited before a body error is rethrown. A
+Startup and body errors throw, with finalization and optional publication
+completed before the original body error is rethrown. `Diorama.report` stores
+the safe completed aggregate on both successful and throwing body exits. A
 returned `DioramaResult` holds the successful body value, finalization facts,
 and concrete optional load outcome. The intermediate `DioramaRun` is internal;
 the consumer API has no diagnostic sink argument.
@@ -236,8 +239,16 @@ independent of the consumer layer's optional publication responsibility.
 
 ### Reusable setup and immutable scenario data
 
-`Diorama` retains its typed systems and execution policies, not an execution or
-its dependencies. Distinct construction paths select no baseline, a supplied
+`Diorama` retains its typed systems, execution policies, admission state, and
+safe completed report, not a finished execution or its activated dependencies.
+It is a final class: references share one admission gate and report. An
+overlapping or nested `execute` throws before startup; attempts are not queued.
+An admitted attempt clears the previous report, which remains nil until
+completion. Startup failure leaves it nil and releases admission after rollback;
+the startup error carries its own evidence. Callers inspect or retain a report
+before starting the next attempt. The gate does not reserve that report after
+execution ends. See [DD18's ownership amendment](design-decisions/18-diorama-setup-and-scenario-data.md#sequential-reuse-and-retained-final-reports--owner-approved-2026-10-12).
+Distinct construction paths select no baseline, a supplied
 definition, a file, or a custom repository. File setup performs no I/O at
 construction; every execution loads its own fixed semantic baseline. A supplied
 definition is already fixed and reusable. Finalization constructs a new

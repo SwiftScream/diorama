@@ -499,3 +499,56 @@ This refines DD15's execution-clock ownership amendment: the execution exposes
 its clock through `context.clock` rather than a direct `clock` property. Core
 still owns the clock, origin, scheduler, and lifetime. Inferred context values
 require no additional consumer import or whole-module re-export.
+
+## Sequential reuse and retained final reports — owner-approved 2026-10-12
+
+The owner approves `Diorama` as a `final class` with reference identity, one
+active execution per instance, sequential reuse, and a retained immutable
+`report: DioramaReport?`. Assigning an instance to another variable shares its
+admission gate and report. Separately constructed instances can execute
+concurrently; operations inside one execution remain concurrency-safe.
+
+`execute` atomically admits an attempt before loading or activating anything.
+An overlapping or nested call throws
+`DioramaExecutionError.executionAlreadyInProgress` immediately, without
+invoking its body, changing the active run, or adding diagnostics to that run.
+Attempts are not queued. Admission remains closed through startup, the body,
+finalization, rollback where needed, and optional publication. No lock spans
+application code, I/O, or an asynchronous wait.
+
+The report is initially nil. An admitted attempt clears the previous report;
+the property remains nil while that attempt is active. Once the body ends,
+Core finalization and consumer publication complete before Diorama stores the
+safe aggregate report and permits another execution. This occurs whether the
+body succeeds, throws, or throws cancellation. A successful call still returns
+`DioramaResult`; a failed body rethrows its original error unchanged. Cleanup
+and publication problems remain report facts and do not replace that error.
+Cancellation does not abandon finalization or release admission early.
+
+Startup failure completes rollback, releases admission, and leaves `report`
+nil. The thrown startup failure retains its existing structured evidence;
+there is no manufactured completed-execution report. A later attempt is allowed
+after either startup or body failure. A rejected overlapping attempt does not
+clear or replace anything owned by the admitted attempt.
+
+Consumers coordinate sequential use as: await execution, inspect or retain
+its report, then start another attempt. The admission gate does not reserve
+the report for a particular caller after execution ends. Another admitted
+attempt clears it, while previously copied reports remain immutable. Retaining
+the setup's report does not retain the body error, body result, semantic
+definition, execution, or activated dependencies. Configured factory captures
+remain part of setup ownership as before.
+
+This amends the earlier description of `Diorama` as immutable reusable setup:
+configuration remains fixed, but the consumer object now owns admission state
+and the latest admitted attempt's completed report. It also extends the
+2026-09-21 scoped error contract with report access after a body error, without
+wrapping that error or returning it as an unevaluated `Result`. DD10's fresh
+per-run state, explicit finalization, and publication-health rules are unchanged.
+Body failure or cancellation alone still does not prohibit publication.
+
+[003-Fa09A](../plans/003-clean-slate-implementation.md#003-fa09a--sequential-consumer-execution-and-retained-reports)
+delivers this independently before Fa09. It does not change Core diagnostic
+sinks, add completion callbacks, expose partial reports, or introduce
+checkpoint/cursor APIs. Diagnostic-delivery simplification remains Fa09;
+inspection during execution is deferred to later test-integration design.
