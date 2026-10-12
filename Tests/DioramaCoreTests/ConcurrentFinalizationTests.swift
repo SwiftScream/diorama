@@ -61,25 +61,15 @@ struct ConcurrentFinalizationTests {
         #expect(journal.descriptions.withLock { $0 } == 0)
     }
 
-    @Test(arguments: [false, true])
-    func `diagnostics racing finish partition exactly once into frozen and late logs`(hasSink: Bool) async throws {
-        let notifications = Mutex<[ReportedDiagnostic]>([])
-        let reference = Mutex<DiagnosticReporter?>(nil)
-        defer { reference.withLock { $0 = nil } }
-        let sink = DiagnosticSink { entry in
-            let reporter = try #require(reference.withLock { $0 })
-            #expect(reporter.report.diagnostics.contains(entry) || reporter.postFinishDiagnostics.contains(entry))
-            notifications.withLock { $0.append(entry) }
-        }
+    @Test
+    func `diagnostics racing finish partition exactly once into frozen and late logs`() async throws {
         let execution = try ScenarioExecution.start(
             definition: ExecutionFixtures.definition(["a"]),
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [
                 ExecutionFixtures.system("a", journal: ExecutionFixtures.Journal()),
-            ],
-            sink: hasSink ? sink : nil)
+            ])
         let reporter = execution.reporter
-        reference.withLock { $0 = reporter }
         reporter.record(Diagnostic(issue: .system(DiagnosticLabel("before"))))
         let barrier = FinalizationBarrier(participants: 129)
         let result = await withTaskGroup(of: Void.self) { group in
@@ -101,8 +91,6 @@ struct ConcurrentFinalizationTests {
         #expect(all.map(\.sequence).sorted() == Array(0..<UInt64(130)))
         #expect(all.compactMap(\.diagnostic.context.recordIdentity?.sequence).sorted() == Array(0..<UInt64(128)))
         #expect(result.report.recordingHealth.failures.count == result.report.diagnostics.count - 1)
-        #expect(notifications.withLock { $0.sorted { $0.sequence < $1.sequence } } ==
-            (hasSink ? all.sorted { $0.sequence < $1.sequence } : []))
         let repeated = await execution.finish()
         #expect(repeated.report == result.report)
         #expect(repeated.usage == result.usage)

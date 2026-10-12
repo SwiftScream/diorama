@@ -116,8 +116,18 @@ enum SchedulerFixtures {
                                         key: TrackKey(rawValue: track)), sequence: sequence)
     }
 
-    static func setup(_ keys: [String] = ["a"], clock: ExecutionClock = .continuous(),
-                      sink: DiagnosticSink? = nil) throws -> (ScenarioExecution, [Dependency])
+    /// Signals capture destruction after pending work is discarded, without a diagnostic callback.
+    static func pendingProbe(on lease: SchedulingLease, after delay: Duration,
+                             journal: SchedulerJournal) throws -> ScheduledItemHandle
+    {
+        let marker = SchedulerReleaseMarker { journal.append("discarded") }
+        return try lease.schedule(after: delay, for: record()) {
+            _ = withExtendedLifetime(marker) { Issue.record("Failed clock must stop pending delivery") }
+        }
+    }
+
+    static func setup(_ keys: [String] = ["a"], clock: ExecutionClock = .continuous()) throws
+        -> (ScenarioExecution, [Dependency])
     {
         var attachments: [ScenarioAttachment] = []
         var systems: [AnyScenarioSystem] = []
@@ -138,7 +148,7 @@ enum SchedulerFixtures {
         let execution = try ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: attachments),
             scenarioID: ScenarioID(rawValue: "scheduler"), defaultMode: .replay,
-            systems: systems.reversed(), sink: sink, clock: clock)
+            systems: systems.reversed(), clock: clock)
         let dependencies = try keys.map {
             try execution.dependency(ExecutionFixtures.dependencyKey($0, as: Dependency.self))
         }

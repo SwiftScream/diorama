@@ -40,10 +40,8 @@ struct SchedulerOwnershipTests {
     @Test
     func `clock failure cancels pending items but still drains claimed delivery`() async throws {
         let clock = SchedulerTestClock()
-        let diagnostics = AsyncStream<Diagnostic>.makeStream()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source, sink: DiagnosticSink {
-            diagnostics.continuation.yield($0.diagnostic)
-        })
+        let journal = SchedulerJournal()
+        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
         let gate = SchedulerDeliveryGate()
         defer { gate.release() }
         let lease = systems[0].scheduling
@@ -51,20 +49,20 @@ struct SchedulerOwnershipTests {
             await gate.suspend()
         }
         await gate.waitForEntry()
-        let pending = try lease.schedule(after: .seconds(10), for: SchedulerFixtures.record()) {
-            Issue.record("Clock failure must stop pending delivery")
-        }
+        let pending = try SchedulerFixtures.pendingProbe(on: lease, after: .seconds(10), journal: journal)
         _ = try await clock.nextSleep()
         clock.advance(to: .seconds(-1), early: true)
-        var diagnosticIterator = diagnostics.stream.makeAsyncIterator()
-        #expect(await diagnosticIterator.next()?.issue == .scheduling(.logicalTime(.clockMovedBackward)))
+        #expect(await journal.take(1) == ["discarded"])
+        #expect(execution.reporter.report == nil)
         #expect(pending.registration.phase == .canceled)
         #expect(claimed.registration.phase == .claimed)
         #expect(!pending.cancel())
         let finish = Task { await execution.finish() }
         gate.release()
         let result = await finish.value
-        #expect(result.report.diagnostics.count == 2)
+        #expect(result.report.diagnostics.map(\.diagnostic.issue) == [
+            .scheduling(.logicalTime(.clockMovedBackward)), .logicalTime(.clockMovedBackward),
+        ])
         #expect(!result.report.recordingHealth.isHealthy)
         #expect(claimed.registration.phase == .completed)
         #expect(clock.activeWaits == 0)

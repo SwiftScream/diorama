@@ -48,11 +48,12 @@ struct ValuePreparationTests {
         let track = SequentialTrack(id: trackID(), values: [prepared])
         #expect(track.records.map(\.value) == [Payload(field: "authorization", value: "safe-token")])
         #expect(stages.withLock { $0 } == ["canonicalize", "redact", "normalize", "validate"])
-        #expect(reporter.report.diagnostics.isEmpty)
-        #expect(reporter.report.recordingHealth.isHealthy)
+        #expect(reporter.report == nil)
+        #expect(reporter.isRecordingHealthy)
 
         let repeated = try policy.prepare(capturing: { prepared.value }, purpose: .replay, reporter: reporter)
         #expect(repeated.value == prepared.value)
+        #expect(reporter.freeze().diagnostics.isEmpty)
     }
 
     @Test
@@ -113,15 +114,7 @@ struct ValuePreparationTests {
     func `every failed stage stops admission and records only safe health evidence`(failureIndex: Int) throws {
         let stages = Mutex<[Int]>([])
         let inspections = Mutex(0)
-        let reference = Mutex<DiagnosticReporter?>(nil)
-        defer { reference.withLock { $0 = nil } }
-        let sink = DiagnosticSink { entry in
-            let reporter = try #require(reference.withLock { $0 })
-            #expect(reporter.report.recordingHealth.failures == [entry])
-            #expect(!String(reflecting: entry).contains("SECRET"))
-        }
-        let reporter = try makeReporter(sink: sink)
-        reference.withLock { $0 = reporter }
+        let reporter = try makeReporter()
         let step: @Sendable (Int, Payload) throws -> Payload = { index, value in
             stages.withLock { $0.append(index) }
             if index == failureIndex {
@@ -152,9 +145,12 @@ struct ValuePreparationTests {
         }
         #expect(stages.withLock { $0 } == Array(0...failureIndex))
         #expect(inspections.withLock { $0 } == 0)
-        #expect(reporter.report.diagnostics.count == 1)
-        #expect(!reporter.report.recordingHealth.isHealthy)
-        #expect(!String(reflecting: reporter.report).contains("SECRET"))
+        #expect(reporter.report == nil)
+        #expect(!reporter.isRecordingHealthy)
+        let report = reporter.freeze()
+        #expect(report.diagnostics.count == 1)
+        #expect(!report.recordingHealth.isHealthy)
+        #expect(!String(reflecting: report).contains("SECRET"))
     }
 
     @Test
@@ -167,7 +163,7 @@ struct ValuePreparationTests {
         #expect(throws: PreparationFailure.self) {
             try policy.prepare(capturing: { "SECRET-EDITED-INPUT" }, purpose: .replay, reporter: reporter)
         }
-        let startupFailure = ScenarioStartupFailure(report: reporter.report)
+        let startupFailure = ScenarioStartupFailure(report: reporter.freeze())
         #expect(startupFailure.report.diagnostics.map(\.diagnostic.issue) == [.preparationFailed(.validation)])
         #expect(startupFailure.report.recordingHealth.isHealthy)
         #expect(!String(reflecting: startupFailure).contains("SECRET"))
@@ -192,8 +188,8 @@ struct ValuePreparationTests {
         let succeeding = ValuePreparation<String>()
         let prepared = try succeeding.prepare(capturing: { "safe" }, purpose: .recording, reporter: reporter)
         #expect(prepared.value == "safe")
-        #expect(reporter.report.recordingHealth.failures.count == 1)
-        #expect(!reporter.report.recordingHealth.isHealthy)
+        #expect(!reporter.isRecordingHealthy)
+        #expect(reporter.freeze().recordingHealth.failures.count == 1)
     }
 
     private var failureIssues: [DiagnosticIssue] {
@@ -206,11 +202,10 @@ struct ValuePreparationTests {
         ]
     }
 
-    private func makeReporter(sink: DiagnosticSink? = nil) throws -> DiagnosticReporter {
+    private func makeReporter() throws -> DiagnosticReporter {
         try DiagnosticReporter(
             scenarioID: ScenarioID(rawValue: "preparation"),
-            definition: ScenarioDefinition(),
-            sink: sink)
+            definition: ScenarioDefinition())
     }
 
     private func trackID() -> TrackID {

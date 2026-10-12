@@ -177,7 +177,8 @@ struct WallSourceTests {
     @Test
     func `preparation failure preserves the live return and invalidates the candidate`() async throws {
         let invalid = Date(timeIntervalSince1970: .infinity)
-        let probe = WallSourceProbe(values: [invalid])
+        let valid = Date(timeIntervalSince1970: 17)
+        let probe = WallSourceProbe(values: [invalid, valid])
         let system = try DioramaDateSystem.instance(named: "invalid") {
             probe.makeSource()
         }
@@ -185,10 +186,14 @@ struct WallSourceTests {
         let wall = try execution.dependency(system)
 
         #expect(wall.now.timeIntervalSince1970.isInfinite)
+        #expect(execution.reporter.report == nil)
+        #expect(wall.now == valid)
+        #expect(execution.reporter.report == nil)
         let result = await execution.finish()
         #expect(result.definition == nil)
         #expect(result.report.diagnostics.map(\.diagnostic.issue) == [.conversionFailed])
-        #expect(probe.readCount == 1)
+        #expect(probe.readCount == 2)
+        #expect(probe.releaseCount == 1)
     }
 
     @Test

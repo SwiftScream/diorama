@@ -18,7 +18,7 @@ private struct StartupServices {
 /// Startup publishes no execution until every system activates. Finish closes
 /// leases, joins scheduled handoffs and scoped deliveries, cleans
 /// adapters in reverse order, and retains one immutable result.
-/// Neither cleanup nor diagnostic notification runs under the execution lock.
+/// Cleanup runs outside the execution lock; diagnostic retention invokes no callbacks.
 /// Correct cleanup requires awaiting ``finish()``; deinitialization is not a
 /// lifecycle substitute. Record/replay dependencies honor lease closure;
 /// passthrough dependencies retain their native lifetime and cleanup obligations.
@@ -129,7 +129,6 @@ public final class ScenarioExecution: Sendable {
     ///   - systems: Exactly one registration for each declared attachment.
     ///   - initialDiagnostics: Safe facts produced by pre-activation
     ///     orchestration, retained before any system callback.
-    ///   - sink: Optional safe diagnostic notification for this run.
     /// - Returns: A fully activated, independent execution.
     /// - Throws: A structured startup failure including rollback outcomes.
     public static func start(
@@ -137,11 +136,10 @@ public final class ScenarioExecution: Sendable {
         scenarioID: ScenarioID,
         defaultMode: ScenarioMode,
         systems: [AnyScenarioSystem],
-        initialDiagnostics: [Diagnostic] = [],
-        sink: DiagnosticSink? = nil) throws(ScenarioStartupFailure) -> ScenarioExecution
+        initialDiagnostics: [Diagnostic] = []) throws(ScenarioStartupFailure) -> ScenarioExecution
     {
         try start(definition: definition, scenarioID: scenarioID, defaultMode: defaultMode,
-                  systems: systems, initialDiagnostics: initialDiagnostics, sink: sink,
+                  systems: systems, initialDiagnostics: initialDiagnostics,
                   clock: .continuous())
     }
 
@@ -151,10 +149,9 @@ public final class ScenarioExecution: Sendable {
         defaultMode: ScenarioMode,
         systems: [AnyScenarioSystem],
         initialDiagnostics: [Diagnostic] = [],
-        sink: DiagnosticSink? = nil,
         clock: ExecutionClock) throws(ScenarioStartupFailure) -> ScenarioExecution
     {
-        let reporter = DiagnosticReporter(scenarioID: scenarioID, definition: definition, sink: sink)
+        let reporter = DiagnosticReporter(scenarioID: scenarioID, definition: definition)
         for diagnostic in initialDiagnostics {
             reporter.record(diagnostic)
         }

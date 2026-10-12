@@ -123,21 +123,17 @@ struct SequentialTrackOperationTests {
     }
 
     @Test
-    func `operation diagnostics notify reentrant sinks outside the lease lock`() async throws {
-        let leaseReference = Mutex<HeaderlessSequentialTrackLease<Int>?>(nil)
-        defer { leaseReference.withLock { $0 = nil } }
-        let observedCounts = Mutex<[Int]>([])
-        let sink = DiagnosticSink { _ in
-            let lease = try #require(leaseReference.withLock { $0 })
-            observedCounts.withLock { $0.append(lease.baselineRecords().count) }
-        }
-        let (execution, lease) = try makeExecution(mode: .replay, values: [42], sink: sink)
-        leaseReference.withLock { $0 = lease }
-
+    func `throwing operations retain their diagnostic before returning safe failure`() async throws {
+        let (execution, lease) = try makeExecution(mode: .replay, values: [42])
         #expect(try lease.consumeNext() == 42)
-        #expect(throws: SequentialOperationFailure.self) { try lease.consumeNext() }
-        #expect(observedCounts.withLock { $0 } == [1])
-        #expect(await (execution.finish()).report.diagnostics.count == 1)
+        do {
+            _ = try lease.consumeNext()
+            Issue.record("Exhausted replay must throw")
+        } catch {
+            #expect(execution.reporter.report == nil)
+            let result = await execution.finish()
+            #expect(result.report.diagnostics.map(\.diagnostic) == [error.diagnostic])
+        }
     }
 
     @Test
@@ -215,8 +211,7 @@ struct SequentialTrackOperationTests {
 
     private func makeExecution(
         mode: ScenarioMode,
-        values: [Int],
-        sink: DiagnosticSink? = nil) throws -> (ScenarioExecution, HeaderlessSequentialTrackLease<Int>)
+        values: [Int]) throws -> (ScenarioExecution, HeaderlessSequentialTrackLease<Int>)
     {
         let attachmentID = ExecutionFixtures.attachment("primary")
         let trackID = ExecutionFixtures.track("primary")
@@ -230,8 +225,7 @@ struct SequentialTrackOperationTests {
         }
         let execution = try ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "sequential-operations"), defaultMode: mode,
-            systems: [AnyScenarioSystem(instance)],
-            sink: sink)
+            systems: [AnyScenarioSystem(instance)])
         let lease = try execution.dependency(instance)
         return (execution, lease)
     }

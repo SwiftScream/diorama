@@ -1,29 +1,10 @@
 import Synchronization
 
-/// A reusable, closure-backed destination for safe diagnostic notifications.
-///
-/// Calls are synchronous, may overlap, and may reenter the reporter. The sink
-/// must synchronize its own state. A thrown error yields a retained
-/// `sinkFailed` fact; its description is never inspected or retained.
-public struct DiagnosticSink: Sendable {
-    let receive: @Sendable (ReportedDiagnostic) throws -> Void
-
-    /// Creates a sink without coupling Diorama to a test framework.
-    ///
-    /// - Parameter receive: A callback invoked after retention, outside the
-    ///   reporter's lock. Do not strongly capture an owner of this sink, such
-    ///   as its reporter or execution, unless you explicitly break that cycle.
-    public init(_ receive: @escaping @Sendable (ReportedDiagnostic) throws -> Void) {
-        self.receive = receive
-    }
-}
-
 /// A separately retainable, synchronous diagnostic ledger and post-finish log.
 ///
-/// Retention precedes sink delivery. Inspection returns immutable snapshots;
-/// callback completion order does not determine report ordering. Only identity
-/// metadata and safe diagnostics are retained, never definition track values.
-/// Consumer sink captures remain the consumer's ownership responsibility.
+/// Recording retains safe facts without invoking consumer code. Only a frozen
+/// report is publicly inspectable; no running snapshot is exposed. The reporter
+/// retains identity metadata and diagnostics, never definition track values.
 public final class DiagnosticReporter: Sendable {
     private enum Phase: Sendable {
         case collecting
@@ -41,7 +22,6 @@ public final class DiagnosticReporter: Sendable {
     public let scenarioID: ScenarioID
 
     private let ordering: DiagnosticOrdering
-    private let sink: DiagnosticSink?
     private let state = Mutex(State())
 
     /// Creates an independent reporter using explicit identity and attachment order.
@@ -49,28 +29,26 @@ public final class DiagnosticReporter: Sendable {
     /// - Parameters:
     ///   - scenarioID: Diagnostic identity supplied by runtime configuration.
     ///   - definition: Attachment and track identities; content is not retained.
-    ///   - sink: Optional immediate notification after each retained fact.
-    public init(scenarioID: ScenarioID, definition: ScenarioDefinition, sink: DiagnosticSink? = nil) {
+    public init(scenarioID: ScenarioID, definition: ScenarioDefinition) {
         self.scenarioID = scenarioID
         ordering = DiagnosticOrdering(attachments: definition.attachments)
-        self.sink = sink
     }
 
-    /// The active ledger, or its immutable snapshot once internally frozen.
+    /// The immutable completed report, or nil until the execution owner freezes it.
     ///
     /// Scenario-level facts come first, followed by declaration order and
     /// record sequence. Undeclared identities follow declared ones in lexical
     /// system/key order. Admission sequence breaks ties within one context.
-    public var report: DiagnosticReport {
+    public var report: DiagnosticReport? {
         state.withLock { state in
             switch state.phase {
-            case .collecting: makeReport(state.active)
+            case .collecting: nil
             case let .frozen(report): report
             }
         }
     }
 
-    /// Facts reported after the immutable report boundary, even without a sink.
+    /// Facts reported after the immutable report boundary.
     ///
     /// Uses the same deterministic context ordering as ``report``. These facts
     /// never modify the frozen report or its recording-health snapshot.
@@ -79,20 +57,33 @@ public final class DiagnosticReporter: Sendable {
         return entries.sorted(by: ordering.precedes)
     }
 
-    /// Retains a safe fact, updates health, then invokes the optional sink.
+    /// Retains a safe fact and its recording impact atomically, without callbacks.
     ///
-    /// A reentrant or throwing sink cannot remove the original entry. Sink
-    /// failures are retained without notifying the same sink recursively.
-    /// No sink callback runs under the state lock. Concurrent callbacks can
-    /// overlap and finish in a different order from retained facts.
+    /// A fact racing freeze enters exactly one of the final or post-finish logs.
+    /// Reporting never throws or calls consumer code.
     ///
     /// - Parameter diagnostic: Already safe infrastructure or verification data.
     public func record(_ diagnostic: Diagnostic) {
-        let entry = retain(diagnostic)
-        do {
-            try sink?.receive(entry)
-        } catch {
-            _ = retain(Diagnostic(issue: .sinkFailed, context: diagnostic.context))
+        state.withLock { state in
+            let entry = ReportedDiagnostic(sequence: state.nextSequence, diagnostic: diagnostic)
+            state.nextSequence += 1
+            switch state.phase {
+            case .collecting:
+                state.active.append(entry)
+            case .frozen:
+                state.postFinish.append(entry)
+            }
+        }
+    }
+
+    /// Internal candidate admission must see invalidating facts before freeze.
+    /// Late facts cannot change the completed candidate's health.
+    var isRecordingHealthy: Bool {
+        state.withLock { state in
+            switch state.phase {
+            case .collecting: !state.active.contains { $0.diagnostic.recordingImpact == .invalidatesCandidate }
+            case let .frozen(report): report.recordingHealth.isHealthy
+            }
         }
     }
 
@@ -109,20 +100,6 @@ public final class DiagnosticReporter: Sendable {
             case let .frozen(report):
                 return report
             }
-        }
-    }
-
-    private func retain(_ diagnostic: Diagnostic) -> ReportedDiagnostic {
-        state.withLock { state in
-            let entry = ReportedDiagnostic(sequence: state.nextSequence, diagnostic: diagnostic)
-            state.nextSequence += 1
-            switch state.phase {
-            case .collecting:
-                state.active.append(entry)
-            case .frozen:
-                state.postFinish.append(entry)
-            }
-            return entry
         }
     }
 

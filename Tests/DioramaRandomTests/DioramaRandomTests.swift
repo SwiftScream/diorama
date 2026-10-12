@@ -247,7 +247,7 @@ struct DioramaRandomTests {
         }
         #expect(finishedWithoutLiveCompletion)
         #expect(await reading.value == 17)
-        #expect(execution.reporter.report.diagnostics.isEmpty)
+        #expect(execution.reporter.report?.diagnostics.isEmpty == true)
         #expect(execution.reporter.postFinishDiagnostics.isEmpty)
     }
 

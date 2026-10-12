@@ -68,18 +68,10 @@ struct ScenarioClockLifetimeTests {
     }
 
     @Test
-    func `failed now and horizon preserve last valid time with reentrant diagnostics`() async throws {
+    func `failed now and horizon retain diagnostics and preserve last valid time`() async throws {
         let source = SchedulerTestClock()
-        let escaped = Mutex<ScenarioClock?>(nil)
-        let resolutions = Mutex<[Duration]>([])
-        let (execution, _) = try SchedulerFixtures.setup([], clock: source.source, sink: DiagnosticSink { _ in
-            // Reenter a property without recursively generating another issue.
-            if let clock = escaped.withLock({ $0 }) {
-                resolutions.withLock { $0.append(clock.minimumResolution) }
-            }
-        })
+        let (execution, _) = try SchedulerFixtures.setup([], clock: source.source)
         let clock = execution.context.clock
-        escaped.withLock { $0 = clock }
         source.advance(to: .seconds(5))
         #expect(clock.now.offset == .seconds(5))
         source.advance(to: .seconds(4))
@@ -92,7 +84,6 @@ struct ScenarioClockLifetimeTests {
         #expect(result.definition == nil)
         source.advance(to: .seconds(100))
         #expect(clock.now.offset == .seconds(5))
-        #expect(resolutions.withLock { $0.count } == 3)
         #expect(execution.reporter.postFinishDiagnostics.count == 1)
     }
 

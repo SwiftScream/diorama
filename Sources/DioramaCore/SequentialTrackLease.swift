@@ -104,7 +104,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
     ///
     /// Reservation precedes capture so slower work cannot reorder records.
     /// A failed or closed attempt cannot reuse its position. Capture,
-    /// preparation, reporting, and sink notification run outside the lock.
+    /// preparation and reporting run outside the lock.
     /// Available only in record mode. Use `beginRecord(preparation:capturing:freeze:)`
     /// when capture continues over time and the record is finalized later.
     ///
@@ -226,8 +226,8 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
     /// Reports a system fact while this lease remains open.
     ///
     /// Closed use instead reports a distinct lifecycle fact and does not
-    /// change the frozen final result. Notification occurs outside lease locks.
-    /// A notification racing finish follows the reporter's freeze boundary.
+    /// change the frozen final result. Retention occurs outside lease locks.
+    /// A diagnostic racing finish follows the reporter's freeze boundary.
     ///
     /// - Parameters:
     ///   - issue: A safe infrastructure fact, not a dependency error payload.
@@ -458,7 +458,7 @@ extension SequentialTrackLease: AnySequentialLease {
 
     private func freezeRecords() {
         // Admission has closed. Do not hold the state lock while an accumulator or
-        // preparation policy runs; either can notify a reentrant sink.
+        // preparation policy runs; both execute system-authored code.
         let accumulators = state.withLock { state in
             state.closed = true
             return state.recording.enumerated().compactMap { index, slot -> (Int, AccumulationSlot)? in
@@ -502,7 +502,7 @@ extension SequentialTrackLease: AnySequentialLease {
                                        recordingImpact: .invalidatesCandidate))
         }
         let recording: SequentialTrack<Value, Header>? = switch (mergingRecording, detached.merge) {
-        case let (true, .apply(policy, baseline, fresh)) where reporter.report.recordingHealth.isHealthy:
+        case let (true, .apply(policy, baseline, fresh)) where reporter.isRecordingHealthy:
             policy.apply(baseline: baseline, recording: fresh, reporter: reporter)
         default:
             detached.recording

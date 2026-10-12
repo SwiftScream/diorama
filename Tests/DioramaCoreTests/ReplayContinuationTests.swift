@@ -134,8 +134,8 @@ struct ReplayContinuationTests {
 
 enum ReplayContinuationFixtures {
     static func start(
-        values: [Int], policy: ReplayContinuationPolicy<Int>, mode: ScenarioMode = .replay,
-        sink: DiagnosticSink? = nil) throws -> (ScenarioExecution, HeaderlessSequentialTrackLease<Int>)
+        values: [Int], policy: ReplayContinuationPolicy<Int>, mode: ScenarioMode = .replay) throws
+        -> (ScenarioExecution, HeaderlessSequentialTrackLease<Int>)
     {
         let trackID = ExecutionFixtures.track("continuation")
         let track = try SequentialTrack(id: trackID, values: preparedValues(values))
@@ -145,16 +145,14 @@ enum ReplayContinuationFixtures {
                 for: trackID, preparation: ValuePreparation<Int>(), continuationPolicy: policy)
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try start(system, mode: mode, sink: sink)
+        let execution = try start(system, mode: mode)
         return try (execution, execution.dependency(system))
     }
 
-    static func start(_ system: ScenarioSystem<some Any>, mode: ScenarioMode = .replay,
-                      sink: DiagnosticSink? = nil) throws -> ScenarioExecution
-    {
+    static func start(_ system: ScenarioSystem<some Any>, mode: ScenarioMode = .replay) throws -> ScenarioExecution {
         try ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [system.attachment]),
             scenarioID: ScenarioID(rawValue: "continuation"), defaultMode: mode,
-            systems: [AnyScenarioSystem(system)], sink: sink)
+            systems: [AnyScenarioSystem(system)])
     }
 }

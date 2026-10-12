@@ -26,7 +26,7 @@ enum RepositoryStartup {
     /// effective-mode requirements are satisfied.
     ///
     /// This is the repository-backed counterpart to the programmatic
-    /// ``DioramaCore/ScenarioExecution/start(definition:scenarioID:defaultMode:systems:initialDiagnostics:sink:)``
+    /// ``DioramaCore/ScenarioExecution/start(definition:scenarioID:defaultMode:systems:initialDiagnostics:)``
     /// path. Diorama construction has already validated the active layout.
     /// Setup supplies identity and the default mode; system instances supply
     /// overrides and unused-record policy. The setup definition supplies
@@ -105,7 +105,7 @@ enum RepositoryStartup {
         reporter.record(diagnostic)
         return ScenarioRepositoryStartupFailure(
             evidence: evidence,
-            startupFailure: ScenarioStartupFailure(report: reporter.report))
+            startupFailure: ScenarioStartupFailure(report: reporter.freeze()))
     }
 }
 

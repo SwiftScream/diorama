@@ -165,7 +165,7 @@ public struct ValuePreparation<Value: Sendable>: Sendable {
     /// Captures and prepares one value before generic admission.
     ///
     /// Stops at the first failed stage, retains safe evidence and recording
-    /// health before sink notification, and throws only that safe evidence.
+    /// health immediately, and throws only that safe evidence.
     /// No failed value or underlying error is stored or rendered. Adapters
     /// must preserve live dependency behavior on recording failure and must
     /// never use a live fallback on replay failure. Passthrough needs no call.

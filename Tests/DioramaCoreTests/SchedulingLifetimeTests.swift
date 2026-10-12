@@ -70,25 +70,19 @@ struct SchedulingLifetimeTests {
     @Test(arguments: [false, true])
     func `clock failures stop pending delivery and retain safe diagnostics`(backward: Bool) async throws {
         let clock = SchedulerTestClock()
-        let diagnostics = AsyncStream<Diagnostic>.makeStream()
         let source = backward ? clock.source : ExecutionClock(now: clock.source.now, sleep: { _, _ in
             throw ClockFailure.failed
         })
-        let (execution, systems) = try SchedulerFixtures.setup(clock: source, sink: DiagnosticSink {
-            diagnostics.continuation.yield($0.diagnostic)
-        })
+        let (execution, systems) = try SchedulerFixtures.setup(clock: source)
         let journal = SchedulerJournal()
-        try systems[0].scheduling.schedule(after: .seconds(1), for: SchedulerFixtures.record()) {
-            journal.append("unexpected")
-        }
+        _ = try SchedulerFixtures.pendingProbe(on: systems[0].scheduling, after: .seconds(1), journal: journal)
         if backward {
             _ = try await clock.nextSleep()
             clock.advance(to: .seconds(-1), early: true)
         }
-        var iterator = diagnostics.stream.makeAsyncIterator()
-        let diagnostic = try #require(await iterator.next())
+        #expect(await journal.take(1) == ["discarded"])
+        #expect(execution.reporter.report == nil)
         let issue: SchedulingIssue = backward ? .logicalTime(.clockMovedBackward) : .clockWaitFailed
-        #expect(diagnostic.issue == .scheduling(issue))
         do {
             try systems[0].scheduling.schedule(after: .zero, for: SchedulerFixtures.record()) {}
             Issue.record("A failed clock must not admit more work")
@@ -101,7 +95,7 @@ struct SchedulingLifetimeTests {
         #expect(result.report.recordingHealth.isHealthy == !backward)
         #expect(result.rendered().contains(backward
                 ? "scheduling-logical-time-clock-moved-backward" : "scheduling-clock-wait-failed"))
-        #expect(journal.values.isEmpty)
+        #expect(journal.values == ["discarded"])
         #expect(clock.activeWaits == 0)
     }
 

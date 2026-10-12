@@ -27,7 +27,7 @@ struct ScenarioExecutionTests {
         #expect(result.report.diagnostics.count == 1)
         #expect(firstLease.isClosed)
         #expect(!secondLease.isClosed)
-        #expect(second.reporter.report.diagnostics.isEmpty)
+        #expect(second.reporter.report == nil)
         let secondResult = await second.finish()
         #expect(secondResult.report.diagnostics.isEmpty)
         #expect(journal.events.withLock { $0.filter { $0 == "cleanup-a" }.count } == 2)
@@ -84,15 +84,13 @@ struct ScenarioExecutionTests {
         ])
     }
 
-    @Test(arguments: [false, true])
-    func `finish freezes results and closed lease use stays in separately retained log`(hasSink: Bool) async throws {
-        let notifications = Mutex<[DiagnosticIssue]>([])
+    @Test
+    func `finish freezes results and closed lease use stays in separately retained log`() async throws {
         let journal = ExecutionFixtures.Journal()
-        let sink = DiagnosticSink { entry in notifications.withLock { $0.append(entry.diagnostic.issue) } }
         let execution = try ScenarioExecution.start(
             definition: ExecutionFixtures.definition(["a"]),
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
-            systems: [ExecutionFixtures.system("a", journal: journal)], sink: hasSink ? sink : nil)
+            systems: [ExecutionFixtures.system("a", journal: journal)])
         let key = ExecutionFixtures.dependencyKey("a", as: HeaderlessSequentialTrackLease<Int>.self)
         let lease = try execution.dependency(key)
         #expect(lease.report(.system(DiagnosticLabel("before"))))
@@ -110,7 +108,6 @@ struct ScenarioExecutionTests {
         #expect(execution.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [
             .lifecycle(.executionClosed), .lifecycle(.leaseClosed),
         ])
-        #expect(notifications.withLock { $0.count } == (hasSink ? 3 : 0))
         #expect(journal.events.withLock { $0.filter { $0 == "cleanup-a" }.count } == 1)
     }
 
@@ -179,11 +176,7 @@ struct ScenarioExecutionTests {
         }
         let execution = try ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
-            systems: [AnyScenarioSystem(instance)],
-            sink: DiagnosticSink { _ in
-                let execution = try #require(executionReference.withLock { $0 })
-                #expect(!execution.reporter.report.diagnostics.isEmpty)
-            })
+            systems: [AnyScenarioSystem(instance)])
         executionReference.withLock { $0 = execution }
         let result = await execution.finish()
         #expect(result.report.diagnostics.map(\.diagnostic.issue) == [

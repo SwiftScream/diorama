@@ -92,7 +92,6 @@ enum ReportText {
         switch issue {
         case .conversionFailed: "conversion-failed"
         case let .preparationFailed(stage): "preparation-failed \(preparation(stage))"
-        case .sinkFailed: "sink-failed"
         case let .lifecycle(fact): lifecycle(fact)
         case let .baseline(fact): baseline(fact)
         case let .system(label): "system-issue \(ReportFieldEscaping.quote(label.text))"

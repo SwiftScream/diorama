@@ -111,7 +111,7 @@ private extension DiagnosticIssue {
                 true
             case .invalidRegistration, .preparationFailed, .unpreparedTrack, .activationFailed, .cleanupFailed: false
             }
-        case .conversionFailed, .preparationFailed, .sinkFailed, .baseline, .verification, .system: false
+        case .conversionFailed, .preparationFailed, .baseline, .verification, .system: false
         }
     }
 }

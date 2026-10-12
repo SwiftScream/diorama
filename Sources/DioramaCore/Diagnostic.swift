@@ -63,8 +63,6 @@ public enum DiagnosticIssue: Equatable, Sendable {
     case conversionFailed
     /// A configured preparation stage failed.
     case preparationFailed(PreparationStage)
-    /// A sink threw while receiving an already retained diagnostic.
-    case sinkFailed
     /// An execution, startup, or lease-lifetime fact.
     case lifecycle(ScenarioLifecycleIssue)
     /// A repository baseline or persistence-configuration fact.

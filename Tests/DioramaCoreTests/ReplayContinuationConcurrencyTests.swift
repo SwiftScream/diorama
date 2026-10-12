@@ -1,5 +1,4 @@
 import DioramaCore
-import Synchronization
 import Testing
 
 @Suite(.timeLimit(.minutes(1)))
@@ -28,27 +27,13 @@ struct ReplayContinuationConcurrencyTests {
     }
 
     @Test
-    func `continuation diagnostics permit synchronous reentrant reads`() async throws {
-        let reference = Mutex<HeaderlessSequentialTrackLease<Int>?>(nil)
-        defer { reference.withLock { $0 = nil } }
-        let entered = Mutex(false)
-        let nestedValues = Mutex<[Int]>([])
-        let sink = DiagnosticSink { _ in
-            let first = entered.withLock { entered in
-                defer { entered = true }
-                return !entered
-            }
-            guard first else { return }
-            let lease = try #require(reference.withLock { $0 })
-            let value = try lease.consumeNext()
-            nestedValues.withLock { $0.append(value) }
-        }
+    func `repeated continuations retain one diagnostic per call for the final report`() async throws {
         let (execution, lease) = try ReplayContinuationFixtures.start(
-            values: [7], policy: .replayLast(defaultValue: -1), sink: sink)
-        reference.withLock { $0 = lease }
+            values: [7], policy: .replayLast(defaultValue: -1))
         #expect(try lease.consumeNext() == 7)
         #expect(try lease.consumeNext() == 7)
-        #expect(nestedValues.withLock { $0 } == [7])
+        #expect(try lease.consumeNext() == 7)
+        #expect(execution.reporter.report == nil)
         let result = await execution.finish()
         #expect(result.report.diagnostics.count == 2)
         #expect(result.report.diagnostics.allSatisfy {

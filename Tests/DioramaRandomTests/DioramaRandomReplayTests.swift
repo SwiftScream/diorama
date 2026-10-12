@@ -49,25 +49,21 @@ struct DioramaRandomReplayTests {
     }
 
     @Test
-    func `replay exhaustion notifies the handler and returns zero`() async throws {
+    func `replay exhaustion retains final diagnostics and returns zero`() async throws {
         let key = AttachmentKey(rawValue: "replay-exhaustion")
-        let notifications = Mutex<[ReportedDiagnostic]>([])
-        let sink = DiagnosticSink { diagnostic in
-            notifications.withLock { $0.append(diagnostic) }
-        }
         let instance = try DioramaRandomSystem.instance(named: key.rawValue) { forbiddenLiveSource() }
         let execution = try replayExecution(
             key: key,
             values: [81],
-            instance: instance,
-            sink: sink)
+            instance: instance)
         var generator = try execution.dependency(instance)
 
         #expect(generator.next() == 81)
         #expect(generator.next() == 0)
         #expect(generator.next() == 0)
 
-        let reported = notifications.withLock { $0 }
+        #expect(execution.reporter.report == nil)
+        let reported = await execution.finish().report.diagnostics
         #expect(reported.map(\.diagnostic.issue) == [
             .sequential(.replayExhausted(availableCount: 1)),
             .sequential(.replayExhausted(availableCount: 1)),
@@ -77,26 +73,22 @@ struct DioramaRandomReplayTests {
     }
 
     @Test
-    func `empty replay reports zero available values and returns zero`() throws {
+    func `empty replay reports zero available values and returns zero`() async throws {
         let key = AttachmentKey(rawValue: "replay-empty")
-        let notifications = Mutex<[ReportedDiagnostic]>([])
-        let sink = DiagnosticSink { diagnostic in
-            notifications.withLock { $0.append(diagnostic) }
-        }
         let probe = ReplaySourceProbe()
         let instance = try DioramaRandomSystem.instance(named: key.rawValue) { probe.makeSource() }
         let execution = try replayExecution(
             key: key,
             values: [],
-            instance: instance,
-            sink: sink)
+            instance: instance)
         var generator = try execution.dependency(instance)
 
         #expect(generator.next() == 0)
-        #expect(notifications.withLock { $0.map(\.diagnostic.issue) } == [
+        let report = await execution.finish().report
+        #expect(report.diagnostics.map(\.diagnostic.issue) == [
             .sequential(.replayExhausted(availableCount: 0)),
         ])
-        #expect(notifications.withLock { $0.first?.diagnostic.context.recordIdentity?.sequence } == 0)
+        #expect(report.diagnostics.first?.diagnostic.context.recordIdentity?.sequence == 0)
         #expect(probe.factoryCallCount == 0)
         #expect(probe.sourceCallCount == 0)
     }
@@ -177,15 +169,13 @@ private func assertClosedGenerator(
 private func replayExecution(
     key: AttachmentKey,
     values: [UInt64],
-    instance: ScenarioSystem<any RandomNumberGenerator & Sendable>,
-    sink: DiagnosticSink? = nil) throws -> ScenarioExecution
+    instance: ScenarioSystem<any RandomNumberGenerator & Sendable>) throws -> ScenarioExecution
 {
     let definition = try ScenarioDefinition(attachments: [replayAttachment(key: key, values: values)])
     return try ScenarioExecution.start(
         definition: definition,
         scenarioID: ScenarioID(rawValue: "random-" + key.rawValue), defaultMode: .replay,
-        systems: [AnyScenarioSystem(instance)],
-        sink: sink)
+        systems: [AnyScenarioSystem(instance)])
 }
 
 private func replayAttachment(key: AttachmentKey, values: [UInt64]) throws -> ScenarioAttachment {
