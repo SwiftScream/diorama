@@ -7,6 +7,13 @@ Core `OverridableValue<Date>` values and a typed header holding the origin's num
 offset. The header is absent for an empty track. Its declared empty track is
 distinct from a missing date attachment.
 The schema model and its attachment builders are internal to `DioramaDate`.
+Before record or replay activation, Date validates the resolved header and
+complete ordered values through the same strict `WallRecording` interpretation
+used by its codec and merge. Public tracks built with a no-op preparation policy
+cannot bypass Date's empty/nonempty header, offset, millisecond, range, or
+cross-record representability rules. Invalid loaded content fails before any
+system state, dependency, or live-source factory runs; admission does not repeat
+capture transformations. Passthrough skips runtime track-content validation.
 `DioramaDateSystem.instance(named:sourceFactory:)` creates a wall
 attachment. Record mode captures native `Date` values in source order, rounds
 each absolute value independently, and selects the origin's numeric timezone

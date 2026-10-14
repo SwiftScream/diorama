@@ -1674,8 +1674,10 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
 
 ### 003-Fa03 — Whole-track Date admission and preparation proof
 
-- Status: Approved review follow-up for R2 on 2026-10-11; not started.
-  Protocol R scope and model confirmation are required before implementation.
+- Status: Complete; rebased onto merged Fa02 on 2026-10-14.
+  [Evidence](../evidence/003-Fa03-whole-track-admission.md) records the public
+  malformed-baseline and authoritative-load proofs, with verification against
+  Fa02's reviewed system execution and track-definition APIs.
 - Recommended model: GPT-6 Sol; reasoning: `high`. Baseline resolution, authored
   values, and validation ordering must agree across runtime and persistence.
 - Prerequisites: 003-Fa02, 003-F02–003-F05, 003-C04A–003-C04B; DD09, DD15,

@@ -117,6 +117,13 @@ struct DateDefinition<Source: DioramaDateSource>: SystemDefinition {
         [wall.erased]
     }
 
+    func validate(in context: borrowing SystemValidationContext) throws {
+        guard context.mode != .passthrough else { return }
+        try context.validate(wall) { track in
+            _ = try WallRecording(offsetMinutes: track.header, values: track.records.map(\.value))
+        }
+    }
+
     func makeRecordState(in context: borrowing SystemStateContext) throws -> DateRecordState {
         let lease = try context.lease(for: wall)
         let recording = WallRecordingState(timeZone: timeZone())

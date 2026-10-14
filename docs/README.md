@@ -265,6 +265,10 @@ test-integration design. They do not authorize those APIs.
   typed authoring, Core-managed state and effects, complete public-consumer
   migration, compiler rejection probes, and final-report diagnostic regressions.
 
+- [Whole-track Date admission evidence](evidence/003-Fa03-whole-track-admission.md)
+  records strict runtime admission of resolved wall content, public malformed
+  baseline and repository proofs, and preserved passthrough behavior.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its
