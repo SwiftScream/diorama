@@ -12,7 +12,7 @@ struct ScenarioSystemTypeTests {
         #expect(first.type === second.type)
         #expect(first.type.id == first.attachment.id.systemTypeID)
         #expect((first.type.persistence != nil) == hasPersistence)
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [first.attachment, second.attachment]),
             scenarioID: ScenarioID(rawValue: "type-metadata"), defaultMode: .record,
             systems: [AnyScenarioSystem(first), AnyScenarioSystem(second)])

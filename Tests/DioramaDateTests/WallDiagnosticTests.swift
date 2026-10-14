@@ -12,7 +12,7 @@ struct WallDiagnosticTests {
             Date(timeIntervalSince1970: 18), Date(timeIntervalSince1970: 19),
         ])
         let system = try DioramaDateSystem.instance(named: "conversion") { source }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [system.attachment]), scenarioID: .init(rawValue: "conversion"),
             defaultMode: .record, systems: [AnyScenarioSystem(system)])
         let wall = try execution.dependency(system)

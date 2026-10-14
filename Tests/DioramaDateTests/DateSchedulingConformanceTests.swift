@@ -26,7 +26,7 @@ struct DateSchedulingConformanceTests {
                 let stream = AsyncStream<ConsumerTimedEvent>.makeStream()
                 let start = context.clock.now
                 #expect(wall.now == Date(timeIntervalSince1970: 1000))
-                let delivery = try traverse(services, claim: claim, start: start, stream: stream.continuation)
+                let delivery = try await traverse(services, claim: claim, start: start, stream: stream.continuation)
                 defer {
                     _ = delivery.cancel()
                     stream.continuation.finish()
@@ -76,7 +76,7 @@ struct DateSchedulingConformanceTests {
             ConsumerTimedRecord(input: "request", observations: []),
         ]).withMode(.replay)
         let empty = try #require(definition.attachment(for: AttachmentKey(rawValue: "empty")))
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [empty, timed.attachment]),
             scenarioID: ScenarioID(rawValue: "quiescence"), defaultMode: mode,
             systems: [AnyScenarioSystem(wallSystem), AnyScenarioSystem(timed)])
@@ -126,7 +126,7 @@ struct DateSchedulingConformanceTests {
 
     private func traverse(
         _ services: ConsumerTimedServices, claim: ReplayClaim<ConsumerTimedRecord>,
-        start: ScenarioClock.Instant, stream: AsyncStream<ConsumerTimedEvent>.Continuation) throws
+        start: ScenarioClock.Instant, stream: AsyncStream<ConsumerTimedEvent>.Continuation) async throws
         -> ScheduledItemHandle
     {
         try services.scheduling.schedule(at: start.offset, for: claim.record.identity) {

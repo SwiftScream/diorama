@@ -16,7 +16,7 @@ private enum DioramaExecutionState: Sendable {
 /// One instance admits one execution at a time; separate instances may run concurrently.
 public final class Diorama<each Dependency: Sendable>: Sendable {
     private let systems: (repeat ScenarioSystem<each Dependency>)
-    private let startup: @Sendable () throws -> DioramaRun
+    private let startup: @Sendable () async throws -> DioramaRun
     private let state = Mutex<DioramaExecutionState>(.idle(nil))
 
     /// Safe completed evidence from the latest admitted execution attempt.
@@ -84,9 +84,9 @@ public final class Diorama<each Dependency: Sendable>: Sendable {
         systems: repeat ScenarioSystem<each Dependency>) throws
     {
         try self.init(systems: repeat each systems) { layout, registrations in
-            try RepositoryStartup.start(repository: repository,
-                                        scenarioID: ScenarioID(rawValue: scenarioID), defaultMode: mode,
-                                        layout: layout, systems: registrations)
+            try await RepositoryStartup.start(repository: repository,
+                                              scenarioID: ScenarioID(rawValue: scenarioID), defaultMode: mode,
+                                              layout: layout, systems: registrations)
         }
     }
 
@@ -135,14 +135,14 @@ public final class Diorama<each Dependency: Sendable>: Sendable {
             let startup = ScenarioBaselineStartup(
                 layout: layout, scenarioID: ScenarioID(rawValue: scenarioID), defaultMode: defaultMode,
                 systems: registrations)
-            let execution = try startup.start(baseline: baseline)
+            let execution = try await startup.start(baseline: baseline)
             return DioramaRun(execution: execution)
         }
     }
 
     init(
         systems: repeat ScenarioSystem<each Dependency>,
-        startup: @escaping @Sendable (ScenarioDefinition, [AnyScenarioSystem]) throws -> DioramaRun)
+        startup: @escaping @Sendable (ScenarioDefinition, [AnyScenarioSystem]) async throws -> DioramaRun)
         throws
     {
         var attachments: [ScenarioAttachment] = []
@@ -154,7 +154,7 @@ public final class Diorama<each Dependency: Sendable>: Sendable {
         let layout = try ScenarioDefinition(attachments: attachments).removingRecords()
         self.systems = (repeat each systems)
         let registered = registrations
-        self.startup = { try startup(layout, registered) }
+        self.startup = { try await startup(layout, registered) }
     }
 
     /// Runs a body with execution context and typed dependencies, then awaits finish.
@@ -186,7 +186,7 @@ public final class Diorama<each Dependency: Sendable>: Sendable {
         guard admitted else { throw DioramaExecutionError.executionAlreadyInProgress }
         var completedReport: DioramaReport?
         defer { state.withLock { $0 = .idle(completedReport) } }
-        let run = try startup()
+        let run = try await startup()
         let dependencies = (repeat run.requiredDependency(for: each systems))
         return try await run.runScoped(report: &completedReport) { () async throws(Failure) -> Success in
             try await body(run.context, repeat each dependencies)

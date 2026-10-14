@@ -45,7 +45,7 @@ struct ReplayLeaseLifetimeTests {
         for policy in [ReplayContinuationPolicy<Int>.replayLast(defaultValue: -1), .fallback(-1), .error] {
             let definition = try ReplayLeaseDefinition(policy: policy, values: [9, 4])
             let system = try ScenarioSystem(named: "values", definition: definition)
-            let execution = try start(system)
+            let execution = try await start(system)
             let lease = try execution.dependency(system)
             #expect(try lease.consumeNext() == 9)
             let final = await execution.finish()
@@ -65,7 +65,7 @@ struct ReplayLeaseLifetimeTests {
 
     @Test func `direct replay exhaustion appears only in the completed report`() async throws {
         let system = try ScenarioSystem(named: "values", definition: ReplayLeaseDefinition(policy: .fallback(-1)))
-        let execution = try start(system)
+        let execution = try await start(system)
         let lease = try execution.dependency(system)
         #expect(try lease.consumeNext() == -1)
         #expect(execution.reporter.report == nil)
@@ -79,10 +79,10 @@ struct ReplayLeaseLifetimeTests {
     }
 
     private func start(_ system: ScenarioSystem<HeaderlessSequentialTrackLease<Int>>)
-        throws -> ScenarioExecution
+        async throws -> ScenarioExecution
     {
-        try ScenarioExecution.start(definition: ScenarioDefinition(attachments: [system.attachment]),
-                                    scenarioID: .init(rawValue: "replay-lease"), defaultMode: .replay,
-                                    systems: [AnyScenarioSystem(system)])
+        try await ScenarioExecution.start(definition: ScenarioDefinition(attachments: [system.attachment]),
+                                          scenarioID: .init(rawValue: "replay-lease"), defaultMode: .replay,
+                                          systems: [AnyScenarioSystem(system)])
     }
 }

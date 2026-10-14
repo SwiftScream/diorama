@@ -47,7 +47,7 @@ public enum DioramaRandomSystem {
     /// }
     /// let definition = try ScenarioDefinition(
     ///     attachments: [random.attachment])
-    /// let execution = try ScenarioExecution.start(
+    /// let execution = try await ScenarioExecution.start(
     ///     definition: definition,
     ///     scenarioID: scenarioID, defaultMode: .record,
     ///     systems: [AnyScenarioSystem(random)])

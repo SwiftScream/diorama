@@ -7,7 +7,7 @@ struct SchedulerCancellationTests {
     @Test
     func `canceling the earliest item replaces the wait and ignores its stale wake`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let lease = systems[0].scheduling
         let journal = SchedulerJournal()
         let first = try lease.schedule(at: .seconds(10), for: SchedulerFixtures.record()) {
@@ -35,7 +35,7 @@ struct SchedulerCancellationTests {
     @Test
     func `all due items are claimed before a reentrant cancellation`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let lease = systems[0].scheduling
         let journal = SchedulerJournal()
         let later = Mutex<ScheduledItemHandle?>(nil)
@@ -55,7 +55,7 @@ struct SchedulerCancellationTests {
     @Test
     func `racing cancellation and claim chooses exactly one completion per item`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let lease = systems[0].scheduling
         let registrations = AsyncStream<(ScheduledItemHandle, CheckedContinuation<Bool, Never>)>.makeStream()
         let operations = (0..<128).map { sequence in
@@ -106,7 +106,7 @@ struct SchedulerCancellationTests {
     @Test
     func `cancel releases captures outside isolation while retained handles stay inert`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let lease = systems[0].scheduling
         let journal = SchedulerJournal()
         let handle = try registerMarker(on: lease, journal: journal)

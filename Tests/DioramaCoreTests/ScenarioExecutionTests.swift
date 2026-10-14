@@ -9,11 +9,11 @@ struct ScenarioExecutionTests {
 
         let definition = try ExecutionFixtures.definition(["a"])
         let systems = try [ExecutionFixtures.system("a", journal: journal)]
-        let first = try ScenarioExecution.start(
+        let first = try await ScenarioExecution.start(
             definition: definition,
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: systems)
-        let second = try ScenarioExecution.start(
+        let second = try await ScenarioExecution.start(
             definition: definition,
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: systems)
@@ -55,7 +55,7 @@ struct ScenarioExecutionTests {
             #expect(context.mode == .passthrough)
             return PreparedSystem { ActivatedSystem(dependency: "text", deactivate: {}) }
         }.withMode(.passthrough)
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "heterogeneous"), defaultMode: .record,
             systems: [AnyScenarioSystem(firstInstance), AnyScenarioSystem(secondInstance)])
         #expect(try execution.dependency(firstInstance) == 42)
@@ -87,7 +87,7 @@ struct ScenarioExecutionTests {
     @Test
     func `finish freezes results and closed lease use stays in separately retained log`() async throws {
         let journal = ExecutionFixtures.Journal()
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ExecutionFixtures.definition(["a"]),
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [ExecutionFixtures.system("a", journal: journal)])
@@ -114,7 +114,7 @@ struct ScenarioExecutionTests {
     @Test
     func `cleanup failures preserve reverse cleanup and one result for concurrent canceled callers`() async throws {
         let journal = ExecutionFixtures.Journal()
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ExecutionFixtures.definition(["a", "b", "c"]),
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: ["a", "b", "c"].map {
@@ -174,7 +174,7 @@ struct ScenarioExecutionTests {
                 }
             }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [AnyScenarioSystem(instance)])
         executionReference.withLock { $0 = execution }
@@ -187,7 +187,7 @@ struct ScenarioExecutionTests {
     @Test
     func `empty execution still has explicit idempotent finish`() async throws {
         let definition = try ScenarioDefinition()
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition,
             scenarioID: ScenarioID(rawValue: "empty"), defaultMode: .record,
             systems: [])

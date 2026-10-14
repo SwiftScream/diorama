@@ -18,16 +18,16 @@ public protocol SystemDefinition: Sendable {
     func validate(in context: borrowing SystemValidationContext) throws
     /// Creates record state after every system has validated. A throwing state
     /// factory must unwind its own partial resource construction.
-    func makeRecordState(in context: borrowing SystemStateContext) throws -> RecordState
+    func makeRecordState(in context: borrowing SystemStateContext) async throws -> RecordState
     /// Creates replay state without contacting a live source. A throwing state
     /// factory must unwind its own partial resource construction.
-    func makeReplayState(in context: borrowing SystemStateContext) throws -> ReplayState
+    func makeReplayState(in context: borrowing SystemStateContext) async throws -> ReplayState
     /// Creates the recording facade. Do not publish it before startup returns.
-    func makeRecordDependency(using execution: SystemExecution<RecordState>) throws -> Dependency
+    func makeRecordDependency(using execution: SystemExecution<RecordState>) async throws -> Dependency
     /// Creates the replay facade. Do not publish it before startup returns.
-    func makeReplayDependency(using execution: SystemExecution<ReplayState>) throws -> Dependency
+    func makeReplayDependency(using execution: SystemExecution<ReplayState>) async throws -> Dependency
     /// Creates an ordinary live dependency with consumer-owned cleanup.
-    func makePassthroughDependency() throws -> Dependency
+    func makePassthroughDependency() async throws -> Dependency
     /// Cleans detached recording state, outside protection, exactly once.
     /// Also runs if dependency construction throws after state creation.
     func cleanUpRecordState(_ state: RecordState) throws
@@ -83,7 +83,7 @@ public struct SystemValidationContext: ~Copyable {
 /// Scoped activation services. Track lookup returns the same prepared lease on
 /// every call, without repeating policies or consuming records. Do not expose
 /// active-resource aliases from subsequently protected state operations.
-public struct SystemStateContext: ~Copyable {
+public struct SystemStateContext: ~Copyable, Sendable {
     let registry: PreparedTrackRegistry
     /// Exact keyed system being activated.
     public let attachmentID: AttachmentID

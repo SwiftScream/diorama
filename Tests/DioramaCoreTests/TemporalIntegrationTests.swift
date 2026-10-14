@@ -7,7 +7,7 @@ struct TemporalIntegrationTests {
     @Test
     func `mixed mode shutdown drains record consumption before freezing live capture`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, services) = try setup(clock: clock.source)
+        let (execution, services) = try await setup(clock: clock.source)
         let (capture, playback) = services
         #expect(capture.time === playback.time)
         let frozen = Mutex(false)
@@ -90,10 +90,10 @@ struct TemporalIntegrationTests {
         }
     }
 
-    private func setup(clock: ExecutionClock) throws -> (ScenarioExecution, (Services, Services)) {
+    private func setup(clock: ExecutionClock) async throws -> (ScenarioExecution, (Services, Services)) {
         let live = try system(key: "live", values: []).withMode(.record)
         let replay = try system(key: "replay", values: ["first", "second"])
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [live.attachment, replay.attachment]),
             scenarioID: ScenarioID(rawValue: "mixed-shutdown"), defaultMode: .replay,
             systems: [AnyScenarioSystem(replay), AnyScenarioSystem(live)], clock: clock)

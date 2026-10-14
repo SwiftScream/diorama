@@ -25,7 +25,7 @@ struct RecordServiceBoundaryTests {
 
     @Test
     func `plain values need no lifecycle protocol and selected claims share sequential availability`() async throws {
-        let (execution, lease) = try RecordCaptureFixtures.start(mode: .replay, values: ["a", "b", "a", "c"])
+        let (execution, lease) = try await RecordCaptureFixtures.start(mode: .replay, values: ["a", "b", "a", "c"])
         let exact = ReplaySelector<String, String>.exactInput { $0 }
         let second = try lease.claim(matching: "b", using: exact)
         #expect(second.record.identity.sequence == 1)
@@ -44,7 +44,7 @@ struct RecordServiceBoundaryTests {
 
     @Test
     func `finish racing a selector rejects its stale result without consuming a record`() async throws {
-        let (execution, lease) = try RecordCaptureFixtures.start(mode: .replay, values: ["a"])
+        let (execution, lease) = try await RecordCaptureFixtures.start(mode: .replay, values: ["a"])
         let entered = AsyncStream<Void>.makeStream()
         let completed = AsyncStream<Bool>.makeStream()
         let release = DispatchSemaphore(value: 0)
@@ -72,7 +72,7 @@ struct RecordServiceBoundaryTests {
 
     @Test
     func `safe differences run outside lease isolation and consumption closes progress`() async throws {
-        let (execution, lease) = try RecordCaptureFixtures.start(mode: .replay, values: ["a"])
+        let (execution, lease) = try await RecordCaptureFixtures.start(mode: .replay, values: ["a"])
         let selector = ReplaySelector<String, String>.exactInput {
             $0
         } differences: { _, _ in
@@ -89,7 +89,7 @@ struct RecordServiceBoundaryTests {
     @Test(arguments: [Duration.milliseconds(200), .seconds(2)])
     func `current decisions preserve continuation delays for early and late answers`(answer: Duration) async throws {
         let captureClock = SchedulerTestClock()
-        let (captureRun, captureServices) = try SchedulerFixtures.setup(clock: captureClock.source)
+        let (captureRun, captureServices) = try await SchedulerFixtures.setup(clock: captureClock.source)
         let captureTime = captureServices[0].time
         captureClock.advance(to: .milliseconds(100))
         _ = try captureTime.capture() // Native challenge arrival.
@@ -102,7 +102,7 @@ struct RecordServiceBoundaryTests {
         _ = await captureRun.finish()
 
         let replayClock = SchedulerTestClock()
-        let (replay, services) = try SchedulerFixtures.setup(clock: replayClock.source)
+        let (replay, services) = try await SchedulerFixtures.setup(clock: replayClock.source)
         let journal = SchedulerJournal()
         replayClock.advance(to: answer)
         let currentAnswer = try services[0].time.capture()

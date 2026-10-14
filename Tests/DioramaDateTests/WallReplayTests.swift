@@ -13,7 +13,7 @@ struct WallReplayTests {
         let system = try DioramaDateSystem.instance(named: "wall") {
             factory.makeSource()
         }
-        let execution = try start(system, attachment: attachment)
+        let execution = try await start(system, attachment: attachment)
         let wall = try execution.dependency(system)
 
         #expect((0..<5).map { _ in wall.now } == original.effectiveDates)
@@ -37,7 +37,7 @@ struct WallReplayTests {
         let system = try DioramaDateSystem.instance(named: "wall") {
             factory.makeSource()
         }
-        let execution = try start(system, attachment: attachment)
+        let execution = try await start(system, attachment: attachment)
         let wall = try execution.dependency(system)
 
         #expect((0..<4).map { _ in wall.now } == [
@@ -59,7 +59,7 @@ struct WallReplayTests {
         let system = try DioramaDateSystem.instance(named: "wall") {
             factory.makeSource()
         }
-        let execution = try start(system, attachment: attachment)
+        let execution = try await start(system, attachment: attachment)
         let wall = try execution.dependency(system)
 
         #expect(wall.now == Date(timeIntervalSince1970: 0))
@@ -79,7 +79,7 @@ struct WallReplayTests {
         }
         let missing = ScenarioAttachment(id: system.attachment.id)
         do {
-            _ = try ScenarioExecution.start(
+            _ = try await ScenarioExecution.start(
                 definition: ScenarioDefinition(attachments: [missing]),
                 scenarioID: ScenarioID(rawValue: "date-missing"), defaultMode: .replay,
                 systems: [AnyScenarioSystem(system)])
@@ -95,7 +95,7 @@ struct WallReplayTests {
             factory.makeSource()
         }
         let emptyAttachment = try DioramaDateSystem.attachment(named: "empty")
-        let execution = try start(emptySystem, attachment: emptyAttachment)
+        let execution = try await start(emptySystem, attachment: emptyAttachment)
         #expect(try execution.dependency(emptySystem).now == Date(timeIntervalSince1970: 0))
         _ = await execution.finish()
     }
@@ -110,7 +110,7 @@ struct WallReplayTests {
         let first = try DioramaDateSystem.instance(named: "first") { factory.makeSource() }
         let second = try DioramaDateSystem.instance(named: "second") { factory.makeSource() }
         let definition = try ScenarioDefinition(attachments: [firstAttachment, secondAttachment])
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "date-keyed"),
             defaultMode: .replay, systems: [AnyScenarioSystem(second), AnyScenarioSystem(first)])
         let firstClock = try execution.dependency(first)
@@ -140,7 +140,7 @@ struct WallReplayTests {
         let system = try DioramaDateSystem.instance(named: "concurrent") {
             factory.makeSource()
         }
-        let execution = try start(system, attachment: attachment)
+        let execution = try await start(system, attachment: attachment)
         let wall = try execution.dependency(system)
         let returned = await withTaskGroup(of: Date.self, returning: [Date].self) { group in
             for _ in 0..<100 {
@@ -173,7 +173,7 @@ struct WallReplayTests {
         let system = try DioramaDateSystem.instance(named: "closed") {
             factory.makeSource()
         }
-        let execution = try start(system, attachment: attachment)
+        let execution = try await start(system, attachment: attachment)
         let wall = try execution.dependency(system)
         #expect(wall.now == Date(timeIntervalSince1970: 1))
 
@@ -195,7 +195,7 @@ struct WallReplayTests {
         let original = try WallRecording(offsetMinutes: 0, values: values)
         let attachment = try DioramaDateSystem.attachment(named: "authored", recording: original)
         let system = try DioramaDateSystem.instance(named: "authored")
-        let execution = try start(system, attachment: attachment)
+        let execution = try await start(system, attachment: attachment)
         let wall = try execution.dependency(system)
         #expect((0..<3).map { _ in wall.now } == values.map(\.value))
         let result = await execution.finish()
@@ -210,7 +210,7 @@ struct WallReplayTests {
         let original = try recording([100, 105])
         let attachment = try DioramaDateSystem.attachment(named: "unread", recording: original)
         let system = try DioramaDateSystem.instance(named: "unread")
-        let execution = try start(system, attachment: attachment)
+        let execution = try await start(system, attachment: attachment)
         let wall = try execution.dependency(system)
         let result = await execution.finish()
         #expect(wall.now == Date(timeIntervalSince1970: 0))
@@ -226,7 +226,7 @@ struct WallReplayTests {
         let system = try DioramaDateSystem.instance(named: "passthrough") {
             factory.makeSource()
         }
-        let execution = try start(system, attachment: attachment, mode: .passthrough)
+        let execution = try await start(system, attachment: attachment, mode: .passthrough)
         let wall = try execution.dependency(system)
         let native = Date(timeIntervalSince1970: 999)
         #expect(wall.now == native)
@@ -240,9 +240,9 @@ struct WallReplayTests {
     private func start(
         _ system: ScenarioSystem<any DioramaDateSource>,
         attachment: ScenarioAttachment,
-        mode: ScenarioMode = .replay) throws -> ScenarioExecution
+        mode: ScenarioMode = .replay) async throws -> ScenarioExecution
     {
-        try ScenarioExecution.start(
+        try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
             scenarioID: ScenarioID(rawValue: "date-replay"), defaultMode: mode,
             systems: [AnyScenarioSystem(system)])

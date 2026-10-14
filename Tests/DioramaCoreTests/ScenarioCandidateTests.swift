@@ -7,7 +7,7 @@ struct ScenarioCandidateTests {
     func `record replaces complete tracks while replay and passthrough preserve the immutable baseline`() async throws {
         let baseline = try ExecutionFixtures.definition(["record", "empty", "replay", "passthrough"])
         let journal = ExecutionFixtures.Journal()
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: baseline, scenarioID: ScenarioID(rawValue: "candidate"), defaultMode: .record,
             systems: [
                 ExecutionFixtures.system("record", journal: journal),
@@ -44,7 +44,7 @@ struct ScenarioCandidateTests {
     @Test
     func `one failed admission suppresses the whole resulting definition`() async throws {
         let journal = ExecutionFixtures.Journal()
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ExecutionFixtures.definition(["healthy", "failed"]),
             scenarioID: ScenarioID(rawValue: "candidate"), defaultMode: .record,
             systems: [
@@ -73,7 +73,7 @@ struct ScenarioCandidateTests {
 
     @Test
     func `empty scenarios still produce complete definitions`() async throws {
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(), scenarioID: ScenarioID(rawValue: "empty"),
             defaultMode: .record, systems: [])
         let result = await execution.finish()

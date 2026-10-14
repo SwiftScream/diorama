@@ -22,7 +22,7 @@ enum RecordCaptureFixtures {
         }
     }
 
-    static func start(mode: ScenarioMode = .record, values: [String] = []) throws
+    static func start(mode: ScenarioMode = .record, values: [String] = []) async throws
         -> (ScenarioExecution, HeaderlessSequentialTrackLease<String>)
     {
         let type = ScenarioSystemType("record-capture")
@@ -34,7 +34,7 @@ enum RecordCaptureFixtures {
             let lease = try context.lease(for: trackID, preparation: ValuePreparation<String>())
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
             scenarioID: ScenarioID(rawValue: "capture"), defaultMode: mode,
             systems: [AnyScenarioSystem(system)])
@@ -54,7 +54,7 @@ struct RecordCaptureTests {
 
     @Test
     func `reservation precedes nested capture and freeze runs once outside the lease lock`() async throws {
-        let (execution, lease) = try RecordCaptureFixtures.start()
+        let (execution, lease) = try await RecordCaptureFixtures.start()
         let policy = ValuePreparation<String>()
         let first = try lease.beginRecord(preparation: policy, capturing: { identity in
             #expect(identity.sequence == 0)
@@ -77,7 +77,7 @@ struct RecordCaptureTests {
 
     @Test
     func `freeze validates complete prepared values without repeating capture transforms`() async throws {
-        let (execution, lease) = try RecordCaptureFixtures.start()
+        let (execution, lease) = try await RecordCaptureFixtures.start()
         let counts = Mutex((normalize: 0, validate: 0))
         let policy = ValuePreparation<String>(normalize: { value in
             counts.withLock { $0.normalize += 1 }
@@ -91,7 +91,7 @@ struct RecordCaptureTests {
 
     @Test
     func `failed capture nil freeze and failed validation invalidate the entire candidate`() async throws {
-        let (execution, lease) = try RecordCaptureFixtures.start()
+        let (execution, lease) = try await RecordCaptureFixtures.start()
         #expect(throws: SequentialOperationFailure.self) {
             try lease.beginRecord(preparation: ValuePreparation<String>(), capturing: { _ -> String in
                 throw Failure.secret
@@ -110,7 +110,7 @@ struct RecordCaptureTests {
 
     @Test
     func `failed prepared capture retains its original diagnostic once`() async throws {
-        let (execution, lease) = try RecordCaptureFixtures.start()
+        let (execution, lease) = try await RecordCaptureFixtures.start()
         #expect(throws: SequentialOperationFailure.self) {
             try lease.beginRecord(preparation: ValuePreparation<String>(), capturing: { identity in
                 try ValuePreparation<String>().prepare(capturing: { throw Failure.secret },
@@ -125,7 +125,7 @@ struct RecordCaptureTests {
 
     @Test(arguments: [ScenarioMode.replay])
     func `wrong mode and closed admission do not call factories`(mode: ScenarioMode) async throws {
-        let (execution, lease) = try RecordCaptureFixtures.start(mode: mode)
+        let (execution, lease) = try await RecordCaptureFixtures.start(mode: mode)
         #expect(throws: SequentialOperationFailure.self) {
             try lease.beginRecord(preparation: ValuePreparation<String>(), capturing: { _ in
                 Issue.record("Wrong mode called the factory")
@@ -147,7 +147,7 @@ struct RecordCaptureTests {
 
     @Test
     func `finish racing slow construction detaches the rejected accumulator exactly once`() async throws {
-        let (execution, lease) = try RecordCaptureFixtures.start()
+        let (execution, lease) = try await RecordCaptureFixtures.start()
         let entered = AsyncStream<Void>.makeStream()
         let completed = AsyncStream<Bool>.makeStream()
         let release = DispatchSemaphore(value: 0)
@@ -177,7 +177,7 @@ struct RecordCaptureTests {
 
     @Test
     func `closed lease releases accumulator and freeze captures`() async throws {
-        let (execution, lease) = try RecordCaptureFixtures.start()
+        let (execution, lease) = try await RecordCaptureFixtures.start()
         weak var accumulator: RecordCaptureFixtures.Draft?
         weak var callbackCapture: RecordCaptureFixtures.Draft?
         do {

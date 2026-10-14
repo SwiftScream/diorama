@@ -7,7 +7,7 @@ struct SchedulerQuiescenceTests {
     @Test
     func `suspended async delivery does not block later handoffs or timer selection`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let lease = systems[0].scheduling
         let gate = SchedulerDeliveryGate()
         defer { gate.release() }
@@ -36,7 +36,7 @@ struct SchedulerQuiescenceTests {
     @Test(arguments: [false, true])
     func `finish joins scoped async delivery despite canceled waiters`(alreadyCanceled: Bool) async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let lease = systems[0].scheduling
         let gate = SchedulerDeliveryGate()
         defer { gate.release() }
@@ -108,7 +108,7 @@ struct SchedulerQuiescenceTests {
     @Test
     func `finish joins every concurrently completing async scope`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let lease = systems[0].scheduling
         let gates = (0..<32).map { _ in SchedulerDeliveryGate() }
         defer { for gate in gates {
@@ -140,7 +140,7 @@ struct SchedulerQuiescenceTests {
 
     @Test(arguments: [false, true])
     func `async early return and handled cancellation complete automatically`(cancel: Bool) async throws {
-        let (execution, systems) = try SchedulerFixtures.setup()
+        let (execution, systems) = try await SchedulerFixtures.setup()
         let gate = SchedulerDeliveryGate()
         defer { gate.release() }
         let handle = try systems[0].scheduling.schedule(at: .zero, for: SchedulerFixtures.record()) {

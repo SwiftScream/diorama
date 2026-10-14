@@ -11,7 +11,7 @@ struct ExecutionOwnershipTests {
     @Test
     func `finish releases sources while only the result retains stable content`() async throws {
         let observations = Observations()
-        var execution: ScenarioExecution? = try makeOwnedExecution(observations)
+        var execution: ScenarioExecution? = try await makeOwnedExecution(observations)
         weak let weakExecution = execution
         let key = ExecutionFixtures.dependencyKey(
             "a", as: HeaderlessSequentialTrackLease<ExecutionFixtures.Probe>.self)
@@ -49,7 +49,7 @@ struct ExecutionOwnershipTests {
         let result: ScenarioFinalizationResult
         do {
             let observations = Observations()
-            let execution = try makeOwnedExecution(observations)
+            let execution = try await makeOwnedExecution(observations)
             weakReporter = execution.reporter
             result = await execution.finish()
             observations.context.withLock { $0 = nil }
@@ -71,7 +71,7 @@ struct ExecutionOwnershipTests {
             leaseReference.withLock { $0 = lease }
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        var execution: ScenarioExecution? = try ScenarioExecution.start(
+        var execution: ScenarioExecution? = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "time-release"),
             defaultMode: .record, systems: [AnyScenarioSystem(instance)])
         weak let weakTime = timeReference.withLock { $0 }
@@ -115,7 +115,7 @@ struct ExecutionOwnershipTests {
             }
         }
         do {
-            let execution = try ScenarioExecution.start(
+            let execution = try await ScenarioExecution.start(
                 definition: definition, scenarioID: ScenarioID(rawValue: "release-diagnostics"),
                 defaultMode: .passthrough,
                 systems: [AnyScenarioSystem(instance), AnyScenarioSystem(otherInstance)])
@@ -150,7 +150,7 @@ struct ExecutionOwnershipTests {
                     ActivatedSystem(dependency: 0) { withExtendedLifetime(retainedSource) {} }
                 }
             }
-            execution = try ScenarioExecution.start(
+            execution = try await ScenarioExecution.start(
                 definition: definition, scenarioID: ScenarioID(rawValue: "consumer-owned"), defaultMode: .passthrough,
                 systems: [AnyScenarioSystem(instance)])
         }
@@ -182,7 +182,7 @@ struct ExecutionOwnershipTests {
             }
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [AnyScenarioSystem(instance)])
         let context = try #require(contexts.withLock { $0 })
@@ -195,7 +195,7 @@ struct ExecutionOwnershipTests {
     }
 
     @Test
-    func `rollback releases activation resources and content while escaped leases stay closed`() throws {
+    func `rollback releases activation resources and content while escaped leases stay closed`() async throws {
         let observations = Observations()
         let leases = Mutex<[HeaderlessSequentialTrackLease<ExecutionFixtures.Probe>]>([])
         let failure: ScenarioStartupFailure
@@ -225,7 +225,7 @@ struct ExecutionOwnershipTests {
                 PreparedSystem<Int> { throw ExecutionFixtures.SecretError(journal: ExecutionFixtures.Journal()) }
             }
             do {
-                _ = try ScenarioExecution.start(
+                _ = try await ScenarioExecution.start(
                     definition: definition, scenarioID: ScenarioID(rawValue: "rollback"), defaultMode: .replay,
                     systems: [AnyScenarioSystem(first), AnyScenarioSystem(second)])
                 Issue.record("The second activation must fail")
@@ -240,7 +240,7 @@ struct ExecutionOwnershipTests {
         #expect(lease.reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [.lifecycle(.leaseClosed)])
     }
 
-    private func makeOwnedExecution(_ observations: Observations) throws -> ScenarioExecution {
+    private func makeOwnedExecution(_ observations: Observations) async throws -> ScenarioExecution {
         let content = ExecutionFixtures.Probe { observations.releases.withLock { $0.append("content") } }
         let attachment = try ScenarioAttachment(id: ExecutionFixtures.attachment("a")).adding(
             SequentialTrack(id: ExecutionFixtures.track("a"), values: preparedValues([content])))
@@ -259,7 +259,7 @@ struct ExecutionOwnershipTests {
                 return ActivatedSystem(dependency: lease) { withExtendedLifetime(source) {} }
             }
         }
-        return try ScenarioExecution.start(
+        return try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "owned"), defaultMode: .replay,
             systems: [AnyScenarioSystem(instance)])
     }

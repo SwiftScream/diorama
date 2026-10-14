@@ -12,7 +12,7 @@ struct ConcurrentFinalizationTests {
         let gate = FinalizationGate()
         defer { gate.release() }
         let journal = ExecutionFixtures.Journal()
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ExecutionFixtures.definition(["a", "b"]),
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [ExecutionFixtures.system("a", journal: journal), blockingSystem(gate: gate, journal: journal)])
@@ -63,7 +63,7 @@ struct ConcurrentFinalizationTests {
 
     @Test
     func `diagnostics racing finish partition exactly once into frozen and late logs`() async throws {
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ExecutionFixtures.definition(["a"]),
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [
@@ -102,7 +102,7 @@ struct ConcurrentFinalizationTests {
     func `finish reports a reserved observation while late preparation cannot mutate the result`() async throws {
         let gate = FinalizationGate()
         defer { gate.release() }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ExecutionFixtures.definition(["a"]),
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .record, systems: [
                 ExecutionFixtures.system("a", journal: ExecutionFixtures.Journal()),

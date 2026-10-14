@@ -17,7 +17,7 @@ struct DioramaRandomDiagnosticTests {
             GatedRecordingSource(entered: entered.continuation, release: release,
                                  onRelease: { released.withLock { $0 += 1 } })
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [random.attachment]),
             scenarioID: ScenarioID(rawValue: "diagnostic-finish-race"), defaultMode: .record,
             systems: [AnyScenarioSystem(random)])

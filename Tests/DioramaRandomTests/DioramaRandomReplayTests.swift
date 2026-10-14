@@ -8,7 +8,7 @@ struct DioramaRandomReplayTests {
     func `factory may allow unused replay values without discarding their usage facts`() async throws {
         let key = AttachmentKey(rawValue: "optional-random")
         let instance = try DioramaRandomSystem.instance(named: key.rawValue, allowsUnclaimedReplayRecords: true)
-        let execution = try replayExecution(key: key, values: [7, 11], instance: instance)
+        let execution = try await replayExecution(key: key, values: [7, 11], instance: instance)
         var generator = try execution.dependency(instance)
         #expect(generator.next() == 7)
         let result = await execution.finish()
@@ -22,7 +22,7 @@ struct DioramaRandomReplayTests {
         let key = AttachmentKey(rawValue: "replay-boundaries")
         let probe = ReplaySourceProbe()
         let instance = try DioramaRandomSystem.instance(named: key.rawValue) { probe.makeSource() }
-        let execution = try replayExecution(
+        let execution = try await replayExecution(
             key: key,
             values: [0, .max],
             instance: instance)
@@ -36,10 +36,10 @@ struct DioramaRandomReplayTests {
     }
 
     @Test
-    func `replay never evaluates a trapping source factory`() throws {
+    func `replay never evaluates a trapping source factory`() async throws {
         let key = AttachmentKey(rawValue: "replay-trapping-factory")
         let instance = try DioramaRandomSystem.instance(named: key.rawValue) { forbiddenLiveSource() }
-        let execution = try replayExecution(
+        let execution = try await replayExecution(
             key: key,
             values: [71],
             instance: instance)
@@ -52,7 +52,7 @@ struct DioramaRandomReplayTests {
     func `replay exhaustion retains final diagnostics and returns zero`() async throws {
         let key = AttachmentKey(rawValue: "replay-exhaustion")
         let instance = try DioramaRandomSystem.instance(named: key.rawValue) { forbiddenLiveSource() }
-        let execution = try replayExecution(
+        let execution = try await replayExecution(
             key: key,
             values: [81],
             instance: instance)
@@ -77,7 +77,7 @@ struct DioramaRandomReplayTests {
         let key = AttachmentKey(rawValue: "replay-empty")
         let probe = ReplaySourceProbe()
         let instance = try DioramaRandomSystem.instance(named: key.rawValue) { probe.makeSource() }
-        let execution = try replayExecution(
+        let execution = try await replayExecution(
             key: key,
             values: [],
             instance: instance)
@@ -102,7 +102,7 @@ struct DioramaRandomReplayTests {
 
         let definition = try ScenarioDefinition(attachments: [replayAttachment(key: key, values: values)])
 
-        let firstExecution = try ScenarioExecution.start(
+        let firstExecution = try await ScenarioExecution.start(
             definition: definition,
             scenarioID: ScenarioID(rawValue: "random-replay-concurrent"), defaultMode: .replay,
             systems: [AnyScenarioSystem(instance)])
@@ -123,7 +123,7 @@ struct DioramaRandomReplayTests {
         #expect(observed.sorted() == values)
         #expect(await (firstExecution.finish()).report.diagnostics.isEmpty)
 
-        let secondExecution = try ScenarioExecution.start(
+        let secondExecution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "random-replay-concurrent"), defaultMode: .replay,
             systems: [AnyScenarioSystem(instance)])
         var secondGenerator = try secondExecution.dependency(instance.dependencyKey)
@@ -149,7 +149,7 @@ private func assertClosedGenerator(
     let instance = try DioramaRandomSystem.instance(named: key.rawValue) { probe.makeSource() }
 
     let definition = try ScenarioDefinition(attachments: [replayAttachment(key: key, values: [51, 52])])
-    let execution = try ScenarioExecution.start(
+    let execution = try await ScenarioExecution.start(
         definition: definition,
         scenarioID: ScenarioID(rawValue: "random-closed-" + String(describing: mode)), defaultMode: mode,
         systems: [AnyScenarioSystem(instance)])
@@ -169,10 +169,10 @@ private func assertClosedGenerator(
 private func replayExecution(
     key: AttachmentKey,
     values: [UInt64],
-    instance: ScenarioSystem<any RandomNumberGenerator & Sendable>) throws -> ScenarioExecution
+    instance: ScenarioSystem<any RandomNumberGenerator & Sendable>) async throws -> ScenarioExecution
 {
     let definition = try ScenarioDefinition(attachments: [replayAttachment(key: key, values: values)])
-    return try ScenarioExecution.start(
+    return try await ScenarioExecution.start(
         definition: definition,
         scenarioID: ScenarioID(rawValue: "random-" + key.rawValue), defaultMode: .replay,
         systems: [AnyScenarioSystem(instance)])

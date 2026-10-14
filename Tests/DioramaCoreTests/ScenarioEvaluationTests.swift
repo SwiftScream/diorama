@@ -5,7 +5,7 @@ struct ScenarioEvaluationTests {
     @Test
     func `known dependency lookup failures participate in attachment evaluation`() async throws {
         let key = AttachmentKey(rawValue: "a")
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ExecutionFixtures.definition(["a"]),
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [
@@ -34,7 +34,7 @@ struct ScenarioEvaluationTests {
     @Test
     func `evaluation selects attachment facts without treating scope typos as success`() async throws {
         let journal = ExecutionFixtures.Journal()
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ExecutionFixtures.definition(["a", "b"]),
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [
@@ -71,7 +71,7 @@ struct ScenarioEvaluationTests {
 
     @Test
     func `empty runs satisfy every explicit condition`() async throws {
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(),
             scenarioID: ScenarioID(rawValue: "empty"), defaultMode: .record,
             systems: [])

@@ -25,7 +25,7 @@ struct SequentialTrackHeaderTests {
             }
         }
 
-        let recording = try ScenarioExecution.start(
+        let recording = try await ScenarioExecution.start(
             definition: baseline, scenarioID: ScenarioID(rawValue: "header-record"),
             defaultMode: .record, systems: [AnyScenarioSystem(system)])
         let recordingLease = try recording.dependency(system)
@@ -43,7 +43,7 @@ struct SequentialTrackHeaderTests {
         }
         #expect(try baseline.attachments[0].track(id, as: Int.self, header: Int.self)?.header == 660)
 
-        let replay = try ScenarioExecution.start(
+        let replay = try await ScenarioExecution.start(
             definition: candidate, scenarioID: ScenarioID(rawValue: "header-replay"),
             defaultMode: .replay, systems: [AnyScenarioSystem(system)])
         let replayLease = try replay.dependency(system)
@@ -72,7 +72,7 @@ struct SequentialTrackHeaderTests {
                 for: id, preparation: preparation, headerPreparation: preparation)
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
             scenarioID: ScenarioID(rawValue: "empty-header-record"), defaultMode: .record,
             systems: [AnyScenarioSystem(system)])
@@ -98,7 +98,7 @@ struct SequentialTrackHeaderTests {
                 for: id, preparation: ValuePreparation<Int>(), headerPreparation: headerPreparation)
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let recording = try ScenarioExecution.start(
+        let recording = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
             scenarioID: ScenarioID(rawValue: "non-equatable-record"), defaultMode: .record,
             systems: [AnyScenarioSystem(system)])
@@ -110,7 +110,7 @@ struct SequentialTrackHeaderTests {
             id, as: Int.self, header: NonEquatableHeader.self))
         #expect(track.header.offset == 120)
 
-        let replay = try ScenarioExecution.start(
+        let replay = try await ScenarioExecution.start(
             definition: candidate, scenarioID: ScenarioID(rawValue: "non-equatable-replay"),
             defaultMode: .replay, systems: [AnyScenarioSystem(system)])
         #expect(try replay.dependency(system).baselineHeader()?.offset == 120)
@@ -132,7 +132,7 @@ struct SequentialTrackHeaderTests {
                 headerPreparation: ValuePreparation<Int>())
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
             scenarioID: ScenarioID(rawValue: "header-failure"), defaultMode: .record,
             systems: [AnyScenarioSystem(system)])
@@ -166,7 +166,7 @@ struct SequentialTrackHeaderTests {
                 for: id, preparation: preparation, headerPreparation: preparation)
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
             scenarioID: ScenarioID(rawValue: "overlapping-header"), defaultMode: .record,
             systems: [AnyScenarioSystem(system)])
@@ -214,7 +214,7 @@ struct SequentialTrackHeaderTests {
                 for: id, preparation: preparation, headerPreparation: preparation)
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
             scenarioID: ScenarioID(rawValue: "unfinished-header"), defaultMode: .record,
             systems: [AnyScenarioSystem(system)])

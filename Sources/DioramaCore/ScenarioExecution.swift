@@ -147,11 +147,11 @@ public final class ScenarioExecution: Sendable {
         scenarioID: ScenarioID,
         defaultMode: ScenarioMode,
         systems: [AnyScenarioSystem],
-        initialDiagnostics: [Diagnostic] = []) throws(ScenarioStartupFailure) -> ScenarioExecution
+        initialDiagnostics: [Diagnostic] = []) async throws(ScenarioStartupFailure) -> ScenarioExecution
     {
-        try start(definition: definition, scenarioID: scenarioID, defaultMode: defaultMode,
-                  systems: systems, initialDiagnostics: initialDiagnostics,
-                  clock: .continuous())
+        try await start(definition: definition, scenarioID: scenarioID, defaultMode: defaultMode,
+                        systems: systems, initialDiagnostics: initialDiagnostics,
+                        clock: .continuous())
     }
 
     static func start(
@@ -160,7 +160,7 @@ public final class ScenarioExecution: Sendable {
         defaultMode: ScenarioMode,
         systems: [AnyScenarioSystem],
         initialDiagnostics: [Diagnostic] = [],
-        clock: ExecutionClock) throws(ScenarioStartupFailure) -> ScenarioExecution
+        clock: ExecutionClock) async throws(ScenarioStartupFailure) -> ScenarioExecution
     {
         let reporter = DiagnosticReporter(scenarioID: scenarioID, definition: definition)
         for diagnostic in initialDiagnostics {
@@ -175,7 +175,7 @@ public final class ScenarioExecution: Sendable {
         let scheduler = DeadlineEngine(time: time, admission: admission, reporter: reporter)
         let services = StartupServices(reporter: reporter, admission: admission, time: time, scheduler: scheduler)
         do {
-            return try activate(
+            return try await activate(
                 definition: definition,
                 defaultMode: defaultMode,
                 systems: systems,
@@ -189,7 +189,7 @@ public final class ScenarioExecution: Sendable {
 
     private static func activate(
         definition: ScenarioDefinition, defaultMode: ScenarioMode,
-        systems: [AnyScenarioSystem], services: StartupServices) throws(StartupRollback) -> ScenarioExecution
+        systems: [AnyScenarioSystem], services: StartupServices) async throws(StartupRollback) -> ScenarioExecution
     {
         let reporter = services.reporter
         let admission = services.admission
@@ -197,7 +197,11 @@ public final class ScenarioExecution: Sendable {
         let scheduler = services.scheduler
         var prepared: [AnyPreparedSystem] = []
         var leases: [any AnySequentialLease] = []
-        var activated: [AnyActivatedSystem] = []
+        if Task.isCancelled {
+            reporter.record(Diagnostic(issue: .lifecycle(.startupCanceled)))
+            services.close()
+            throw await rollback([], leases: leases, reporter: reporter)
+        }
         for (order, attachment) in definition.attachments.enumerated() {
             // Exact one-to-one registration was validated before any callbacks.
             guard let system = systems.first(where: { $0.attachmentID == attachment.id }) else {
@@ -225,24 +229,44 @@ public final class ScenarioExecution: Sendable {
                 leases += context.end().leases
                 reporter.record(Diagnostic(issue: .lifecycle(.preparationFailed), context: .attachment(attachment.id)))
                 services.close()
-                throw rollback(activated, leases: leases, reporter: reporter)
+                throw await rollback([], leases: leases, reporter: reporter)
             }
         }
 
-        for (attachment, preparedSystem) in zip(definition.attachments, prepared) {
-            do {
-                try activated.append(preparedSystem.activate())
-            } catch {
-                reporter.record(Diagnostic(issue: .lifecycle(.activationFailed), context: .attachment(attachment.id)))
-                services.close()
-                throw rollback(activated, leases: leases, reporter: reporter)
-            }
-        }
+        let activated = try await activatePrepared(prepared, definition: definition, leases: leases, services: services)
         let usage = ExecutionUsage(definition: definition, defaultMode: defaultMode, systems: systems)
         let execution = ScenarioExecution(systems: activated, leases: leases, reporter: reporter,
                                           usage: usage, definition: definition, time: time, scheduler: scheduler)
         time.start()
         return execution
+    }
+
+    private static func activatePrepared(
+        _ prepared: [AnyPreparedSystem], definition: ScenarioDefinition,
+        leases: [any AnySequentialLease], services: StartupServices)
+        async throws(StartupRollback) -> [AnyActivatedSystem]
+    {
+        let reporter = services.reporter
+        var activated: [AnyActivatedSystem] = []
+        for (attachment, preparedSystem) in zip(definition.attachments, prepared) {
+            do {
+                try Task.checkCancellation()
+                try await activated.append(preparedSystem.activate())
+                try Task.checkCancellation()
+            } catch {
+                let issue: ScenarioLifecycleIssue = error is CancellationError ? .startupCanceled : .activationFailed
+                reporter.record(Diagnostic(issue: .lifecycle(issue),
+                                           context: .attachment(attachment.id)))
+                services.close()
+                throw await rollback(activated, leases: leases, reporter: reporter)
+            }
+        }
+        if Task.isCancelled {
+            reporter.record(Diagnostic(issue: .lifecycle(.startupCanceled)))
+            services.close()
+            throw await rollback(activated, leases: leases, reporter: reporter)
+        }
+        return activated
     }
 
     /// Retrieves an activated dependency while the execution remains running.
@@ -326,13 +350,22 @@ public final class ScenarioExecution: Sendable {
 
     private static func rollback(
         _ systems: [AnyActivatedSystem], leases: [any AnySequentialLease],
-        reporter: DiagnosticReporter) -> StartupRollback
+        reporter: DiagnosticReporter) async -> StartupRollback
     {
-        for lease in leases {
-            lease.close(mergingRecording: false)
-        }
-        let cleanup = cleanUp(systems, reporter: reporter)
-        return StartupRollback(cleanup: cleanup)
+        let owners = systems
+        return await Task {
+            for system in owners {
+                await system.quiesce()
+            }
+            for lease in leases {
+                await lease.join()
+            }
+            for lease in leases {
+                lease.close(mergingRecording: false)
+            }
+            let cleanup = cleanUp(systems, reporter: reporter)
+            return StartupRollback(cleanup: cleanup)
+        }.value
     }
 
     private static func cleanUp(

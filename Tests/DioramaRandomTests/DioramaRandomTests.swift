@@ -12,7 +12,7 @@ struct DioramaRandomTests {
         let instance = try DioramaRandomSystem.instance(named: key.rawValue) {
             probe.makeSource()
         }
-        let execution = try start(mode: .record, instance: instance)
+        let execution = try await start(mode: .record, instance: instance)
         var generator = try execution.dependency(instance)
         var alias = generator
 
@@ -32,7 +32,7 @@ struct DioramaRandomTests {
         let instance = try DioramaRandomSystem.instance(named: key.rawValue) { probe.makeSource() }
 
         let definition = try ScenarioDefinition(attachments: [attachment])
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "random-passthrough"), defaultMode: .passthrough,
             systems: [AnyScenarioSystem(instance)])
         var generator = try execution.dependency(instance)
@@ -56,7 +56,7 @@ struct DioramaRandomTests {
             firstInstance.attachment,
             secondInstance.attachment,
         ])
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "random-independent"), defaultMode: .record,
             systems: [
                 AnyScenarioSystem(secondInstance),
@@ -84,14 +84,14 @@ struct DioramaRandomTests {
 
         let definition = try ScenarioDefinition(attachments: [instance.attachment])
 
-        let firstExecution = try ScenarioExecution.start(
+        let firstExecution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "random-fresh"), defaultMode: .record,
             systems: [AnyScenarioSystem(instance)])
         var first = try firstExecution.dependency(instance)
         #expect(first.next() == 31)
         _ = await firstExecution.finish()
 
-        let secondExecution = try ScenarioExecution.start(
+        let secondExecution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "random-fresh"), defaultMode: .record,
             systems: [AnyScenarioSystem(instance)])
         var second = try secondExecution.dependency(instance.dependencyKey)
@@ -108,7 +108,7 @@ struct DioramaRandomTests {
         let values = Array(0..<UInt64(100))
         let probe = SourceProbe(sequences: [values], operationDelay: 0.001)
         let instance = try DioramaRandomSystem.instance(named: key.rawValue) { probe.makeSource() }
-        let execution = try start(mode: .record, instance: instance)
+        let execution = try await start(mode: .record, instance: instance)
         let generator = try execution.dependency(instance)
         if closed {
             _ = await execution.finish()
@@ -140,7 +140,7 @@ struct DioramaRandomTests {
     func `recording source survives finish and releases with its last dependency`() async throws {
         let probe = SourceProbe(sequences: [[51, 52, 53]])
         let instance = try DioramaRandomSystem.instance(named: "closed") { probe.makeSource() }
-        let execution = try start(mode: .record, instance: instance)
+        let execution = try await start(mode: .record, instance: instance)
         var generator: (any RandomNumberGenerator & Sendable)? = try execution.dependency(instance)
         var alias = generator
         #expect(generator?.next() == 51)
@@ -165,7 +165,7 @@ struct DioramaRandomTests {
         let instance = try DioramaRandomSystem.instance(named: "value-source") {
             ValueSource(nextValue: 7)
         }
-        let execution = try start(mode: .record, instance: instance)
+        let execution = try await start(mode: .record, instance: instance)
         var generator = try execution.dependency(instance)
         var alias = generator
 
@@ -186,7 +186,7 @@ struct DioramaRandomTests {
     @Test
     func `passthrough value generators preserve native independent copies after finish`() async throws {
         let instance = try DioramaRandomSystem.instance(named: "value-source") { ValueSource(nextValue: 7) }
-        let execution = try start(mode: .passthrough, instance: instance)
+        let execution = try await start(mode: .passthrough, instance: instance)
         var first = try execution.dependency(instance)
         var second = first
         #expect(first.next() == 7)
@@ -203,7 +203,7 @@ struct DioramaRandomTests {
     func `default source registration activates in passthrough`() async throws {
         let key = AttachmentKey(rawValue: "default")
         let instance = try DioramaRandomSystem.instance(named: key.rawValue)
-        let execution = try start(mode: .passthrough, instance: instance)
+        let execution = try await start(mode: .passthrough, instance: instance)
         var generator = try execution.dependency(instance)
 
         _ = generator.next()
@@ -214,7 +214,7 @@ struct DioramaRandomTests {
     func `passthrough reference sources share native state and release with their last handle`() async throws {
         let probe = SourceProbe(sequences: [[5, 6, 7]])
         let instance = try DioramaRandomSystem.instance(named: "native-lifetime") { probe.makeSource() }
-        let execution = try start(mode: .passthrough, instance: instance)
+        let execution = try await start(mode: .passthrough, instance: instance)
         var first: (any RandomNumberGenerator & Sendable)? = try execution.dependency(instance)
         var second = first
         #expect(first?.next() == 5)
@@ -238,7 +238,7 @@ struct DioramaRandomTests {
         let instance = try DioramaRandomSystem.instance(named: "native-work") {
             GatedSource(entered: entered.continuation, release: release)
         }
-        let execution = try start(mode: .passthrough, instance: instance)
+        let execution = try await start(mode: .passthrough, instance: instance)
         let generator = try execution.dependency(instance)
         let reading = Task {
             var generator = generator
@@ -264,10 +264,10 @@ struct DioramaRandomTests {
 
     private func start(
         mode: ScenarioMode,
-        instance: ScenarioSystem<any RandomNumberGenerator & Sendable>) throws -> ScenarioExecution
+        instance: ScenarioSystem<any RandomNumberGenerator & Sendable>) async throws -> ScenarioExecution
     {
         let definition = try ScenarioDefinition(attachments: [instance.attachment])
-        return try ScenarioExecution.start(
+        return try await ScenarioExecution.start(
             definition: definition,
             scenarioID: ScenarioID(rawValue: "random-" + instance.attachment.id.key.rawValue), defaultMode: mode,
             systems: [AnyScenarioSystem(instance)])

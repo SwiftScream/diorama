@@ -15,7 +15,7 @@ struct PurePassthroughDateTests {
             .observed(Date(timeIntervalSince1970: .infinity)))
         let baseline = try ScenarioAttachment(id: system.attachment.id).adding(
             SequentialTrack(id: id, header: header, values: [value]))
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [baseline]),
             scenarioID: ScenarioID(rawValue: "native-content"), defaultMode: .passthrough,
             systems: [AnyScenarioSystem(system)])

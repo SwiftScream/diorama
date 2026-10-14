@@ -21,7 +21,7 @@ private enum SelectionFixtures {
 
     static func start(_ groups: [Record], key: String = "one", allowsUnused: Bool = false,
                       mode: ScenarioMode = .replay)
-        throws -> (ScenarioExecution, HeaderlessSequentialTrackLease<Record>)
+        async throws -> (ScenarioExecution, HeaderlessSequentialTrackLease<Record>)
     {
         let attachmentID = AttachmentID(systemTypeID: type.id, key: AttachmentKey(rawValue: key))
         let trackID = TrackID(attachmentID: attachmentID, key: TrackKey(rawValue: "groups"))
@@ -35,7 +35,7 @@ private enum SelectionFixtures {
             let lease = try context.lease(for: trackID, preparation: policy)
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
             scenarioID: ScenarioID(rawValue: "selection"), defaultMode: mode,
             systems: [AnyScenarioSystem(system)])
@@ -57,7 +57,7 @@ struct ReplaySelectionTests {
             SelectionFixtures.group("repeat", output: "second"),
             SelectionFixtures.group("open"),
         ]
-        let (execution, lease) = try SelectionFixtures.start(groups)
+        let (execution, lease) = try await SelectionFixtures.start(groups)
         let trackID = lease.id
         let distinct = try lease.claim(matching: "distinct", using: SelectionFixtures.exact)
         let first = try lease.claim(matching: "repeat", using: SelectionFixtures.exact)
@@ -97,7 +97,7 @@ struct ReplaySelectionTests {
 
     @Test(arguments: [false, true])
     func `open recorded behavior requires explicit consumption acknowledgement`(consume: Bool) async throws {
-        let (execution, lease) = try SelectionFixtures.start([SelectionFixtures.group("open")])
+        let (execution, lease) = try await SelectionFixtures.start([SelectionFixtures.group("open")])
         let claim = try lease.claim(matching: "open", using: SelectionFixtures.exact)
         // The domain reaches two recorded observations, then its open horizon.
         #expect(claim.advance(to: 2))
@@ -120,7 +120,7 @@ struct ReplaySelectionTests {
 
     @Test
     func `selection failures stay distinct and do not consume records`() async throws {
-        let (execution, lease) = try SelectionFixtures.start([
+        let (execution, lease) = try await SelectionFixtures.start([
             SelectionFixtures.group("same", output: "first"),
             SelectionFixtures.group("same", output: "second"),
         ])
@@ -190,7 +190,7 @@ struct ReplaySelectionTests {
     @Test
     func `concurrent equivalent claims never reuse one record and selector can inspect lease`() async throws {
         let groups = try (0..<32).map { try SelectionFixtures.group("same", output: String($0)) }
-        let (execution, lease) = try SelectionFixtures.start(groups)
+        let (execution, lease) = try await SelectionFixtures.start(groups)
         let observed = Mutex(false)
         let selector: ReplaySelector<String, SelectionFixtures.Record> = .init(
             rule: DiagnosticLabel("reentrant"))
@@ -222,7 +222,7 @@ struct ReplaySelectionTests {
 
     @Test
     func `sequential record selection advances once and closed use stays diagnosed`() async throws {
-        let (execution, lease) = try SelectionFixtures.start([
+        let (execution, lease) = try await SelectionFixtures.start([
             SelectionFixtures.group("first", output: "one"),
             SelectionFixtures.group("second", output: "two"),
         ])
@@ -253,7 +253,7 @@ struct ReplaySelectionTests {
     @Test
     func `invalid selector identities and wrong mode cannot claim a group`() async throws {
         let group = try SelectionFixtures.group("one", output: "one")
-        let (execution, lease) = try SelectionFixtures.start([group])
+        let (execution, lease) = try await SelectionFixtures.start([group])
         let invalid: ReplaySelector<Void, SelectionFixtures.Record> = .init(
             rule: DiagnosticLabel("invalid-index"))
         { _, _ in
@@ -268,7 +268,7 @@ struct ReplaySelectionTests {
             .sequential(.selection(.invalidSelectorResult)),
         ])
 
-        let (recording, recordLease) = try SelectionFixtures.start([group], mode: .record)
+        let (recording, recordLease) = try await SelectionFixtures.start([group], mode: .record)
         #expect(throws: SequentialOperationFailure.self) {
             try recordLease.claim(matching: (), using: .sequential())
         }
@@ -279,7 +279,7 @@ struct ReplaySelectionTests {
 
     @Test
     func `record unused identities remain ordered when claims have holes and waiver applies`() async throws {
-        let (execution, lease) = try SelectionFixtures.start([
+        let (execution, lease) = try await SelectionFixtures.start([
             SelectionFixtures.group("first", output: "one"),
             SelectionFixtures.group("second", output: "two"),
             SelectionFixtures.group("third", output: "three"),

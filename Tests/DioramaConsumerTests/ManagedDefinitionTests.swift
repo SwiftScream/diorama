@@ -161,13 +161,13 @@ private struct CounterDefinition: SystemDefinition {
 }
 
 struct ManagedDefinitionTests {
-    @Test func `failed construction releases queued callback captures and closes escaped scheduling`() throws {
+    @Test func `failed construction releases queued callback captures and closes escaped scheduling`() async throws {
         var model = try CounterDefinition()
         model.queueConstructionWork = true
         model.failDependency = true
         let system = try ScenarioSystem(named: "counter", definition: model)
         do {
-            _ = try start(system)
+            _ = try await start(system)
             Issue.record("Expected failed construction")
         } catch let failure as ScenarioStartupFailure {
             #expect(failure.report.diagnostics.contains {
@@ -188,7 +188,7 @@ struct ManagedDefinitionTests {
     @Test func `registration racing finish freezes once after unlocking managed state`() async throws {
         let model = try CounterDefinition()
         let system = try ScenarioSystem(named: "counter", definition: model)
-        let execution = try start(system)
+        let execution = try await start(system)
         let counter = try execution.dependency(system)
         let captured = AsyncStream<Void>.makeStream()
         let release = DispatchSemaphore(value: 0)
@@ -219,14 +219,14 @@ struct ManagedDefinitionTests {
         ])
     }
 
-    @Test func `failed dependency construction unwinds all managed states in reverse order`() throws {
+    @Test func `failed dependency construction unwinds all managed states in reverse order`() async throws {
         var model = try CounterDefinition()
         let first = try ScenarioSystem(named: "first", definition: model)
         let second = try ScenarioSystem(named: "second", definition: model)
         model.failDependency = true
         let third = try ScenarioSystem(named: "third", definition: model)
-        #expect(throws: ScenarioStartupFailure.self) {
-            try ScenarioExecution.start(
+        await #expect(throws: ScenarioStartupFailure.self) {
+            try await ScenarioExecution.start(
                 definition: ScenarioDefinition(attachments: [first.attachment, second.attachment, third.attachment]),
                 scenarioID: .init(rawValue: "rollback"), defaultMode: .record,
                 systems: [AnyScenarioSystem(third), AnyScenarioSystem(first), AnyScenarioSystem(second)])
@@ -239,7 +239,7 @@ struct ManagedDefinitionTests {
     @Test func `callbacks and cancellation destruction reenter only after state commits`() async throws {
         let model = try CounterDefinition()
         let system = try ScenarioSystem(named: "counter", definition: model)
-        let execution = try start(system)
+        let execution = try await start(system)
         let counter = try execution.dependency(system)
         let callbacks = Mutex<[Int]>([])
         var capture: ManagedReleaseProbe? = ManagedReleaseProbe {
@@ -265,7 +265,7 @@ struct ManagedDefinitionTests {
     @Test func `registration under protection rejects before launching callbacks`() async throws {
         let model = try CounterDefinition()
         let system = try ScenarioSystem(named: "counter", definition: model)
-        let execution = try start(system)
+        let execution = try await start(system)
         let counter = try execution.dependency(system)
         let record = RecordIdentity(trackID: system.attachment.trackIDs[0], sequence: 0)
         #expect(throws: SchedulingFailure.self) {
@@ -292,9 +292,10 @@ struct ManagedDefinitionTests {
                                                  header: ValuePreparation<String>().admitPrepared("ready")))
         let baseline = try ScenarioDefinition(attachments: [loadedFirst, second.attachment])
         for _ in 0..<2 {
-            let execution = try ScenarioExecution.start(definition: baseline, scenarioID: .init(rawValue: "counter"),
-                                                        defaultMode: .record,
-                                                        systems: [AnyScenarioSystem(second), AnyScenarioSystem(first)])
+            let execution = try await ScenarioExecution.start(
+                definition: baseline, scenarioID: .init(rawValue: "counter"),
+                defaultMode: .record,
+                systems: [AnyScenarioSystem(second), AnyScenarioSystem(first)])
             let firstCounter = try execution.dependency(first)
             let secondCounter = try execution.dependency(second)
             #expect(try firstCounter.increment() == 1)
@@ -311,21 +312,21 @@ struct ManagedDefinitionTests {
         #expect(model.journal.transforms.withLock { $0 } == 0)
     }
 
-    @Test func `duplicate missing and later validation failures`() throws {
+    @Test func `duplicate missing and later validation failures`() async throws {
         var model = try CounterDefinition()
         model.duplicate = true
         #expect(throws: ScenarioDefinitionError.self) { try ScenarioSystem(named: "counter", definition: model) }
         model.duplicate = false
         model.missing = true
         let missing = try ScenarioSystem(named: "missing", definition: model)
-        #expect(throws: ScenarioStartupFailure.self) { try start(missing) }
+        await #expect(throws: ScenarioStartupFailure.self) { try await start(missing) }
         model.missing = false
         let first = try ScenarioSystem(named: "first", definition: model)
         model.failValidation = true
         let last = try ScenarioSystem(named: "last", definition: model)
         model.journal.events.withLock { $0 = [] }
-        #expect(throws: ScenarioStartupFailure.self) {
-            try ScenarioExecution.start(
+        await #expect(throws: ScenarioStartupFailure.self) {
+            try await ScenarioExecution.start(
                 definition: ScenarioDefinition(attachments: [first.attachment, last.attachment]),
                 scenarioID: .init(rawValue: "counter"), defaultMode: .record,
                 systems: [AnyScenarioSystem(first), AnyScenarioSystem(last)])
@@ -336,7 +337,7 @@ struct ManagedDefinitionTests {
     @Test func `throwing operation commits state and retains facts for the final report`() async throws {
         let model = try CounterDefinition()
         let system = try ScenarioSystem(named: "counter", definition: model)
-        let execution = try start(system)
+        let execution = try await start(system)
         let counter = try execution.dependency(system)
         #expect(throws: ManagedFailure.self) { try counter.increment(fail: true) }
         #expect(try counter.count == 1)
@@ -351,7 +352,7 @@ struct ManagedDefinitionTests {
     @Test func `incremental freeze uses managed state once and rejects late observations`() async throws {
         let model = try CounterDefinition()
         let system = try ScenarioSystem(named: "counter", definition: model)
-        let execution = try start(system)
+        let execution = try await start(system)
         let counter = try execution.dependency(system)
         let record = try counter.begin(journal: model.journal)
         try counter.observe(record)
@@ -367,13 +368,13 @@ struct ManagedDefinitionTests {
         #expect(first.report.diagnostics.isEmpty)
     }
 
-    @Test func `dependency failure cleans created state and retains cleanup failure`() throws {
+    @Test func `dependency failure cleans created state and retains cleanup failure`() async throws {
         var model = try CounterDefinition()
         model.failDependency = true
         model.failCleanup = true
         let system = try ScenarioSystem(named: "counter", definition: model)
         do {
-            _ = try start(system)
+            _ = try await start(system)
             Issue.record("Expected dependency construction failure")
         } catch let failure as ScenarioStartupFailure {
             #expect(failure.report.diagnostics.contains { $0.diagnostic.issue == .lifecycle(.cleanupFailed) })
@@ -383,10 +384,10 @@ struct ManagedDefinitionTests {
     }
 
     private func start(_ system: ScenarioSystem<ManagedCounter>)
-        throws -> ScenarioExecution
+        async throws -> ScenarioExecution
     {
-        try ScenarioExecution.start(definition: ScenarioDefinition(attachments: [system.attachment]),
-                                    scenarioID: .init(rawValue: "counter"), defaultMode: .record,
-                                    systems: [AnyScenarioSystem(system)])
+        try await ScenarioExecution.start(definition: ScenarioDefinition(attachments: [system.attachment]),
+                                          scenarioID: .init(rawValue: "counter"), defaultMode: .record,
+                                          systems: [AnyScenarioSystem(system)])
     }
 }

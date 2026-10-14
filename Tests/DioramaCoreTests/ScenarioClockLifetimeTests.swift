@@ -10,7 +10,7 @@ struct ScenarioClockLifetimeTests {
     func `timer failure releases pending sleepers with safe already reported errors`() async throws {
         let source = SchedulerTestClock()
         let driver = ExecutionClock(now: source.source.now, sleep: { _, _ in throw SourceFailure.failed })
-        let (execution, _) = try SchedulerFixtures.setup([], clock: driver)
+        let (execution, _) = try await SchedulerFixtures.setup([], clock: driver)
         for _ in 0..<2 {
             do {
                 try await execution.context.clock.sleep(until: .init(offset: .seconds(1)))
@@ -28,7 +28,7 @@ struct ScenarioClockLifetimeTests {
 
     @Test
     func `host deadline overflow is a safe registration failure`() async throws {
-        let (execution, _) = try SchedulerFixtures.setup([])
+        let (execution, _) = try await SchedulerFixtures.setup([])
         do {
             try await execution.context.clock.sleep(until: .init(offset: .maximumLogicalTime))
             Issue.record("Logical maximum cannot map beyond the host timer range")
@@ -53,7 +53,7 @@ struct ScenarioClockLifetimeTests {
             return PreparedSystem<ScenarioClock> { throw SourceFailure.failed }
         }
         do {
-            _ = try ScenarioExecution.start(
+            _ = try await ScenarioExecution.start(
                 definition: definition, scenarioID: ScenarioID(rawValue: "rollback-clock"),
                 defaultMode: .record, systems: [AnyScenarioSystem(system)], clock: source.source)
             Issue.record("Activation must fail")
@@ -70,7 +70,7 @@ struct ScenarioClockLifetimeTests {
     @Test
     func `failed now and horizon retain diagnostics and preserve last valid time`() async throws {
         let source = SchedulerTestClock()
-        let (execution, _) = try SchedulerFixtures.setup([], clock: source.source)
+        let (execution, _) = try await SchedulerFixtures.setup([], clock: source.source)
         let clock = execution.context.clock
         source.advance(to: .seconds(5))
         #expect(clock.now.offset == .seconds(5))
@@ -116,7 +116,7 @@ struct ScenarioClockLifetimeTests {
     @Test
     func `finished execution releases injected source captures while context escapes`() async throws {
         let journal = SchedulerJournal()
-        let execution = try startWithSourceMarker(journal: journal)
+        let execution = try await startWithSourceMarker(journal: journal)
         let context = execution.context
         #expect(journal.values.isEmpty)
         let result = await execution.finish()
@@ -126,7 +126,7 @@ struct ScenarioClockLifetimeTests {
         #expect(await execution.finish().report == result.report)
     }
 
-    private func startWithSourceMarker(journal: SchedulerJournal) throws -> ScenarioExecution {
+    private func startWithSourceMarker(journal: SchedulerJournal) async throws -> ScenarioExecution {
         // Copy the clock through a separately retainable reference for deinit
         // reentry without retaining any execution resources in the reporter.
         let box = ClockHolder()
@@ -137,7 +137,7 @@ struct ScenarioClockLifetimeTests {
         let source = ExecutionClock(now: {
             withExtendedLifetime(marker) { ContinuousClock().now }
         }, sleep: ExecutionClock.continuous().sleep)
-        let (execution, _) = try SchedulerFixtures.setup([], clock: source)
+        let (execution, _) = try await SchedulerFixtures.setup([], clock: source)
         box.clock.withLock { $0 = execution.context.clock }
         return execution
     }

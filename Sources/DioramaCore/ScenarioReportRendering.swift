@@ -189,16 +189,30 @@ enum ReportText {
 
     private static func lifecycle(_ issue: ScenarioLifecycleIssue) -> String {
         switch issue {
+        case .activationFailed, .startupCanceled, .cleanupFailed: lifecycleCompletion(issue)
+        default: lifecycleAccess(issue)
+        }
+    }
+
+    private static func lifecycleCompletion(_ issue: ScenarioLifecycleIssue) -> String {
+        switch issue {
+        case .activationFailed: "activation-failed"
+        case .startupCanceled: "startup-canceled"
+        default: "cleanup-failed"
+        }
+    }
+
+    private static func lifecycleAccess(_ issue: ScenarioLifecycleIssue) -> String {
+        switch issue {
         case .invalidRegistration: "invalid-registration"
         case .preparationFailed: "system-preparation-failed"
         case .unpreparedTrack: "unprepared-track"
         case .invalidTrackRequest: "invalid-track-request"
         case .preparationClosed: "preparation-closed"
-        case .activationFailed: "activation-failed"
-        case .cleanupFailed: "cleanup-failed"
         case .leaseClosed: "lease-closed"
         case .executionClosed: "execution-closed"
         case .invalidDependencyRequest: "invalid-dependency-request"
+        case .activationFailed, .startupCanceled, .cleanupFailed: lifecycleCompletion(issue)
         }
     }
 }

@@ -44,7 +44,7 @@ struct PurePassthroughTests {
             factories.withLock { $0 += 1 }
             return Resource { releases.withLock { $0 += 1 } }
         }, cleanup: { cleanups.withLock { $0 += 1 } })
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [system.attachment]),
             scenarioID: ScenarioID(rawValue: "native"), defaultMode: .passthrough,
             systems: [AnyScenarioSystem(system)])
@@ -66,7 +66,9 @@ struct PurePassthroughTests {
     }
 
     @Test
-    func `later startup failure releases prior native dependencies and factory cleans partial construction`() throws {
+    func `later startup failure releases prior native dependencies and factory cleans partial construction`()
+        async throws
+    {
         let releases = Mutex(0)
         let partialCleanups = Mutex(0)
         let first = try system("first", factory: {
@@ -80,8 +82,8 @@ struct PurePassthroughTests {
             }
             throw Failure.construction
         })
-        #expect(throws: ScenarioStartupFailure.self) {
-            _ = try ScenarioExecution.start(
+        await #expect(throws: ScenarioStartupFailure.self) {
+            _ = try await ScenarioExecution.start(
                 definition: ScenarioDefinition(attachments: [first.attachment, second.attachment]),
                 scenarioID: ScenarioID(rawValue: "rollback"), defaultMode: .passthrough,
                 systems: [AnyScenarioSystem(first), AnyScenarioSystem(second)])
@@ -91,7 +93,7 @@ struct PurePassthroughTests {
     }
 
     @Test
-    func `passthrough rejects lease construction before policies and activation`() throws {
+    func `passthrough rejects lease construction before policies and activation`() async throws {
         let system = try system("layout", factory: { Resource {} })
         let invalid = try ScenarioSystem(type: system.type, attachment: system.attachment) { context in
             let lease = try context.lease(
@@ -103,8 +105,8 @@ struct PurePassthroughTests {
                 return ActivatedSystem(dependency: lease, deactivate: {})
             }
         }
-        #expect(throws: ScenarioStartupFailure.self) {
-            _ = try ScenarioExecution.start(
+        await #expect(throws: ScenarioStartupFailure.self) {
+            _ = try await ScenarioExecution.start(
                 definition: ScenarioDefinition(attachments: [invalid.attachment]),
                 scenarioID: ScenarioID(rawValue: "no-leases"), defaultMode: .passthrough,
                 systems: [AnyScenarioSystem(invalid)])

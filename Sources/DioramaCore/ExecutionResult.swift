@@ -12,6 +12,8 @@ public enum ScenarioLifecycleIssue: Equatable, Sendable {
     case preparationClosed
     /// A system's activation callback failed.
     case activationFailed
+    /// Startup was canceled before dependency publication.
+    case startupCanceled
     /// An activated system's cleanup callback failed.
     case cleanupFailed
     /// A closed lease was used to submit an active-system diagnostic.
