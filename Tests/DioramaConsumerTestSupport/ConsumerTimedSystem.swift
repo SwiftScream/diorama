@@ -90,7 +90,7 @@ public struct ConsumerTimedDraft: Sendable {
     /// Reserves observation time before potentially slow stable conversion.
     public func observe() throws -> Int {
         guard !execution.isClosed else { throw ConsumerSystemFailure.closed }
-        return try execution.withActiveState { state, operation in
+        return try execution.state.withLock { state, operation in
             guard var draft = state.drafts[identity] else { throw ConsumerSystemFailure.closed }
             let capture = try operation.time.capture()
             let position = draft.slots.count
@@ -103,7 +103,7 @@ public struct ConsumerTimedDraft: Sendable {
     /// Admits prepared conversion at its reserved position once, before closure.
     public func complete(_ position: Int, with event: PreparedValue<ConsumerTimedEvent>) -> Bool {
         guard !execution.isClosed else { return false }
-        return (try? execution.withActiveState { state, _ in
+        return (try? execution.state.withLock { state, _ in
             guard var draft = state.drafts[identity], draft.slots.indices.contains(position),
                   draft.slots[position].event == nil else { return false }
             draft.slots[position].event = event.value
@@ -130,7 +130,7 @@ public struct ConsumerTimedRecords: Sendable {
                                        using selector: ReplaySelector<Input, ConsumerTimedRecord>) throws
         -> ReplayClaim<ConsumerTimedRecord>
     {
-        try execution.withActiveState { state, operation in
+        try execution.state.withLock { state, operation in
             try operation.claim(on: state.records, matching: input, using: selector)
         }
     }
@@ -160,7 +160,7 @@ public struct ConsumerTimedServices: Sendable {
     public func begin(input: String) throws -> ConsumerTimedDraft {
         let time = execution.time
         let freezes = TimedFreezeCount()
-        let identity = try execution.withActiveState { state, operation in
+        let identity = try execution.state.withLock { state, operation in
             try operation.beginRecord(
                 on: state.records, preparation: ConsumerTimedSystem.policy,
                 capturing: { identity in
@@ -215,7 +215,7 @@ private struct TimedDefinition: SystemDefinition {
     }
 
     func makeRecordDependency(using execution: SystemExecution<TimedSystemState>) throws -> ConsumerTimedServices {
-        let metadata = try execution.withActiveState { state, _ in (state.records.id, state.records.mode) }
+        let metadata = try execution.state.withLock { state, _ in (state.records.id, state.records.mode) }
         return ConsumerTimedServices(execution: execution, records:
             ConsumerTimedRecords(execution: execution, id: metadata.0, mode: metadata.1))
     }
@@ -224,7 +224,7 @@ private struct TimedDefinition: SystemDefinition {
         try makeRecordDependency(using: execution)
     }
 
-    func makePassthroughDependency() throws -> ConsumerTimedServices {
+    func makePassthroughDependency(using _: SystemExecution<Void>) throws -> ConsumerTimedServices {
         // This synthetic domain only advertises managed capture and playback.
         throw ConsumerSystemFailure.closed
     }

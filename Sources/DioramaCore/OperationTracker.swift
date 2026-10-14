@@ -29,6 +29,10 @@ final class OperationTracker: Sendable {
         admission.isClosed || state.withLock { $0.closed }
     }
 
+    var isPublished: Bool {
+        admission.isPublished
+    }
+
     /// Rejects new operations without interrupting or waiting for admitted operations.
     func closeAdmission() {
         state.withLock { $0.closed = true }

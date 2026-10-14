@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/../_common"
+cd "$repository_root"
+products=${1:-$(swift build --show-bin-path)}
+platform=${2:-host}
+probe_root=$(mktemp -d "${TMPDIR:-/tmp}/diorama-resources.XXXXXXXX")
+trap 'rm -rf "$probe_root"' EXIT
+compiler=(swiftc -swift-version 6 -strict-concurrency=complete -warnings-as-errors
+    -enable-upcoming-feature NonisolatedNonsendingByDefault
+    -enable-upcoming-feature InferIsolatedConformances
+    -parse-as-library -I "$products" -I "$products/Modules")
+if [[ "$platform" == ios ]]; then
+    compiler+=(-target arm64-apple-ios18.0-simulator -sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)")
+elif [[ $(uname -s) == Darwin ]]; then
+    compiler+=(-target "$(uname -m)-apple-macos15.0" -sdk "$(xcrun --sdk macosx --show-sdk-path)")
+fi
+
+cat > "$probe_root/resource.swift" <<'SWIFT'
+import DioramaCore
+
+enum Failure: Error { case expected }
+@MainActor final class Native {
+    func stop() {}
+    func end() async -> SystemCleanupResult { .completed }
+    func inspect() -> Int { 1 }
+}
+actor Worker {
+    func stop() {}
+    nonisolated func inspect() -> Int { 2 }
+}
+struct State: Sendable { let native: Native }
+struct External: SystemDefinition {
+    let systemType = ScenarioSystemType("compiler.lifecycle")
+    @MainActor func makeRecordState(in _: borrowing SystemStateContext) -> State { State(native: Native()) }
+    @MainActor func makeReplayState(in context: borrowing SystemStateContext) -> State { makeRecordState(in: context) }
+    @MainActor func makeRecordDependency(using execution: SystemExecution<State>) throws -> Int {
+        _ = try execution.state.withTrackedValue(\.native) { $0.inspect() }
+        _ = try execution.state.withTrackedValueIfOpen(\.native) { $0.inspect() }
+        return 1
+    }
+    @MainActor func makeReplayDependency(using execution: SystemExecution<State>) throws -> Int {
+        try makeRecordDependency(using: execution)
+    }
+    func makePassthroughDependency(using _: SystemExecution<Void>) -> Int { 1 }
+    @MainActor func requestStopRecord(using lifecycle: borrowing SystemLifecycleContext<State>, dependency: Int?) async {
+        #if THROWING_STOP
+        throw Failure.expected
+        #endif
+        await Task.yield()
+        let native = try? lifecycle.state.withLock { $0.native }
+        native?.stop()
+    }
+    @MainActor func cleanUpRecord(using lifecycle: borrowing SystemLifecycleContext<State>, dependency: Int?) async -> SystemCleanupResult {
+        #if THROWING_CLEANUP
+        throw Failure.expected
+        #endif
+        let native = try? lifecycle.state.withLock { $0.native }
+        return await native?.end() ?? .completed
+    }
+}
+struct WorkerState: Sendable { let worker: Worker }
+func asyncCalls(_ execution: SystemExecution<State>, _ worker: SystemExecution<WorkerState>) async throws {
+    _ = try worker.state.withTrackedValue(\.worker) { $0.inspect() }
+    _ = try await worker.state.withTrackedValue(\.worker) { await $0.stop() }
+    _ = try await execution.state.withTrackedValue(\.native) { @MainActor value async in value.inspect() }
+    _ = try await execution.state.withTrackedValueIfOpen(\.native) { @MainActor value async in value.inspect() }
+}
+#if WRONG_ACTOR
+func wrong(_ execution: SystemExecution<State>) throws {
+    _ = try execution.state.withTrackedValue(\.native) { $0.inspect() }
+}
+#endif
+#if ASYNC_STATE
+func wrong(_ execution: SystemExecution<State>) async throws {
+    try await execution.state.withLock { _, _ in await Task.yield() }
+}
+#endif
+#if LIFECYCLE_RETURN
+func wrong(_ context: borrowing SystemLifecycleContext<State>) -> SystemLifecycleContext<State> { consume context }
+#endif
+#if LIFECYCLE_CAPTURE
+func wrong(_ context: borrowing SystemLifecycleContext<State>) -> () throws -> Native {
+    { try context.state.withLock { $0.native } }
+}
+#endif
+#if LIFECYCLE_OPERATION
+func wrong(_ context: borrowing SystemLifecycleContext<State>) throws {
+    try context.state.withLock { _, operation in operation.report(Diagnostic(issue: .system(DiagnosticLabel("bad")))) }
+}
+#endif
+#if ASYNC_LIFECYCLE_STATE
+func wrong(_ context: borrowing SystemLifecycleContext<State>) async throws {
+    try await context.state.withLock { _ in await Task.yield() }
+}
+#endif
+SWIFT
+"${compiler[@]}" -c "$probe_root/resource.swift" -o "$probe_root/positive.o"
+for mode in THROWING_STOP THROWING_CLEANUP WRONG_ACTOR ASYNC_STATE LIFECYCLE_RETURN LIFECYCLE_CAPTURE LIFECYCLE_OPERATION ASYNC_LIFECYCLE_STATE; do
+    status=0
+    "${compiler[@]}" -D "$mode" -c "$probe_root/resource.swift" -o "$probe_root/$mode.o" \
+        > "$probe_root/$mode.log" 2>&1 || status=$?
+    if [[ $status != 1 ]] || ! grep -Eq 'error:.*(throw|async|isolated|synchronous|borrowed|consum|closure|arguments)' "$probe_root/$mode.log" \
+        || grep -Eq 'Stack dump|signal [0-9]+|Assertion failed' "$probe_root/$mode.log"; then
+        cat "$probe_root/$mode.log" >&2
+        printf 'Expected ordinary compiler rejection: %s (exit %s)\n' "$mode" "$status" >&2
+        exit 1
+    fi
+    printf 'Compiler rejected %s\n' "$mode"
+done
+printf '%s\n' 'Public state lifecycle compiler probes passed (1 positive, 8 negative).'

@@ -47,7 +47,7 @@ struct DioramaAdmissionTests {
             #expect(result.report.diagnostics.isEmpty)
         } catch let failure as ScenarioStartupFailure {
             #expect(phase == "rollback")
-            #expect(failure.cleanup.map(\.disposition) == [.completed])
+            #expect(failure.cleanup.map(\.disposition) == [.completed, .completed])
             #expect(setup.report == nil)
         }
     }

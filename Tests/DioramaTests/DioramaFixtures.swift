@@ -45,8 +45,14 @@ struct LifecycleDefinition<Dependency: Sendable>: SystemDefinition {
         try validation()
     }
 
-    func makeRecordState(in _: borrowing SystemStateContext) {}
-    func makeReplayState(in _: borrowing SystemStateContext) {}
+    func makeRecordState(in _: borrowing SystemStateContext) {
+        ()
+    }
+
+    func makeReplayState(in _: borrowing SystemStateContext) {
+        ()
+    }
+
     func makeRecordDependency(using _: SystemExecution<Void>) throws -> Dependency {
         try factory()
     }
@@ -55,15 +61,24 @@ struct LifecycleDefinition<Dependency: Sendable>: SystemDefinition {
         try factory()
     }
 
-    func makePassthroughDependency() throws -> Dependency {
+    func makePassthroughDependency(using _: SystemExecution<Void>) throws -> Dependency {
         try factory()
     }
 
-    func cleanUpRecordState(_: Void) throws {
-        try cleanup()
+    func cleanUpRecord(using _: borrowing SystemLifecycleContext<Void>,
+                       dependency _: Dependency?) -> SystemCleanupResult
+    {
+        do {
+            try cleanup()
+            return .completed
+        } catch {
+            return .failed(DiagnosticLabel("fixture-cleanup-failed"))
+        }
     }
 
-    func cleanUpReplayState(_: Void) throws {
-        try cleanup()
+    func cleanUpReplay(using lifecycle: borrowing SystemLifecycleContext<Void>,
+                       dependency: Dependency?) -> SystemCleanupResult
+    {
+        cleanUpRecord(using: lifecycle, dependency: dependency)
     }
 }

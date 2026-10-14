@@ -22,11 +22,11 @@ private struct ManagedCounter: Sendable {
 
     let execution: SystemExecution<State>
     var count: Int {
-        get throws { try execution.withActiveState { state, _ in state.count } }
+        get throws { try execution.state.withLock { state, _ in state.count } }
     }
 
     func increment(fail: Bool = false) throws -> Int {
-        try execution.withActiveState { state, operation in
+        try execution.state.withLock { state, operation in
             state.count += 1
             if fail {
                 operation.report(Diagnostic(issue: .system(DiagnosticLabel("counter-mutated"))))
@@ -38,7 +38,7 @@ private struct ManagedCounter: Sendable {
     }
 
     func begin(journal: ManagedJournal, captured: @Sendable () -> Void = {}) throws -> RecordIdentity {
-        try execution.withActiveState { state, operation in
+        try execution.state.withLock { state, operation in
             try operation.beginRecord(on: state.values, preparation: .init(), capturing: { identity in
                 state.drafts[identity] = 40
                 captured()
@@ -51,7 +51,7 @@ private struct ManagedCounter: Sendable {
     }
 
     func observe(_ identity: RecordIdentity) throws {
-        try execution.withActiveState { state, _ in state.drafts[identity, default: 0] += 1 }
+        try execution.state.withLock { state, _ in state.drafts[identity, default: 0] += 1 }
     }
 }
 
@@ -122,7 +122,7 @@ private struct CounterDefinition: SystemDefinition {
 
     func makeRecordDependency(using execution: SystemExecution<ManagedCounter.State>) throws -> ManagedCounter {
         if queueConstructionWork {
-            try execution.withActiveState { state, operation in
+            try execution.state.withLock { state, operation in
                 let record = RecordIdentity(trackID: state.values.id, sequence: 0)
                 operation.afterCommit {
                     journal.scheduling.withLock { $0 = execution.scheduling }
@@ -144,19 +144,22 @@ private struct CounterDefinition: SystemDefinition {
         try makeRecordDependency(using: execution)
     }
 
-    func makePassthroughDependency() throws -> ManagedCounter {
+    func cleanUpRecord(using lifecycle: borrowing SystemLifecycleContext<ManagedCounter.State>,
+                       dependency _: ManagedCounter?) -> SystemCleanupResult
+    {
+        let key = try? lifecycle.state.withLock { $0.key }
+        journal.events.withLock { $0.append("cleanup-" + (key ?? "missing")) }
+        return failCleanup ? .failed(DiagnosticLabel("fixture-cleanup-failed")) : .completed
+    }
+
+    func cleanUpReplay(using lifecycle: borrowing SystemLifecycleContext<ManagedCounter.State>,
+                       dependency: ManagedCounter?) -> SystemCleanupResult
+    {
+        cleanUpRecord(using: lifecycle, dependency: dependency)
+    }
+
+    func makePassthroughDependency(using _: SystemExecution<Void>) throws -> ManagedCounter {
         throw ManagedFailure.expected
-    }
-
-    func cleanUpRecordState(_ state: ManagedCounter.State) throws {
-        journal.events.withLock { $0.append("cleanup-" + state.key) }
-        if failCleanup {
-            throw ManagedFailure.expected
-        }
-    }
-
-    func cleanUpReplayState(_ state: ManagedCounter.State) throws {
-        try cleanUpRecordState(state)
     }
 }
 
@@ -252,7 +255,7 @@ struct ManagedDefinitionTests {
             Issue.record("Canceled callback ran")
         }
         capture = nil
-        try counter.execution.withActiveState { state, operation in
+        try counter.execution.state.withLock { state, operation in
             state.count = 7
             #expect(pending.cancel())
             #expect(callbacks.withLock { $0.isEmpty })
@@ -269,7 +272,7 @@ struct ManagedDefinitionTests {
         let counter = try execution.dependency(system)
         let record = RecordIdentity(trackID: system.attachment.trackIDs[0], sequence: 0)
         #expect(throws: SchedulingFailure.self) {
-            try counter.execution.withActiveState { _, _ in
+            try counter.execution.state.withLock { _, _ in
                 try counter.execution.scheduling.schedule(after: .zero, for: record) {
                     Issue.record("Protected registration launched work")
                 }

@@ -39,10 +39,12 @@ struct ExternalDefinition: SystemDefinition {
     func makeReplayDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<Int>>) -> Dependency {
         .managed(execution)
     }
-    func makePassthroughDependency() -> Dependency { .native }
+    func makePassthroughDependency(using _: SystemExecution<Void>) -> Dependency {
+        .native
+    }
 }
 func use(_ execution: SystemExecution<HeaderlessSequentialTrackLease<Int>>) throws -> Int {
-    try execution.withActiveState { state, operation in try operation.consumeNext(on: state) }
+    try execution.state.withLock { state, operation in try operation.consumeNext(on: state) }
 }
 func read(_ lease: HeaderlessSequentialTrackLease<Int>) throws -> Int { try lease.consumeNext() }
 func setup() throws -> ScenarioSystem<ExternalDefinition.Dependency> {
@@ -76,19 +78,19 @@ func escape(_ context: borrowing SystemStateContext) -> () -> AttachmentID { { c
 SWIFT
 reject operation-return 'Copyable|consum' <<'SWIFT'
 func escape(_ execution: SystemExecution<Int>) throws -> SystemOperation<Int> {
-    try execution.withActiveState { _, operation in operation }
+    try execution.state.withLock { _, operation in operation }
 }
 SWIFT
 reject operation-capture 'escap|inout' <<'SWIFT'
 func escape(_ execution: SystemExecution<Int>) throws -> () -> Void {
-    try execution.withActiveState { _, operation in
+    try execution.state.withLock { _, operation in
         { operation.report(Diagnostic(issue: .system(DiagnosticLabel("escaped")))) }
     }
 }
 SWIFT
 reject state-reference-capture 'escap|inout' <<'SWIFT'
 func escape(_ execution: SystemExecution<Int>) throws -> () -> Int {
-    try execution.withActiveState { state, _ in { state } }
+    try execution.state.withLock { state, _ in { state } }
 }
 SWIFT
 reject raw-track-mutation 'inaccessible' <<'SWIFT'

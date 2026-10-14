@@ -42,7 +42,9 @@ struct DioramaRetainedReportTests {
             Issue.record("The body error was lost")
         } catch {
             #expect(error as? BodyFailure == .stopped)
-            #expect(setup.report?.diagnostics.map(\.diagnostic.issue) == [.lifecycle(.cleanupFailed)])
+            #expect(setup.report?.diagnostics.map(\.diagnostic.issue) == [
+                .system(DiagnosticLabel("fixture-cleanup-failed")), .lifecycle(.cleanupFailed),
+            ])
         }
         let result = try await setup.execute { _, value in value }
         #expect(result.body == 42)
@@ -71,7 +73,7 @@ struct DioramaRetainedReportTests {
             Issue.record("Expected startup failure")
         } catch let failure as ScenarioStartupFailure {
             #expect(failure.report.diagnostics.map(\.diagnostic.issue) == [.lifecycle(.activationFailed)])
-            #expect(failure.cleanup.map(\.disposition) == [.completed])
+            #expect(failure.cleanup.map(\.disposition) == [.completed, .completed])
             #expect(setup.report == nil)
         }
         #expect(probe.events.withLock { $0.filter { $0 == "cleanup-a" }.count } == 2)

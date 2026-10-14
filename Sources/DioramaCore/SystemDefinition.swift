@@ -1,6 +1,6 @@
 /// Reusable system configuration. Core validates all declarations before any
 /// state or dependency factory runs. Each execution receives fresh mode state.
-/// Native passthrough has only a dependency factory and ordinary native lifetime.
+/// All modes have state/dependency factories and definition-owned shutdown hooks.
 public protocol SystemDefinition: Sendable {
     /// Application-facing dependency; no Diorama protocol or base class required.
     associatedtype Dependency: Sendable
@@ -8,6 +8,8 @@ public protocol SystemDefinition: Sendable {
     associatedtype RecordState: Sendable
     /// Entire mutable state owned by Core while replaying.
     associatedtype ReplayState: Sendable
+    /// Ordinary live state; use Void when the dependency needs no managed state.
+    associatedtype PassthroughState: Sendable = Void
 
     /// Shared identity and optional persistence capability.
     var systemType: ScenarioSystemType { get }
@@ -22,17 +24,34 @@ public protocol SystemDefinition: Sendable {
     /// Creates replay state without contacting a live source. A throwing state
     /// factory must unwind its own partial resource construction.
     func makeReplayState(in context: borrowing SystemStateContext) async throws -> ReplayState
+    /// Creates live state without recording or replay content access.
+    func makePassthroughState(in context: borrowing SystemStateContext) async throws -> PassthroughState
     /// Creates the recording facade. Do not publish it before startup returns.
     func makeRecordDependency(using execution: SystemExecution<RecordState>) async throws -> Dependency
     /// Creates the replay facade. Do not publish it before startup returns.
     func makeReplayDependency(using execution: SystemExecution<ReplayState>) async throws -> Dependency
-    /// Creates an ordinary live dependency with consumer-owned cleanup.
-    func makePassthroughDependency() async throws -> Dependency
-    /// Cleans detached recording state, outside protection, exactly once.
-    /// Also runs if dependency construction throws after state creation.
-    func cleanUpRecordState(_ state: RecordState) throws
-    /// Cleans detached replay state, outside protection, exactly once.
-    func cleanUpReplayState(_ state: ReplayState) throws
+    /// Creates the ordinary live dependency. Hooks determine its shutdown policy.
+    func makePassthroughDependency(using execution: SystemExecution<PassthroughState>) async throws -> Dependency
+
+    /// Signals recording stop without waiting for admitted operations to drain.
+    func requestStopRecord(using lifecycle: borrowing SystemLifecycleContext<RecordState>,
+                           dependency: Dependency?) async
+    /// Joins recording-owned activity; preserve state needed by record freeze.
+    func cleanUpRecord(using lifecycle: borrowing SystemLifecycleContext<RecordState>, dependency: Dependency?) async
+        -> SystemCleanupResult
+    /// Signals replay stop without waiting for admitted operations to drain.
+    func requestStopReplay(using lifecycle: borrowing SystemLifecycleContext<ReplayState>,
+                           dependency: Dependency?) async
+    /// Joins replay-owned activity before Core freezes and releases state.
+    func cleanUpReplay(using lifecycle: borrowing SystemLifecycleContext<ReplayState>, dependency: Dependency?) async
+        -> SystemCleanupResult
+    /// Signals live stop, including rollback. Injected dependencies may need no action.
+    func requestStopPassthrough(
+        using lifecycle: borrowing SystemLifecycleContext<PassthroughState>, dependency: Dependency?) async
+    /// Joins owned live activity. Hooks must tolerate consumer-initiated shutdown.
+    func cleanUpPassthrough(
+        using lifecycle: borrowing SystemLifecycleContext<PassthroughState>, dependency: Dependency?) async
+        -> SystemCleanupResult
 }
 
 public extension SystemDefinition {
@@ -43,10 +62,39 @@ public extension SystemDefinition {
 
     /// The default adds no validation beyond declared content policies.
     func validate(in _: borrowing SystemValidationContext) throws {}
-    /// The default releases the detached state through ordinary Swift ownership.
-    func cleanUpRecordState(_: RecordState) throws {}
-    /// The default releases the detached state through ordinary Swift ownership.
-    func cleanUpReplayState(_: ReplayState) throws {}
+
+    /// The default stop hook has no work to signal.
+    func requestStopRecord(using _: borrowing SystemLifecycleContext<RecordState>, dependency _: Dependency?) {}
+    /// The default cleanup has no owned activity to join.
+    func cleanUpRecord(using _: borrowing SystemLifecycleContext<RecordState>, dependency _: Dependency?)
+        -> SystemCleanupResult
+    {
+        .completed
+    }
+
+    /// The default stop hook has no work to signal.
+    func requestStopReplay(using _: borrowing SystemLifecycleContext<ReplayState>, dependency _: Dependency?) {}
+    /// The default cleanup has no owned activity to join.
+    func cleanUpReplay(using _: borrowing SystemLifecycleContext<ReplayState>, dependency _: Dependency?)
+        -> SystemCleanupResult
+    {
+        .completed
+    }
+
+    /// The default preserves an injected dependency's ordinary live lifetime.
+    func requestStopPassthrough(using _: borrowing SystemLifecycleContext<PassthroughState>,
+                                dependency _: Dependency?) {}
+    /// The default has no owned live activity to join.
+    func cleanUpPassthrough(using _: borrowing SystemLifecycleContext<PassthroughState>, dependency _: Dependency?)
+        -> SystemCleanupResult
+    {
+        .completed
+    }
+}
+
+public extension SystemDefinition where PassthroughState == Void {
+    /// Constructs empty live state when only the dependency needs construction.
+    func makePassthroughState(in _: borrowing SystemStateContext) {}
 }
 
 /// Read-only scoped access to the authoritative prepared baseline. This value

@@ -137,7 +137,7 @@ struct DateDefinition<Source: DioramaDateSource>: SystemDefinition {
     }
 
     func makeRecordDependency(using execution: SystemExecution<DateRecordState>) throws -> any DioramaDateSource {
-        try execution.withActiveState { state, operation in
+        try execution.state.withLock { state, operation in
             try operation.setHeader(on: state.values, capturing: { nil }, preparation: ValuePreparation<Int?>())
         }
         return RecordingDateSource(execution: execution, source: sourceFactory())
@@ -146,10 +146,10 @@ struct DateDefinition<Source: DioramaDateSource>: SystemDefinition {
     func makeReplayDependency(using execution: SystemExecution<SequentialTrackLease<OverridableValue<Date>, Int?>>)
         throws -> any DioramaDateSource
     {
-        try execution.withActiveState { values, _ in ReplayingDateSource(values: values) }
+        try execution.state.withLock { values, _ in ReplayingDateSource(values: values) }
     }
 
-    func makePassthroughDependency() -> any DioramaDateSource {
+    func makePassthroughDependency(using _: SystemExecution<Void>) -> any DioramaDateSource {
         sourceFactory()
     }
 }

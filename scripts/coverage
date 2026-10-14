@@ -109,6 +109,7 @@ case ${1:-} in
             -derivedDataPath "$derived_data" \
             -enableCodeCoverage YES \
             -resultBundlePath "$result_bundle"
+        run "$script_directory/tests/resource-lifecycle" "$derived_data/Build/Products/Debug-iphonesimulator" ios
         profiles=()
         while IFS= read -r -d '' profile; do
             profiles+=("$profile")

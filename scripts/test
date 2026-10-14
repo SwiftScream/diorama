@@ -10,6 +10,7 @@ run swift test -Xswiftc -warnings-as-errors "$@"
 coverage_path=$(swift test --show-codecov-path "$@")
 test_products=$(dirname "$(dirname "$coverage_path")")
 run "$script_directory/tests/system-authoring" "$test_products"
+run "$script_directory/tests/resource-lifecycle" "$test_products"
 run swift build -c release -Xswiftc -warnings-as-errors
 run swift build --package-path Examples -c release -Xswiftc -warnings-as-errors
 run swift run --package-path Examples -c release --skip-build DioramaRandomUsage

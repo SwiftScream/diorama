@@ -88,8 +88,14 @@ private struct SchedulingDefinition: SystemDefinition {
         [events.erased]
     }
 
-    func makeRecordState(in _: borrowing SystemStateContext) {}
-    func makeReplayState(in _: borrowing SystemStateContext) {}
+    func makeRecordState(in _: borrowing SystemStateContext) {
+        ()
+    }
+
+    func makeReplayState(in _: borrowing SystemStateContext) {
+        ()
+    }
+
     func makeRecordDependency(using execution: SystemExecution<Void>) -> SchedulingLease {
         execution.scheduling
     }
@@ -98,7 +104,7 @@ private struct SchedulingDefinition: SystemDefinition {
         execution.scheduling
     }
 
-    func makePassthroughDependency() throws -> SchedulingLease {
+    func makePassthroughDependency(using _: SystemExecution<Void>) throws -> SchedulingLease {
         throw SchedulingConsumerFailure.unsupported
     }
 }

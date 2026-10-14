@@ -9,7 +9,8 @@ and domain lifecycle interpretation with each system. Stable values require
 ## Definitions and typed declarations
 
 A definition supplies one application-facing `Dependency: Sendable` and separate
-`RecordState` and `ReplayState` types. Dependencies can be protocol existentials,
+`RecordState`, `ReplayState`, and `PassthroughState` types. Passthrough state
+defaults to `Void` with an empty factory. Dependencies can be protocol existentials,
 ordinary structs, or concrete native classes. Core does not require a dependency
 protocol or base class. Application setup constructs a reusable instance with:
 
@@ -61,14 +62,16 @@ that arbitrary reference aliases are harmless.
 
 ## Managed state and dependencies
 
-Core calls the selected state factory, creates `SystemExecution<State>`, then
-calls the mode's dependency factory. Each keyed attachment receives its own
-system execution for a record or replay run. State factories must unwind their
-own partial construction if they throw. If dependency construction throws after
-state creation, Core invokes that state's cleanup. Completed activations unwind
-in reverse order; cleanup failures remain safe diagnostics.
+Startup and state/dependency factories are asynchronous; synchronous witnesses
+remain supported. Core awaits the selected factory's ordinary State
+result, adopts it, creates `SystemExecution<State>`, then awaits
+the dependency factory. Factories clean anything they fail to return, using
+ordinary Swift ownership or explicit shutdown as their resources require. Core
+owns successful results before another cancellation check or suspension. If
+dependency construction or a later attachment fails, Core awaits reverse cleanup.
+No partial-construction registration context or ledger is required.
 
-Dependencies use `execution.withActiveState` for managed state operations. The
+Dependencies use `execution.state.withLock` for managed state operations. The
 closure receives the entire mutable state and a noncopyable
 `inout SystemOperation<State>` token. Core admits and serializes the operation,
 retains diagnostic facts, commits state on both successful and throwing exits,
@@ -107,24 +110,91 @@ Unix epoch as its initial default; Random uses zero fallback. Replay never
 creates a live source. This closed-safe lease is a supported retained capability,
 not permission to extract arbitrary active resources from managed state.
 
-`cleanUpRecordState` and `cleanUpReplayState` receive detached state outside
-protection, exactly once. The default uses ordinary Swift release. Explicit
-cleanup may throw safe reported failure. The current hooks are synchronous and
-nonisolated; they do not by themselves establish actor-owned native construction
-or awaited native shutdown. Those requirements need the separate actor/native
-lifecycle evidence. Do not substitute fire-and-forget cleanup.
+## Native resources and awaited shutdown
 
-Passthrough calls only `makePassthroughDependency()`. It has no mode state,
-`SystemExecution`, track lease, interception, continuation, or scenario-owned
-cancellation. Native dependencies retain their ordinary copy, concurrency, and lifetime rules,
-including after finish. Core drops its references; the consumer owns cleanup.
+[DD21's state-owned lifecycle amendment](design-decisions/21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15)
+extends the same public definition boundary. State remains an ordinary Sendable
+value containing native references. Construct resources after validation and
+return State directly; implement stop and cleanup on the definition:
+
+```swift
+@MainActor
+func makeRecordState(in context: borrowing SystemStateContext) async throws -> MyState {
+    let native = try await NativeBridge.makeConfigured() // owns its failed construction
+    return MyState(native: native)
+}
+
+@MainActor
+func requestStopRecord(
+    using lifecycle: borrowing SystemLifecycleContext<MyState>, dependency: MyDependency?
+) {
+    let native = try? lifecycle.state.withLock { $0.native }
+    native?.requestStop()
+}
+
+@MainActor
+func cleanUpRecord(
+    using lifecycle: borrowing SystemLifecycleContext<MyState>, dependency: MyDependency?
+) async -> SystemCleanupResult {
+    let native = try? lifecycle.state.withLock { $0.native }
+    return await native?.finishShutdown() ?? .completed
+}
+```
+
+Replay and passthrough have equivalent mode-specific hooks. Defaults request
+nothing and return `.completed`. The optional Dependency is nil until its factory
+successfully returns; a successful optional nil Dependency is `.some(nil)`.
+State must support cleanup without Dependency. Core never cleans State while its
+Dependency factory remains unfinished. The system determines ordering among its
+native resources and continues necessary cleanup after ancillary failures.
+
+Use `execution.state.withTrackedValue(\.native)` to count admission before
+selecting the member under protection, then invoke native code outside it. The
+entire synchronous or async scope stays counted through throwing exits, actor
+hops, and suspension. Native actor isolation is checked by Swift. From another
+actor, use an async closure even when the native method itself is synchronous:
+
+```swift
+try await execution.state.withTrackedValue(\.native) { @MainActor native async in
+    native.inspect()
+}
+```
+
+`withTrackedValueIfOpen` and `withLockIfOpen` on the state view return
+`SystemStateAccessResult.ignored` before publication or after admission closes;
+otherwise they return `.performed(value)`. Quiet rejection invokes no body and
+adds no late-call diagnostic. Nested entry under state protection rejects before
+native work or another lookup. Retaining a state view does not extend admission.
+There is no independently callable native-resource handle or resource declaration.
+
+Lifecycle contexts share the runtime's State protection but expose no operation
+token or Core effects. Select native references under protection and invoke them
+outside it on their actors. Contexts cannot escape; a retained lifecycle state
+view expires at hook return. Reference escape and unstructured tasks remain an
+author responsibility; Core tracks the closure, not arbitrary work it launches.
+
+Stop hooks are async and nonthrowing, permitting actor hops. They signal work
+needed to unblock drainage without waiting for that drainage. Cleanup hooks
+await all owned work after admitted scopes drain. Both `.completed` and
+`.failed(label)` promise quiescence. Failure retains the safe label and an
+attachment cleanup failure; other attachments still receive cleanup. A scope
+admitted before stop may reach its actor or resume afterward, so bridges honor
+their stopping phase. Cleanup preserves State needed for accepted record freeze.
+
+Passthrough has `makePassthroughState(in:)` and
+`makePassthroughDependency(using:)`, returning ordinary values. Core invokes its
+hooks on rollback and after successful publication. The system chooses native
+shutdown and escaped-dependency usability; no-op hooks preserve injected
+consumer-owned dependencies. Hooks tolerate consumer-initiated shutdown.
+Passthrough still has no track access, recording, interception, or wrapper around
+ordinary native operations. The shared execution services retain their own gates.
 
 ## Immediate and incremental recording
 
 Reserve before capture so source order and record order agree:
 
 ```swift
-try execution.withActiveState { state, operation in
+try execution.state.withLock { state, operation in
     try operation.record(on: state.values,
                          capturing: { state.source.next() },
                          preparation: valuePolicy)
@@ -140,7 +210,7 @@ For incremental capture, keep the domain's drafts in managed state. The scoped
 operation reserves a record before creating a domain identifier or accumulator:
 
 ```swift
-let identity = try execution.withActiveState { state, operation in
+let identity = try execution.state.withLock { state, operation in
     try operation.beginRecord(
         on: state.records, preparation: recordPolicy,
         capturing: { identity in
@@ -154,15 +224,15 @@ let identity = try execution.withActiveState { state, operation in
 ```
 
 Observation facades retain a system execution and stable identifier, then update
-the corresponding draft through `withActiveState`. Capture observation time before
+the corresponding draft through `state.withLock`. Capture observation time before
 slow conversion; prepare detached semantic data before committing it. Concurrent
 conversion can finish in another order, so the domain preserves observation
 order and derives delays from the original captures. Native/application work
-outside an admitted protected operation remains outside Core's join.
+outside admitted state/tracked scopes remains outside Core's join.
 
 Freeze receives protected mode state exactly once for each successfully created
-accumulator. It runs after admitted operations and their deferred effects drain, before
-active state detaches. If capture races admission closure, Core defers that
+accumulator. Accepted records freeze after admitted operations drain and cleanup hooks finish,
+before active State detaches; cleanup updates are visible to freeze. If capture races admission closure, Core defers that
 record's cleanup freeze until the current operation unlocks, discards its value,
 and diagnoses the incomplete reservation. This never reacquires a held state
 lock. Late observations are rejected. Freeze must not wait for finish or an
@@ -204,7 +274,7 @@ equivalent identities, no match, or ambiguity. It is pure and deterministic,
 uses no live services, and runs within the protected system operation:
 
 ```swift
-let claim = try execution.withActiveState { state, operation in
+let claim = try execution.state.withLock { state, operation in
     try operation.claim(on: state.records, matching: preparedRequest,
                         using: ReplaySelector<String, RequestRecord>.exactInput(\.requestKey))
 }
@@ -224,7 +294,7 @@ may remain open afterward. Cancellation never returns a record to availability.
 Core cannot infer domain consumption from an empty scheduler or progress count.
 
 `lease.consumeNext()` combines claim and consumption for synchronous values.
-It is safe outside `withActiveState`, including after system execution closure. Use
+It is safe outside `state.withLock`, including after system execution closure. Use
 `operation.consumeNext(on:)` when consumption belongs in a larger state operation;
 that operation itself still rejects closed access before consulting the lease.
 Explicit claims require acknowledgement even for scalar records. Both
@@ -257,14 +327,14 @@ For decision-relative behavior, capture the current decision and use
 includes recorded application wait time. Each execution has one monotonic origin
 and rate, while later executions have independent timing and mutable state.
 
-Finish closes admission, cancels pending scheduling, joins claimed deliveries
-and admitted state operations and direct lease reads including their effects,
-freezes records, merges
-healthy recordings, detaches state, performs reverse cleanup, and freezes the
-report. Repeated or canceled finish waiters still await the same owned result.
-Finish does not wait for arbitrary consumer work. Calls after closure can add
-separate diagnostics but cannot mutate frozen results. Recording dependencies
-may continue live reads according to their system contract.
+Finish closes admission, requests scheduler stop, and invokes every returned
+State's stop hook in reverse order before joining any work. It then drains
+scheduler deliveries, tracked scopes, state operations, and direct lease reads;
+awaits reverse cleanup; freezes records; releases State and Dependency outside
+locks; and constructs the candidate and final report. Repeated or canceled finish
+waiters await the same owned result. Finish does not wait for arbitrary consumer
+work. Calls after closure can add separate diagnostics but cannot mutate frozen
+results. Recording dependencies may continue live reads according to their contract.
 
 The former closure-based `ScenarioSystem` constructor, `PreparedSystem`,
 `ActivatedSystem`, `SystemPreparationContext`, and raw recording and selection
@@ -272,3 +342,8 @@ mutations are internal. Public code uses typed definitions and scoped operations
 with direct sequential lease reads and public replay continuation policies. Canonical test runs
 compile a positive external definition and reject illegal context/token/state
 captures and old-surface access without compiler crashes.
+
+The canonical gate also compiles public lifecycle signatures and rejects throwing
+hooks, wrong-actor access, async locked bodies, borrowed lifecycle context escape,
+and operation effects through lifecycle access. Runtime tests exercise actual
+Core imports; historical signature spikes do not prove lifecycle correctness.

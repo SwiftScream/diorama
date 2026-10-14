@@ -89,7 +89,9 @@ struct ScopedExecutionTests {
                                        systems: instance).execute { _, value in value }
         #expect(result.body == 1)
         #expect(result.finalization.cleanup.map(\.disposition) == [.failed])
-        #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [.lifecycle(.cleanupFailed)])
+        #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [
+            .system(DiagnosticLabel("fixture-cleanup-failed")), .lifecycle(.cleanupFailed),
+        ])
     }
 
     @Test
@@ -206,22 +208,24 @@ struct ScopedExecutionTests {
             dependency
         }
 
-        func makePassthroughDependency() -> Dependency {
-            dependency
-        }
-
-        func cleanUpRecordState(_: Void) throws {
+        func cleanUpRecord(using _: borrowing SystemLifecycleContext<Void>,
+                           dependency _: Dependency?) -> SystemCleanupResult
+        {
             if expectUncancelledCleanup {
                 #expect(!Task.isCancelled)
             }
             journal.events.withLock { $0.append("cleanup-" + key) }
-            if failCleanup {
-                throw BodyFailure.stopped
-            }
+            return failCleanup ? .failed(DiagnosticLabel("fixture-cleanup-failed")) : .completed
         }
 
-        func cleanUpReplayState(_: Void) throws {
-            try cleanUpRecordState(())
+        func cleanUpReplay(using lifecycle: borrowing SystemLifecycleContext<Void>,
+                           dependency: Dependency?) -> SystemCleanupResult
+        {
+            cleanUpRecord(using: lifecycle, dependency: dependency)
+        }
+
+        func makePassthroughDependency(using _: SystemExecution<Void>) -> Dependency {
+            dependency
         }
     }
 }
