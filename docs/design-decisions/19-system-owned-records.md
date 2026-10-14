@@ -347,3 +347,13 @@ clock lease returns `OverridableValue<Date>` and the clock extracts its effectiv
 not create an observation or enter persistence. Atomic consumption, diagnostic
 behavior, and opt-in continuation lifetime from the preceding amendment remain
 unchanged.
+
+## State-owned lifecycle — owner-approved amendment 2026-10-15
+
+Accepted incremental records freeze after definition-level cleanup, while State
+remains available. Cleanup preserves recording data and may update its final
+interpretation. Rejected late registrations retain their existing exactly-once
+disposal freeze and never contribute a candidate record.
+See [DD21’s state-owned lifecycle amendment](21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15)
+for the governing ownership and access contract. Earlier text remains historical
+where superseded by that amendment.

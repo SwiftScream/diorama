@@ -62,6 +62,15 @@ The [Plan 003 Fa01/Fa02 handoff](plans/003-Fa-system-authoring-handoff.md)
 provides self-contained API sketches, concurrency lessons, and migration
 requirements for that implementation work.
 
+[Decision 21: Managed native lifecycle](design-decisions/21-managed-native-lifecycle.md)
+defines async activation, ordinary State/Dependency factories in every mode,
+tracked state-member access, and definition-level stop/cleanup hooks. Its
+[state-owned lifecycle amendment](design-decisions/21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15)
+governs passthrough shutdown, privileged lifecycle access, and cleanup before
+record freeze. The [Fa08 redesign](plans/003-Fa08-lifecycle-redesign.md) describes
+the concrete API, while [lifecycle ownership alternatives](managed-native-lifecycle-options.md)
+retain the rationale for the earlier resource-handle design.
+
 The [named checkpoint design notes](checkpoint-design-notes.md) record an
 exploratory usability idea to revisit after 003-F05. They are not an accepted
 decision or an approved implementation unit.
@@ -268,6 +277,9 @@ test-integration design. They do not authorize those APIs.
 - [Whole-track Date admission evidence](evidence/003-Fa03-whole-track-admission.md)
   records strict runtime admission of resolved wall content, public malformed
   baseline and repository proofs, and preserved passthrough behavior.
+
+  records factory-owned partial construction, typed resource handoff, actor
+  access, awaited finalization, passthrough abandonment, and platform verification.
 
 ## Historical boundary
 

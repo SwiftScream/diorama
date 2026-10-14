@@ -33,6 +33,18 @@ lifecycle evidence (R5), and coverage discovery (R6). These are planned work,
 not verified resolutions. The Phase Fa table records each finding's dependency
 deadline; only Fa01/Fa02 are blanket prerequisites for starting Location.
 
+On 2026-10-11, the owner selects the resource-handle solution in
+[Decision 21](../design-decisions/21-managed-native-lifecycle.md) and requests
+[003-Fa08](#003-fa08--managed-resource-handles-and-actor-owned-lifecycle) to
+implement it. Fa08 is a planned unit, not a completed R5 resolution. Its scope
+confirmation and implementation review remain separate from this documentation
+change; no production work starts here.
+
+On 2026-10-15, the owner authorizes the revised state-owned Fa08 design,
+implementation consolidation, and update to the existing PR. The current unit
+below specifies the amended public lifecycle proof; the preceding
+entries preserve the original planning approvals.
+
 On 2026-10-06, the owner accepts
 [Decision 19](../design-decisions/19-system-owned-records.md), its delivery-plan
 revision, and the scope of the combined E04R/revised E05 refactor.
@@ -149,13 +161,13 @@ All seventeen original accepted decisions, both completed plans, and every other
 DD18 records the owner-approved 2026-09-19 revision of setup, scenario data,
 and in-memory result ownership. It governs C04A and the remaining affected units;
 earlier completed-unit evidence remains historical.
-Decision references use DD01–DD20.
+Decision references use DD01–DD21.
 Review-unit IDs use phase letters A through J and local numbers, including 003-D01–003-D05 for interception evidence.
 An uppercase suffix identifies an owner-approved inserted unit that follows its
 unsuffixed unit without renumbering established references; 003-B07A is the
 first such insertion.
 The owner-approved lowercase phase suffix `Fa` identifies the units inserted
-between F and G: `003-Fa01` through `003-Fa07`. Preserve that spelling in commits,
+between F and G: `003-Fa01` through `003-Fa08`. Preserve that spelling in commits,
 evidence filenames, and links; do not renumber completed F units.
 Older proposal examples and explicit deferrals must be read with their later accepted clarifications.
 
@@ -182,6 +194,7 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [Overview](../design-overview.md)                                                            | Ignoring a configured attachment changes verification only. Every loaded payload still requires persistent registration plus schema and prepared-value validation before unmatched attachments are diagnosed and discarded. 003-C01–003-C06 including 003-C04A–003-C04B, 003-J03.                                                                                                           |
 | [DD19: System-owned records](../design-decisions/19-system-owned-records.md) | Core record capture/selection without lifecycle shape constraints; domain capture and delivery in G03A/G04/G05 and H12A/H12B. E04R and revised E05 deliver the accepted record-services boundary. |
 | [DD20: System definitions and pure passthrough](../design-decisions/20-system-definitions-and-pure-passthrough.md) | Native passthrough behavior and consumer-owned lifetime; one public protocol authoring path; Core-owned record/replay state, synchronization, safe notification delivery, and lifecycle. Preserve existing services when retiring the old path. 003-Fa01–003-Fa02; native lifecycle follow-up at G08/I01. |
+| [DD21: Managed native lifecycle](../design-decisions/21-managed-native-lifecycle.md) | Async activation, ordinary State/Dependency factories, tracked member access, expiring lifecycle contexts, and awaited all-mode stop/cleanup. 003-Fa08; actual native adapter evidence remains G08/I01. |
 | [Dependency policy](../dependency-policy.md)                                                 | Candidate status is not adoption approval. Tools and HTTP products need exact reviewed adoption records before use. 003-A02, 003-H01, and any later demonstrated need.                                                                                                                       |
 | [Quality policy](../quality-gates-and-ci.md)                                                 | One complete tooling/CI bootstrap review unit, warning-free strict concurrency, all applicable platforms, required Codecov uploads. 003-A01–003-A04, 003-B10, every subsequent code unit.                                                                                                        |
 
@@ -1516,7 +1529,9 @@ the implementation map, API sketches, concurrency lessons, and migration gaps.
 Read both before proposing a unit's scope. Work from the integrated baseline;
 there is no prerequisite to recover or merge exploratory runtime code.
 
-Fa03–Fa07 capture the remaining actionable infrastructure-review findings.
+Fa03–Fa07 capture the remaining actionable infrastructure-review findings;
+Fa08 combines the R5 investigation, revised state-owned lifecycle design, and
+integrated implementation proof; Fa06 is superseded by that review unit.
 Their triggers and acceptance criteria are reproduced below so implementing
 them does not require an exploration branch or the original review checkout.
 Fa02 proves the generic preparation hook and its ordering; Fa03 owns Date's
@@ -1530,7 +1545,7 @@ the new API compiles.
 | R2 — Whole-track preparation validation | Fa02: public typed hook; Fa03: Date admission and external validation proof | Before G03 |
 | R3 — Extreme origins change during persistence | Fa04: representability checks and portable round-trip evidence | Before G02/G03 |
 | R4 — Oversized Duration traps | Fa05: checked operand bounds and public-path regression | Before G04 or HTTP timing integration |
-| R5 — Actor-owned activation/cleanup unproved | Fa06: isolated public-only lifecycle proof and explicit remaining adapter gates | Before G07/G08 depend on actor-owned resources |
+| R5 — Actor-owned activation/cleanup | Fa08 incorporates the Fa06 finding and resolves the public Core boundary with managed resources and integrated actor-lifecycle proof | Fa08 before G07/G08 and I01 depend on managed native resources; native evidence remains at G08/I01 |
 | R6 — Stale test binaries affect coverage | Fa07: current-build-only coverage export | Before the next coverage-baseline or coverage-dependent review decision |
 | S1 — Unify unknown-system loading policies | Closed: retain strict standalone decoding and diagnostic startup omission; no work item | None |
 
@@ -1809,44 +1824,21 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
 
 ### 003-Fa06 — Public actor-owned lifecycle evidence
 
-- Status: Approved evidence follow-up for R5 on 2026-10-11; not started.
-  Protocol R scope and model confirmation are required before investigation.
-- Recommended model: GPT-6 Astra; reasoning: `high`. Isolation, partial startup,
-  cancellation, and awaited resource cleanup need one coherent ownership proof.
-- Prerequisites: 003-Fa02, 003-E08; DD10, DD14, DD16, DD20. Inspect Fa02's actual
-  lifecycle surface rather than assuming the historical limitation persists.
-- Trigger: The reviewed synchronous nonisolated activation/deactivation
-  callbacks cannot directly construct or clean up a MainActor resource.
-  Existing actor-delivery tests create receivers outside activation, so they
-  do not prove execution-owned actor lifecycle.
-- Scope: Build a small isolated external system using ordinary public imports
-  and a controlled MainActor-isolated resource. Prove activation-owned creation,
-  startup rollback, managed callback drainage, and awaited cleanup through the
-  integrated authoring API. This is an early synthetic proof; actual native
-  Location/URLSession construction and shutdown remain G08/I01 work.
-- Expected files/modules: Isolated `Spikes/ActorOwnedLifecycle/` and
-  `docs/evidence/003-Fa06-actor-owned-lifecycle.md`; focused public consumer tests
-  if an existing supported path can be proved without production API changes.
-- Tests/verification: V-spike, plus V-code if package tests change. Exercise
-  successful activation, failure after resource creation, later attachment
-  failure, cancellation at suspension points, finish from MainActor and other
-  tasks, concurrent finish, and retained handles. Control an in-flight callback
-  and cleanup acknowledgement; finish must wait for owned work and release
-  resources without late delivery. Keep consumer-owned passthrough lifetime
-  separate from record/replay cleanup and account for abandoned construction.
-  Compile and run the portable actor proof on macOS, iOS Simulator, and pinned
-  Linux where supported; record platform limits explicitly.
-- Evidence boundary: Do not precreate the resource outside activation to claim
-  an activation proof. No blocking actor dispatch, fire-and-forget cleanup,
-  unsafe isolation suppression, private imports, or compilation-only claim of
-  runtime quiescence. If current APIs cannot satisfy the proof, record the
-  failing boundary and propose the smallest follow-up for owner review.
-- Exclusions: Production native adapters, a universal lifecycle framework,
-  unapproved Core API changes, and claims of real Core Location or URLSession
-  conformance based on a synthetic resource.
-- Checkpoint: R; resolve the public actor-lifecycle proof before G07/G08 rely
-  on it. A reproduced limitation completes useful investigation but does not
-  close R5; any required API change needs an explicitly approved follow-up.
+- Status: Superseded by 003-Fa08. On 2026-10-14, the owner combines the
+  actor-owned lifecycle work into one review unit beginning with Fa08's design
+  commit and removes the standalone Fa06 spike from the proposed change.
+- Finding: Fa02's synchronous nonisolated state factories and cleanup hooks
+  cannot directly construct MainActor resources or await their shutdown.
+  Existing actor-delivery tests do not prove activation-owned construction.
+- Resolution: [Decision 21](../design-decisions/21-managed-native-lifecycle.md)
+  specifies the public lifecycle solution. [Fa08](#003-fa08--managed-resource-handles-and-actor-owned-lifecycle)
+  owns its implementation and integrated actor-lifecycle proof. Design alone
+  does not close R5; successful runtime and compiler verification of that
+  boundary does. No separate Fa06 spike, evidence document, or PR is required.
+- Evidence boundary: The combined unit must prove construction, cancellation,
+  rollback, callback drainage, awaited cleanup, and retained-handle release
+  through public APIs. Native Location and URLSession conformance remains at
+  G08/I01; synthetic Core proof does not replace those adapter gates.
 
 ### 003-Fa07 — Coverage export from current build products
 
@@ -1879,6 +1871,68 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
 - Checkpoint: R; complete before the next coverage-baseline or coverage-dependent
   review decision. Until then, explicitly exclude stale products when using
   local coverage as evidence; do not treat historical totals as repaired.
+
+### 003-Fa08 — Managed resource handles and actor-owned lifecycle
+
+- Status: Approved. On 2026-10-15 the owner authorizes the revised
+  [state-owned lifecycle contract](003-Fa08-lifecycle-redesign.md), asks to squash
+  it into the existing implementation, and authorizes updating the existing PR.
+  The prior resource-handle implementation and its platform results are historical.
+  Record the revised public proof and verification in the owning evidence document.
+- Review unit: Combined Fa06/Fa08, beginning with the Fa08 design commit; the
+  obsolete standalone Fa06 spike remains omitted. Use current session settings.
+- Prerequisites: 003-Fa01–003-Fa02, 003-Fa09A, 003-Fa09, 003-E08, and 003-Fa07.
+  DD05, DD10, DD12, DD14, DD16, DD18, DD19, DD20, and
+  [DD21's amendment](../design-decisions/21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15)
+  govern the contract.
+- Scope: Async activation with synchronous and actor-isolated witnesses. Every
+  mode has ordinary Sendable State/Dependency factories; PassthroughState defaults
+  to Void. Remove SystemState/PassthroughDependency wrappers and SystemResource
+  handles. Definition-level requestStop/cleanUp hooks receive borrowed lifecycle
+  contexts and Dependency?, preserving a successful optional nil Dependency.
+- Ownership: Validate all attachments before activation. Activate State/Dependency
+  pairs sequentially in attachment order. Factories own failed partial
+  construction; Core adopts each successful return before another check or
+  suspension. Never clean State before its Dependency factory settles. Partial
+  activations participate in the common rollback and attachment cleanup report.
+- Access: `execution.state.withLock` replaces `withActiveState`; synchronous and
+  async `withTrackedValue` scopes count admission before selecting a typed member
+  under protection, then invoke native code outside protection. Quiet variants
+  ignore callbacks before publication and after closure. Reject nested entry
+  before lookup/native invocation. Lifecycle views share State storage, provide
+  no operation effects, and expire at hook return without reopening admission.
+- Finalization: Close common admission, stamp the normal-finish horizon, request
+  scheduler stop, and invoke all returned States' stop hooks in reverse order
+  before any joins. Drain State/tracked scopes, scheduler deliveries, and direct
+  replay reads. Await reverse cleanup, freeze accepted records, detach State and
+  release Dependency outside locks, then construct candidate/report. Rollback
+  closes without merge. Ancillary failures continue cleanup; one Core-owned task
+  serves concurrent or canceled finish callers.
+- Passthrough: Core invokes hooks before and after publication. The system
+  determines native shutdown, tolerates consumer shutdown, and may use no-op hooks
+  for injected dependencies. No recording, interception, track access, or native
+  operation wrapping is added. Random/Date behavior and independent record
+  forwarding remain unchanged; replay never reaches live sources.
+- Files: Core definition/runtime/startup/lifecycle, required first-party and
+  public consumer migrations, canonical compiler probes, contract documentation,
+  and `docs/evidence/003-Fa08-managed-resource-lifecycle.md`.
+- Commit structure: Retain separate design, preparatory async activation,
+  state lifecycle implementation with tests, and evidence commits. Fold the
+  explicitly authorized redesign into those existing review units.
+- Verification: V-code plus the revised DD21 contract. Exercise all successful
+  return boundaries and modes, optional Dependency, factory failure/cancellation,
+  later failure, stop-before-drain, actor reentrancy, retained access views,
+  quiet callback races, throwing tracked scopes, cleanup failure continuation,
+  cleanup updates reaching freeze, release-time diagnostics, and held cleanup
+  keeping reports unavailable. Preserve overlap rejection and retained reports.
+  Run public compiler probes for actor/borrow/lock/effect boundaries, strict
+  compilation, release/example builds, lint, platform tests, and fresh coverage.
+- Exclusions: Production Location/URLSession adapters or native capability claims,
+  dependencies, unsafe isolation, deployment/schema changes, State protocols,
+  resource graphs, generated facades, and legacy API aliases.
+- Checkpoint: R. Resolve R5 at the public Core boundary; native construction,
+  invalidation, callbacks, and forwarding remain G08/I01 gates. No next unit is
+  authorized by completing this review unit.
 
 ### 003-Fa09A — Sequential consumer execution and retained reports
 
@@ -1972,8 +2026,9 @@ passthrough ownership. DD16's scenario-scoped cleanup and inert escaped-handle
 rules continue for record/replay; passthrough follows its live API lifetime.
 Investigate native construction and cleanup at the start of G08, with evidence
 before relying on it; G09 broadens that protection rather than introducing it.
-Fa03–Fa06 have explicit prerequisite gates below; Fa06's synthetic proof does
-not replace native evidence. Fa07 must precede coverage-dependent decisions.
+Fa03–Fa05 have explicit prerequisite gates below; Fa08 implements the R5 public
+boundary before G07/G08 depend on it. Synthetic lifecycle proof does not replace
+native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G01 — Portable location, access, and failure values
 
@@ -2071,8 +2126,7 @@ not replace native evidence. Fa07 must precede coverage-dependent decisions.
 ### 003-G07 — Main-actor delegate facade over portable replay
 
 - Recommended model: GPT-6 Sol; reasoning: `medium`. A narrow MainActor facade must preserve weak-delegate ownership and exact frozen/inert post-finish behavior.
-- Prerequisites: 003-G04–003-G05, 003-Fa06 reviewed actor-lifecycle evidence and
-  resolution of any required public-boundary follow-up; DD16 consumer and
+- Prerequisites: 003-G04–003-G05 and completed 003-Fa08 public-boundary proof; DD16, DD21 consumer and
   escaped-handle contracts.
 - Scope: Add the narrow Diorama-owned Apple facade and weak delegate with portable locations, reproducible Apple access/configuration types and local replay state.
 - Expected files/modules: `DioramaCoreLocation` facade/delegate target, controlled main-actor replay tests and migration example.
@@ -2087,7 +2141,7 @@ not replace native evidence. Fa07 must precede coverage-dependent decisions.
 ### 003-G08 — Private Core Location capture and live forwarding
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Native callback conversion and live forwarding need field-fidelity evidence, safe preparation, and clear manager ownership.
-- Prerequisites: 003-G06–003-G07, 003-B02, 003-E01; DD06, DD09, DD16, DD20.
+- Prerequisites: 003-G06–003-G07, 003-Fa08, 003-B02, 003-E01; DD06, DD09, DD16, DD20–DD21.
 - Scope: Add a private MainActor CLLocationManager bridge, with managed recording and native passthrough. Establish construction, rollback, cleanup invocation and callback isolation first; reserve ordering/time and prepare values for recording only.
 - Expected files/modules: Core Location native bridge/converters and controlled adapter-boundary tests; documented native field availability.
 - Public behavior: Forward configuration and supported native behavior; record prepared portable values while live consumers receive the promised facade values/native Error.
@@ -2336,7 +2390,7 @@ the accepted Linux milestone profile; its upstream repair is not required.
 ### 003-I01 — Instrumented session and bodyless GET vertical path
 
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. The first native vertical path combines routing, live forwarding, replay isolation, rejection, and basic shutdown.
-- Prerequisites: 003-Fa02, 003-D05 evidence review, 003-H12B–003-H14, 003-E08; DD10, DD12, DD17, DD20, resolved Q1.
+- Prerequisites: 003-Fa02, 003-Fa08, 003-D05 evidence review, 003-H12B–003-H14, 003-E08; DD10, DD12, DD17, DD20–DD21, resolved Q1.
 - Scope: Implement configuration-first adapter-owned sessions and private forwarding machinery, routing leases, rejection boundary, and minimal supported GET record/replay/passthrough from stable scenario to native result.
 - Expected files/modules: `DioramaURLSession` setup/routing/protocol and Apple/ FoundationNetworking bridge files, GET fixtures and capability documentation.
 - Public behavior: For record/replay, copy default/ephemeral configurations, reject background and detectable unsupported delegates, disable cache, preserve supported settings and custom protocol order.

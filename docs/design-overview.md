@@ -3,8 +3,8 @@
 - Status: Accepted
 - Created: 2026-09-05
 - Approved by owner: 2026-09-07
-- Last reviewed: 2026-10-11
-- Scope: Decisions 1 through 20
+- Last reviewed: 2026-10-15
+- Scope: Decisions 1 through 21
 - Derived from: [Accepted design decisions](design-decisions/README.md)
 
 This document maintains a consolidated reading of the accepted decisions. It
@@ -40,9 +40,17 @@ On 2026-10-10, the owner accepts
 Systems use one public `SystemDefinition` protocol with typed track declarations
 and separate record/replay state and dependency factories. Core owns managed
 state synchronization and lifecycle, including work and callbacks outside protection.
-Passthrough directly supplies the ordinary live dependency with native copy
-semantics and consumer-owned lifetime; it has no Core operation wrapper or
-post-finish policy. The execution clock remains execution-owned in all setups.
+Passthrough supplies ordinary native behavior without recording or interception.
+The execution clock remains execution-owned in all setups.
+
+[Decision 21](design-decisions/21-managed-native-lifecycle.md), as amended on
+2026-10-15, gives every mode ordinary State/Dependency factories and
+definition-level request-stop and cleanup hooks. Async requirements permit
+synchronous and actor-isolated witnesses. Factories own failed partial
+construction; Core owns successful returns, rollback, and awaited shutdown.
+Runtime state views provide locked mutation and tracked native-member access.
+Passthrough hooks determine shutdown, including no-op cleanup for injected
+consumer-owned dependencies.
 
 The original review of decisions 1 through 12 identified scheduler, clock,
 location, consumer-extension, and HTTP-composition prerequisites. Decisions 13
@@ -284,11 +292,31 @@ both in-memory and persistent constructors.
 `SystemDefinition` declares typed track requirements once. Core prepares their
 leases before activation and provides scoped typed lookup to state factories.
 The dependency type can be a protocol existential or a concrete native type.
-Record/replay factories receive managed state; passthrough constructs its live
-dependency directly, without track leases or runtime content policies. Strict
-file decoding and preservation of configured passthrough baseline data remain
-independent requirements. The old public preparation/activation construction
-path becomes an internal implementation detail under DD20.
+Every mode receives managed state. Passthrough constructs its ordinary live
+dependency without track leases or runtime content policies. Strict file decoding
+and preservation of configured passthrough baseline data remain independent
+requirements. The old public preparation/activation construction path is internal.
+
+Under DD21, startup awaits ordinary State and Dependency factories and publishes
+only after all attachments succeed. Core adopts each successful return before
+another cancellation check or suspension. Factories clean everything they fail
+to return. A failed Dependency factory's already-returned State joins common
+rollback after the factory settles.
+
+`execution.state.withLock` serializes short synchronous inout transactions.
+`withTrackedValue` admits and counts a scope before selecting a member under
+protection, then runs its sync/async body outside the lock. Quiet forms ignore
+callbacks before publication and after closure. Native actor isolation remains
+Swift's responsibility. Privileged lifecycle contexts expose protected State
+without operation effects and expire at hook return.
+
+Normal finalization and rollback close admission, request every system's stop in
+reverse order, drain admitted work, and await reverse cleanup. Accepted records
+then freeze while State remains available, followed by State/Dependency release
+outside locks and candidate/report construction. One Core completion task survives
+canceled waiters. Passthrough follows the same hooks; system authors determine
+native shutdown and escaped-dependency usability. Independent native HTTP record
+forwarding may outlive the observation horizon under DD12.
 
 ### Immutable final reports and later diagnostics
 
@@ -488,8 +516,8 @@ Status: Resolved by
 
 DD20 makes `SystemDefinition` the single public authoring path, preserving
 existing services and public-only proofs while Core manages synchronization,
-safe diagnostic retention and record/replay lifetime. Pure passthrough has native
-lifetime and needs no managed state. Native lifecycle integration is proved
+safe diagnostic retention and all-mode lifecycle. Passthrough hooks determine
+native lifetime; empty State and no-op hooks preserve injected dependencies. Native lifecycle integration is proved
 with the first applicable adapter, without requiring a universal abstraction.
 
 The random proving system drives the same public system registration, track,
@@ -569,3 +597,9 @@ posture, proving system, scheduler, clock, location, shared HTTP domain, and
 URLSession lifecycle well enough to synthesize the clean-slate implementation
 plan. Evidence-producing implementation spikes may narrow an advertised
 platform capability, but they must not silently weaken these semantics.
+
+The [DD21 factory-owned construction amendment](design-decisions/21-managed-native-lifecycle.md#factory-owned-construction--owner-approved-2026-10-13)
+assigns failed partial construction to system factories. Core adopts cleanup
+obligations only from successful results, retaining rollback before publication
+and awaited managed shutdown afterward. Passthrough results transfer ordinary
+native lifetime to the consumer at publication.
