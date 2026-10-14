@@ -42,7 +42,7 @@ change; no production work starts here.
 
 On 2026-10-15, the owner authorizes the revised state-owned Fa08 design,
 implementation consolidation, and update to the existing PR. The current unit
-below specifies the amended public lifecycle proof; the preceding
+below records completion of the amended public lifecycle proof; the preceding
 entries preserve the original planning approvals.
 
 On 2026-10-06, the owner accepts
@@ -1874,11 +1874,12 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
 
 ### 003-Fa08 — Managed resource handles and actor-owned lifecycle
 
-- Status: Approved. On 2026-10-15 the owner authorizes the revised
+- Status: Complete. On 2026-10-15 the owner authorizes the revised
   [state-owned lifecycle contract](003-Fa08-lifecycle-redesign.md), asks to squash
   it into the existing implementation, and authorizes updating the existing PR.
   The prior resource-handle implementation and its platform results are historical.
-  Record the revised public proof and verification in the owning evidence document.
+  [Evidence](../evidence/003-Fa08-managed-resource-lifecycle.md) records the revised
+  public proof, 448 macOS tests, compiler probes, strict checks, and fresh coverage.
 - Review unit: Combined Fa06/Fa08, beginning with the Fa08 design commit; the
   obsolete standalone Fa06 spike remains omitted. Use current session settings.
 - Prerequisites: 003-Fa01–003-Fa02, 003-Fa09A, 003-Fa09, 003-E08, and 003-Fa07.
