@@ -1,5 +1,7 @@
 # Plan 003 Fa01/Fa02 implementation handoff
 
+> Historical Fa01/Fa02 handoff. The [Fa08 state-owned lifecycle amendment](../design-decisions/21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15) supersedes the synchronous activation, access spelling, and passthrough lifetime below. Use the [current authoring guide](../record-services.md) for the implemented API.
+
 This is implementation guidance for the approved
 [Phase Fa units](003-clean-slate-implementation.md#phase-fa--passthrough-and-system-authoring).
 [Decision 20](../design-decisions/20-system-definitions-and-pure-passthrough.md)
@@ -263,10 +265,10 @@ resources that may retain themselves after the execution drops its references.
 Investigate these before substantial adapter
 implementation; do not invent a general native framework in Fa02.
 
-[Fa06](003-clean-slate-implementation.md#003-fa06--public-actor-owned-lifecycle-evidence)
-adds an isolated public actor-lifecycle proof before Location's facade depends
-on this boundary. It records any required follow-up explicitly and does not
-replace actual native evidence or authorize a framework redesign.
+[Fa08](003-clean-slate-implementation.md#003-fa08--managed-resource-handles-and-actor-owned-lifecycle)
+delivers managed resources and integrated public actor-lifecycle proof before
+Location's facade depends on this boundary. Native adapter evidence remains
+separate; the synthetic Core tests do not establish native conformance.
 
 Historical exploration exercised Random, Date, typed declarations, separate
 mode state, an external callback facade, and frozen snapshots. Its final checks

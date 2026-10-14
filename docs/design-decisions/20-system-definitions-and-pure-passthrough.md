@@ -214,3 +214,12 @@ rollback, cleanup, cancellation, and replay/work drainage requirements remain.
 Captures, queued work, and cancellation callbacks still execute or release
 outside state protection. Test integrations and possible later inspection are
 designed together under a separate review unit.
+
+## State-owned lifecycle — owner-approved amendment 2026-10-15
+
+Passthrough now has ordinary State and definition-level hooks in every mode,
+including successful execution shutdown. Native operations remain uninstrumented;
+the system chooses ownership and may use no-op hooks for injected dependencies.
+See [DD21’s state-owned lifecycle amendment](21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15)
+for the governing ownership and access contract. Earlier text remains historical
+where superseded by that amendment.

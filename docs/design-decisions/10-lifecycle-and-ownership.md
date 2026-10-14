@@ -522,3 +522,13 @@ rollback, cleanup, cancellation, and replay/work drainage requirements remain.
 Captures, queued work, and cancellation callbacks still execute or release
 outside state protection. Test integrations and possible later inspection are
 designed together under a separate review unit.
+
+## State-owned lifecycle — owner-approved amendment 2026-10-15
+
+Core retains every returned State and Dependency through stop, drainage, and
+cleanup in all modes. Accepted records freeze after cleanup; State and Dependency
+release precedes candidate and report construction. Failed Dependency factories
+contribute their already-returned State to common rollback.
+See [DD21’s state-owned lifecycle amendment](21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15)
+for the governing ownership and access contract. Earlier text remains historical
+where superseded by that amendment.

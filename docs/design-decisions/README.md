@@ -37,6 +37,26 @@ closure, Random copy-semantics, and instrumented-passthrough requirements.
 Plan 003 Fa01/Fa02 deliver these changes before Location; native lifecycle
 integration remains a gate at the first applicable adapter work.
 
+On 2026-10-11, the owner selects
+[Decision 21: Managed native lifecycle](21-managed-native-lifecycle.md).
+Async activation, explicit resource handles, same-name sync/async scoped access,
+and awaited resource finalization extend DD20. State types remain ordinary
+Sendable types. The decision also specifies temporary passthrough construction
+ownership while preserving consumer-owned lifetime after successful startup.
+
+On 2026-10-15, the owner approves implementation of
+[DD21's state-owned lifecycle amendment](21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15).
+All modes have ordinary State/Dependency factories and definition-level stop and
+cleanup hooks. Runtime state views replace resource handles; lifecycle access
+expires after each hook. This reconciles DD10, DD19, and DD20, including Core's
+initiation of passthrough shutdown after publication.
+
+On 2026-10-13, the owner approves
+[DD21's factory-owned construction amendment](21-managed-native-lifecycle.md#factory-owned-construction--owner-approved-2026-10-13).
+Factories own failed partial construction. Core adopts resources only from
+successful results, retaining rollback before publication and awaited managed
+shutdown. This removes the pre-factory ledger and passthrough construction context.
+
 On 2026-09-19, the owner approved Decision 18 during the C04/C04A API review.
 It separates reusable `Diorama` setup from immutable `ScenarioDefinition` data
 and makes persistence operate directly on that shared in-memory model. Its
@@ -134,6 +154,7 @@ in cross-platform tests.
 | 18 | [Diorama setup and immutable scenario data](18-diorama-setup-and-scenario-data.md) | `18-diorama-setup-and-scenario-data.md` | Accepted |
 | 19 | [System-owned records and shared execution services](19-system-owned-records.md) | `19-system-owned-records.md` | Accepted |
 | 20 | [System definitions and pure passthrough](20-system-definitions-and-pure-passthrough.md) | `20-system-definitions-and-pure-passthrough.md` | Accepted |
+| 21 | [Managed native lifecycle](21-managed-native-lifecycle.md) | `21-managed-native-lifecycle.md` | Accepted |
 
 On 2026-10-06, the owner accepts [Decision 19](19-system-owned-records.md):
 systems own strict lifecycle records and delivery, while Core supplies typed
