@@ -14,10 +14,10 @@ struct ScenarioDefinitionIntegrationTests {
         let system = try probe.system(key: "boundaries", allowsUnclaimedReplayRecords: true)
         let replaySystem = system.withMode(.replay)
 
-        let replay = try ScenarioExecution.start(
+        let replay = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "replay"), defaultMode: .record,
             systems: [AnyScenarioSystem(replaySystem)])
-        let record = try ScenarioExecution.start(
+        let record = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "record"), defaultMode: .record,
             systems: [AnyScenarioSystem(system)])
         let replayLease = try replay.dependency(system)
@@ -33,7 +33,7 @@ struct ScenarioDefinitionIntegrationTests {
         #expect(replayResult.usage[0].tracks[0].unclaimedRecords.count == 1)
         #expect(recordResult.usage[0].tracks[0].activity == .record(recordedCount: 1, incompleteCount: 0))
         #expect(try codec.encode(definition) == bytes)
-        let second = try ScenarioExecution.start(
+        let second = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "replay"), defaultMode: .record,
             systems: [AnyScenarioSystem(replaySystem)])
         #expect(try second.dependency(system).consumeNext() == 0)

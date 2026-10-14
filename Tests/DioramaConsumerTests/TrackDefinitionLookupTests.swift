@@ -145,7 +145,7 @@ struct TrackDefinitionLookupTests {
         let baseline = try ScenarioDefinition(attachments: [loadedFirst, second.attachment])
         var previous: SequentialTrackLease<Int, String>?
         for run in 1...2 {
-            let execution = try ScenarioExecution.start(
+            let execution = try await ScenarioExecution.start(
                 definition: baseline, scenarioID: .init(rawValue: "track-lookup"), defaultMode: .replay,
                 systems: [AnyScenarioSystem(first), AnyScenarioSystem(second)])
             let firstLease = try execution.dependency(first)
@@ -176,7 +176,7 @@ struct TrackDefinitionLookupTests {
         let key = invalid == .missingKey ? "missing" : "values"
         let trackID = TrackID(attachmentID: system.attachment.id, key: .init(rawValue: key))
         do {
-            let execution = try ScenarioExecution.start(
+            let execution = try await ScenarioExecution.start(
                 definition: ScenarioDefinition(attachments: [system.attachment]),
                 scenarioID: .init(rawValue: "track-lookup"), defaultMode: .replay,
                 systems: [AnyScenarioSystem(system)])

@@ -136,7 +136,7 @@ struct ReplayContinuationLifetimeTests {
                                           }))
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]), scenarioID: .init(rawValue: "joined-release"),
             defaultMode: .replay, systems: [AnyScenarioSystem(system)])
         let lease = try execution.dependency(system)

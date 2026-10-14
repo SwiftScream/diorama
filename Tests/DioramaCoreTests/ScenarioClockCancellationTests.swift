@@ -7,7 +7,7 @@ struct ScenarioClockCancellationTests {
     @Test
     func `already canceled task never registers a timer`() async throws {
         let source = SchedulerTestClock()
-        let (execution, _) = try SchedulerFixtures.setup([], clock: source.source)
+        let (execution, _) = try await SchedulerFixtures.setup([], clock: source.source)
         let clock = execution.context.clock
         let sleeper = Task {
             withUnsafeCurrentTask { $0?.cancel() }
@@ -21,7 +21,7 @@ struct ScenarioClockCancellationTests {
     @Test
     func `pending task cancellation removes the timer and resumes exactly once`() async throws {
         let source = SchedulerTestClock()
-        let (execution, _) = try SchedulerFixtures.setup([], clock: source.source)
+        let (execution, _) = try await SchedulerFixtures.setup([], clock: source.source)
         let clock = execution.context.clock
         let sleeper = Task { try await clock.sleep(until: .init(offset: .seconds(10))) }
         let wait = try await source.nextSleep()
@@ -48,7 +48,7 @@ struct ScenarioClockCancellationTests {
                 throw error
             }
         })
-        let (execution, systems) = try SchedulerFixtures.setup(clock: driver)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: driver)
         let clock = execution.context.clock
         let sleeper = Task { try await clock.sleep(until: .init(offset: .seconds(1))) }
         _ = try await source.nextSleep()
@@ -82,7 +82,7 @@ struct ScenarioClockCancellationTests {
                 throw error
             }
         })
-        let (execution, systems) = try SchedulerFixtures.setup(clock: driver)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: driver)
         let clock = execution.context.clock
         let sleeper = Task { try await clock.sleep(until: .init(offset: .seconds(20))) }
         _ = try await source.nextSleep()
@@ -102,7 +102,7 @@ struct ScenarioClockCancellationTests {
     @Test
     func `finish freezes admission horizon before delivery drains and cancels pending sleeps`() async throws {
         let source = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: source.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: source.source)
         let gate = SchedulerDeliveryGate()
         defer { gate.release() }
         try systems[0].scheduling.schedule(at: .zero, for: SchedulerFixtures.record()) {
@@ -148,7 +148,7 @@ struct ScenarioClockCancellationTests {
         async throws
     {
         let source = SchedulerTestClock()
-        let (execution, _) = try SchedulerFixtures.setup([], clock: source.source)
+        let (execution, _) = try await SchedulerFixtures.setup([], clock: source.source)
         let clock = execution.context.clock
         let sleepers = (0..<64).map { _ in
             Task { () -> Int in

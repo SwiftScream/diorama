@@ -5,7 +5,7 @@ import Testing
 struct SchedulingConsumerTests {
     @Test
     func `a public consumer system cancels work and scopes delivery through finish`() async throws {
-        let setup = try start()
+        let setup = try await start()
         let execution = setup.execution
         let scheduling = setup.scheduling
         let record = setup.record
@@ -34,7 +34,7 @@ struct SchedulingConsumerTests {
 
     @Test
     func `a public consumer scopes async delivery across an actor hop`() async throws {
-        let setup = try start()
+        let setup = try await start()
         let execution = setup.execution
         let scheduling = setup.scheduling
         let record = setup.record
@@ -68,11 +68,11 @@ struct SchedulingConsumerTests {
         let record: RecordIdentity
     }
 
-    private func start() throws -> Setup {
+    private func start() async throws -> Setup {
         let system = try ScenarioSystem(named: "consumer", definition: SchedulingDefinition())
         let attachment = system.attachment
         let track = attachment.trackIDs[0]
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]), scenarioID: ScenarioID(rawValue: "consumer"),
             defaultMode: .replay, systems: [AnyScenarioSystem(system)])
         let scheduling = try execution.dependency(system)

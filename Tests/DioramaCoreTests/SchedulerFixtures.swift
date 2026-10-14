@@ -126,7 +126,7 @@ enum SchedulerFixtures {
         }
     }
 
-    static func setup(_ keys: [String] = ["a"], clock: ExecutionClock = .continuous()) throws
+    static func setup(_ keys: [String] = ["a"], clock: ExecutionClock = .continuous()) async throws
         -> (ScenarioExecution, [Dependency])
     {
         var attachments: [ScenarioAttachment] = []
@@ -145,7 +145,7 @@ enum SchedulerFixtures {
             }
             systems.append(AnyScenarioSystem(system))
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: attachments),
             scenarioID: ScenarioID(rawValue: "scheduler"), defaultMode: .replay,
             systems: systems.reversed(), clock: clock)

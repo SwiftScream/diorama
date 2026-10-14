@@ -44,7 +44,7 @@ struct ScenarioClockTests {
     @Test(arguments: [ScenarioMode.record, .replay, .passthrough])
     func `clock works without systems and creates no content or usage`(mode: ScenarioMode) async throws {
         let source = SchedulerTestClock()
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(), scenarioID: ScenarioID(rawValue: "clock-only"),
             defaultMode: mode, systems: [], clock: source.source)
         let clock = execution.context.clock
@@ -66,7 +66,7 @@ struct ScenarioClockTests {
     @Test(arguments: [Duration?.none, .zero, .seconds(10)])
     func `sleep ignores larger tolerance and rechecks an early timer wake`(tolerance: Duration?) async throws {
         let source = SchedulerTestClock()
-        let (execution, _) = try SchedulerFixtures.setup([], clock: source.source)
+        let (execution, _) = try await SchedulerFixtures.setup([], clock: source.source)
         let clock = execution.context.clock
         let completed = Mutex(false)
         let sleeper = Task {
@@ -88,9 +88,9 @@ struct ScenarioClockTests {
     @Test
     func `transferred instants use the receiving executions local origin`() async throws {
         let source = SchedulerTestClock()
-        let (first, _) = try SchedulerFixtures.setup([], clock: source.source)
+        let (first, _) = try await SchedulerFixtures.setup([], clock: source.source)
         source.advance(to: .seconds(10))
-        let (second, _) = try SchedulerFixtures.setup([], clock: source.source)
+        let (second, _) = try await SchedulerFixtures.setup([], clock: source.source)
         let deadline = first.context.clock.now.advanced(by: .seconds(20))
         #expect(deadline.offset == .seconds(30))
         #expect(second.context.clock.now.offset == .zero)
@@ -118,7 +118,7 @@ struct ScenarioClockTests {
                 return PreparedSystem { ActivatedSystem(dependency: clock, deactivate: {}) }
             }.withMode(modes[index])
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "shared-clock"),
             defaultMode: .record, systems: systems.map(AnyScenarioSystem.init), clock: source.source)
         source.advance(to: .milliseconds(123))
@@ -131,7 +131,7 @@ struct ScenarioClockTests {
     @Test
     @MainActor
     func `standard generic Clock sleep uses real time without requiring a wall system`() async throws {
-        let (execution, _) = try SchedulerFixtures.setup([])
+        let (execution, _) = try await SchedulerFixtures.setup([])
         let elapsed = try await sleepGenerically(on: execution.context.clock)
         #expect(elapsed >= .milliseconds(10))
         #expect(elapsed < .seconds(5))

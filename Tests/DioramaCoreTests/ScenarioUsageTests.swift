@@ -23,7 +23,7 @@ struct ScenarioUsageTests {
             let firstLease = try context.lease(for: first, preparation: ValuePreparation<Int>())
             return PreparedSystem { ActivatedSystem(dependency: [firstLease, secondLease], deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition,
             scenarioID: ScenarioID(rawValue: "mixed"), defaultMode: .replay,
             systems: [
@@ -73,7 +73,7 @@ struct ScenarioUsageTests {
                 }))
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: [AnyScenarioSystem(instance)])
         let lease = try execution.dependency(instance)

@@ -6,7 +6,7 @@ struct ConsumerSequentialSystemTests {
     @Test
     func `consumer module records and replays non codable values`() async throws {
         let key = AttachmentKey(rawValue: "primary")
-        let (record, recordInstance) = try start(mode: .record, key: key)
+        let (record, recordInstance) = try await start(mode: .record, key: key)
         #expect(recordInstance.attachment.id == ConsumerSequentialSystem.attachmentID(for: key))
         #expect(AnyScenarioSystem(recordInstance).attachmentID == recordInstance.attachment.id)
         #expect(recordInstance.dependencyKey.attachmentID == recordInstance.attachment.id)
@@ -17,7 +17,7 @@ struct ConsumerSequentialSystemTests {
         #expect(try recorder.next(capturing: { ConsumerStableValue(12) }) == ConsumerStableValue(12))
         #expect(await record.finish().report.diagnostics.isEmpty)
 
-        let (replay, replayInstance) = try start(
+        let (replay, replayInstance) = try await start(
             mode: .replay,
             key: key,
             values: [ConsumerStableValue(11), ConsumerStableValue(12)])
@@ -39,7 +39,7 @@ struct ConsumerSequentialSystemTests {
     @Test
     func `consumer module passthrough stays live and leaves content untouched`() async throws {
         let key = AttachmentKey(rawValue: "live")
-        let (execution, instance) = try start(
+        let (execution, instance) = try await start(
             mode: .passthrough,
             key: key,
             values: [ConsumerStableValue(1), ConsumerStableValue(2)])
@@ -76,7 +76,7 @@ struct ConsumerSequentialSystemTests {
             firstInstance.attachment,
             secondInstance.attachment,
         ])
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "consumer-independent"), defaultMode: .record,
             systems: [
                 AnyScenarioSystem(secondInstance.withMode(.replay)),
@@ -97,7 +97,7 @@ struct ConsumerSequentialSystemTests {
     @Test
     func `consumer diagnostics participate in finalization and closure`() async throws {
         let key = AttachmentKey(rawValue: "verification")
-        let (execution, instance) = try start(
+        let (execution, instance) = try await start(
             mode: .replay,
             key: key,
             values: [ConsumerStableValue(31), ConsumerStableValue(32)])
@@ -136,13 +136,13 @@ struct ConsumerSequentialSystemTests {
     private func start(
         mode: ScenarioMode,
         key: AttachmentKey,
-        values: [ConsumerStableValue] = []) throws
+        values: [ConsumerStableValue] = []) async throws
         -> (ScenarioExecution, ScenarioSystem<ConsumerSequentialDependency>)
     {
         let instance = try ConsumerSequentialSystem.instance(key: key, values: values)
 
         let definition = try ScenarioDefinition(attachments: [instance.attachment])
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "consumer-" + key.rawValue), defaultMode: mode,
             systems: [AnyScenarioSystem(instance)])
         return (execution, instance)

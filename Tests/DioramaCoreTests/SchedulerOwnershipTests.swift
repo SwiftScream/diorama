@@ -22,7 +22,7 @@ struct SchedulerOwnershipTests {
     }
 
     private func finishedHandle() async throws -> EscapedHandle {
-        let (execution, systems) = try SchedulerFixtures.setup()
+        let (execution, systems) = try await SchedulerFixtures.setup()
         let gate = SchedulerDeliveryGate()
         defer { gate.release() }
         let handle = try systems[0].scheduling.schedule(after: .zero, for: SchedulerFixtures.record()) {
@@ -41,7 +41,7 @@ struct SchedulerOwnershipTests {
     func `clock failure cancels pending items but still drains claimed delivery`() async throws {
         let clock = SchedulerTestClock()
         let journal = SchedulerJournal()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let gate = SchedulerDeliveryGate()
         defer { gate.release() }
         let lease = systems[0].scheduling
@@ -70,7 +70,7 @@ struct SchedulerOwnershipTests {
 
     @Test
     func `delivery captures release before final result freeze`() async throws {
-        let (execution, systems) = try SchedulerFixtures.setup()
+        let (execution, systems) = try await SchedulerFixtures.setup()
         let entry = SchedulerJournal()
         try scheduleMarker(on: systems[0].scheduling, reporter: execution.reporter, entry: entry)
         #expect(await entry.take(1) == ["entered"])

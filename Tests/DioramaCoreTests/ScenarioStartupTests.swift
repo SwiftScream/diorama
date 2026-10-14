@@ -9,7 +9,7 @@ struct ScenarioStartupTests {
 
         let definition = try ExecutionFixtures.definition(["a", "b", "c"])
         let systems = try ["c", "a", "b"].map { try ExecutionFixtures.system($0, journal: journal) }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition,
             scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
             systems: systems)
@@ -28,7 +28,7 @@ struct ScenarioStartupTests {
     }
 
     @Test(arguments: [0, 1, 2])
-    func `preparation failure activates nothing and closes every prepared lease`(failureIndex: Int) throws {
+    func `preparation failure activates nothing and closes every prepared lease`(failureIndex: Int) async throws {
         let journal = ExecutionFixtures.Journal()
         let keys = ["a", "b", "c"]
         let systems = try keys.enumerated().map { index, key in
@@ -37,7 +37,7 @@ struct ScenarioStartupTests {
                 failPreparation: index == failureIndex)
         }
         do {
-            _ = try ScenarioExecution.start(
+            _ = try await ScenarioExecution.start(
                 definition: ExecutionFixtures.definition(keys),
                 scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
                 systems: systems)
@@ -56,7 +56,7 @@ struct ScenarioStartupTests {
     }
 
     @Test(arguments: [0, 1, 2])
-    func `activation failure unwinds adapters despite cleanup failure`(failureIndex: Int) throws {
+    func `activation failure unwinds adapters despite cleanup failure`(failureIndex: Int) async throws {
         let journal = ExecutionFixtures.Journal()
         let keys = ["a", "b", "c"]
         let systems = try keys.enumerated().map { index, key in
@@ -65,7 +65,7 @@ struct ScenarioStartupTests {
                 failActivation: index == failureIndex, failCleanup: index == 1)
         }
         do {
-            _ = try ScenarioExecution.start(
+            _ = try await ScenarioExecution.start(
                 definition: ExecutionFixtures.definition(keys),
                 scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
                 systems: systems)
@@ -85,7 +85,7 @@ struct ScenarioStartupTests {
     }
 
     @Test(arguments: ["missing", "duplicate", "extra", "incompatible"])
-    func `invalid registrations fail before any consumer callback`(kind: String) throws {
+    func `invalid registrations fail before any consumer callback`(kind: String) async throws {
         let journal = ExecutionFixtures.Journal()
         let system = try ExecutionFixtures.system("a", journal: journal)
         let other = try ExecutionFixtures.system("other", journal: journal)
@@ -98,7 +98,7 @@ struct ScenarioStartupTests {
 
         let definition = try ExecutionFixtures.definition(["a"])
         do {
-            _ = try ScenarioExecution.start(
+            _ = try await ScenarioExecution.start(
                 definition: definition,
                 scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
                 systems: systems)
@@ -111,7 +111,7 @@ struct ScenarioStartupTests {
     }
 
     @Test
-    func `unprepared tracks cannot slip through a successful system callback`() throws {
+    func `unprepared tracks cannot slip through a successful system callback`() async throws {
         let activations = Mutex(0)
 
         let definition = try ExecutionFixtures.definition(["a"])
@@ -122,7 +122,7 @@ struct ScenarioStartupTests {
             }
         }
         do {
-            _ = try ScenarioExecution.start(
+            _ = try await ScenarioExecution.start(
                 definition: definition,
                 scenarioID: ScenarioID(rawValue: "execution"), defaultMode: .replay,
                 systems: [AnyScenarioSystem(instance)])
@@ -155,7 +155,7 @@ struct ScenarioStartupTests {
             return PreparedSystem { ActivatedSystem(dependency: 0, deactivate: {}) }
         }
         do {
-            let execution = try ScenarioExecution.start(
+            let execution = try await ScenarioExecution.start(
                 definition: definitions, scenarioID: ScenarioID(rawValue: "execution"), defaultMode: mode,
                 systems: [AnyScenarioSystem(instance)])
             #expect(mode == .passthrough)

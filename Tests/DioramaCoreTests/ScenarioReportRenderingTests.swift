@@ -7,7 +7,7 @@ struct ScenarioReportRenderingTests {
     func `final report combines earlier facts and cleanup failure`() async throws {
         let journal = ExecutionFixtures.Journal()
         let definition = try ExecutionFixtures.definition(["record"])
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "final-report"),
             defaultMode: .record,
             systems: [ExecutionFixtures.system("record", journal: journal, failCleanup: true)])
@@ -26,7 +26,7 @@ struct ScenarioReportRenderingTests {
         let journal = ExecutionFixtures.Journal()
 
         let base = try ExecutionFixtures.definition(["z", "a"])
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: base,
             scenarioID: ScenarioID(rawValue: "execution"),
             defaultMode: .replay,
@@ -86,7 +86,7 @@ struct ScenarioReportRenderingTests {
             let lease = try context.lease(for: trackID, preparation: ValuePreparation<SecretValue>())
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "quoted\"scenario"), defaultMode: .replay,
             systems: [AnyScenarioSystem(instance)])
         let result = await execution.finish()
@@ -117,7 +117,7 @@ struct ScenarioReportRenderingTests {
             Diagnostic(issue: .baseline(.loadedAttachmentNotConfigured)),
             Diagnostic(issue: .baseline(.baselineIgnoredForRecording(.invalidDocument))),
         ]
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "baseline"), defaultMode: .record,
             systems: [],
             initialDiagnostics: diagnostics)

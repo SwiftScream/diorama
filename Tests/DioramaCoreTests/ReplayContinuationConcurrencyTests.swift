@@ -6,7 +6,7 @@ struct ReplayContinuationConcurrencyTests {
     @Test
     func `concurrent exhausted reads always repeat the final consumed value`() async throws {
         let values = Array((1...80).reversed())
-        let (execution, lease) = try ReplayContinuationFixtures.start(
+        let (execution, lease) = try await ReplayContinuationFixtures.start(
             values: values, policy: .replayLast(defaultValue: -1))
         let returned = try await withThrowingTaskGroup(of: Int.self) { group in
             for _ in 0..<100 {
@@ -28,7 +28,7 @@ struct ReplayContinuationConcurrencyTests {
 
     @Test
     func `repeated continuations retain one diagnostic per call for the final report`() async throws {
-        let (execution, lease) = try ReplayContinuationFixtures.start(
+        let (execution, lease) = try await ReplayContinuationFixtures.start(
             values: [7], policy: .replayLast(defaultValue: -1))
         #expect(try lease.consumeNext() == 7)
         #expect(try lease.consumeNext() == 7)
@@ -44,7 +44,7 @@ struct ReplayContinuationConcurrencyTests {
     @Test
     func `finish racing reads freezes continuation at the last consumed position`() async throws {
         let values = Array((1...80).reversed())
-        let (execution, lease) = try ReplayContinuationFixtures.start(
+        let (execution, lease) = try await ReplayContinuationFixtures.start(
             values: values, policy: .replayLast(defaultValue: -1))
         #expect(try lease.consumeNext() == 80)
         try await withThrowingTaskGroup(of: Void.self) { group in

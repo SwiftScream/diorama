@@ -109,7 +109,9 @@ private extension DiagnosticIssue {
             switch issue {
             case .invalidTrackRequest, .preparationClosed, .leaseClosed, .executionClosed, .invalidDependencyRequest:
                 true
-            case .invalidRegistration, .preparationFailed, .unpreparedTrack, .activationFailed, .cleanupFailed: false
+            case .invalidRegistration, .preparationFailed, .unpreparedTrack,
+                 .activationFailed, .startupCanceled, .cleanupFailed:
+                false
             }
         case .conversionFailed, .preparationFailed, .baseline, .verification, .system: false
         }

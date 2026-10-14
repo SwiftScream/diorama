@@ -17,7 +17,7 @@ struct SchedulingLifetimeTests {
     }
 
     @Test
-    func `failed startup refuses scheduling and closes an escaped service`() throws {
+    func `failed startup refuses scheduling and closes an escaped service`() async throws {
         let holder = Mutex<SchedulingLease?>(nil)
         let definition = try ExecutionFixtures.definition(["a"])
         let system = try ScenarioSystem<SchedulingLease>(type: ExecutionFixtures.type,
@@ -35,9 +35,9 @@ struct SchedulingLifetimeTests {
             }
             return PreparedSystem<SchedulingLease> { throw ClockFailure.failed }
         }
-        #expect(throws: ScenarioStartupFailure.self) {
-            try ScenarioExecution.start(definition: definition, scenarioID: ScenarioID(rawValue: "startup"),
-                                        defaultMode: .replay, systems: [AnyScenarioSystem(system)])
+        await #expect(throws: ScenarioStartupFailure.self) {
+            try await ScenarioExecution.start(definition: definition, scenarioID: ScenarioID(rawValue: "startup"),
+                                              defaultMode: .replay, systems: [AnyScenarioSystem(system)])
         }
         let escaped = try #require(holder.withLock { $0 })
         do {
@@ -51,7 +51,7 @@ struct SchedulingLifetimeTests {
     @Test
     func `pending handoff captures leave the execution at finish`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let journal = SchedulerJournal()
         try registerMarker(on: systems[0].scheduling, journal: journal)
         _ = try await clock.nextSleep()
@@ -73,7 +73,7 @@ struct SchedulingLifetimeTests {
         let source = backward ? clock.source : ExecutionClock(now: clock.source.now, sleep: { _, _ in
             throw ClockFailure.failed
         })
-        let (execution, systems) = try SchedulerFixtures.setup(clock: source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: source)
         let journal = SchedulerJournal()
         _ = try SchedulerFixtures.pendingProbe(on: systems[0].scheduling, after: .seconds(1), journal: journal)
         if backward {
@@ -102,7 +102,7 @@ struct SchedulingLifetimeTests {
     @Test(arguments: [Duration.zero, .milliseconds(25)])
     @MainActor
     func `real clock hands off no earlier than its logical deadline`(delay: Duration) async throws {
-        let (execution, systems) = try SchedulerFixtures.setup()
+        let (execution, systems) = try await SchedulerFixtures.setup()
         let service = systems[0]
         let journal = SchedulerJournal()
         let deliveredAt = Mutex<Duration?>(nil)

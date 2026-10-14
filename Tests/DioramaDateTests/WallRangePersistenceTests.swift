@@ -6,7 +6,7 @@ import Testing
 
 struct WallRangePersistenceTests {
     @Test(arguments: [ScenarioMode.record, .replay])
-    func `out of range prepared baselines fail before source activation`(mode: ScenarioMode) throws {
+    func `out of range prepared baselines fail before source activation`(mode: ScenarioMode) async throws {
         let system = try DioramaDateSystem.instance(named: "clock") {
             Issue.record("Invalid baseline must fail before activation")
             return DateConformanceSupport.Source([])
@@ -17,8 +17,8 @@ struct WallRangePersistenceTests {
         let header = try ValuePreparation<Int?>().admitPrepared(0)
         let attachment = try ScenarioAttachment(id: system.attachment.id).adding(
             SequentialTrack(id: trackID, header: header, values: [value]))
-        #expect(throws: ScenarioStartupFailure.self) {
-            _ = try ScenarioExecution.start(
+        await #expect(throws: ScenarioStartupFailure.self) {
+            _ = try await ScenarioExecution.start(
                 definition: ScenarioDefinition(attachments: [attachment]),
                 scenarioID: ScenarioID(rawValue: "range"), defaultMode: mode,
                 systems: [AnyScenarioSystem(system)])

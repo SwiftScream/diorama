@@ -20,7 +20,7 @@ struct RecordingMergeConsumerTests {
                 return HeaderlessSequentialTrack(id: fresh.id, values: values)
             })
         let baseline = try ScenarioDefinition(attachments: [system.attachment])
-        let record = try ScenarioExecution.start(
+        let record = try await ScenarioExecution.start(
             definition: baseline, scenarioID: ScenarioID(rawValue: "consumer-merge"), defaultMode: .record,
             systems: [AnyScenarioSystem(system)])
         let dependency = try record.dependency(system)
@@ -32,7 +32,7 @@ struct RecordingMergeConsumerTests {
             ConsumerSequentialSystem.trackID(for: key), as: ConsumerStableValue.self))
         #expect(old.records.map(\.value.number) == [-7, 2])
         #expect(result.report.diagnostics.isEmpty)
-        let replay = try ScenarioExecution.start(
+        let replay = try await ScenarioExecution.start(
             definition: candidate, scenarioID: ScenarioID(rawValue: "consumer-merge-replay"), defaultMode: .replay,
             systems: [AnyScenarioSystem(system)])
         let player = try replay.dependency(system)

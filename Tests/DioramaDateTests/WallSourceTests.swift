@@ -17,7 +17,7 @@ struct WallSourceTests {
             probe.makeSource()
         }
         let zone = TimeZone.current
-        let execution = try start(system)
+        let execution = try await start(system)
         let wall = try execution.dependency(system)
 
         for expected in native {
@@ -45,7 +45,7 @@ struct WallSourceTests {
         let system = try recordingSystem(named: "dst", timeZone: zone) {
             probe.makeSource()
         }
-        let execution = try start(system)
+        let execution = try await start(system)
         let wall = try execution.dependency(system)
 
         #expect(wall.now == before)
@@ -68,7 +68,7 @@ struct WallSourceTests {
         let attachment = try DioramaDateSystem.attachment(named: "wall", recording: original)
         let probe = WallSourceProbe(values: [Date(timeIntervalSince1970: 7.12345)])
         let system = try DioramaDateSystem.instance(named: "wall") { probe.makeSource() }
-        let execution = try start(system, mode: .passthrough, attachment: attachment)
+        let execution = try await start(system, mode: .passthrough, attachment: attachment)
         let wall = try execution.dependency(system)
 
         #expect(wall.now == Date(timeIntervalSince1970: 7.12345))
@@ -87,7 +87,7 @@ struct WallSourceTests {
         let attachment = try DioramaDateSystem.attachment(named: "wall", recording: original)
         let probe = WallSourceProbe(values: [])
         let system = try DioramaDateSystem.instance(named: "wall") { probe.makeSource() }
-        let execution = try start(system, attachment: attachment)
+        let execution = try await start(system, attachment: attachment)
 
         let result = await execution.finish()
         #expect(result.report.diagnostics.isEmpty)
@@ -106,7 +106,7 @@ struct WallSourceTests {
             secondProbe.makeSource()
         }
         let definition = try ScenarioDefinition(attachments: [first.attachment, second.attachment])
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "date-independent"),
             defaultMode: .record, systems: [AnyScenarioSystem(second), AnyScenarioSystem(first)])
         let firstWall = try execution.dependency(first)
@@ -135,10 +135,10 @@ struct WallSourceTests {
             probe.makeSource()
         }
 
-        let first = try start(system)
+        let first = try await start(system)
         #expect(try first.dependency(system).now == Date(timeIntervalSince1970: 1))
         _ = await first.finish()
-        let second = try start(system)
+        let second = try await start(system)
         #expect(try second.dependency(system).now == Date(timeIntervalSince1970: 1))
         _ = await second.finish()
 
@@ -153,7 +153,7 @@ struct WallSourceTests {
         let system = try DioramaDateSystem.instance(named: "concurrent") {
             probe.makeSource()
         }
-        let execution = try start(system)
+        let execution = try await start(system)
         let wall = try execution.dependency(system)
         let returned = await withTaskGroup(of: Date.self, returning: [Date].self) { group in
             for _ in native {
@@ -182,7 +182,7 @@ struct WallSourceTests {
         let system = try DioramaDateSystem.instance(named: "invalid") {
             probe.makeSource()
         }
-        let execution = try start(system)
+        let execution = try await start(system)
         var wall: (any DioramaDateSource)? = try execution.dependency(system)
 
         #expect(wall?.now.timeIntervalSince1970.isInfinite == true)
@@ -204,7 +204,7 @@ struct WallSourceTests {
         let later = Date(timeIntervalSince1970: 18)
         let probe = WallSourceProbe(values: [date, later])
         let system = try DioramaDateSystem.instance(named: "closed") { probe.makeSource() }
-        let execution = try start(system)
+        let execution = try await start(system)
         var wall: (any DioramaDateSource)? = try execution.dependency(system)
         #expect(wall?.now == date)
         let final = await execution.finish()
@@ -229,7 +229,7 @@ struct WallSourceTests {
         let attachment = try DioramaDateSystem.attachment(named: "fresh-zone", recording: original)
         let probe = WallSourceProbe(values: [date.addingTimeInterval(1)])
         let system = try DioramaDateSystem.instance(named: "fresh-zone") { probe.makeSource() }
-        let execution = try start(system, attachment: attachment)
+        let execution = try await start(system, attachment: attachment)
 
         #expect(try execution.dependency(system).now == date.addingTimeInterval(1))
         let result = await execution.finish()
@@ -247,7 +247,7 @@ struct WallSourceTests {
         let date = Date(timeIntervalSince1970: 100)
         let probe = WallSourceProbe(values: [date])
         let system = try recordingSystem(named: "subminute", timeZone: zone) { probe.makeSource() }
-        let execution = try start(system)
+        let execution = try await start(system)
 
         #expect(try execution.dependency(system).now == date)
         let result = await execution.finish()
@@ -269,10 +269,10 @@ struct WallSourceTests {
     private func start(
         _ system: ScenarioSystem<any DioramaDateSource>,
         mode: ScenarioMode = .record,
-        attachment: ScenarioAttachment? = nil) throws -> ScenarioExecution
+        attachment: ScenarioAttachment? = nil) async throws -> ScenarioExecution
     {
         let definition = try ScenarioDefinition(attachments: [attachment ?? system.attachment])
-        return try ScenarioExecution.start(
+        return try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "date-test"),
             defaultMode: mode, systems: [AnyScenarioSystem(system)])
     }
@@ -283,7 +283,7 @@ extension WallSourceTests {
     func `passthrough dates remain live after finish and release with the retained handle`() async throws {
         let probe = WallSourceProbe(values: [Date(timeIntervalSince1970: 1), Date(timeIntervalSince1970: 2)])
         let system = try DioramaDateSystem.instance(named: "native-lifetime") { probe.makeSource() }
-        let execution = try start(system, mode: .passthrough)
+        let execution = try await start(system, mode: .passthrough)
         var wall: (any DioramaDateSource)? = try execution.dependency(system)
         #expect(wall?.now == Date(timeIntervalSince1970: 1))
         let result = await execution.finish()
@@ -299,7 +299,7 @@ extension WallSourceTests {
     @Test(arguments: [ScenarioMode.record, .passthrough])
     func `default source returns live wall dates and honors the selected mode`(mode: ScenarioMode) async throws {
         let system = try DioramaDateSystem.instance(named: "platform-wall")
-        let execution = try start(system, mode: mode)
+        let execution = try await start(system, mode: mode)
         let wall = try execution.dependency(system)
         let before = Date()
         let observed = wall.now
@@ -336,7 +336,7 @@ extension WallSourceTests {
         let later = Date(timeIntervalSince1970: 42)
         let probe = WallSourceProbe(values: native + [later])
         let system = try recordingSystem(named: "overflow", timeZone: .gmt) { probe.makeSource() }
-        let execution = try start(system)
+        let execution = try await start(system)
         let wall = try execution.dependency(system)
 
         for date in native {
@@ -356,7 +356,7 @@ extension WallSourceTests {
     func `closing recording before the first wall read still returns a live value`() async throws {
         let probe = WallSourceProbe(values: [Date(timeIntervalSince1970: 42)])
         let system = try DioramaDateSystem.instance(named: "unread") { probe.makeSource() }
-        let execution = try start(system, mode: .record)
+        let execution = try await start(system, mode: .record)
         let wall = try execution.dependency(system)
 
         let result = await execution.finish()

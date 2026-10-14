@@ -72,7 +72,7 @@ struct WholeTrackAdmissionTests {
         let malformed = try attachment(wall, header: invalid.content.header, values: invalid.content.values)
         let baseline = try ScenarioDefinition(attachments: [first.attachment, malformed])
         do {
-            _ = try ScenarioExecution.start(
+            _ = try await ScenarioExecution.start(
                 definition: baseline, scenarioID: .init(rawValue: "admission"),
                 defaultMode: mode, systems: [AnyScenarioSystem(first), AnyScenarioSystem(wall)])
             Issue.record("Malformed Date content activated")
@@ -167,9 +167,10 @@ struct WholeTrackAdmissionTests {
         let probe = AdmissionProbe()
         let wall = try DioramaDateSystem.instance(named: "wall") { probe.source() }
         let malformed = try attachment(wall, header: invalid.content.header, values: invalid.content.values)
-        let execution = try ScenarioExecution.start(definition: ScenarioDefinition(attachments: [malformed]),
-                                                    scenarioID: .init(rawValue: "pass"), defaultMode: .passthrough,
-                                                    systems: [AnyScenarioSystem(wall)])
+        let execution = try await ScenarioExecution.start(
+            definition: ScenarioDefinition(attachments: [malformed]),
+            scenarioID: .init(rawValue: "pass"), defaultMode: .passthrough,
+            systems: [AnyScenarioSystem(wall)])
         let source = try execution.dependency(wall)
         #expect(source.now == Date(timeIntervalSince1970: 42))
         let final = await execution.finish()

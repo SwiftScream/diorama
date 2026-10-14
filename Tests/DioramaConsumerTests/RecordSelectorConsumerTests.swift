@@ -18,7 +18,7 @@ struct RecordSelectorConsumerTests {
             ConsumerRecord(input: "a", output: 10), ConsumerRecord(input: "a", output: 11),
         ], policy: policy)
         let firstTrackID = TrackID(attachmentID: first.attachment.id, key: TrackKey(rawValue: "groups"))
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [first.attachment, second.attachment]),
             scenarioID: ScenarioID(rawValue: "consumer-groups"), defaultMode: .replay,
             systems: [AnyScenarioSystem(second.system), AnyScenarioSystem(first.system)])

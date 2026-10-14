@@ -102,7 +102,7 @@ struct SystemOwnedRecordTests {
     func `consumer owns recursive partial and open records across capture and selection`() async throws {
         let system = try ScenarioSystem(named: "one", definition: OperationDefinition())
         let attachment = system.attachment
-        let recording = try ScenarioExecution.start(
+        let recording = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
             scenarioID: ScenarioID(rawValue: "domain-records"), defaultMode: .record,
             systems: [AnyScenarioSystem(system)])
@@ -114,7 +114,7 @@ struct SystemOwnedRecordTests {
         let result = await recording.finish()
         let definition = try #require(result.definition)
         #expect(!draft.observe(path))
-        let replay = try ScenarioExecution.start(
+        let replay = try await ScenarioExecution.start(
             definition: definition,
             scenarioID: ScenarioID(rawValue: "domain-records"), defaultMode: .replay,
             systems: [AnyScenarioSystem(system)])

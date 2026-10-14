@@ -10,14 +10,14 @@ struct ScenarioBaselineStartup {
     func start(
         baseline: ScenarioDefinition?, problem: ScenarioBaselineProblem = .missing,
         initialDiagnostics: [Diagnostic] = [])
-        throws(ScenarioStartupFailure) -> ScenarioExecution
+        async throws(ScenarioStartupFailure) -> ScenarioExecution
     {
         let resolution: (ScenarioDefinition, [Diagnostic]) = if let baseline {
             try resolve(baseline)
         } else {
             try resolveUnusable(problem)
         }
-        return try ScenarioExecution.start(
+        return try await ScenarioExecution.start(
             definition: resolution.0, scenarioID: scenarioID, defaultMode: defaultMode, systems: systems,
             initialDiagnostics: initialDiagnostics + resolution.1)
     }

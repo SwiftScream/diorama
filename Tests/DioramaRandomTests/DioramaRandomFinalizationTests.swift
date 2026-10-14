@@ -8,7 +8,7 @@ struct DioramaRandomFinalizationTests {
     func `racing random claims and finish account for every value exactly once`() async throws {
         let key = AttachmentKey(rawValue: "race")
         let values = Array(UInt64(1000)..<1128)
-        let (execution, instance) = try replayExecution(key: key, values: values)
+        let (execution, instance) = try await replayExecution(key: key, values: values)
         let generator = try execution.dependency(instance)
         let start = RandomStartBarrier(participants: values.count + 1)
         let returns = Mutex<[UInt64]>([])
@@ -49,7 +49,7 @@ struct DioramaRandomFinalizationTests {
         weak var weakReporter: DiagnosticReporter?
         let result: ScenarioFinalizationResult
         do {
-            let (execution, instance) = try replayExecution(key: key, values: [0, .max, 17])
+            let (execution, instance) = try await replayExecution(key: key, values: [0, .max, 17])
             weakExecution = execution
             generator = try execution.dependency(instance)
             reporter = execution.reporter
@@ -73,7 +73,7 @@ struct DioramaRandomFinalizationTests {
 
     private func replayExecution(
         key: AttachmentKey,
-        values: [UInt64]) throws
+        values: [UInt64]) async throws
         -> (ScenarioExecution, ScenarioSystem<any RandomNumberGenerator & Sendable>)
     {
         let preparation = ValuePreparation<UInt64>()
@@ -89,7 +89,7 @@ struct DioramaRandomFinalizationTests {
         let layout = instance.attachment
         let attachment = try ScenarioAttachment(id: layout.id).adding(
             SequentialTrack(id: layout.trackIDs[0], values: prepared))
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
             scenarioID: ScenarioID(rawValue: "random-finalization"), defaultMode: .replay,
             systems: [AnyScenarioSystem(instance)])

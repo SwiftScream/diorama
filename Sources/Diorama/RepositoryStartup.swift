@@ -59,7 +59,7 @@ enum RepositoryStartup {
         scenarioID: ScenarioID,
         defaultMode: ScenarioMode,
         layout setup: ScenarioDefinition,
-        systems: [AnyScenarioSystem]) throws(ScenarioRepositoryStartupFailure) -> DioramaRun
+        systems: [AnyScenarioSystem]) async throws(ScenarioRepositoryStartupFailure) -> DioramaRun
     {
         do {
             try repository.validatePersistability(of: setup)
@@ -82,7 +82,7 @@ enum RepositoryStartup {
             let startup = ScenarioBaselineStartup(
                 layout: setup, scenarioID: scenarioID, defaultMode: defaultMode,
                 systems: systems)
-            let execution = try startup.start(
+            let execution = try await startup.start(
                 baseline: incompatible ? nil : loadResult.baseline,
                 problem: incompatible ? .incompatibleSetup : loadResult.problem,
                 initialDiagnostics: diagnostics)

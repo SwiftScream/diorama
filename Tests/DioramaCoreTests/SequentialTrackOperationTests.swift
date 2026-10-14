@@ -7,7 +7,7 @@ struct SequentialTrackOperationTests {
 
     @Test
     func `record reservations preserve observation order across preparation completion`() async throws {
-        let (execution, lease) = try makeExecution(mode: .record, values: [])
+        let (execution, lease) = try await makeExecution(mode: .record, values: [])
         let secondIdentity = Mutex<RecordIdentity?>(nil)
         let firstPreparation = ValuePreparation<Int>(normalize: { value in
             let identity = try lease.record(capturing: { 20 }, preparation: ValuePreparation<Int>())
@@ -26,7 +26,7 @@ struct SequentialTrackOperationTests {
 
     @Test
     func `failed recording admission keeps its reserved position and health evidence`() async throws {
-        let (execution, lease) = try makeExecution(mode: .record, values: [1, 2])
+        let (execution, lease) = try await makeExecution(mode: .record, values: [1, 2])
         let failing = ValuePreparation<Int>(validate: { _ in throw UnsafeValue() })
         do {
             _ = try lease.record(capturing: { 10 }, preparation: failing)
@@ -48,7 +48,7 @@ struct SequentialTrackOperationTests {
 
     @Test
     func `close returns frozen usage and permits intentionally discarded results`() async throws {
-        let (execution, lease) = try makeExecution(mode: .replay, values: [1, 2])
+        let (execution, lease) = try await makeExecution(mode: .replay, values: [1, 2])
         _ = try lease.consumeNext()
 
         let usage = lease.close().usage
@@ -63,7 +63,7 @@ struct SequentialTrackOperationTests {
     @Test
     func `concurrent replay claims every record once`() async throws {
         let values = Array(0..<100)
-        let (execution, lease) = try makeExecution(mode: .replay, values: values)
+        let (execution, lease) = try await makeExecution(mode: .replay, values: values)
         let claimed = try await withThrowingTaskGroup(
             of: Int.self,
             returning: [Int].self)
@@ -89,7 +89,7 @@ struct SequentialTrackOperationTests {
 
     @Test
     func `exhausted replay requests retain distinct stable requested positions`() async throws {
-        let (execution, lease) = try makeExecution(mode: .replay, values: [42])
+        let (execution, lease) = try await makeExecution(mode: .replay, values: [42])
         #expect(try lease.consumeNext() == 42)
         let attempts = await withTaskGroup(
             of: Result<Int, SequentialOperationFailure>.self,
@@ -124,7 +124,7 @@ struct SequentialTrackOperationTests {
 
     @Test
     func `throwing operations retain their diagnostic before returning safe failure`() async throws {
-        let (execution, lease) = try makeExecution(mode: .replay, values: [42])
+        let (execution, lease) = try await makeExecution(mode: .replay, values: [42])
         #expect(try lease.consumeNext() == 42)
         do {
             _ = try lease.consumeNext()
@@ -138,7 +138,7 @@ struct SequentialTrackOperationTests {
 
     @Test
     func `wrong mode and closed use diagnose without touching track content`() async throws {
-        let (recordExecution, recordLease) = try makeExecution(mode: .record, values: [1, 2])
+        let (recordExecution, recordLease) = try await makeExecution(mode: .record, values: [1, 2])
         #expect(throws: SequentialOperationFailure.self) { try recordLease.consumeNext() }
         #expect(recordLease.baselineRecords().map(\.value) == [1, 2])
         #expect(recordLease.recordedRecords().isEmpty)
@@ -146,7 +146,7 @@ struct SequentialTrackOperationTests {
             .sequential(.wrongMode(expected: .replay, actual: .record)),
         ])
 
-        let (replayExecution, replayLease) = try makeExecution(mode: .replay, values: [1, 2])
+        let (replayExecution, replayLease) = try await makeExecution(mode: .replay, values: [1, 2])
         let captures = Mutex(0)
         #expect(throws: SequentialOperationFailure.self) {
             try replayLease.record(
@@ -174,8 +174,8 @@ struct SequentialTrackOperationTests {
             .lifecycle(.leaseClosed), .lifecycle(.leaseClosed),
         ])
 
-        #expect(throws: ScenarioStartupFailure.self) {
-            _ = try makeExecution(mode: .passthrough, values: [1, 2])
+        await #expect(throws: ScenarioStartupFailure.self) {
+            _ = try await makeExecution(mode: .passthrough, values: [1, 2])
         }
     }
 
@@ -191,7 +191,7 @@ struct SequentialTrackOperationTests {
                 SequentialTrack(id: ExecutionFixtures.track("second"), values: preparedValues([10, 20]))),
         ])
         let journal = ExecutionFixtures.Journal()
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "independent"), defaultMode: .replay,
             systems: [
                 ExecutionFixtures.system("second", journal: journal),
@@ -211,7 +211,7 @@ struct SequentialTrackOperationTests {
 
     private func makeExecution(
         mode: ScenarioMode,
-        values: [Int]) throws -> (ScenarioExecution, HeaderlessSequentialTrackLease<Int>)
+        values: [Int]) async throws -> (ScenarioExecution, HeaderlessSequentialTrackLease<Int>)
     {
         let attachmentID = ExecutionFixtures.attachment("primary")
         let trackID = ExecutionFixtures.track("primary")
@@ -223,7 +223,7 @@ struct SequentialTrackOperationTests {
             let lease = try context.lease(for: trackID, preparation: ValuePreparation<Int>())
             return PreparedSystem { ActivatedSystem(dependency: lease, deactivate: {}) }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "sequential-operations"), defaultMode: mode,
             systems: [AnyScenarioSystem(instance)])
         let lease = try execution.dependency(instance)

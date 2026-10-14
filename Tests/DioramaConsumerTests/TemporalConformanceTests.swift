@@ -7,7 +7,7 @@ struct TemporalConformanceTests {
     @Test
     func `public logical delay API diagnoses oversized Duration without trapping`() async throws {
         let system = try ConsumerTimedSystem.instance(key: "duration-bounds")
-        let execution = try start(system, mode: .record)
+        let execution = try await start(system, mode: .record)
         let time = try execution.dependency(system).time
         let anchor = try time.capture()
         let base = try time.logicalTime(at: anchor)
@@ -36,7 +36,7 @@ struct TemporalConformanceTests {
 
     @Test
     func `live capture preserves native order while replay runs and conversion is suspended`() async throws {
-        let setup = try mixedSetup()
+        let setup = try await mixedSetup()
         let execution = setup.execution
         let capture = setup.capture
         let playback = setup.playback
@@ -87,7 +87,7 @@ struct TemporalConformanceTests {
     @Test
     func `captured batches and nonterminal failures replay to their open horizon`() async throws {
         let system = try ConsumerTimedSystem.instance(key: "round-trip")
-        let recording = try start(system, mode: .record)
+        let recording = try await start(system, mode: .record)
         let capture = try recording.dependency(system)
         let draft = try capture.begin(input: "updates")
         let first = try draft.observe()
@@ -96,7 +96,7 @@ struct TemporalConformanceTests {
         let second = try draft.observe()
         #expect(try draft.complete(second, with: prepared(.nonterminalFailure(6), reporter: recording.reporter)))
         let definition = try #require(await recording.finish().definition)
-        let replay = try ScenarioExecution.start(
+        let replay = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "round-trip"), defaultMode: .replay,
             systems: [AnyScenarioSystem(system)])
         let services = try replay.dependency(system)
@@ -113,7 +113,7 @@ struct TemporalConformanceTests {
     @Test
     func `an unfinished conversion invalidates capture without waiting for live work`() async throws {
         let system = try ConsumerTimedSystem.instance(key: "slow")
-        let execution = try start(system, mode: .record)
+        let execution = try await start(system, mode: .record)
         let services = try execution.dependency(system)
         let draft = try services.begin(input: "updates")
         let position = try draft.observe()
@@ -140,7 +140,7 @@ struct TemporalConformanceTests {
         applicationWait: Duration) async throws
     {
         let system = try ConsumerTimedSystem.instance(key: "decisions", values: [responseRecord()])
-        let execution = try start(system)
+        let execution = try await start(system)
         let services = try execution.dependency(system)
         let claim = try services.records.claim(matching: "decision", using: .exactInput(\.input))
         let invoked = try services.time.capture()
@@ -169,7 +169,7 @@ struct TemporalConformanceTests {
     func `equal deadlines deliver open records through adapter selected actors exactly once`() async throws {
         let first = try ConsumerTimedSystem.instance(key: "first", values: [responseRecord()])
         let second = try ConsumerTimedSystem.instance(key: "second", values: [responseRecord()])
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [first.attachment, second.attachment]),
             scenarioID: ScenarioID(rawValue: "actors"), defaultMode: .replay,
             systems: [AnyScenarioSystem(second), AnyScenarioSystem(first)])
@@ -210,7 +210,7 @@ struct TemporalConformanceTests {
             ConsumerTimedObservation(delay: .zero, event: .nonterminalFailure(2)),
         ])
         let system = try ConsumerTimedSystem.instance(key: "ordered", values: [record])
-        let execution = try start(system)
+        let execution = try await start(system)
         let services = try execution.dependency(system)
         let claim = try services.records.claim(matching: (), using: .sequential())
         let receiver = Receiver()
@@ -238,8 +238,8 @@ struct TemporalConformanceTests {
     @Test
     func `finishing one execution leaves another execution and its claims active`() async throws {
         let system = try ConsumerTimedSystem.instance(key: "independent", values: [responseRecord()])
-        let first = try start(system)
-        let second = try start(system)
+        let first = try await start(system)
+        let second = try await start(system)
         let firstServices = try first.dependency(system)
         let secondServices = try second.dependency(system)
         #expect(firstServices.time !== secondServices.time)
@@ -270,7 +270,7 @@ struct TemporalConformanceTests {
     func `repeated teardown releases callback captures and rejects escaped scheduling`() async throws {
         let system = try ConsumerTimedSystem.instance(key: "teardown", values: [responseRecord()])
         for _ in 0..<16 {
-            let execution = try start(system)
+            let execution = try await start(system)
             let services = try execution.dependency(system)
             let claim = try services.records.claim(matching: (), using: .sequential())
             let pending = try pendingReceiver(services, record: claim.record.identity)
@@ -324,12 +324,12 @@ extension TemporalConformanceTests {
         let playback: ConsumerTimedServices
     }
 
-    private func mixedSetup() throws -> MixedSetup {
+    private func mixedSetup() async throws -> MixedSetup {
         let live = try ConsumerTimedSystem.instance(key: "live").withMode(.record)
         let replay = try ConsumerTimedSystem.instance(key: "replay", values: [responseRecord()])
         let passthrough = try ConsumerSequentialSystem.instance(key: AttachmentKey(rawValue: "passthrough"))
             .withMode(.passthrough)
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [live.attachment, replay.attachment, passthrough.attachment]),
             scenarioID: ScenarioID(rawValue: "mixed-time"), defaultMode: .replay,
             systems: [AnyScenarioSystem(passthrough), AnyScenarioSystem(replay), AnyScenarioSystem(live)])
@@ -384,12 +384,12 @@ extension TemporalConformanceTests {
         ])
     }
 
-    private func start(_ system: ScenarioSystem<ConsumerTimedServices>, mode: ScenarioMode = .replay) throws
+    private func start(_ system: ScenarioSystem<ConsumerTimedServices>, mode: ScenarioMode = .replay) async throws
         -> ScenarioExecution
     {
-        try ScenarioExecution.start(definition: ScenarioDefinition(attachments: [system.attachment]),
-                                    scenarioID: ScenarioID(rawValue: "timed-consumer"), defaultMode: mode,
-                                    systems: [AnyScenarioSystem(system)])
+        try await ScenarioExecution.start(definition: ScenarioDefinition(attachments: [system.attachment]),
+                                          scenarioID: ScenarioID(rawValue: "timed-consumer"), defaultMode: mode,
+                                          systems: [AnyScenarioSystem(system)])
     }
 
     private func prepared(_ event: ConsumerTimedEvent, reporter: DiagnosticReporter) throws

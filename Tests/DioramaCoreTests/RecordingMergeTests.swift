@@ -11,7 +11,8 @@ enum RecordingMergeFixtures {
         merge: RecordingMerge<Int, Int>? = nil,
         valuePolicy: ValuePreparation<Int> = .init(),
         headerPolicy: ValuePreparation<Int> = .init(),
-        failsActivation: Bool = false) throws -> (ScenarioExecution, SequentialTrackLease<Int, Int>)
+        failsActivation: Bool = false)
+        async throws -> (ScenarioExecution, SequentialTrackLease<Int, Int>)
     {
         let type = ScenarioSystemType("test.recording-merge")
         let id = TrackID(attachmentID: AttachmentID(systemTypeID: type.id, key: AttachmentKey(rawValue: "one")),
@@ -29,7 +30,7 @@ enum RecordingMergeFixtures {
                 return ActivatedSystem(dependency: lease, deactivate: {})
             }
         }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: ScenarioDefinition(attachments: [attachment]),
             scenarioID: ScenarioID(rawValue: "merge"), defaultMode: mode, systems: [AnyScenarioSystem(system)])
         return try (execution, execution.dependency(system))
@@ -49,7 +50,7 @@ struct RecordingMergeTests {
         let calls = Mutex(0)
         let reference = Mutex<SequentialTrackLease<Int, Int>?>(nil)
         defer { reference.withLock { $0 = nil } }
-        let (execution, lease) = try RecordingMergeFixtures.start(merge: { baseline, fresh in
+        let (execution, lease) = try await RecordingMergeFixtures.start(merge: { baseline, fresh in
             calls.withLock { $0 += 1 }
             #expect(baseline.header == 10)
             #expect(baseline.records.map(\.value) == [1, 2])
@@ -97,7 +98,7 @@ struct RecordingMergeTests {
             transformations.withLock { $0 += 1 }
             return value
         })
-        let (execution, lease) = try RecordingMergeFixtures.start(merge: { baseline, fresh in
+        let (execution, lease) = try await RecordingMergeFixtures.start(merge: { baseline, fresh in
             calls.withLock { $0 += 1 }
             #expect(fresh.records.isEmpty)
             return try SequentialTrack(id: fresh.id, header: ValuePreparation<Int>().admitPrepared(baseline.header + 1))
@@ -116,7 +117,8 @@ struct RecordingMergeTests {
             transformations.withLock { $0 += 1 }
             return 3
         })
-        let (execution, lease) = try RecordingMergeFixtures.start(merge: { _, fresh in fresh }, valuePolicy: policy)
+        let (execution, lease) = try await RecordingMergeFixtures.start(
+            merge: { _, fresh in fresh }, valuePolicy: policy)
         try lease.record(capturing: { 42 }, preparation: policy)
         let result = await execution.finish()
         #expect(try RecordingMergeFixtures.track(result, id: lease.id).records.map(\.value) == [3])
@@ -126,7 +128,7 @@ struct RecordingMergeTests {
 
     @Test(arguments: [ScenarioMode.replay])
     func `non recording modes preserve baseline and never run the merge`(mode: ScenarioMode) async throws {
-        let (execution, lease) = try RecordingMergeFixtures.start(mode: mode, merge: { _, _ in
+        let (execution, lease) = try await RecordingMergeFixtures.start(mode: mode, merge: { _, _ in
             Issue.record("Non-recording execution ran the merge")
             throw RecordingMergeFixtures.Failure.secret
         })
@@ -139,7 +141,7 @@ struct RecordingMergeTests {
 
     @Test(arguments: [false, true])
     func `unhealthy value or header capture does not merge a partial track`(failsHeader: Bool) async throws {
-        let (execution, lease) = try RecordingMergeFixtures.start(merge: { _, _ in
+        let (execution, lease) = try await RecordingMergeFixtures.start(merge: { _, _ in
             Issue.record("Unhealthy capture reached the merge")
             throw RecordingMergeFixtures.Failure.secret
         })
@@ -162,7 +164,7 @@ struct RecordingMergeTests {
 
     @Test
     func `unfinished header capture skips merge and late completion cannot change the report`() async throws {
-        let (execution, lease) = try RecordingMergeFixtures.start(merge: { _, _ in
+        let (execution, lease) = try await RecordingMergeFixtures.start(merge: { _, _ in
             Issue.record("Unfinished capture reached the merge")
             throw RecordingMergeFixtures.Failure.secret
         })
@@ -195,9 +197,9 @@ struct RecordingMergeTests {
     }
 
     @Test
-    func `startup rollback releases the policy without invoking merge`() throws {
-        #expect(throws: ScenarioStartupFailure.self) {
-            _ = try RecordingMergeFixtures.start(merge: { _, _ in
+    func `startup rollback releases the policy without invoking merge`() async throws {
+        await #expect(throws: ScenarioStartupFailure.self) {
+            _ = try await RecordingMergeFixtures.start(merge: { _, _ in
                 Issue.record("Startup rollback invoked the merge")
                 throw RecordingMergeFixtures.Failure.secret
             }, failsActivation: true)
@@ -208,7 +210,7 @@ struct RecordingMergeTests {
     func `throwing merge or foreign track identity invalidates the complete candidate safely`(
         foreignIdentity: Bool) async throws
     {
-        let (execution, lease) = try RecordingMergeFixtures.start(merge: { baseline, _ in
+        let (execution, lease) = try await RecordingMergeFixtures.start(merge: { baseline, _ in
             guard foreignIdentity else { throw RecordingMergeFixtures.Failure.secret }
             let foreign = TrackID(attachmentID: baseline.id.attachmentID, key: TrackKey(rawValue: "foreign"))
             return try SequentialTrack(id: foreign, header: ValuePreparation<Int>().admitPrepared(10))
@@ -230,7 +232,7 @@ struct RecordingMergeTests {
                 throw RecordingMergeFixtures.Failure.secret
             }
         })
-        let (execution, lease) = try RecordingMergeFixtures.start(merge: { _, fresh in
+        let (execution, lease) = try await RecordingMergeFixtures.start(merge: { _, fresh in
             try SequentialTrack(id: fresh.id, header: ValuePreparation<Int>().admitPrepared(invalidHeader ? 100 : 10),
                                 values: preparedValues([invalidHeader ? 3 : 100]))
         }, valuePolicy: policy, headerPolicy: policy)
@@ -255,7 +257,7 @@ struct RecordingMergeTests {
             released.withLock { $0 += 1 }
         }
         weak let weakProbe = probe
-        let (execution, lease) = try RecordingMergeFixtures.start(merge: { [probe] _, fresh in
+        let (execution, lease) = try await RecordingMergeFixtures.start(merge: { [probe] _, fresh in
             withExtendedLifetime(probe) {}
             return fresh
         })

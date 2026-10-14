@@ -33,7 +33,7 @@ struct DeadlineEngineTests {
         ])
 
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(["z", "a"], clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(["z", "a"], clock: clock.source)
         let journal = SchedulerJournal()
         let registrations: [(RecordIdentity, String)] = [
             (SchedulerFixtures.record("a"), "a"),
@@ -59,7 +59,7 @@ struct DeadlineEngineTests {
     @Test
     func `earlier insertion replaces the only wait and retains later work`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let lease = systems[0].scheduling
         let journal = SchedulerJournal()
         try lease.schedule(at: .seconds(30), for: SchedulerFixtures.record()) { journal.append("30") }
@@ -83,7 +83,7 @@ struct DeadlineEngineTests {
     @Test
     func `an early wake rechecks time without delivering before the deadline`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let journal = SchedulerJournal()
         try systems[0].scheduling.schedule(after: .seconds(10), for: SchedulerFixtures.record()) {
             journal.append("due")
@@ -102,7 +102,7 @@ struct DeadlineEngineTests {
     @Test
     func `a complete due batch is claimed before reentrant registration`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let lease = systems[0].scheduling
         let journal = SchedulerJournal()
         let secondHandle = Mutex<ScheduledItemHandle?>(nil)
@@ -133,7 +133,7 @@ struct DeadlineEngineTests {
     @Test
     func `relative deadlines use the shared execution origin and checked addition`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let lease = systems[0].scheduling
         let journal = SchedulerJournal()
         clock.advance(to: .seconds(7))
@@ -170,7 +170,7 @@ struct DeadlineEngineTests {
     @Test
     func `concurrent registration hands off every admitted item exactly once`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let lease = systems[0].scheduling
         let journal = SchedulerJournal()
         try await withThrowingTaskGroup(of: Void.self) { group in
@@ -191,7 +191,7 @@ struct DeadlineEngineTests {
     @Test
     func `finish joins the timer and closes escaped leases`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(clock: clock.source)
         let journal = SchedulerJournal()
         try systems[0].scheduling.schedule(at: .seconds(10), for: SchedulerFixtures.record()) {
             journal.append("unexpected")
@@ -216,7 +216,7 @@ struct DeadlineEngineTests {
     @Test
     func `undeclared and foreign tracks are rejected with attachment context`() async throws {
         let clock = SchedulerTestClock()
-        let (execution, systems) = try SchedulerFixtures.setup(["a", "b"], clock: clock.source)
+        let (execution, systems) = try await SchedulerFixtures.setup(["a", "b"], clock: clock.source)
         for record in [SchedulerFixtures.record("b"), SchedulerFixtures.record(track: "missing")] {
             do {
                 try systems[0].scheduling.schedule(at: .zero, for: record) { Issue.record("Invalid handoff") }

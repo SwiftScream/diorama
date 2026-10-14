@@ -4,7 +4,7 @@
 /// activation closure runs only after every attachment and declared track is
 /// prepared.
 struct PreparedSystem<Dependency: Sendable>: Sendable {
-    let activate: @Sendable () throws -> ActivatedSystem<Dependency>
+    let activate: @Sendable () async throws -> ActivatedSystem<Dependency>
 
     /// Creates a prepared system for one fresh execution.
     ///
@@ -13,7 +13,7 @@ struct PreparedSystem<Dependency: Sendable>: Sendable {
     ///   unwind its own partial installation; only returned activations can
     ///   participate in execution-owned rollback. Do not publish dependencies
     ///   from the callback; retrieve them from the successfully started run.
-    init(activate: @escaping @Sendable () throws -> ActivatedSystem<Dependency>) {
+    init(activate: @escaping @Sendable () async throws -> ActivatedSystem<Dependency>) {
         self.activate = activate
     }
 }
@@ -103,14 +103,14 @@ public struct ScenarioSystem<Dependency: Sendable>: Sendable {
                     time: context.time, clock: context.clock, scheduling: context.scheduling)
                 switch context.mode {
                 case .passthrough:
-                    return try ActivatedSystem(dependency: definition.makePassthroughDependency(), deactivate: {})
+                    return try await ActivatedSystem(dependency: definition.makePassthroughDependency(), deactivate: {})
                 case .record:
-                    return try Self.activateManaged(
+                    return try await Self.activateManaged(
                         state: definition.makeRecordState(in: stateContext), context: context,
                         dependency: definition.makeRecordDependency,
                         cleanup: definition.cleanUpRecordState)
                 case .replay:
-                    return try Self.activateManaged(
+                    return try await Self.activateManaged(
                         state: definition.makeReplayState(in: stateContext), context: context,
                         dependency: definition.makeReplayDependency,
                         cleanup: definition.cleanUpReplayState)
@@ -162,12 +162,12 @@ public struct ScenarioSystem<Dependency: Sendable>: Sendable {
 
     private static func activateManaged<State: Sendable>(
         state: State, context: SystemPreparationContext,
-        dependency: (SystemExecution<State>) throws -> Dependency,
-        cleanup: @escaping @Sendable (State) throws -> Void) throws -> ActivatedSystem<Dependency>
+        dependency: (SystemExecution<State>) async throws -> Dependency,
+        cleanup: @escaping @Sendable (State) throws -> Void) async throws -> ActivatedSystem<Dependency>
     {
         let execution = SystemExecution(state: state, context: context)
         do {
-            return try ActivatedSystem(dependency: dependency(execution),
+            return try await ActivatedSystem(dependency: dependency(execution),
                                        deactivate: { try execution.close(cleanup: cleanup) },
                                        quiesce: { await execution.join() })
         } catch {
@@ -210,7 +210,7 @@ public struct AnyScenarioSystem: Sendable {
             let mode = context.mode
             let prepared = try prepare(context)
             return AnyPreparedSystem {
-                let activation = try prepared.activate()
+                let activation = try await prepared.activate()
                 let nativeCleanup: @Sendable () throws -> Void = {}
                 return AnyActivatedSystem(
                     attachmentID: attachmentID,
@@ -228,7 +228,7 @@ public struct AnyScenarioSystem: Sendable {
 }
 
 struct AnyPreparedSystem: Sendable {
-    let activate: @Sendable () throws -> AnyActivatedSystem
+    let activate: @Sendable () async throws -> AnyActivatedSystem
 }
 
 struct AnyActivatedSystem: Sendable {

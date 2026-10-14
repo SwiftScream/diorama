@@ -65,7 +65,7 @@ struct ExecutionTimeTests {
     }
 
     private func start(_ keys: [String], clock: ControlledClock,
-                       modes: [ScenarioMode?] = []) throws -> ScenarioExecution
+                       modes: [ScenarioMode?] = []) async throws -> ScenarioExecution
     {
         let definition = try ExecutionFixtures.definition(keys)
         let systems = try keys.enumerated().map { index, key in
@@ -81,7 +81,7 @@ struct ExecutionTimeTests {
             }
             return AnyScenarioSystem(system.withMode(index < modes.count ? modes[index] : nil))
         }
-        return try ScenarioExecution.start(
+        return try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "time"),
             defaultMode: .record, systems: systems, clock: clock.source)
     }
@@ -92,7 +92,7 @@ struct ExecutionTimeTests {
         let events = EventJournal()
         let definition = try ExecutionFixtures.definition(["a", "b"])
         let systems = try ["b", "a"].map { try system($0, definition: definition, events: events) }
-        let execution = try ScenarioExecution.start(
+        let execution = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "time"),
             defaultMode: .record, systems: systems,
             clock: ExecutionClock(now: {
@@ -113,7 +113,7 @@ struct ExecutionTimeTests {
     }
 
     @Test
-    func `activation sees no origin and failed startup never reads the clock`() throws {
+    func `activation sees no origin and failed startup never reads the clock`() async throws {
         let clock = ControlledClock()
         let holder = TimeHolder()
         let earlyIssues = IssueJournal()
@@ -136,8 +136,8 @@ struct ExecutionTimeTests {
                 throw ExecutionFixtures.SecretError(journal: ExecutionFixtures.Journal())
             }
         }
-        #expect(throws: ScenarioStartupFailure.self) {
-            try ScenarioExecution.start(
+        await #expect(throws: ScenarioStartupFailure.self) {
+            try await ScenarioExecution.start(
                 definition: definition, scenarioID: ScenarioID(rawValue: "time"),
                 defaultMode: .record, systems: [AnyScenarioSystem(system)],
                 clock: clock.source)
@@ -157,7 +157,7 @@ struct ExecutionTimeTests {
     @Test
     func `captures retain observation time and order before slow conversion`() async throws {
         let clock = ControlledClock()
-        let execution = try start(["a"], clock: clock)
+        let execution = try await start(["a"], clock: clock)
         let time = try execution.dependency(ExecutionFixtures.dependencyKey("a", as: ExecutionTime.self))
         clock.advance(by: .milliseconds(10))
         let first = try time.capture()
@@ -177,8 +177,8 @@ struct ExecutionTimeTests {
     @Test
     func `mixed modes share a clock while executions have independent origins`() async throws {
         let clock = ControlledClock()
-        let first = try start(["record", "replay", "passthrough"], clock: clock,
-                              modes: [.record, .replay, .passthrough])
+        let first = try await start(["record", "replay", "passthrough"], clock: clock,
+                                    modes: [.record, .replay, .passthrough])
         let record = try first.dependency(ExecutionFixtures.dependencyKey("record", as: ExecutionTime.self))
         let replay = try first.dependency(ExecutionFixtures.dependencyKey("replay", as: ExecutionTime.self))
         let passthrough = try first.dependency(ExecutionFixtures.dependencyKey("passthrough", as: ExecutionTime.self))
@@ -186,7 +186,7 @@ struct ExecutionTimeTests {
         clock.advance(by: .milliseconds(20))
         let firstCapture = try record.capture()
 
-        let second = try start(["other"], clock: clock)
+        let second = try await start(["other"], clock: clock)
         let other = try second.dependency(ExecutionFixtures.dependencyKey("other", as: ExecutionTime.self))
         #expect(try other.logicalNow() == .zero)
         clock.advance(by: .milliseconds(7))
@@ -202,7 +202,7 @@ struct ExecutionTimeTests {
 
     @Test
     func `concurrent captures keep monotonic order`() async throws {
-        let execution = try start(["a"], clock: ControlledClock())
+        let execution = try await start(["a"], clock: ControlledClock())
         let time = try execution.dependency(ExecutionFixtures.dependencyKey("a", as: ExecutionTime.self))
         let captures = try await withThrowingTaskGroup(of: LogicalTimeCapture.self) { group in
             for _ in 0..<64 {
@@ -228,7 +228,7 @@ struct ExecutionTimeTests {
     @Test
     func `invalid intervals and arithmetic fail with safe diagnostics`() async throws {
         let clock = ControlledClock()
-        let execution = try start(["a"], clock: clock)
+        let execution = try await start(["a"], clock: clock)
         let time = try execution.dependency(ExecutionFixtures.dependencyKey("a", as: ExecutionTime.self))
         let first = try time.capture()
         clock.advance(by: .seconds(1))
@@ -257,7 +257,7 @@ struct ExecutionTimeTests {
     @Test
     func `backward source and closed execution reject new reads`() async throws {
         let clock = ControlledClock()
-        let execution = try start(["a"], clock: clock)
+        let execution = try await start(["a"], clock: clock)
         let time = try execution.dependency(ExecutionFixtures.dependencyKey("a", as: ExecutionTime.self))
         clock.advance(by: .milliseconds(10))
         let token = try time.capture()
