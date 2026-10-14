@@ -278,6 +278,7 @@ test-integration design. They do not authorize those APIs.
   records strict runtime admission of resolved wall content, public malformed
   baseline and repository proofs, and preserved passthrough behavior.
 
+- [State-owned lifecycle evidence](evidence/003-Fa08-managed-resource-lifecycle.md)
   records factory-owned partial construction, typed resource handoff, actor
   access, awaited finalization, passthrough abandonment, and platform verification.
 
