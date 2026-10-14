@@ -30,7 +30,7 @@ private struct ConsumerOperationDraft: Sendable {
 
     func observe(_ path: PreparedValue<ConsumerOperation.Path>) -> Bool {
         guard !execution.isClosed else { return false }
-        return (try? execution.withActiveState { state, _ in
+        return (try? execution.state.withLock { state, _ in
             guard let current = state.drafts[identity] else { return false }
             state.drafts[identity] = ConsumerOperation(request: current.request, path: path.value)
             return true
@@ -45,7 +45,7 @@ private struct OperationDependency: Sendable {
     }
 
     func begin(input: String) throws -> ConsumerOperationDraft {
-        let identity = try execution.withActiveState { state, operation in
+        let identity = try execution.state.withLock { state, operation in
             try operation.beginRecord(
                 on: state.records, preparation: ValuePreparation<ConsumerOperation>(),
                 capturing: { identity in
@@ -61,7 +61,7 @@ private struct OperationDependency: Sendable {
     func claim(matching input: String, using selector: ReplaySelector<String, ConsumerOperation>) throws
         -> ReplayClaim<ConsumerOperation>
     {
-        try execution.withActiveState { state, operation in
+        try execution.state.withLock { state, operation in
             try operation.claim(on: state.records, matching: input, using: selector)
         }
     }
@@ -90,7 +90,7 @@ private struct OperationDefinition: SystemDefinition {
         OperationDependency(execution: execution)
     }
 
-    func makePassthroughDependency() throws -> OperationDependency {
+    func makePassthroughDependency(using _: SystemExecution<Void>) throws -> OperationDependency {
         throw OperationFailure.unsupported
     }
 }

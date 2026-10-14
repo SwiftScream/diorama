@@ -56,7 +56,7 @@ private struct EarlierDefinition: SystemDefinition {
         makeRecordDependency(using: execution)
     }
 
-    func makePassthroughDependency() -> Int {
+    func makePassthroughDependency(using _: SystemExecution<Void>) -> Int {
         1
     }
 }

@@ -189,7 +189,8 @@ enum ReportText {
 
     private static func lifecycle(_ issue: ScenarioLifecycleIssue) -> String {
         switch issue {
-        case .activationFailed, .startupCanceled, .cleanupFailed: lifecycleCompletion(issue)
+        case .activationFailed, .startupCanceled, .cleanupFailed, .trackedValueInsideState, .lifecycleContextClosed:
+            lifecycleCompletion(issue)
         default: lifecycleAccess(issue)
         }
     }
@@ -198,6 +199,8 @@ enum ReportText {
         switch issue {
         case .activationFailed: "activation-failed"
         case .startupCanceled: "startup-canceled"
+        case .trackedValueInsideState: "tracked-value-inside-state"
+        case .lifecycleContextClosed: "lifecycle-context-closed"
         default: "cleanup-failed"
         }
     }
@@ -212,7 +215,8 @@ enum ReportText {
         case .leaseClosed: "lease-closed"
         case .executionClosed: "execution-closed"
         case .invalidDependencyRequest: "invalid-dependency-request"
-        case .activationFailed, .startupCanceled, .cleanupFailed: lifecycleCompletion(issue)
+        case .activationFailed, .startupCanceled, .cleanupFailed, .trackedValueInsideState, .lifecycleContextClosed:
+            lifecycleCompletion(issue)
         }
     }
 }

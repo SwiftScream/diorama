@@ -18,29 +18,28 @@ struct PreparedSystem<Dependency: Sendable>: Sendable {
     }
 }
 
-/// An installed dependency and its record/replay cleanup obligation.
+/// An installed dependency and its all-mode cleanup obligation.
 struct ActivatedSystem<Dependency: Sendable>: Sendable {
     let dependency: Dependency
-    let deactivate: @Sendable () throws -> Void
+    let deactivate: @Sendable () async throws -> Void
     var quiesce: @Sendable () async -> Void = {}
+    var beginFinalization: @Sendable () async -> Void = {}
+    var release: @Sendable () -> Void = {}
 
     /// Creates a successful activation.
     ///
     /// - Parameters:
     ///   - dependency: The consumer-facing handle. Record/replay handles own
     ///     leases; passthrough returns the ordinary native dependency directly.
-    ///   - deactivate: Synchronous sequential-adapter cleanup, called exactly
-    ///     once for record/replay by finish or startup rollback. Passthrough
-    ///     ignores this callback and only releases its dependency references.
-    ///     Release Diorama-owned resources;
-    ///     do not close or cancel consumer-owned sources. Native asynchronous
-    ///     quiescence is not part of this sequential extension boundary.
-    init(dependency: Dependency, deactivate: @escaping @Sendable () throws -> Void) {
+    ///   - deactivate: Awaited cleanup after stop requests and scope drainage.
+    ///     Called once by finish or rollback in every mode. Hooks define which
+    ///     work is owned, including any independent consumer forwarding lifetime.
+    init(dependency: Dependency, deactivate: @escaping @Sendable () async throws -> Void) {
         self.dependency = dependency
         self.deactivate = deactivate
     }
 
-    init(dependency: Dependency, deactivate: @escaping @Sendable () throws -> Void,
+    init(dependency: Dependency, deactivate: @escaping @Sendable () async throws -> Void,
          quiesce: @escaping @Sendable () async -> Void)
     {
         self.dependency = dependency
@@ -103,17 +102,20 @@ public struct ScenarioSystem<Dependency: Sendable>: Sendable {
                     time: context.time, clock: context.clock, scheduling: context.scheduling)
                 switch context.mode {
                 case .passthrough:
-                    return try await ActivatedSystem(dependency: definition.makePassthroughDependency(), deactivate: {})
+                    return try await Self.activateManaged(
+                        state: definition.makePassthroughState(in: stateContext), context: context,
+                        dependency: definition.makePassthroughDependency,
+                        stop: definition.requestStopPassthrough, cleanup: definition.cleanUpPassthrough)
                 case .record:
                     return try await Self.activateManaged(
                         state: definition.makeRecordState(in: stateContext), context: context,
                         dependency: definition.makeRecordDependency,
-                        cleanup: definition.cleanUpRecordState)
+                        stop: definition.requestStopRecord, cleanup: definition.cleanUpRecord)
                 case .replay:
                     return try await Self.activateManaged(
                         state: definition.makeReplayState(in: stateContext), context: context,
                         dependency: definition.makeReplayDependency,
-                        cleanup: definition.cleanUpReplayState)
+                        stop: definition.requestStopReplay, cleanup: definition.cleanUpReplay)
                 }
             }
         }
@@ -163,20 +165,38 @@ public struct ScenarioSystem<Dependency: Sendable>: Sendable {
     private static func activateManaged<State: Sendable>(
         state: State, context: SystemPreparationContext,
         dependency: (SystemExecution<State>) async throws -> Dependency,
-        cleanup: @escaping @Sendable (State) throws -> Void) async throws -> ActivatedSystem<Dependency>
+        stop: @escaping @Sendable (borrowing SystemLifecycleContext<State>, Dependency?) async -> Void,
+        cleanup: @escaping @Sendable (borrowing SystemLifecycleContext<State>, Dependency?)
+        async -> SystemCleanupResult)
+        async throws -> ActivatedSystem<Dependency>
     {
+        // Adopt the returned state before any cancellation check or suspension.
         let execution = SystemExecution(state: state, context: context)
+        let facade: Dependency
         do {
-            return try await ActivatedSystem(dependency: dependency(execution),
-                                       deactivate: { try execution.close(cleanup: cleanup) },
-                                       quiesce: { await execution.join() })
+            try Task.checkCancellation()
+            facade = try await dependency(execution)
         } catch {
-            do { try execution.close(cleanup: cleanup) } catch {
-                context.reporter.record(Diagnostic(issue: .lifecycle(.cleanupFailed),
-                                                   context: .attachment(context.attachmentID)))
-            }
-            throw error
+            // Include this returned state in the common rollback. Never join it
+            // before earlier attachments have received their stop requests.
+            let lifecycle = SystemLifecycle(execution: execution, dependency: nil,
+                                            stop: stop, cleanup: cleanup)
+            throw SystemActivationFailure(
+                canceled: error is CancellationError,
+                partial: AnyActivatedSystem(
+                    attachmentID: context.attachmentID, dependency: nil,
+                    deactivate: { try await lifecycle.end() },
+                    quiesce: { await execution.join() }, beginFinalization: { await lifecycle.begin() },
+                    release: { execution.detach() }))
         }
+        // Preserve the outer optional even when a successful Dependency is nil.
+        let lifecycle = SystemLifecycle(execution: execution, dependency: .some(facade),
+                                        stop: stop, cleanup: cleanup)
+        var activation = ActivatedSystem(dependency: facade, deactivate: { try await lifecycle.end() },
+                                         quiesce: { await execution.join() })
+        activation.beginFinalization = { await lifecycle.begin() }
+        activation.release = { execution.detach() }
+        return activation
     }
 }
 
@@ -207,16 +227,15 @@ public struct AnyScenarioSystem: Sendable {
         modeOverride = system.modeOverride
         allowsUnclaimedReplayRecords = system.allowsUnclaimedReplayRecords
         self.prepare = { context in
-            let mode = context.mode
             let prepared = try prepare(context)
             return AnyPreparedSystem {
                 let activation = try await prepared.activate()
-                let nativeCleanup: @Sendable () throws -> Void = {}
                 return AnyActivatedSystem(
                     attachmentID: attachmentID,
-                    dependency: activation.dependency,
-                    deactivate: mode == .passthrough ? nativeCleanup : activation.deactivate,
-                    quiesce: activation.quiesce)
+                    dependency: .some(activation.dependency),
+                    deactivate: activation.deactivate,
+                    quiesce: activation.quiesce, beginFinalization: activation.beginFinalization,
+                    release: activation.release)
             }
         }
     }
@@ -233,7 +252,15 @@ struct AnyPreparedSystem: Sendable {
 
 struct AnyActivatedSystem: Sendable {
     let attachmentID: AttachmentID
-    let dependency: any Sendable
-    let deactivate: @Sendable () throws -> Void
+    let dependency: (any Sendable)?
+    let deactivate: @Sendable () async throws -> Void
     var quiesce: @Sendable () async -> Void = {}
+    var beginFinalization: @Sendable () async -> Void = {}
+    var release: @Sendable () -> Void = {}
+}
+
+/// A returned state whose dependency factory settles unsuccessfully.
+struct SystemActivationFailure: Error {
+    let canceled: Bool
+    let partial: AnyActivatedSystem
 }

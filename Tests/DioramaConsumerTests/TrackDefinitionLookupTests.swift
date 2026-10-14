@@ -60,7 +60,9 @@ private struct TrackLookupDefinition: SystemDefinition {
         #expect(found.records == registered.records)
     }
 
-    func makeRecordState(in context: borrowing SystemStateContext) throws -> SequentialTrackLease<Int, String> {
+    func makeRecordState(in context: borrowing SystemStateContext) throws
+        -> SequentialTrackLease<Int, String>
+    {
         journal.activations.withLock { $0 += 1 }
         if let invalid, failDuringActivation {
             switch invalid {
@@ -84,14 +86,16 @@ private struct TrackLookupDefinition: SystemDefinition {
         return lease
     }
 
-    func makeReplayState(in context: borrowing SystemStateContext) throws -> SequentialTrackLease<Int, String> {
+    func makeReplayState(in context: borrowing SystemStateContext) throws
+        -> SequentialTrackLease<Int, String>
+    {
         try makeRecordState(in: context)
     }
 
     func makeRecordDependency(using execution: SystemExecution<SequentialTrackLease<Int, String>>)
         throws -> SequentialTrackLease<Int, String>
     {
-        try execution.withActiveState { lease, _ in lease }
+        try execution.state.withLock { lease, _ in lease }
     }
 
     func makeReplayDependency(using execution: SystemExecution<SequentialTrackLease<Int, String>>)
@@ -100,7 +104,7 @@ private struct TrackLookupDefinition: SystemDefinition {
         try makeRecordDependency(using: execution)
     }
 
-    func makePassthroughDependency() throws -> SequentialTrackLease<Int, String> {
+    func makePassthroughDependency(using _: SystemExecution<Void>) throws -> SequentialTrackLease<Int, String> {
         throw CancellationError()
     }
 }

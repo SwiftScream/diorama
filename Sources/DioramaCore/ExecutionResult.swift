@@ -16,6 +16,10 @@ public enum ScenarioLifecycleIssue: Equatable, Sendable {
     case startupCanceled
     /// An activated system's cleanup callback failed.
     case cleanupFailed
+    /// A native resource was accessed while mutable state was protected.
+    case trackedValueInsideState
+    /// A retained lifecycle state view was used after its hook returned.
+    case lifecycleContextClosed
     /// A closed lease was used to submit an active-system diagnostic.
     case leaseClosed
     /// A dependency was requested after execution admission closed.

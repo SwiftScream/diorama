@@ -76,8 +76,12 @@ compiler probes. The latter compile one external `SystemDefinition` and require
 ordinary compiler rejection for seven scoped-context, operation/state escape,
 and raw track mutation examples. Compiler crashes and unexpected acceptance fail
 the gate. These probes use the current test build's Core module, with the same
-scratch path and configuration, on macOS and Linux;
-iOS separately compiles and executes the public consumer conformance tests.
+scratch path and configuration, on macOS and Linux.
+The resource-lifecycle probes additionally compile actual public Core APIs and
+require eight ordinary rejections for throwing hooks, wrong-actor access, async
+locked bodies, lifecycle context escape, and lifecycle operation effects. These run with SwiftPM tests on macOS/Linux and with the iOS
+coverage gate against the Simulator products. iOS also compiles and executes
+the public consumer conformance tests.
 
 Exact names can follow existing SwiftScream convention if another convention
 is preferred. CI must invoke these entry points or the same subordinate

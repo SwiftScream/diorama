@@ -179,17 +179,22 @@ final class DioramaSetupProbe: Sendable {
             SetupDependency(execution: execution, mode: .replay)
         }
 
-        func makePassthroughDependency() throws -> SetupDependency {
-            throw ConsumerSetupFailure.unsupported
-        }
-
-        func cleanUpRecordState(_: HeaderlessSequentialTrackLease<Int>) {
+        func cleanUpRecord(using _: borrowing SystemLifecycleContext<HeaderlessSequentialTrackLease<Int>>,
+                           dependency _: SetupDependency?) -> SystemCleanupResult
+        {
             #expect(!Task.isCancelled)
             probe.events.withLock { $0.append("cleanup-" + key) }
+            return .completed
         }
 
-        func cleanUpReplayState(_ state: HeaderlessSequentialTrackLease<Int>) {
-            cleanUpRecordState(state)
+        func cleanUpReplay(using lifecycle: borrowing SystemLifecycleContext<HeaderlessSequentialTrackLease<Int>>,
+                           dependency: SetupDependency?) -> SystemCleanupResult
+        {
+            cleanUpRecord(using: lifecycle, dependency: dependency)
+        }
+
+        func makePassthroughDependency(using _: SystemExecution<Void>) throws -> SetupDependency {
+            throw ConsumerSetupFailure.unsupported
         }
     }
 }
@@ -202,15 +207,15 @@ struct SetupDependency: Sendable {
     }
 
     func report(_ issue: DiagnosticIssue) -> Bool {
-        (try? execution.withActiveState { lease, operation in operation.report(on: lease, issue) }) ?? false
+        (try? execution.state.withLock { lease, operation in operation.report(on: lease, issue) }) ?? false
     }
 
     func consumeNext() throws -> Int {
-        try execution.withActiveState { lease, operation in try operation.consumeNext(on: lease) }
+        try execution.state.withLock { lease, operation in try operation.consumeNext(on: lease) }
     }
 
     func record(capturing capture: () throws -> Int, preparation: ValuePreparation<Int>) throws {
-        _ = try execution.withActiveState { lease, operation in
+        _ = try execution.state.withLock { lease, operation in
             try operation.record(on: lease, capturing: capture, preparation: preparation)
         }
     }
@@ -220,8 +225,14 @@ private enum ConsumerSetupFailure: Error { case unsupported }
 
 private struct OtherSetupDefinition: SystemDefinition {
     let systemType = ScenarioSystemType("other")
-    func makeRecordState(in _: borrowing SystemStateContext) {}
-    func makeReplayState(in _: borrowing SystemStateContext) {}
+    func makeRecordState(in _: borrowing SystemStateContext) {
+        ()
+    }
+
+    func makeReplayState(in _: borrowing SystemStateContext) {
+        ()
+    }
+
     func makeRecordDependency(using _: SystemExecution<Void>) -> Bool {
         true
     }
@@ -230,7 +241,7 @@ private struct OtherSetupDefinition: SystemDefinition {
         true
     }
 
-    func makePassthroughDependency() -> Bool {
+    func makePassthroughDependency(using _: SystemExecution<Void>) -> Bool {
         true
     }
 }

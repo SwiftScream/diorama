@@ -27,7 +27,7 @@ struct RecordingDateSource<Source: DioramaDateSource>: DioramaDateSource {
 
     var now: Date {
         do {
-            return try execution.withActiveState { state, operation in
+            return try execution.state.withLock { state, operation in
                 state.recording.read(capturing: { source.now }, lease: state.values,
                                      operation: &operation) ?? source.now
             }

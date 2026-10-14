@@ -99,7 +99,7 @@ private struct RecordingRandom<Source: RandomNumberGenerator & Sendable>: Random
 
     func next() -> UInt64 {
         do {
-            return try execution.withActiveState { values, operation in
+            return try execution.state.withLock { values, operation in
                 var result: UInt64?
                 // Reserve before reading; a rejected recording must not lose or
                 // repeat a native read that already happened.
@@ -133,11 +133,15 @@ private struct RandomDefinition<Source: RandomNumberGenerator & Sendable>: Syste
         [values.erased]
     }
 
-    func makeRecordState(in context: borrowing SystemStateContext) throws -> HeaderlessSequentialTrackLease<UInt64> {
+    func makeRecordState(in context: borrowing SystemStateContext) throws
+        -> HeaderlessSequentialTrackLease<UInt64>
+    {
         try context.lease(for: values)
     }
 
-    func makeReplayState(in context: borrowing SystemStateContext) throws -> HeaderlessSequentialTrackLease<UInt64> {
+    func makeReplayState(in context: borrowing SystemStateContext) throws
+        -> HeaderlessSequentialTrackLease<UInt64>
+    {
         try context.lease(for: values)
     }
 
@@ -150,10 +154,10 @@ private struct RandomDefinition<Source: RandomNumberGenerator & Sendable>: Syste
     func makeReplayDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<UInt64>>)
         throws -> any RandomNumberGenerator & Sendable
     {
-        try execution.withActiveState { values, _ in ReplayingRandom(values: values) }
+        try execution.state.withLock { values, _ in ReplayingRandom(values: values) }
     }
 
-    func makePassthroughDependency() -> any RandomNumberGenerator & Sendable {
+    func makePassthroughDependency(using _: SystemExecution<Void>) -> any RandomNumberGenerator & Sendable {
         sourceFactory()
     }
 }

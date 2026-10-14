@@ -15,27 +15,31 @@ private struct ReplayLeaseDefinition: SystemDefinition {
         [values.erased]
     }
 
-    func makeRecordState(in context: borrowing SystemStateContext) throws -> HeaderlessSequentialTrackLease<Int> {
+    func makeRecordState(in context: borrowing SystemStateContext) throws
+        -> HeaderlessSequentialTrackLease<Int>
+    {
         try context.lease(for: values)
     }
 
-    func makeReplayState(in context: borrowing SystemStateContext) throws -> HeaderlessSequentialTrackLease<Int> {
+    func makeReplayState(in context: borrowing SystemStateContext) throws
+        -> HeaderlessSequentialTrackLease<Int>
+    {
         try context.lease(for: values)
     }
 
     func makeRecordDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<Int>>)
         throws -> HeaderlessSequentialTrackLease<Int>
     {
-        try execution.withActiveState { values, _ in values }
+        try execution.state.withLock { values, _ in values }
     }
 
     func makeReplayDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<Int>>)
         throws -> HeaderlessSequentialTrackLease<Int>
     {
-        try execution.withActiveState { values, _ in values }
+        try execution.state.withLock { values, _ in values }
     }
 
-    func makePassthroughDependency() throws -> HeaderlessSequentialTrackLease<Int> {
+    func makePassthroughDependency(using _: SystemExecution<Void>) throws -> HeaderlessSequentialTrackLease<Int> {
         throw CancellationError()
     }
 }

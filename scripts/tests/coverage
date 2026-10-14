@@ -6,7 +6,7 @@ set -euo pipefail
 source "$(dirname "$0")/../_common"
 fixture=$(mktemp -d "${TMPDIR:-/tmp}/diorama-coverage.XXXXXXXX")
 trap 'rm -rf "$fixture"' EXIT
-mkdir -p "$fixture/scripts" "$fixture/bin" "$fixture/Sources" "$fixture/.build/old"
+mkdir -p "$fixture/scripts/tests" "$fixture/bin" "$fixture/Sources" "$fixture/.build/old"
 cp "$script_directory/coverage" "$script_directory/_common" "$fixture/scripts/"
 touch "$fixture/.build/old/RemovedTests.xctest"
 chmod +x "$fixture/.build/old/RemovedTests.xctest"
@@ -44,12 +44,16 @@ case "$tool" in
         test -n "$scratch"
         printf '%s/products/codecov/current.json\n' "$scratch"
         ;;
+    resource-lifecycle)
+        test "$2" = ios
+        test -d "$1"
+        ;;
     xcodebuild)
         test -n "$derived"
         if [[ $1 == test ]]; then
-            mkdir -p "$derived/Build/Products/Debug/CurrentTests.xctest" "$derived/Build/ProfileData/current"
-            touch "$derived/Build/Products/Debug/CurrentTests.xctest/CurrentTests"
-            chmod +x "$derived/Build/Products/Debug/CurrentTests.xctest/CurrentTests"
+            mkdir -p "$derived/Build/Products/Debug-iphonesimulator/CurrentTests.xctest" "$derived/Build/ProfileData/current"
+            touch "$derived/Build/Products/Debug-iphonesimulator/CurrentTests.xctest/CurrentTests"
+            chmod +x "$derived/Build/Products/Debug-iphonesimulator/CurrentTests.xctest/CurrentTests"
             touch "$derived/Build/ProfileData/current/Coverage.profdata"
         fi
         ;;
@@ -79,6 +83,7 @@ for tool in swift xcodebuild llvm-cov xcrun; do
     ln -s tool "$fixture/bin/$tool"
 done
 cp "$fixture/bin/tool" "$fixture/scripts/test"
+cp "$fixture/bin/tool" "$fixture/scripts/tests/resource-lifecycle"
 
 export PATH="$fixture/bin:$PATH"
 for platform in macos linux; do

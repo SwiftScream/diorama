@@ -77,7 +77,7 @@ final class StartupProbe: Sendable {
             .managed(execution)
         }
 
-        func makePassthroughDependency() -> StartupDependency {
+        func makePassthroughDependency(using _: SystemExecution<Void>) -> StartupDependency {
             probe.state.withLock { $0.activations += 1 }
             return .passthrough
         }
@@ -90,14 +90,14 @@ enum StartupDependency: Sendable {
 
     func report(_ issue: DiagnosticIssue, recordingImpact: RecordingImpact = .none) -> Bool {
         guard case let .managed(execution) = self else { return false }
-        return (try? execution.withActiveState { lease, operation in
+        return (try? execution.state.withLock { lease, operation in
             operation.report(on: lease, issue, recordingImpact: recordingImpact)
         }) ?? false
     }
 
     func consumeNext() throws -> UInt64 {
         guard case let .managed(execution) = self else { throw StartupFault() }
-        return try execution.withActiveState { lease, operation in try operation.consumeNext(on: lease) }
+        return try execution.state.withLock { lease, operation in try operation.consumeNext(on: lease) }
     }
 
     func record(capturing capture: () throws -> UInt64, preparation: ValuePreparation<UInt64>) throws {
@@ -105,7 +105,7 @@ enum StartupDependency: Sendable {
             _ = try capture()
             return
         }
-        _ = try execution.withActiveState { lease, operation in
+        _ = try execution.state.withLock { lease, operation in
             try operation.record(on: lease, capturing: capture, preparation: preparation)
         }
     }

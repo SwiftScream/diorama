@@ -51,7 +51,7 @@ struct PurePassthroughTests {
         #expect(factories.withLock { $0 } == 1)
         let result = await execution.finish()
         #expect(releases.withLock { $0 } == 1)
-        #expect(cleanups.withLock { $0 } == 0)
+        #expect(cleanups.withLock { $0 } == 1)
         #expect(result.report.diagnostics.isEmpty)
         #expect(result.usage[0].tracks.map(\.id) == system.attachment.trackIDs)
         #expect(result.usage[0].tracks.allSatisfy {
@@ -71,9 +71,10 @@ struct PurePassthroughTests {
     {
         let releases = Mutex(0)
         let partialCleanups = Mutex(0)
+        let cleanups = Mutex(0)
         let first = try system("first", factory: {
             Resource { releases.withLock { $0 += 1 } }
-        }, cleanup: { Issue.record("Core must not invoke managed cleanup on passthrough") })
+        }, cleanup: { cleanups.withLock { $0 += 1 } })
         let second = try system("second", factory: {
             let partial = Resource { releases.withLock { $0 += 1 } }
             defer {
@@ -90,6 +91,7 @@ struct PurePassthroughTests {
         }
         #expect(releases.withLock { $0 } == 2)
         #expect(partialCleanups.withLock { $0 } == 1)
+        #expect(cleanups.withLock { $0 } == 1)
     }
 
     @Test

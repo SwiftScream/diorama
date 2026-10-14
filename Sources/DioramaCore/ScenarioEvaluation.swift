@@ -107,7 +107,8 @@ private extension DiagnosticIssue {
         case .sequential, .logicalTime, .scheduling: true
         case let .lifecycle(issue):
             switch issue {
-            case .invalidTrackRequest, .preparationClosed, .leaseClosed, .executionClosed, .invalidDependencyRequest:
+            case .invalidTrackRequest, .preparationClosed, .leaseClosed, .executionClosed, .invalidDependencyRequest,
+                 .trackedValueInsideState, .lifecycleContextClosed:
                 true
             case .invalidRegistration, .preparationFailed, .unpreparedTrack,
                  .activationFailed, .startupCanceled, .cleanupFailed:

@@ -65,7 +65,7 @@ public final class ConsumerSequentialDependency: Sendable {
     public func next(capturing liveValue: () -> ConsumerStableValue) throws -> ConsumerStableValue {
         guard case let .managed(execution, mode) = behavior else { return liveValue() }
         do {
-            return try execution.withActiveState { lease, operation in
+            return try execution.state.withLock { lease, operation in
                 if mode == .replay {
                     return try operation.consumeNext(on: lease)
                 }
@@ -95,7 +95,7 @@ public final class ConsumerSequentialDependency: Sendable {
     @discardableResult
     public func reportUnusedRecord() -> Bool {
         guard case let .managed(execution, _) = behavior else { return false }
-        return (try? execution.withActiveState { lease, operation in
+        return (try? execution.state.withLock { lease, operation in
             operation.report(on: lease, .system(DiagnosticLabel("consumer-unused-record")))
         }) ?? false
     }
@@ -195,7 +195,7 @@ struct ConsumerSequentialDefinition: SystemDefinition {
         ConsumerSequentialDependency(execution: execution, mode: .replay)
     }
 
-    func makePassthroughDependency() -> ConsumerSequentialDependency {
+    func makePassthroughDependency(using _: SystemExecution<Void>) -> ConsumerSequentialDependency {
         ConsumerSequentialDependency()
     }
 }

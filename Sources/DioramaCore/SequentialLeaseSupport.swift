@@ -5,13 +5,22 @@ public typealias HeaderlessSequentialTrackLease<Value: Sendable> = SequentialTra
 
 /// A small shared closure bit, never a reference back to execution resources.
 final class ExecutionAdmission: Sendable {
-    private let closed = Mutex(false)
+    private struct State { var closed = false; var published = false }
+    private let state = Mutex(State())
     var isClosed: Bool {
-        closed.withLock { $0 }
+        state.withLock { $0.closed }
+    }
+
+    var isPublished: Bool {
+        state.withLock { $0.published && !$0.closed }
+    }
+
+    func publish() {
+        state.withLock { $0.published = true }
     }
 
     func close() {
-        closed.withLock { $0 = true }
+        state.withLock { $0.closed = true }
     }
 }
 

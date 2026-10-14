@@ -21,7 +21,7 @@ private struct StartupServices {
 /// Cleanup runs outside the execution lock; diagnostic retention invokes no callbacks.
 /// Correct cleanup requires awaiting ``finish()``; deinitialization is not a
 /// lifecycle substitute. Record/replay dependencies honor lease closure;
-/// passthrough dependencies retain their native lifetime and cleanup obligations.
+/// passthrough hooks determine ownership and the native shutdown policy.
 public final class ScenarioExecution: Sendable {
     private struct ResourceContents: Sendable {
         var systems: [AnyActivatedSystem] = []
@@ -66,37 +66,41 @@ public final class ScenarioExecution: Sendable {
             if let horizonIssue {
                 reporter.record(Diagnostic(issue: .logicalTime(horizonIssue), recordingImpact: .invalidatesCandidate))
             }
-            await scheduler.stop()?.value
-            await quiesce()
-            let final = release(reporter: reporter)
+            let final = await finalizeResources(reporter: reporter)
             let report = reporter.freeze()
             return ScenarioFinalizationResult(definition: report.recordingHealth.isHealthy ? final.definition : nil,
                                               report: report, cleanup: final.cleanup, usage: final.usage)
         }
 
-        private func quiesce() async {
-            let owners = contents.withLock { ($0.systems, $0.leases) }
-            for system in owners.0 {
-                await system.quiesce()
-            }
-            for lease in owners.1 {
-                await lease.join()
-            }
+        private func finalizeResources(reporter: DiagnosticReporter) async -> FinalizedContents {
+            let cleanup = await stopAndClean(reporter: reporter)
+            return release(cleanup: cleanup)
         }
 
-        private func release(reporter: DiagnosticReporter) -> FinalizedContents {
+        private func stopAndClean(reporter: DiagnosticReporter) async -> [AttachmentCleanup] {
+            let schedulerTask = scheduler.stop()
+            let owners = contents.withLock { ($0.systems, $0.leases) }
+            return await ScenarioExecution.stopAndClean(
+                owners.0, leases: owners.1, schedulerTask: schedulerTask, reporter: reporter)
+        }
+
+        private func release(cleanup: [AttachmentCleanup]) -> FinalizedContents {
             time.close()
-            let detached = contents.withLock { contents in
+            var detached = contents.withLock { contents in
                 let detached = contents
                 contents = ResourceContents()
                 return detached
             }
             let tracks = detached.leases.map { $0.close(mergingRecording: true) }
+            for system in detached.systems {
+                system.release()
+            }
+            // Drop dependencies and hook captures before candidate/report creation.
+            // Their destruction may report or reenter and occurs outside all locks.
+            detached.systems.removeAll()
             let definition = detached.definition?.replacingRecordings(tracks.compactMap(\.recording))
-            // This scope drops dependencies and cleanup captures before freeze.
-            // Their destruction, like callbacks, occurs outside all locks.
             return FinalizedContents(definition: definition,
-                                     cleanup: ScenarioExecution.cleanUp(detached.systems, reporter: reporter),
+                                     cleanup: cleanup,
                                      usage: usage.snapshot(tracks.map(\.usage)))
         }
     }
@@ -238,6 +242,7 @@ public final class ScenarioExecution: Sendable {
         let execution = ScenarioExecution(systems: activated, leases: leases, reporter: reporter,
                                           usage: usage, definition: definition, time: time, scheduler: scheduler)
         time.start()
+        admission.publish()
         return execution
     }
 
@@ -254,7 +259,14 @@ public final class ScenarioExecution: Sendable {
                 try await activated.append(preparedSystem.activate())
                 try Task.checkCancellation()
             } catch {
-                let issue: ScenarioLifecycleIssue = error is CancellationError ? .startupCanceled : .activationFailed
+                let canceled: Bool
+                if let failure = error as? SystemActivationFailure {
+                    activated.append(failure.partial)
+                    canceled = failure.canceled
+                } else {
+                    canceled = error is CancellationError
+                }
+                let issue: ScenarioLifecycleIssue = canceled ? .startupCanceled : .activationFailed
                 reporter.record(Diagnostic(issue: .lifecycle(issue),
                                            context: .attachment(attachment.id)))
                 services.close()
@@ -273,7 +285,7 @@ public final class ScenarioExecution: Sendable {
     ///
     /// Retaining a record/replay handle does not extend its lease lifetime. A
     /// lookup racing finish may return a managed handle already closed by first
-    /// use. Passthrough handles retain their ordinary native lifetime.
+    /// use. Passthrough hooks determine the native dependency's shutdown policy.
     ///
     /// - Parameter key: The configured system's typed dependency key.
     /// - Returns: The same activated dependency for repeated lookups in this run.
@@ -354,28 +366,43 @@ public final class ScenarioExecution: Sendable {
     {
         let owners = systems
         return await Task {
-            for system in owners {
-                await system.quiesce()
-            }
-            for lease in leases {
-                await lease.join()
-            }
+            let cleanup = await stopAndClean(owners, leases: leases, reporter: reporter)
             for lease in leases {
                 lease.close(mergingRecording: false)
             }
-            let cleanup = cleanUp(systems, reporter: reporter)
+            for system in owners {
+                system.release()
+            }
             return StartupRollback(cleanup: cleanup)
         }.value
     }
 
+    private static func stopAndClean(
+        _ systems: [AnyActivatedSystem], leases: [any AnySequentialLease],
+        schedulerTask: Task<Void, Never>? = nil, reporter: DiagnosticReporter) async -> [AttachmentCleanup]
+    {
+        for system in systems.reversed() {
+            await system.beginFinalization()
+        }
+        await schedulerTask?.value
+        for system in systems {
+            await system.quiesce()
+        }
+        for lease in leases {
+            await lease.join()
+        }
+        return await cleanUp(systems, reporter: reporter)
+    }
+
     private static func cleanUp(
-        _ systems: [AnyActivatedSystem], reporter: DiagnosticReporter) -> [AttachmentCleanup]
+        _ systems: [AnyActivatedSystem], reporter: DiagnosticReporter)
+        async -> [AttachmentCleanup]
     {
         var outcomes: [AttachmentCleanup] = []
         for system in systems.reversed() {
             let disposition: AttachmentCleanup.Disposition
             do {
-                try system.deactivate()
+                try await system.deactivate()
                 disposition = .completed
             } catch {
                 reporter.record(Diagnostic(

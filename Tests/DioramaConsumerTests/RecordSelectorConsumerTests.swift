@@ -64,7 +64,7 @@ private struct SelectorDependency: Sendable {
     func claim(matching input: String, using selector: ReplaySelector<String, ConsumerRecord>) throws
         -> ReplayClaim<ConsumerRecord>
     {
-        try execution.withActiveState { lease, operation in
+        try execution.state.withLock { lease, operation in
             try operation.claim(on: lease, matching: input, using: selector)
         }
     }
@@ -101,7 +101,7 @@ private struct SelectorDefinition: SystemDefinition {
         SelectorDependency(execution: execution)
     }
 
-    func makePassthroughDependency() throws -> SelectorDependency {
+    func makePassthroughDependency(using _: SystemExecution<Void>) throws -> SelectorDependency {
         throw SelectorFailure.unsupported
     }
 }
