@@ -52,6 +52,18 @@ final class StartupProbe: Sendable {
             }
         }
 
+        var record: SystemModeDefinition<HeaderlessSequentialTrackLease<UInt64>, StartupDependency> {
+            .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+        }
+
+        var replay: SystemModeDefinition<HeaderlessSequentialTrackLease<UInt64>, StartupDependency> {
+            .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+        }
+
+        var passthrough: SystemModeDefinition<Void, StartupDependency> {
+            .init(makeDependency: makePassthroughDependency)
+        }
+
         func makeRecordState(in context: borrowing SystemStateContext) throws
             -> HeaderlessSequentialTrackLease<UInt64>
         {

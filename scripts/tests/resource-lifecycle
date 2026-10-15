@@ -20,7 +20,6 @@ fi
 cat > "$probe_root/resource.swift" <<'SWIFT'
 import DioramaCore
 
-enum Failure: Error { case expected }
 @MainActor final class Native {
     func stop() {}
     func end() async -> SystemCleanupResult { .completed }
@@ -33,6 +32,36 @@ actor Worker {
 struct State: Sendable { let native: Native }
 struct External: SystemDefinition {
     let systemType = ScenarioSystemType("compiler.lifecycle")
+    var record: SystemModeDefinition<State, Int> {
+        #if THROWING_STOP
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency,
+              requestStop: throwingStop, cleanUp: cleanUpRecord)
+        #elseif THROWING_CLEANUP
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency,
+              requestStop: requestStopRecord, cleanUp: throwingCleanup)
+        #elseif WRONG_STATE
+        .init(makeState: { _ in 1 }, makeDependency: makeRecordDependency)
+        #else
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency,
+              requestStop: requestStopRecord, cleanUp: cleanUpRecord)
+        #endif
+    }
+    #if WRONG_DEPENDENCY
+    var replay: SystemModeDefinition<State, String> {
+        .init(makeState: makeRecordState, makeDependency: { _ in "wrong" })
+    }
+    #else
+    var replay: SystemModeDefinition<State, Int> { record }
+    #endif
+    #if !MISSING_MODE
+    var passthrough: SystemModeDefinition<Void, Int> {
+        .init(makeDependency: { 1 }, requestStop: { _, _ in }, cleanUp: { _, _ in .completed })
+    }
+    #endif
+    @MainActor func throwingStop(using _: borrowing SystemLifecycleContext<State>, dependency: Int?) async throws {}
+    @MainActor func throwingCleanup(using _: borrowing SystemLifecycleContext<State>, dependency: Int?) async throws -> SystemCleanupResult {
+        .completed
+    }
     @MainActor func makeRecordState(in _: borrowing SystemStateContext) -> State { State(native: Native()) }
     @MainActor func makeReplayState(in context: borrowing SystemStateContext) -> State { makeRecordState(in: context) }
     @MainActor func makeRecordDependency(using execution: SystemExecution<State>) throws -> Int {
@@ -45,17 +74,11 @@ struct External: SystemDefinition {
     }
     func makePassthroughDependency(using _: SystemExecution<Void>) -> Int { 1 }
     @MainActor func requestStopRecord(using lifecycle: borrowing SystemLifecycleContext<State>, dependency: Int?) async {
-        #if THROWING_STOP
-        throw Failure.expected
-        #endif
         await Task.yield()
         let native = try? lifecycle.state.withLock { $0.native }
         native?.stop()
     }
     @MainActor func cleanUpRecord(using lifecycle: borrowing SystemLifecycleContext<State>, dependency: Int?) async -> SystemCleanupResult {
-        #if THROWING_CLEANUP
-        throw Failure.expected
-        #endif
         let native = try? lifecycle.state.withLock { $0.native }
         return await native?.end() ?? .completed
     }
@@ -97,11 +120,11 @@ func wrong(_ context: borrowing SystemLifecycleContext<State>) async throws {
 #endif
 SWIFT
 "${compiler[@]}" -c "$probe_root/resource.swift" -o "$probe_root/positive.o"
-for mode in THROWING_STOP THROWING_CLEANUP WRONG_ACTOR ASYNC_STATE LIFECYCLE_RETURN LIFECYCLE_CAPTURE LIFECYCLE_OPERATION ASYNC_LIFECYCLE_STATE; do
+for mode in THROWING_STOP THROWING_CLEANUP WRONG_STATE WRONG_DEPENDENCY MISSING_MODE WRONG_ACTOR ASYNC_STATE LIFECYCLE_RETURN LIFECYCLE_CAPTURE LIFECYCLE_OPERATION ASYNC_LIFECYCLE_STATE; do
     status=0
     "${compiler[@]}" -D "$mode" -c "$probe_root/resource.swift" -o "$probe_root/$mode.o" \
         > "$probe_root/$mode.log" 2>&1 || status=$?
-    if [[ $status != 1 ]] || ! grep -Eq 'error:.*(throw|async|isolated|synchronous|borrowed|consum|closure|arguments)' "$probe_root/$mode.log" \
+    if [[ $status != 1 ]] || ! grep -Eq 'error:.*(throw|async|isolated|synchronous|borrowed|consum|closure|arguments|convert|conform|inference)' "$probe_root/$mode.log" \
         || grep -Eq 'Stack dump|signal [0-9]+|Assertion failed' "$probe_root/$mode.log"; then
         cat "$probe_root/$mode.log" >&2
         printf 'Expected ordinary compiler rejection: %s (exit %s)\n' "$mode" "$status" >&2
@@ -109,4 +132,4 @@ for mode in THROWING_STOP THROWING_CLEANUP WRONG_ACTOR ASYNC_STATE LIFECYCLE_RET
     fi
     printf 'Compiler rejected %s\n' "$mode"
 done
-printf '%s\n' 'Public state lifecycle compiler probes passed (1 positive, 8 negative).'
+printf '%s\n' 'Public state lifecycle compiler probes passed (1 positive, 11 negative).'

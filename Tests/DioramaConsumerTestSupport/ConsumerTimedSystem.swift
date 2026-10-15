@@ -206,26 +206,22 @@ private struct TimedDefinition: SystemDefinition {
         [records.erased]
     }
 
-    func makeRecordState(in context: borrowing SystemStateContext) throws -> TimedSystemState {
-        try TimedSystemState(records: context.lease(for: records))
+    var record: SystemModeDefinition<TimedSystemState, ConsumerTimedServices> {
+        .init(makeState: { try TimedSystemState(records: $0.lease(for: records)) }, makeDependency: { execution in
+            let metadata = try execution.state.withLock { state, _ in (state.records.id, state.records.mode) }
+            return ConsumerTimedServices(execution: execution, records:
+                ConsumerTimedRecords(execution: execution, id: metadata.0, mode: metadata.1))
+        })
     }
 
-    func makeReplayState(in context: borrowing SystemStateContext) throws -> TimedSystemState {
-        try makeRecordState(in: context)
+    var replay: SystemModeDefinition<TimedSystemState, ConsumerTimedServices> {
+        record
     }
 
-    func makeRecordDependency(using execution: SystemExecution<TimedSystemState>) throws -> ConsumerTimedServices {
-        let metadata = try execution.state.withLock { state, _ in (state.records.id, state.records.mode) }
-        return ConsumerTimedServices(execution: execution, records:
-            ConsumerTimedRecords(execution: execution, id: metadata.0, mode: metadata.1))
-    }
-
-    func makeReplayDependency(using execution: SystemExecution<TimedSystemState>) throws -> ConsumerTimedServices {
-        try makeRecordDependency(using: execution)
-    }
-
-    func makePassthroughDependency(using _: SystemExecution<Void>) throws -> ConsumerTimedServices {
-        // This synthetic domain only advertises managed capture and playback.
-        throw ConsumerSystemFailure.closed
+    var passthrough: SystemModeDefinition<Void, ConsumerTimedServices> {
+        .init(makeDependency: {
+            // This synthetic domain only advertises managed capture and playback.
+            throw ConsumerSystemFailure.closed
+        })
     }
 }

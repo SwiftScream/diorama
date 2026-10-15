@@ -15,6 +15,18 @@ private struct ReplayLeaseDefinition: SystemDefinition {
         [values.erased]
     }
 
+    var record: SystemModeDefinition<HeaderlessSequentialTrackLease<Int>, HeaderlessSequentialTrackLease<Int>> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<HeaderlessSequentialTrackLease<Int>, HeaderlessSequentialTrackLease<Int>> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, HeaderlessSequentialTrackLease<Int>> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in context: borrowing SystemStateContext) throws
         -> HeaderlessSequentialTrackLease<Int>
     {

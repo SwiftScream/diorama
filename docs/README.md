@@ -67,8 +67,11 @@ defines async activation, ordinary State/Dependency factories in every mode,
 tracked state-member access, and definition-level stop/cleanup hooks. Its
 [state-owned lifecycle amendment](design-decisions/21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15)
 governs passthrough shutdown, privileged lifecycle access, and cleanup before
-record freeze. The [Fa08 redesign](plans/003-Fa08-lifecycle-redesign.md) describes
-the concrete API, while [lifecycle ownership alternatives](managed-native-lifecycle-options.md)
+record freeze. Its [typed mode amendment](design-decisions/21-managed-native-lifecycle.md#typed-mode-definitions--owner-approved-2026-10-16)
+groups factories and hooks in `SystemModeDefinition`; the
+[current authoring guide](record-services.md) describes that API. The
+[Fa08 redesign](plans/003-Fa08-lifecycle-redesign.md) records the preceding method-based
+surface, while [lifecycle ownership alternatives](managed-native-lifecycle-options.md)
 retain the rationale for the earlier resource-handle design.
 
 The [named checkpoint design notes](checkpoint-design-notes.md) record an
@@ -299,6 +302,10 @@ test-integration design. They do not authorize those APIs.
 - [Structured retained-report evidence](evidence/003-Ra4-structured-retained-reports.md)
   records shared finalization evaluation, safe publication summaries, caller-owned
   definition/error lifetimes, and the result/report API migration.
+
+- [Typed system mode evidence](evidence/003-Rb1-system-mode-definitions.md)
+  records grouped factories and lifecycle callbacks, Void-State conveniences,
+  actual signature rejection, per-activation ownership, and platform verification.
 
 ## Historical boundary
 

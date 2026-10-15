@@ -77,6 +77,21 @@ private struct SchedulerStopDefinition: SystemDefinition {
         [values.erased]
     }
 
+    var record: SystemModeDefinition<String, SystemExecution<String>> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency,
+              requestStop: requestStopRecord, cleanUp: cleanUpRecord)
+    }
+
+    var replay: SystemModeDefinition<String, SystemExecution<String>> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency,
+              requestStop: requestStopReplay, cleanUp: cleanUpReplay)
+    }
+
+    var passthrough: SystemModeDefinition<String, SystemExecution<String>> {
+        .init(makeState: makePassthroughState, makeDependency: makePassthroughDependency,
+              requestStop: requestStopPassthrough, cleanUp: cleanUpPassthrough)
+    }
+
     func makeRecordState(in context: borrowing SystemStateContext) -> String {
         context.attachmentID.key.rawValue
     }

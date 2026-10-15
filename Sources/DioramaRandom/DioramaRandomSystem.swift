@@ -133,31 +133,19 @@ private struct RandomDefinition<Source: RandomNumberGenerator & Sendable>: Syste
         [values.erased]
     }
 
-    func makeRecordState(in context: borrowing SystemStateContext) throws
-        -> HeaderlessSequentialTrackLease<UInt64>
-    {
-        try context.lease(for: values)
+    var record: SystemModeDefinition<HeaderlessSequentialTrackLease<UInt64>, any RandomNumberGenerator & Sendable> {
+        .init(makeState: { try $0.lease(for: values) }, makeDependency: { execution in
+            RecordingRandom(execution: execution, source: RecordingRandomSource(sourceFactory()))
+        })
     }
 
-    func makeReplayState(in context: borrowing SystemStateContext) throws
-        -> HeaderlessSequentialTrackLease<UInt64>
-    {
-        try context.lease(for: values)
+    var replay: SystemModeDefinition<HeaderlessSequentialTrackLease<UInt64>, any RandomNumberGenerator & Sendable> {
+        .init(makeState: { try $0.lease(for: values) }, makeDependency: { execution in
+            try execution.state.withLock { values, _ in ReplayingRandom(values: values) }
+        })
     }
 
-    func makeRecordDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<UInt64>>)
-        -> any RandomNumberGenerator & Sendable
-    {
-        RecordingRandom(execution: execution, source: RecordingRandomSource(sourceFactory()))
-    }
-
-    func makeReplayDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<UInt64>>)
-        throws -> any RandomNumberGenerator & Sendable
-    {
-        try execution.state.withLock { values, _ in ReplayingRandom(values: values) }
-    }
-
-    func makePassthroughDependency(using _: SystemExecution<Void>) -> any RandomNumberGenerator & Sendable {
-        sourceFactory()
+    var passthrough: SystemModeDefinition<Void, any RandomNumberGenerator & Sendable> {
+        .init(makeDependency: { sourceFactory() })
     }
 }

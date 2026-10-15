@@ -1,7 +1,7 @@
 # Quality gates and CI policy
 
 - Status: Accepted
-- Last updated: 2026-10-09
+- Last updated: 2026-10-16
 - Reference project: [SwiftScream/URITemplate](https://github.com/SwiftScream/URITemplate)
 
 ## Purpose
@@ -78,9 +78,12 @@ and raw track mutation examples. Compiler crashes and unexpected acceptance fail
 the gate. These probes use the current test build's Core module, with the same
 scratch path and configuration, on macOS and Linux.
 The resource-lifecycle probes additionally compile actual public Core APIs and
-require eight ordinary rejections for throwing hooks, wrong-actor access, async
-locked bodies, lifecycle context escape, and lifecycle operation effects. These run with SwiftPM tests on macOS/Linux and with the iOS
-coverage gate against the Simulator products. iOS also compiles and executes
+require eleven ordinary rejections for throwing stop/cleanup callback signatures,
+incompatible State/Dependency types, a missing mode declaration, wrong-actor
+access, async locked bodies, lifecycle context escape, and lifecycle operation
+effects. The throwing probes bind actual `async throws` functions to nonthrowing
+initializer arguments; they do not merely throw inside already-nonthrowing bodies.
+These run with SwiftPM tests on macOS/Linux and with the iOS coverage gate against the Simulator products. iOS also compiles and executes
 the public consumer conformance tests.
 
 Exact names can follow existing SwiftScream convention if another convention

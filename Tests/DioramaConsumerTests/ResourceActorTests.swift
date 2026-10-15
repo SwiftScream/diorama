@@ -103,6 +103,19 @@ private struct WorkerDefinition: SystemDefinition {
     let systemType = ScenarioSystemType("consumer.worker")
     let journal: ResourceJournal
     let gate: ResourceGate
+    var record: SystemModeDefinition<WorkerState, SystemExecution<WorkerState>> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency,
+              requestStop: requestStopRecord, cleanUp: cleanUpRecord)
+    }
+
+    var replay: SystemModeDefinition<WorkerState, SystemExecution<WorkerState>> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, SystemExecution<WorkerState>> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in _: borrowing SystemStateContext) async -> WorkerState {
         let worker = ResourceWorker(journal: journal, gate: gate)
         await worker.start()

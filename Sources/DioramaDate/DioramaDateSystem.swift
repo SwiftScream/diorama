@@ -124,32 +124,26 @@ struct DateDefinition<Source: DioramaDateSource>: SystemDefinition {
         }
     }
 
-    func makeRecordState(in context: borrowing SystemStateContext) throws -> DateRecordState {
-        let lease = try context.lease(for: wall)
-        let recording = WallRecordingState(timeZone: timeZone())
-        return DateRecordState(values: lease, recording: recording)
+    var record: SystemModeDefinition<DateRecordState, any DioramaDateSource> {
+        .init(makeState: { context in
+            let lease = try context.lease(for: wall)
+            let recording = WallRecordingState(timeZone: timeZone())
+            return DateRecordState(values: lease, recording: recording)
+        }, makeDependency: { execution in
+            try execution.state.withLock { state, operation in
+                try operation.setHeader(on: state.values, capturing: { nil }, preparation: ValuePreparation<Int?>())
+            }
+            return RecordingDateSource(execution: execution, source: sourceFactory())
+        })
     }
 
-    func makeReplayState(in context: borrowing SystemStateContext) throws
-        -> SequentialTrackLease<OverridableValue<Date>, Int?>
-    {
-        try context.lease(for: wall)
+    var replay: SystemModeDefinition<SequentialTrackLease<OverridableValue<Date>, Int?>, any DioramaDateSource> {
+        .init(makeState: { try $0.lease(for: wall) }, makeDependency: { execution in
+            try execution.state.withLock { values, _ in ReplayingDateSource(values: values) }
+        })
     }
 
-    func makeRecordDependency(using execution: SystemExecution<DateRecordState>) throws -> any DioramaDateSource {
-        try execution.state.withLock { state, operation in
-            try operation.setHeader(on: state.values, capturing: { nil }, preparation: ValuePreparation<Int?>())
-        }
-        return RecordingDateSource(execution: execution, source: sourceFactory())
-    }
-
-    func makeReplayDependency(using execution: SystemExecution<SequentialTrackLease<OverridableValue<Date>, Int?>>)
-        throws -> any DioramaDateSource
-    {
-        try execution.state.withLock { values, _ in ReplayingDateSource(values: values) }
-    }
-
-    func makePassthroughDependency(using _: SystemExecution<Void>) -> any DioramaDateSource {
-        sourceFactory()
+    var passthrough: SystemModeDefinition<Void, any DioramaDateSource> {
+        .init(makeDependency: { sourceFactory() })
     }
 }

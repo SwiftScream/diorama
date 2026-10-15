@@ -102,20 +102,23 @@ public struct ScenarioSystem<Dependency: Sendable>: Sendable {
                     time: context.time, clock: context.clock, scheduling: context.scheduling)
                 switch context.mode {
                 case .passthrough:
+                    let mode = definition.passthrough
                     return try await Self.activateManaged(
-                        state: definition.makePassthroughState(in: stateContext), context: context,
-                        dependency: definition.makePassthroughDependency,
-                        stop: definition.requestStopPassthrough, cleanup: definition.cleanUpPassthrough)
+                        state: mode.makeState(stateContext), context: context,
+                        dependency: mode.makeDependency,
+                        stop: mode.requestStop, cleanup: mode.cleanUp)
                 case .record:
+                    let mode = definition.record
                     return try await Self.activateManaged(
-                        state: definition.makeRecordState(in: stateContext), context: context,
-                        dependency: definition.makeRecordDependency,
-                        stop: definition.requestStopRecord, cleanup: definition.cleanUpRecord)
+                        state: mode.makeState(stateContext), context: context,
+                        dependency: mode.makeDependency,
+                        stop: mode.requestStop, cleanup: mode.cleanUp)
                 case .replay:
+                    let mode = definition.replay
                     return try await Self.activateManaged(
-                        state: definition.makeReplayState(in: stateContext), context: context,
-                        dependency: definition.makeReplayDependency,
-                        stop: definition.requestStopReplay, cleanup: definition.cleanUpReplay)
+                        state: mode.makeState(stateContext), context: context,
+                        dependency: mode.makeDependency,
+                        stop: mode.requestStop, cleanup: mode.cleanUp)
                 }
             }
         }

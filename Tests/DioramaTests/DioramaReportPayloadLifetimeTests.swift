@@ -78,10 +78,23 @@ private final class Payload: Sendable, CustomStringConvertible {
 }
 
 private struct PayloadDefinition: SystemDefinition {
+    typealias State = HeaderlessSequentialTrackLease<Payload>
     let systemType = ScenarioSystemType("payload")
     let values = TrackDefinition<Payload, Void>("values")
     var tracks: [AnyTrackDefinition] {
         [values.erased]
+    }
+
+    var record: SystemModeDefinition<State, SystemExecution<State>> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<State, SystemExecution<State>> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, SystemExecution<HeaderlessSequentialTrackLease<Payload>>> {
+        .init(makeDependency: makePassthroughDependency)
     }
 
     func makeRecordState(in context: borrowing SystemStateContext) throws -> HeaderlessSequentialTrackLease<Payload> {

@@ -193,6 +193,21 @@ private struct MilestoneDefinition: SystemDefinition {
         [track.erased]
     }
 
+    var record: SystemModeDefinition<MilestoneState, Int?> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency,
+              requestStop: requestStopRecord, cleanUp: cleanUpRecord)
+    }
+
+    var replay: SystemModeDefinition<MilestoneState, Int?> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency,
+              requestStop: requestStopReplay, cleanUp: cleanUpReplay)
+    }
+
+    var passthrough: SystemModeDefinition<MilestoneState, Int?> {
+        .init(makeState: makePassthroughState, makeDependency: makePassthroughDependency,
+              requestStop: requestStopPassthrough, cleanUp: cleanUpPassthrough)
+    }
+
     func makeRecordState(in context: borrowing SystemStateContext) throws -> MilestoneState {
         if failState {
             throw ResourceTestFailure.expected
@@ -300,6 +315,19 @@ private struct FreezeDefinition: SystemDefinition {
         [values.erased]
     }
 
+    var record: SystemModeDefinition<FreezeState, SystemExecution<FreezeState>> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency,
+              requestStop: requestStopRecord, cleanUp: cleanUpRecord)
+    }
+
+    var replay: SystemModeDefinition<FreezeState, SystemExecution<FreezeState>> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, SystemExecution<FreezeState>> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in context: borrowing SystemStateContext) throws -> FreezeState {
         try FreezeState(values: context.lease(for: values))
     }
@@ -343,6 +371,18 @@ private final class LifecycleViews: Sendable {
 
 private struct ReleaseDefinition: SystemDefinition {
     let systemType = ScenarioSystemType("consumer.dependency-release")
+    var record: SystemModeDefinition<Void, ResourceReleaseWitness> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<Void, ResourceReleaseWitness> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, ResourceReleaseWitness> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in _: borrowing SystemStateContext) {}
     func makeReplayState(in _: borrowing SystemStateContext) {}
     func makeRecordDependency(using execution: SystemExecution<Void>) -> ResourceReleaseWitness {

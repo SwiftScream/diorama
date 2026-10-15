@@ -74,6 +74,18 @@ private struct OperationDefinition: SystemDefinition {
         [records.erased]
     }
 
+    var record: SystemModeDefinition<ConsumerOperationState, OperationDependency> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<ConsumerOperationState, OperationDependency> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, OperationDependency> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in context: borrowing SystemStateContext) throws -> ConsumerOperationState {
         try ConsumerOperationState(records: context.lease(for: records))
     }

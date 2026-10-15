@@ -140,6 +140,18 @@ private struct MergePhaseDefinition: SystemDefinition {
         })
     }
 
+    var record: SystemModeDefinition<MergePhaseState, ResourceReleaseWitness> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency, cleanUp: cleanUpRecord)
+    }
+
+    var replay: SystemModeDefinition<Void, ResourceReleaseWitness> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, ResourceReleaseWitness> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in context: borrowing SystemStateContext) throws -> MergePhaseState {
         if context.attachmentID.key.rawValue == "b", failure == "startup" {
             throw ResourceTestFailure.expected

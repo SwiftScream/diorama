@@ -144,6 +144,20 @@ struct ResourceDefinition: SystemDefinition {
         }
     }
 
+    var record: SystemModeDefinition<ResourceState, SystemExecution<ResourceState>> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency,
+              requestStop: requestStopRecord, cleanUp: cleanUpRecord)
+    }
+
+    var replay: SystemModeDefinition<ResourceState, SystemExecution<ResourceState>> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency,
+              requestStop: requestStopReplay, cleanUp: cleanUpReplay)
+    }
+
+    var passthrough: SystemModeDefinition<Void, SystemExecution<ResourceState>> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     @MainActor
     func makeRecordState(in context: borrowing SystemStateContext) async throws -> ResourceState {
         let key = context.attachmentID.key.rawValue

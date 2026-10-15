@@ -51,6 +51,18 @@ private struct PersistableReleaseDefinition: SystemDefinition {
                                                 key: key))
         }))
 
+    var record: SystemModeDefinition<Void, PublicationReleaseDependency> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<Void, PublicationReleaseDependency> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, PublicationReleaseDependency> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in _: borrowing SystemStateContext) {}
     func makeReplayState(in _: borrowing SystemStateContext) {}
 

@@ -192,6 +192,18 @@ struct ScopedExecutionTests {
             journal.events.withLock { $0.append("prepare-" + key) }
         }
 
+        var record: SystemModeDefinition<Void, Dependency> {
+            .init(makeState: makeRecordState, makeDependency: makeRecordDependency, cleanUp: cleanUpRecord)
+        }
+
+        var replay: SystemModeDefinition<Void, Dependency> {
+            .init(makeState: makeReplayState, makeDependency: makeReplayDependency, cleanUp: cleanUpReplay)
+        }
+
+        var passthrough: SystemModeDefinition<Void, Dependency> {
+            .init(makeDependency: makePassthroughDependency)
+        }
+
         func makeRecordState(in _: borrowing SystemStateContext) {
             journal.events.withLock { $0.append("activate-" + key) }
         }

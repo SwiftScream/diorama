@@ -118,6 +118,18 @@ private struct ScopedReleaseDefinition: SystemDefinition {
     let systemType = ScenarioSystemType("consumer.scoped-release")
     let probe: ScopedReleaseProbe
 
+    var record: SystemModeDefinition<Void, ScopedReleaseDependency> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<Void, ScopedReleaseDependency> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, ScopedReleaseDependency> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in _: borrowing SystemStateContext) {}
     func makeReplayState(in _: borrowing SystemStateContext) {}
 

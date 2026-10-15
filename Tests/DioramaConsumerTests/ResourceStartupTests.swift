@@ -133,6 +133,18 @@ private final class InertProbe: Sendable {
 private struct InertFailure: SystemDefinition {
     let systemType = ScenarioSystemType("consumer.inert")
     let journal: ResourceJournal
+    var record: SystemModeDefinition<Void, Void> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<Void, Void> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, Void> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in _: borrowing SystemStateContext) throws {
         let object = InertProbe(journal, "ordinary-release")
         return try withExtendedLifetime(object) { throw ResourceTestFailure.expected }
@@ -153,6 +165,19 @@ private struct NativePassthrough: SystemDefinition {
     let systemType = ScenarioSystemType("consumer.passthrough-resource")
     let journal: ResourceJournal
     var cleanup: ResourceGate?
+    var record: SystemModeDefinition<Void, ResourceNative> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<Void, ResourceNative> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, ResourceNative> {
+        .init(makeDependency: makePassthroughDependency,
+              requestStop: requestStopPassthrough, cleanUp: cleanUpPassthrough)
+    }
+
     func makeRecordState(in _: borrowing SystemStateContext) {
         ()
     }

@@ -165,37 +165,26 @@ public enum ConsumerSequentialSystem {
 }
 
 struct ConsumerSequentialDefinition: SystemDefinition {
+    typealias State = HeaderlessSequentialTrackLease<ConsumerStableValue>
     let systemType: ScenarioSystemType
     let values: TrackDefinition<ConsumerStableValue, Void>
     var tracks: [AnyTrackDefinition] {
         [values.erased]
     }
 
-    func makeRecordState(in context: borrowing SystemStateContext) throws
-        -> HeaderlessSequentialTrackLease<ConsumerStableValue>
-    {
-        try context.lease(for: values)
+    var record: SystemModeDefinition<State, ConsumerSequentialDependency> {
+        .init(makeState: { try $0.lease(for: values) }, makeDependency: {
+            ConsumerSequentialDependency(execution: $0, mode: .record)
+        })
     }
 
-    func makeReplayState(in context: borrowing SystemStateContext) throws
-        -> HeaderlessSequentialTrackLease<ConsumerStableValue>
-    {
-        try context.lease(for: values)
+    var replay: SystemModeDefinition<State, ConsumerSequentialDependency> {
+        .init(makeState: { try $0.lease(for: values) }, makeDependency: {
+            ConsumerSequentialDependency(execution: $0, mode: .replay)
+        })
     }
 
-    func makeRecordDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<ConsumerStableValue>>)
-        -> ConsumerSequentialDependency
-    {
-        ConsumerSequentialDependency(execution: execution, mode: .record)
-    }
-
-    func makeReplayDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<ConsumerStableValue>>)
-        -> ConsumerSequentialDependency
-    {
-        ConsumerSequentialDependency(execution: execution, mode: .replay)
-    }
-
-    func makePassthroughDependency(using _: SystemExecution<Void>) -> ConsumerSequentialDependency {
-        ConsumerSequentialDependency()
+    var passthrough: SystemModeDefinition<Void, ConsumerSequentialDependency> {
+        .init(makeDependency: { ConsumerSequentialDependency() })
     }
 }

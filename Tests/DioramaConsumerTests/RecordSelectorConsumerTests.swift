@@ -77,6 +77,18 @@ private struct SelectorDefinition: SystemDefinition {
         [records.erased]
     }
 
+    var record: SystemModeDefinition<HeaderlessSequentialTrackLease<ConsumerRecord>, SelectorDependency> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<HeaderlessSequentialTrackLease<ConsumerRecord>, SelectorDependency> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, SelectorDependency> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in context: borrowing SystemStateContext) throws
         -> HeaderlessSequentialTrackLease<ConsumerRecord>
     {

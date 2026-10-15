@@ -156,6 +156,18 @@ final class DioramaSetupProbe: Sendable {
             probe.events.withLock { $0.append("prepare-" + key) }
         }
 
+        var record: SystemModeDefinition<HeaderlessSequentialTrackLease<Int>, SetupDependency> {
+            .init(makeState: makeRecordState, makeDependency: makeRecordDependency, cleanUp: cleanUpRecord)
+        }
+
+        var replay: SystemModeDefinition<HeaderlessSequentialTrackLease<Int>, SetupDependency> {
+            .init(makeState: makeReplayState, makeDependency: makeReplayDependency, cleanUp: cleanUpReplay)
+        }
+
+        var passthrough: SystemModeDefinition<Void, SetupDependency> {
+            .init(makeDependency: makePassthroughDependency)
+        }
+
         func makeRecordState(in context: borrowing SystemStateContext) throws
             -> HeaderlessSequentialTrackLease<Int>
         {
@@ -227,6 +239,18 @@ private enum ConsumerSetupFailure: Error { case unsupported }
 
 private struct OtherSetupDefinition: SystemDefinition {
     let systemType = ScenarioSystemType("other")
+    var record: SystemModeDefinition<Void, Bool> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<Void, Bool> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, Bool> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in _: borrowing SystemStateContext) {
         ()
     }

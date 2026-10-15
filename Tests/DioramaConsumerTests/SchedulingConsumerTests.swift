@@ -88,6 +88,18 @@ private struct SchedulingDefinition: SystemDefinition {
         [events.erased]
     }
 
+    var record: SystemModeDefinition<Void, SchedulingLease> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<Void, SchedulingLease> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, SchedulingLease> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in _: borrowing SystemStateContext) {
         ()
     }

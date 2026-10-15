@@ -2236,9 +2236,11 @@ measured by these line counts.
 
 ### 003-Rb1 — Group system construction and lifecycle by mode
 
-- Status: In progress. The owner approves the grouped declaration design,
+- Status: Complete. The owner approves the grouped declaration design,
   `SystemModeDefinition` naming, lifecycle defaults, Void-State conveniences,
-  and implementation on 2026-10-16.
+  implementation, and PR creation on 2026-10-16.
+  [Evidence](../evidence/003-Rb1-system-mode-definitions.md) records the delivered
+  API and completed local macOS, iOS, Linux, and optimized lifecycle checks.
 - Prerequisites: 003-Fa08; the fresh review's F1 scheduler stop/disposal fix.
   [DD21's typed mode amendment](../design-decisions/21-managed-native-lifecycle.md#typed-mode-definitions--owner-approved-2026-10-16)
   records the approved change to the public authoring contract.
@@ -2256,8 +2258,9 @@ measured by these line counts.
   macOS, iOS, and Linux gates with current-build coverage and Release builds.
 - Exclusions: Compatibility forwarding, new dependencies, persistence changes,
   lifecycle ordering changes, and Location or HTTP implementation.
-- Checkpoint: R; present the complete implementation for owner review. PR
-  creation and merge require separate authorization.
+- Checkpoint: R; implementation and PR creation are owner-authorized. Rebase
+  onto current master before opening the PR. Merge requires a separate request;
+  no subsequent unit is authorized.
 
 ## Phase G — Location domain and Apple bridge
 

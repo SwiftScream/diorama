@@ -7,6 +7,8 @@ products=${1:-$(swift build --show-bin-path)}
 probe_root=$(mktemp -d "${TMPDIR:-/tmp}/diorama-authoring.XXXXXXXX")
 trap 'rm -rf "$probe_root"' EXIT
 compiler=(swiftc -swift-version 6 -strict-concurrency=complete -warnings-as-errors
+    -enable-upcoming-feature NonisolatedNonsendingByDefault
+    -enable-upcoming-feature InferIsolatedConformances
     -parse-as-library -I "$products" -I "$products/Modules")
 if [[ $(uname -s) == Darwin ]]; then
     compiler+=(-target "$(uname -m)-apple-macos15.0" -sdk "$(xcrun --sdk macosx --show-sdk-path)")
@@ -27,21 +29,14 @@ struct ExternalDefinition: SystemDefinition {
     func validate(in context: borrowing SystemValidationContext) throws {
         if context.mode != .passthrough { _ = try context.track(values) }
     }
-    func makeRecordState(in context: borrowing SystemStateContext) throws -> HeaderlessSequentialTrackLease<Int> {
-        try context.lease(for: values)
+    var record: SystemModeDefinition<HeaderlessSequentialTrackLease<Int>, Dependency> {
+        .init(makeState: { try $0.lease(for: values) }, makeDependency: { .managed($0) })
     }
-    func makeReplayState(in context: borrowing SystemStateContext) throws -> HeaderlessSequentialTrackLease<Int> {
-        try context.lease(for: values)
+    var replay: SystemModeDefinition<HeaderlessSequentialTrackLease<Int>, Dependency> { record }
+    var passthrough: SystemModeDefinition<Void, Dependency> {
+        .init(makeDependency: { .native })
     }
-    func makeRecordDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<Int>>) -> Dependency {
-        .managed(execution)
-    }
-    func makeReplayDependency(using execution: SystemExecution<HeaderlessSequentialTrackLease<Int>>) -> Dependency {
-        .managed(execution)
-    }
-    func makePassthroughDependency(using _: SystemExecution<Void>) -> Dependency {
-        .native
-    }
+
 }
 func use(_ execution: SystemExecution<HeaderlessSequentialTrackLease<Int>>) throws -> Int {
     try execution.state.withLock { state, operation in try operation.consumeNext(on: state) }

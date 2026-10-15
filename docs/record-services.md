@@ -9,9 +9,12 @@ and domain lifecycle interpretation with each system. Stable values require
 ## Definitions and typed declarations
 
 A definition supplies one application-facing `Dependency: Sendable` and separate
-`RecordState`, `ReplayState`, and `PassthroughState` types. Passthrough state
-defaults to `Void` with an empty factory. Dependencies can be protocol existentials,
-ordinary structs, or concrete native classes. Core does not require a dependency
+`RecordState`, `ReplayState`, and `PassthroughState` types through three required
+properties: `record`, `replay`, and `passthrough`. Each returns a
+`SystemModeDefinition<State, Dependency>` that groups `makeState`,
+`makeDependency`, `requestStop`, and `cleanUp` callbacks. Swift can infer the
+associated types from these property declarations. Dependencies can be protocol
+existentials, ordinary structs, or concrete native classes. Core does not require a dependency
 protocol or base class. Application setup constructs a reusable instance with:
 
 ```swift
@@ -26,12 +29,41 @@ loaded content before activation. For example, a system definition may store:
 let values = TrackDefinition<UInt64, Void>("values")
 var tracks: [AnyTrackDefinition] { [values.erased] }
 
-func makeReplayState(in context: borrowing SystemStateContext) throws
-    -> HeaderlessSequentialTrackLease<UInt64>
-{
-    try context.lease(for: values)
+var replay: SystemModeDefinition<HeaderlessSequentialTrackLease<UInt64>, MyDependency> {
+    .init(makeState: { try $0.lease(for: values) }, makeDependency: makeReplayDependency)
 }
 ```
+
+The general initializer requires both factories. Lifecycle arguments are optional:
+`requestStop` defaults to no work and `cleanUp` to `.completed`. Supplied callbacks
+must match their function types; an accidentally throwing stop or cleanup
+function fails compilation. Named methods are ordinary helpers explicitly bound
+in the declaration, not optional protocol witnesses. The former
+`makeRecordState` / `makeReplayState` / `makePassthroughState`, dependency factory,
+and mode-specific lifecycle methods are no longer protocol requirements.
+
+For `State == Void`, two convenience initializers supply the empty State factory:
+
+```swift
+var passthrough: SystemModeDefinition<Void, MyDependency> {
+    .init(makeDependency: { sourceFactory() })
+}
+
+// When dependency construction needs execution services:
+var passthrough: SystemModeDefinition<Void, MyDependency> {
+    .init(makeDependency: { execution in
+        makeLiveDependency(clock: execution.clock)
+    })
+}
+```
+
+These are alternative declarations. Both conveniences accept explicit lifecycle
+callbacks because a Dependency may own activity even when State is Void. They
+are available in any mode; the factory still runs separately for each execution.
+A declaration getter only assembles configuration. Core reads the selected mode
+once per activation, after every attachment validates, and binds its factories
+and shutdown callbacks together. Unselected modes are not read. Do not construct
+execution-owned resources while building the declaration.
 
 Headered track definitions accept a `PreparedValue<Header>`, optional initial
 values, header/value admission policies, a replay continuation policy (default
@@ -62,9 +94,9 @@ that arbitrary reference aliases are harmless.
 
 ## Managed state and dependencies
 
-Startup and state/dependency factories are asynchronous; synchronous witnesses
-remain supported. Core awaits the selected factory's ordinary State
-result, adopts it, creates `SystemExecution<State>`, then awaits
+Startup and state/dependency callback types are asynchronous and throwing;
+synchronous and nonthrowing functions remain supported. Core awaits the selected
+factory's ordinary State result, adopts it, creates `SystemExecution<State>`, then awaits
 the dependency factory. Factories clean anything they fail to return, using
 ordinary Swift ownership or explicit shutdown as their resources require. Core
 owns successful results before another cancellation check or suspension. If
@@ -112,20 +144,25 @@ not permission to extract arbitrary active resources from managed state.
 
 ## Native resources and awaited shutdown
 
-[DD21's state-owned lifecycle amendment](design-decisions/21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15)
-extends the same public definition boundary. State remains an ordinary Sendable
-value containing native references. Construct resources after validation and
-return State directly; implement stop and cleanup on the definition:
+[DD21's typed mode amendment](design-decisions/21-managed-native-lifecycle.md#typed-mode-definitions--owner-approved-2026-10-16)
+preserves the state-owned lifecycle. State remains an ordinary Sendable value
+containing native references. Construct resources after validation and return
+State directly. Bind named helpers or inline closures in the mode declaration:
 
 ```swift
+var record: SystemModeDefinition<MyState, MyDependency> {
+    .init(makeState: makeState, makeDependency: makeDependency,
+          requestStop: requestStop, cleanUp: cleanUp)
+}
+
 @MainActor
-func makeRecordState(in context: borrowing SystemStateContext) async throws -> MyState {
+func makeState(in context: borrowing SystemStateContext) async throws -> MyState {
     let native = try await NativeBridge.makeConfigured() // owns its failed construction
     return MyState(native: native)
 }
 
 @MainActor
-func requestStopRecord(
+func requestStop(
     using lifecycle: borrowing SystemLifecycleContext<MyState>, dependency: MyDependency?
 ) {
     let native = try? lifecycle.state.withLock { $0.native }
@@ -133,7 +170,7 @@ func requestStopRecord(
 }
 
 @MainActor
-func cleanUpRecord(
+func cleanUp(
     using lifecycle: borrowing SystemLifecycleContext<MyState>, dependency: MyDependency?
 ) async -> SystemCleanupResult {
     let native = try? lifecycle.state.withLock { $0.native }
@@ -141,8 +178,9 @@ func cleanUpRecord(
 }
 ```
 
-Replay and passthrough have equivalent mode-specific hooks. Defaults request
-nothing and return `.completed`. The optional Dependency is nil until its factory
+Replay and passthrough declare the same typed callbacks for their respective State
+and the shared Dependency. Initializer defaults request nothing and return
+`.completed`. The optional Dependency is nil until its factory
 successfully returns; a successful optional nil Dependency is `.some(nil)`.
 State must support cleanup without Dependency. Core never cleans State while its
 Dependency factory remains unfinished. The system determines ordering among its
@@ -181,8 +219,8 @@ attachment cleanup failure; other attachments still receive cleanup. A scope
 admitted before stop may reach its actor or resume afterward, so bridges honor
 their stopping phase. Cleanup preserves State needed for accepted record freeze.
 
-Passthrough has `makePassthroughState(in:)` and
-`makePassthroughDependency(using:)`, returning ordinary values. Core invokes its
+The `passthrough` declaration has its own `makeState` and `makeDependency`
+callbacks, returning ordinary values. Core invokes its
 hooks on rollback and after successful publication. The system chooses native
 shutdown and escaped-dependency usability within its lifecycle contract. Hook
 invocation alone does not require invalidating the native dependency: no-op hooks
@@ -192,8 +230,8 @@ Passthrough still has no track access, recording, interception, or wrapper aroun
 ordinary native operations. The shared execution services retain their own gates.
 
 `DioramaRandom` and `DioramaDate` return their native sources directly, use `Void`
-passthrough state, and inherit the default no-op stop and cleanup hooks. Retained
-sources therefore continue after finish with native copy and sharing semantics,
+passthrough state, and use the initializer's default no-op stop and cleanup
+callbacks. Retained sources therefore continue after finish with native copy and sharing semantics,
 without Diorama operation diagnostics. Existing
 [Random tests](../Tests/DioramaRandomTests/DioramaRandomTests.swift) and
 [Date tests](../Tests/DioramaDateTests/PurePassthroughDateTests.swift) cover this
@@ -369,7 +407,10 @@ with direct sequential lease reads and public replay continuation policies. Cano
 compile a positive external definition and reject illegal context/token/state
 captures and old-surface access without compiler crashes.
 
-The canonical gate also compiles public lifecycle signatures and rejects throwing
-hooks, wrong-actor access, async locked bodies, borrowed lifecycle context escape,
-and operation effects through lifecycle access. Runtime tests exercise actual
-Core imports; historical signature spikes do not prove lifecycle correctness.
+The canonical gate also compiles public mode/lifecycle declarations and rejects
+throwing stop/cleanup function signatures supplied to the initializer, missing
+mode declarations, incompatible State/Dependency types, wrong-actor access, async
+locked bodies, borrowed lifecycle context escape, and operation effects through
+lifecycle access. Compiler rejection cannot prove that an omitted callback is
+appropriate; runtime conformance tests must assert actual stop and cleanup
+effects. Runtime tests exercise actual Core imports; historical signature spikes do not prove lifecycle correctness.

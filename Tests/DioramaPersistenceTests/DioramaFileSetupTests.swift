@@ -198,6 +198,18 @@ struct DioramaFileSetupTests {
 
 private struct ExtraDefinition: SystemDefinition {
     let systemType: ScenarioSystemType
+    var record: SystemModeDefinition<Void, Bool> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<Void, Bool> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, Bool> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in _: borrowing SystemStateContext) {
         ()
     }

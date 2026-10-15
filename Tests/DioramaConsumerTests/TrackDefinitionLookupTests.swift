@@ -60,6 +60,18 @@ private struct TrackLookupDefinition: SystemDefinition {
         #expect(found.records == registered.records)
     }
 
+    var record: SystemModeDefinition<SequentialTrackLease<Int, String>, SequentialTrackLease<Int, String>> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<SequentialTrackLease<Int, String>, SequentialTrackLease<Int, String>> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, SequentialTrackLease<Int, String>> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in context: borrowing SystemStateContext) throws
         -> SequentialTrackLease<Int, String>
     {

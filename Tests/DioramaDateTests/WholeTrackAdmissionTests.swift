@@ -39,6 +39,18 @@ private struct EarlierDefinition: SystemDefinition {
     let systemType = ScenarioSystemType("consumer.admission-order")
     let probe: AdmissionProbe
 
+    var record: SystemModeDefinition<Void, Int> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency)
+    }
+
+    var replay: SystemModeDefinition<Void, Int> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency)
+    }
+
+    var passthrough: SystemModeDefinition<Void, Int> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in _: borrowing SystemStateContext) {
         probe.events.withLock { $0.append("earlier-state") }
     }

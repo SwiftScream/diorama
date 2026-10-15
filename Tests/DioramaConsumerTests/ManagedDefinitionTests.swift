@@ -106,6 +106,18 @@ private struct CounterDefinition: SystemDefinition {
         }
     }
 
+    var record: SystemModeDefinition<ManagedCounter.State, ManagedCounter> {
+        .init(makeState: makeRecordState, makeDependency: makeRecordDependency, cleanUp: cleanUpRecord)
+    }
+
+    var replay: SystemModeDefinition<ManagedCounter.State, ManagedCounter> {
+        .init(makeState: makeReplayState, makeDependency: makeReplayDependency, cleanUp: cleanUpReplay)
+    }
+
+    var passthrough: SystemModeDefinition<Void, ManagedCounter> {
+        .init(makeDependency: makePassthroughDependency)
+    }
+
     func makeRecordState(in context: borrowing SystemStateContext) throws -> ManagedCounter.State {
         journal.events.withLock { $0.append("activate-" + context.attachmentID.key.rawValue) }
         let lease = try context.lease(for: missing ? TrackDefinition<Int, Void>("missing") : values)
