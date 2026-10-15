@@ -45,6 +45,14 @@ implementation consolidation, and update to the existing PR. The current unit
 below records completion of the amended public lifecycle proof; the preceding
 entries preserve the original planning approvals.
 
+On 2026-10-15, the owner requests five additional work units from the fresh
+pre-Location infrastructure review at `b866f96f4b8037f6da7698ceaee06f37080bc345`.
+[Phase Ra](#phase-ra--infrastructure-review-follow-ups) records Ra1–Ra5,
+replacing that review's F1–F5 identifiers. These are separate from the earlier
+R1–R6 findings addressed by Phase Fa. This addition records planning scope and
+rough fix-size estimates; it does not start implementation or approve Ra4's
+public API design. Normal per-unit scope confirmation remains required.
+
 On 2026-10-06, the owner accepts
 [Decision 19](../design-decisions/19-system-owned-records.md), its delivery-plan
 revision, and the scope of the combined E04R/revised E05 refactor.
@@ -467,6 +475,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | E     | 003-E01–003-E08      | Shared real-time scheduler and system-owned record services.           |
 | F     | 003-F01–003-F07; 003-F03A abandoned | Portable wall system and Core execution clock. |
 | Fa    | 003-Fa01–003-Fa07; 003-Fa09A; 003-Fa09 | Pure passthrough, managed system authoring, infrastructure-review follow-ups, retained consumer reports, and diagnostic-delivery simplification. |
+| Ra    | 003-Ra1–003-Ra5 | Post-Fa review follow-ups for scoped ownership, cancellation disposal, merge ordering, retained-report APIs, and envelope classification. |
 | G     | 003-G01–003-G09      | Portable location replay and narrow Apple live/delegate integration.         |
 | H     | 003-H01–003-H14      | Shared HTTP domain, resource publication, strict URLSession lifecycle data.  |
 | I     | 003-I01–003-I09      | Incremental production URLSession conformance across platform bridges.       |
@@ -2020,9 +2029,191 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
   merge still requires separate authorization and passing required checks.
   Do not begin J01/J02 or Fa02 automatically.
 
+## Phase Ra — Infrastructure review follow-ups
+
+The 2026-10-15 review inspects the delivered A–F and amended Fa implementation
+at `b866f96f4b8037f6da7698ceaee06f37080bc345`, with a clean worktree. The four
+defects below have targeted public-API reproductions; Ra4 is an API/design
+concern, not a failure to implement an accepted contract. Ra3's phase ordering
+is reproduced, while its contract interpretation needs confirmation as noted
+in that unit. No Critical or High finding is confirmed.
+
+These units remain unstarted. Their placement together does not make all five
+prerequisites for Location. Preserve the following dependency deadlines:
+
+| Unit | Priority / kind | Planned timing | Rough production fix size |
+| --- | --- | --- | --- |
+| [003-Ra1](#003-ra1--release-scoped-invocation-dependencies-before-finalization) | Medium defect | Before Location begins | Medium: approximately 15–24 lines |
+| [003-Ra2](#003-ra2--join-canceled-callback-capture-disposal) | Medium defect | Before G04 | Large: approximately 30–70 lines |
+| [003-Ra3](#003-ra3--establish-complete-capture-health-before-merging) | Medium defect | Before G06 | Large: approximately 50–90 lines |
+| [003-Ra4](#003-ra4--review-structured-retained-report-evaluation) | Medium API/design concern | Resolve the design before J01/J02 | Not estimated; design discussion |
+| [003-Ra5](#003-ra5--classify-missing-envelope-versions-consistently) | Low defect | Next persistence diagnostic maintenance | Very Low: approximately 3–5 lines in one file |
+
+Estimates use the owner's scale: Very Low means a few lines in one file; Low
+means fewer than 10 lines; Medium means fewer than 25; Large means fewer than
+100; XL means more than 100. Count production lines added or materially
+rewritten, excluding tests, documentation, and unchanged code relocation.
+These are planning estimates from source inspection, not implemented fixes or
+limits on an acceptable solution. Regression tests may exceed the fix size,
+especially for Ra1–Ra3; concurrency risk and verification effort are not
+measured by these line counts.
+
+### 003-Ra1 — Release scoped invocation dependencies before finalization
+
+- Status: Not started; scope confirmation required.
+- Prerequisites: 003-Fa08, 003-Fa09A; DD21's state-owned release-before-report
+  contract, DD18's original-error and retained-report amendment, DD05/DD10.
+- Finding: `Diorama.execute` creates a dependency tuple captured by the body
+  invocation passed to `DioramaRun.runScoped`. Those framework-owned references
+  remain alive through finish, publication, and report creation. A scalar-returning
+  body that retains no dependency can therefore defer its destruction until
+  after report freeze. Debug and optimized Release probes reproduce this;
+  a file-backed probe publishes despite a release-time invalidating diagnostic,
+  with zero final diagnostics and one post-finish diagnostic.
+- Scope: End framework-owned invocation references before finalization while
+  preserving the successful body value or original body error. Keep intentional
+  retention in returned values, errors, application storage, and setup captures.
+- Public behavior: Release-time facts from otherwise unretained dependencies
+  enter the final report and publication-health decision. Definition-level
+  stop/cleanup and each system's native post-finish policy remain authoritative.
+- Expected files/modules: `Diorama.swift`, `DioramaRun.swift`, scoped lifecycle
+  tests in `DioramaTests`, and publication tests in `DioramaPersistenceTests`.
+- Estimate: Medium, approximately 15–24 production lines across the two
+  orchestration files. The likely change separates body invocation ownership
+  from finalization; actor isolation and parameter-pack lifetimes may enlarge it.
+- Tests/verification: V-code and V-doc; public scoped success and original-error
+  paths, candidate invalidation before file publication, legitimate retained
+  dependencies, cancellation, actor-isolated callers, and Debug/Release lifetime
+  behavior. Preserve sequential reuse and overlap rejection.
+- Exclusions: Native adapter work, forced destruction of consumer-owned
+  references, universal passthrough invalidation, and changes to body-error policy.
+- Checkpoint: R; complete before G01. This is a sequencing recommendation for
+  the normal scoped workflow, not a claim that portable value modeling itself
+  requires dependency destruction.
+
+### 003-Ra2 — Join canceled callback capture disposal
+
+- Status: Not started; scope confirmation required.
+- Prerequisites: 003-E03, 003-Fa08; DD14 scheduler quiescence and DD21 ownership.
+- Finding: `DeadlineEngine.cancel` removes accepted pending work and releases
+  its captures outside locks on the cancellation caller. Direct public handle
+  cancellation outside a tracked State operation is not joined by finish. A
+  gated capture destructor demonstrates finish returning with a healthy
+  candidate before disposal completes; its invalidating fact arrives late.
+  The reproduction does not show scheduled delivery after finish.
+- Scope: Include detached canceled-capture disposal in the scheduler's owned
+  completion boundary. Coordinate cancellation, worker shutdown, and deferred
+  releases without performing destruction under scheduler or managed State locks.
+- Public behavior: Finish waits for disposal of Core-owned accepted callback
+  captures and retains their release-time facts before freezing the report.
+  Cancellation inside managed State access continues to permit safe reentry
+  after unlocking; arbitrary consumer-owned activity is not joined.
+- Expected files/modules: `DeadlineEngine`, relevant scheduler/finalization
+  ownership plumbing, and scheduler cancellation/ownership tests.
+- Estimate: Large, approximately 30–70 production lines. Disposal accounting
+  and its shutdown join must cover both direct and deferred release paths.
+- Tests/verification: V-code and V-doc; controlled direct cancel/finish race,
+  deferred disposal under State access, destructor reentry, release-time candidate
+  invalidation, cancellation versus claimed delivery, terminal handle retention,
+  and concurrent/canceled finish waiters. Use gates rather than timing stress.
+- Exclusions: Scheduling policy changes, joining application tasks, forced
+  termination, timeouts as a substitute for quiescence, and native adapters.
+- Checkpoint: R; complete before G04 or the first dependent HTTP timing work.
+
+### 003-Ra3 — Establish complete capture health before merging
+
+- Status: Not started; confirm the phase-boundary interpretation at scope review.
+- Prerequisites: 003-F04, 003-Fa08; DD21's freeze/release/candidate sequence and
+  the [recording merge contract](../record-services.md#recording-merge).
+- Finding: `ScenarioExecution` closes and merges each lease in order;
+  `SequentialTrackLease` checks global health after freezing only that track.
+  A two-track probe invokes the first merge before a later accumulator freezes
+  unsuccessfully. The final candidate is correctly rejected. The bounded costs
+  are premature merge work and potentially misleading merge-failure facts.
+- Contract interpretation: The review reads the global health gate and accepted
+  finalization sequence as requiring complete capture health before merges.
+  The phrase "unhealthy capture" could instead be read per track. Confirm the
+  intended boundary before implementation; any material decision change requires
+  explicit owner discussion rather than being hidden inside this fix.
+- Scope: Separate all-track capture freeze and detachment from merge application.
+  Complete the required State/Dependency release phase before candidate merging,
+  retaining only the stable inputs needed by the merge. Preserve deterministic
+  ordering, once-only callbacks, and validation without repeated transformations.
+- Public behavior: Invalidation discovered on a later track or during required
+  resource release prevents candidate merges under the confirmed global policy.
+  Replay, passthrough, and startup rollback continue to skip merges.
+- Expected files/modules: `ScenarioExecution`, `SequentialTrackLease`, internal
+  lease/merge finalization types, Core merge tests, and Date merge regressions.
+- Estimate: Large, approximately 50–90 production lines. Splitting the existing
+  typed close/freeze/merge handoff is broader than moving one health check.
+- Tests/verification: V-code and V-doc; later-track freeze failure, release-time
+  invalidation, healthy multi-track merge ordering, exactly-once freeze/merge,
+  malformed merge results, rollback, Date overrides, and capture release.
+- Exclusions: New correspondence policies, capability removal, live access from
+  merges, persistence schema changes, and broad lease decomposition.
+- Checkpoint: R; complete before G06 or dependent HTTP re-record merging.
+
+### 003-Ra4 — Review structured retained-report evaluation
+
+- Status: Design discussion; no public API change is approved.
+- Prerequisites: 003-Fa09A, 003-Fa09, 003-B09; DD05 final-only diagnostics and
+  DD18 retained-report/original-error semantics.
+- Finding: After a body throws, `Diorama.report` preserves safe rendered usage
+  and cleanup evidence, but exposes neither their structured values nor the
+  evaluator available on `ScenarioFinalizationResult`. Replaying one of two
+  Random records and throwing preserves the original error and renders an
+  unclaimed record, while structured diagnostics are empty. A public compiler
+  probe confirms the retained report has no `evaluate` method.
+- Scope: Review a shared, payload-free completed-facts representation that can
+  support typed usage/cleanup inspection and evaluation from either successful
+  results or retained reports. Decide the API and whether deferred rendering
+  simplifies representation; do not assume a measured performance benefit.
+- Intended benefit: Consumers and test integrations can evaluate the retained
+  report after an original body error without parsing text or restructuring body
+  error handling. This is a behavior-preserving simplification proposal, not a
+  defect in the accepted final-report-only contract; no capability loss is proposed.
+- Expected files/modules: A reviewed API proposal involving `DioramaReport`,
+  Core finalization/evaluation facts, retained-report tests, and usage guidance.
+- Tests/verification: V-doc for the design outcome. If the owner approves
+  implementation in this unit, V-code additionally proves successful and throwing
+  body evaluation, cleanup/publication failures, immutable retained snapshots,
+  sequential reuse, and absence of native/payload/arbitrary-error retention.
+- Exclusions: Live diagnostics, implicit test policy, retaining the semantic
+  definition solely for evaluation, replacing the original body error, and
+  unapproved capability or accepted-contract changes.
+- Checkpoint: R; resolve the design before J01/J02 select their common APIs.
+  Record the owner-selected outcome even if the proposal is declined. Do not
+  infer implementation approval from this planning entry.
+
+### 003-Ra5 — Classify missing envelope versions consistently
+
+- Status: Not started; scope confirmation required.
+- Prerequisites: 003-C02, 003-C04A; DD08 and the version-one persistence schema.
+- Finding: `decodeSchemaVersion` converts a missing nested envelope version to
+  `malformed` before the intended `unversionedEnvelope` mapping can run.
+  `{"diorama":{},"systems":[]}` therefore loads as `invalidDocument`, whereas
+  an envelope without `diorama` loads as `incompatibleEnvelope`. Both are rejected.
+- Scope: Classify an absent envelope `schemaVersion` as unversioned while
+  preserving strict malformed handling for null, nonnumeric, and out-of-range
+  versions and the separate rules for system payload versions.
+- Public behavior: Equivalent absent-envelope-version cases report
+  `incompatibleEnvelope(.unversionedEnvelope)` consistently. Startup mode
+  policy, unknown-system dispatch, and rejection safety remain unchanged.
+- Expected files/modules: `PersistedScenario+Codable.swift` and codec/repository
+  classification tests in `DioramaPersistenceTests`.
+- Estimate: Very Low, approximately 3–5 production lines in one decoding file;
+  the existing repository mapping already handles `unversionedEnvelope`.
+- Tests/verification: V-code and V-doc; missing root header, missing nested
+  envelope version, null/noninteger/out-of-range/unsupported versions, and
+  missing system versions through public codec and repository APIs.
+- Exclusions: Schema/version changes, accepting unversioned documents, migration,
+  changes to preparation, and changes to file publication policy.
+- Checkpoint: R; can wait for the next persistence diagnostic maintenance unit.
+
 ## Phase G — Location domain and Apple bridge
 
-Fa01/Fa02 precede this phase. Use the DD20 system-definition boundary and
+Fa01/Fa02 and Ra1 precede this phase. Ra2 precedes G04; Ra3 precedes G06.
+Use the DD20 system-definition boundary and
 [DD21's state-owned lifecycle amendment](../design-decisions/21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15).
 Core invokes lifecycle hooks in every mode; the system defines their native
 cleanup behavior. Passthrough dependencies may remain usable after finish when
@@ -2039,7 +2230,7 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 ### 003-G01 — Portable location, access, and failure values
 
 - Recommended model: GPT-6 Sol; reasoning: `medium`. Portable location and bounded error values need deliberate range, omission, and unknown-value contracts.
-- Prerequisites: 003-Fa02, 003-F01, 003-B02; DD06, DD09, DD16, DD20, Q4.
+- Prerequisites: 003-Fa02, 003-Ra1, 003-F01, 003-B02; DD06, DD09, DD16, DD20, Q4.
 - Scope: Define stable location measurements, access state, source information, and bounded property-list-like failure values independent of Core Location.
 - Expected files/modules: `DioramaLocation` domain values, validation tests and supported-field/error-value documentation.
 - Public behavior: Preserve floor, independent orthometric/ellipsoidal heights, timestamp, accuracy, speed/course and optional source flags; invalid native sentinels map to absence.
@@ -2090,7 +2281,7 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 ### 003-G04 — Portable sequential update replay
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. AsyncSequence updates, cached state, open sessions, and iterator cancellation require a coherent portable lifecycle.
-- Prerequisites: 003-G03, 003-Fa05, revised 003-E05, 003-E03; DD04–DD05, DD16.
+- Prerequisites: 003-G03, 003-Fa05, 003-Ra2, revised 003-E05, 003-E03; DD04–DD05, DD16.
 - Scope: Add location-owned AsyncSequence-first delivery over record claims and scheduling: ordered batches/nonterminal failures, one active session, non-consuming current location, progress, cancellation, and quiescence. Reuse relevant E06 test cases without adopting its generic schema.
 - Expected files/modules: Location portable service/update state machine and tests.
 - Public behavior: Start inactive selects the next group; repeated active start and inactive stop are idempotent.
@@ -2118,7 +2309,7 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 ### 003-G06 — Location origin policy and re-record replacement
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Origin precedence and surviving-session overrides must preserve fresh derivation while excluding raw sensitive values.
-- Prerequisites: 003-G03–003-G05, including 003-G03A, 003-F05, 003-C05; DD09, DD16.
+- Prerequisites: 003-G03–003-G05, including 003-G03A, 003-Ra3, 003-F05, 003-C05; DD09, DD16.
 - Scope: Add preparation and merge for coordinate/measurement origins while replacing other location behavior wholesale on re-record.
 - Expected files/modules: Location origin policy/merge, privacy and file fixtures.
 - Public behavior: Authored origin override wins over re-evaluated setup default, then fresh origin.
@@ -2567,7 +2758,7 @@ the accepted Linux milestone profile; its upstream repair is not required.
 ### 003-J01 — Opt-in XCTest integration
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Opt-in XCTest reporting must honor context lifetime, completed reports, and explicit core finalization.
-- Prerequisites: 003-B08–003-B09, 003-C06, 003-Fa09; DD05, DD10, resolved Q3, quality policy.
+- Prerequisites: 003-B08–003-B09, 003-C06, 003-Fa09, the owner-selected 003-Ra4 design outcome; DD05, DD10, resolved Q3, quality policy.
 - Scope: Provide a separate, explicit XCTest final-report evaluation convenience
   using supported lifecycle APIs and captured setup source locations. Review
   [in-flight inspection considerations](../diagnostic-inspection-design-notes.md)
@@ -2584,7 +2775,7 @@ the accepted Linux milestone profile; its upstream repair is not required.
 ### 003-J02 — Opt-in Swift Testing integration
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Swift Testing task context and final-report evaluation need framework-specific feasibility evidence and retained-report lifetime tests.
-- Prerequisites: 003-J01's reviewed common integration policy, 003-B09, 003-C06, 003-Fa09; amended DD05, DD10, DD18.
+- Prerequisites: 003-J01's reviewed common integration policy, the owner-selected 003-Ra4 design outcome, 003-B09, 003-C06, 003-Fa09; amended DD05, DD10, DD18.
 - Scope: Add a separate Swift Testing final-report evaluation convenience using
   the selected toolchain's supported test context and lifecycle facilities.
   Apply J01's reviewed [inspection considerations](../diagnostic-inspection-design-notes.md),
@@ -2651,6 +2842,8 @@ The complete initial outcome requires all of the following, with review records 
    their owning Fa units and any explicitly approved follow-ups; planned work
    or a reproduced limitation alone does not close a finding. S1 remains
    closed with the accepted loading behavior retained.
+   Ra1–Ra3 and Ra5 have verified fixes at their dependency deadlines; Ra4 has
+   an explicit owner-selected design outcome before test-integration APIs.
    Core has no HTTP, test-framework or native-adapter dependency.
 3. Random is a supported first-party product with file round-trip and all DD13 failure/concurrency behavior.
    Scheduler, clock and location meet DD14–DD16, including portable location replay and the bounded Apple facade/live source.
