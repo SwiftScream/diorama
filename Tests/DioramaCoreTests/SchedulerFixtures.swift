@@ -126,7 +126,8 @@ enum SchedulerFixtures {
         }
     }
 
-    static func setup(_ keys: [String] = ["a"], clock: ExecutionClock = .continuous()) async throws
+    static func setup(_ keys: [String] = ["a"], clock: ExecutionClock = .continuous(),
+                      requestStop: @escaping @Sendable () async -> Void = {}) async throws
         -> (ScenarioExecution, [Dependency])
     {
         var attachments: [ScenarioAttachment] = []
@@ -141,7 +142,11 @@ enum SchedulerFixtures {
                 _ = try context.lease(for: record(key, track: "a-second").trackID,
                                       preparation: ValuePreparation<Int>())
                 let dependency = Dependency(time: context.time, scheduling: context.scheduling)
-                return PreparedSystem { ActivatedSystem(dependency: dependency, deactivate: {}) }
+                return PreparedSystem {
+                    var activated = ActivatedSystem(dependency: dependency, deactivate: {})
+                    activated.beginFinalization = requestStop
+                    return activated
+                }
             }
             systems.append(AnyScenarioSystem(system))
         }

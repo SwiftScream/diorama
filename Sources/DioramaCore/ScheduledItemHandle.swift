@@ -12,6 +12,8 @@ public struct ScheduledItemHandle: Sendable {
     /// Claiming and cancellation are atomic alternatives. Once claimed, the
     /// delivery runs to completion, even during shutdown.
     /// Repeated cancellation and cancellation after claim return false.
+    /// Canceled callback captures release outside scheduler and managed State
+    /// locks. Execution finalization joins that release before freezing its report.
     @discardableResult
     public func cancel() -> Bool {
         registration.engine?.cancel(registration) ?? false
