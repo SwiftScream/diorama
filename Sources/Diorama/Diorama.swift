@@ -187,9 +187,21 @@ public final class Diorama<each Dependency: Sendable>: Sendable {
         var completedReport: DioramaReport?
         defer { state.withLock { $0 = .idle(completedReport) } }
         let run = try await startup()
+        let bodyResult = await invokeBody(body, in: run)
+        return try await run.finish(bodyResult: bodyResult, report: &completedReport)
+    }
+
+    private func invokeBody<Success: Sendable, Failure: Error>(
+        _ body: @isolated(any) (ScenarioExecutionContext, repeat each Dependency) async throws(Failure) -> Success,
+        in run: DioramaRun) async -> Result<Success, Failure>
+    {
+        // End temporary argument ownership before finalization. Only the body's
+        // returned value or original error carries dependency references onward.
         let dependencies = (repeat run.requiredDependency(for: each systems))
-        return try await run.runScoped(report: &completedReport) { () async throws(Failure) -> Success in
-            try await body(run.context, repeat each dependencies)
+        do {
+            return try await .success(body(run.context, repeat each dependencies))
+        } catch {
+            return .failure(error)
         }
     }
 }

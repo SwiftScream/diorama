@@ -29,16 +29,9 @@ struct DioramaRun: Sendable {
         }
     }
 
-    func runScoped<Success: Sendable, Failure: Error>(
-        report: inout DioramaReport?,
-        _ body: () async throws(Failure) -> Success) async throws -> DioramaResult<Success>
+    func finish<Success: Sendable>(
+        bodyResult: Result<Success, some Error>, report: inout DioramaReport?) async throws -> DioramaResult<Success>
     {
-        let bodyResult: Result<Success, Failure>
-        do {
-            bodyResult = try await .success(body())
-        } catch {
-            bodyResult = .failure(error)
-        }
         let finalization = await execution.finish()
         let publication = Self.publish(finalization.definition, to: repository)
         report = DioramaReport(finalization: finalization, publication: publication, loadResult: loadResult)
