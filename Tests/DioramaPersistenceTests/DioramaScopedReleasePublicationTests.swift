@@ -33,10 +33,12 @@ struct DioramaScopedReleasePublicationTests {
             #expect(error as? BodyFailure == .expected)
         }
         let report = try #require(setup.report)
-        #expect(report.disposition == .refusedUnhealthy)
-        #expect(report.preservation == .unchangedByThisRun)
-        #expect(!report.candidate.isComplete)
-        #expect(report.diagnostics.map(\.diagnostic.issue) == [.system(DiagnosticLabel("dependency-release"))])
+        #expect(report.publication.disposition == .refusedUnhealthy)
+        #expect(report.publication.preservation == .unchangedByThisRun)
+        #expect(!report.publication.candidate.isComplete)
+        #expect(report.finalization.report.diagnostics.map(\.diagnostic.issue) == [
+            .system(DiagnosticLabel("dependency-release")),
+        ])
         #expect(try fixture.storage.load() == original)
         #expect(try fixture.entries() == ["scenario.json"])
     }

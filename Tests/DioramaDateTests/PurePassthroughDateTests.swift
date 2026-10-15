@@ -50,7 +50,7 @@ struct PurePassthroughDateTests {
             Issue.record("Passthrough must retain the decoder's failure")
             return
         }
-        #expect(result.report.disposition == .notRequested)
+        #expect(result.report.publication.disposition == .notRequested)
         #expect(try Data(contentsOf: file) == bytes)
     }
 }

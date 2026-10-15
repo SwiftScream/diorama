@@ -68,7 +68,8 @@ struct DioramaRepositoryTests {
             }
             let baselineProblem = try loadProblem(#require(result.loadResult))
             #expect(baselineProblem == .missing || baselineProblem == .invalidDocument)
-            #expect(result.finalization.usage[0].tracks[0].activity == .record(recordedCount: 1, incompleteCount: 0))
+            #expect(result.report.finalization.usage[0].tracks[0].activity
+                == .record(recordedCount: 1, incompleteCount: 0))
             #expect(storage.readCount == 1)
             #expect(storage.writeCount == 1)
         }
@@ -106,9 +107,9 @@ struct DioramaRepositoryTests {
         let high = try await setup.execute { _, lease in try lease.consumeNext() }
         let second = try await setup.execute { _, lease in try lease.consumeNext() }
         #expect(second.body == high.body)
-        #expect(second.finalization.report == high.finalization.report)
-        #expect(second.finalization.usage == high.finalization.usage)
-        #expect(second.finalization.cleanup == high.finalization.cleanup)
+        #expect(second.report.finalization.report == high.report.finalization.report)
+        #expect(second.report.finalization.usage == high.report.finalization.usage)
+        #expect(second.report.finalization.cleanup == high.report.finalization.cleanup)
         #expect(storage.readCount == 2)
         #expect(storage.writeCount == 0)
     }

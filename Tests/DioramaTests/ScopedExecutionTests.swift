@@ -32,7 +32,7 @@ struct ScopedExecutionTests {
         }
 
         #expect(scoped.body == "true-42-text")
-        #expect(scoped.finalization.report.diagnostics.isEmpty)
+        #expect(scoped.report.finalization.report.diagnostics.isEmpty)
         #expect(journal.events.withLock { $0 } == [
             "prepare-c", "prepare-a", "prepare-b",
             "activate-c", "activate-a", "activate-b",
@@ -88,8 +88,8 @@ struct ScopedExecutionTests {
         let result = try await Diorama(definition: definition, scenarioID: "execution", mode: .replay,
                                        systems: instance).execute { _, value in value }
         #expect(result.body == 1)
-        #expect(result.finalization.cleanup.map(\.disposition) == [.failed])
-        #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [
+        #expect(result.report.finalization.cleanup.map(\.disposition) == [.failed])
+        #expect(result.report.finalization.report.diagnostics.map(\.diagnostic.issue) == [
             .system(DiagnosticLabel("fixture-cleanup-failed")), .lifecycle(.cleanupFailed),
         ])
     }
@@ -147,7 +147,7 @@ struct ScopedExecutionTests {
         blocker.continuation.finish()
 
         #expect(scoped.body == 1)
-        #expect(scoped.finalization.cleanup.map(\.disposition) == [.completed])
+        #expect(scoped.report.finalization.cleanup.map(\.disposition) == [.completed])
     }
 
     @Test

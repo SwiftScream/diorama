@@ -40,8 +40,8 @@ struct PersistedConsumerConformanceTests {
             #expect(result.body.0 == Array(UInt64(10)..<42))
             #expect(result.body.1 == Array(UInt64(100)..<132))
             #expect(result.body.2 == ConsumerStableValue(7))
-            #expect(result.finalization.report.diagnostics.isEmpty)
-            #expect(result.finalization.usage.map(\.mode) == [.record, .record, .record])
+            #expect(result.report.finalization.report.diagnostics.isEmpty)
+            #expect(result.report.finalization.usage.map(\.mode) == [.record, .record, .record])
             #expect(result.definition != nil)
             guard case .published = result.publication else { Issue.record("Expected file publication"); return }
             let published = try Data(contentsOf: file)
@@ -96,8 +96,8 @@ struct PersistedConsumerConformanceTests {
             #expect(result.body.0 == 10)
             #expect(result.body.1 == 100)
             #expect(result.body.2 == ConsumerStableValue(7))
-            #expect(result.finalization.evaluate(.allRecordsClaimed).isSatisfied)
-            #expect(result.finalization.report.diagnostics.isEmpty)
+            #expect(result.report.evaluated(.allRecordsClaimed).isSatisfied)
+            #expect(result.report.finalization.report.diagnostics.isEmpty)
             guard case .notRequested = result.publication else { Issue.record("Replay wrote storage"); return }
         }
         #expect(factoryCalls.withLock { $0 } == 0)
@@ -138,7 +138,7 @@ struct PersistedConsumerConformanceTests {
         #expect(mixed.body.0 == 10)
         #expect(mixed.body.1 == 500)
         #expect(mixed.body.2 == ConsumerStableValue(99))
-        #expect(mixed.finalization.usage.map(\.mode) == [.replay, .record, .passthrough])
+        #expect(mixed.report.finalization.usage.map(\.mode) == [.replay, .record, .passthrough])
         guard case .published = mixed.publication else { Issue.record("Expected mixed publication"); return }
 
         let replay = try await Diorama(file: file, scenarioID: "mixed", mode: .replay,
@@ -151,7 +151,7 @@ struct PersistedConsumerConformanceTests {
         #expect(replay.body.0 == 10)
         #expect(replay.body.1 == 500)
         #expect(replay.body.2 == ConsumerStableValue(7))
-        #expect(replay.finalization.evaluate(.allRecordsClaimed).isSatisfied)
+        #expect(replay.report.evaluated(.allRecordsClaimed).isSatisfied)
         guard case .notRequested = replay.publication else { Issue.record("Replay wrote storage"); return }
     }
 
@@ -174,7 +174,7 @@ struct PersistedConsumerConformanceTests {
         #expect(passthrough.body.0 == 10)
         #expect(passthrough.body.1 == 500)
         #expect(passthrough.body.2 == ConsumerStableValue(123))
-        #expect(passthrough.finalization.usage.map(\.mode) == [.passthrough, .passthrough, .passthrough])
+        #expect(passthrough.report.finalization.usage.map(\.mode) == [.passthrough, .passthrough, .passthrough])
         guard case .notRequested = passthrough.publication else { Issue.record("Passthrough wrote storage"); return }
         #expect(try Data(contentsOf: file) == bytes)
     }
@@ -203,9 +203,9 @@ struct PersistedConsumerConformanceTests {
                 return random.next()
             }
         #expect(unused.body == 41)
-        #expect(unused.finalization.usage.map { $0.tracks[0].unclaimedRecords.count } == [1, 1])
-        #expect(unused.finalization.evaluate(.allRecordsClaimed).failures.count == 2)
-        #expect(unused.finalization.report.diagnostics.isEmpty)
+        #expect(unused.report.finalization.usage.map { $0.tracks[0].unclaimedRecords.count } == [1, 1])
+        #expect(unused.report.evaluated(.allRecordsClaimed).failures.count == 2)
+        #expect(unused.report.finalization.report.diagnostics.isEmpty)
 
         let exhausted = try await Diorama(file: file, scenarioID: "usage", mode: .replay,
                                           systems: random, consumer)
@@ -221,11 +221,11 @@ struct PersistedConsumerConformanceTests {
         #expect(exhausted.body.1 == 42)
         #expect(exhausted.body.2 == 0)
         #expect(exhausted.body.3 == ConsumerStableValue(9))
-        #expect(exhausted.finalization.report.diagnostics.map(\.diagnostic.issue) == [
+        #expect(exhausted.report.finalization.report.diagnostics.map(\.diagnostic.issue) == [
             .sequential(.replayExhausted(availableCount: 2)),
         ])
-        #expect(exhausted.finalization.report.diagnostics[0].diagnostic.context.recordIdentity?.sequence == 2)
-        #expect(exhausted.finalization.evaluate(.allRecordsClaimed).isSatisfied)
+        #expect(exhausted.report.finalization.report.diagnostics[0].diagnostic.context.recordIdentity?.sequence == 2)
+        #expect(exhausted.report.evaluated(.allRecordsClaimed).isSatisfied)
         #expect(try Data(contentsOf: file) == bytes)
     }
 

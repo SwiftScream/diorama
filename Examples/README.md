@@ -41,3 +41,53 @@ modes, overrides, timeout composition, and lifecycle limitations.
 The canonical macOS and Linux checks build and run both command-line examples.
 The iOS job verifies the library package and its tests; this example is a
 command-line executable for macOS and Linux.
+
+## Completed reports and caller-owned output
+
+A successful `execute` returns `DioramaResult<Value>`. Its `body` is the
+application value, and `definition` is the complete healthy scenario when
+available. Keep the definition to replay in memory or publish explicitly;
+encoding or storage failure does not discard it. Exact load and publication
+outcomes remain on `loadResult` and `publication`, including underlying errors.
+
+`result.report` is the same immutable evidence stored on `diorama.report`.
+The report stores structured `finalization` facts (diagnostics, usage, cleanup)
+and a safe `publication` summary. It does not retain either definition, the
+body value/error, or arbitrary load/publication errors. Text is generated only
+by `rendered()`. Select verification conditions explicitly:
+
+```swift
+let result = try await diorama.execute { _, dependency in
+    try await exercise(dependency)
+}
+let evaluation = result.report.evaluated(.allRecordsClaimed)
+let cleanup = result.report.finalization.cleanup
+let publication = result.report.publication
+```
+
+After a body error, inspect the same report API while preserving that error:
+
+```swift
+do {
+    _ = try await diorama.execute { _, dependency in
+        try await exercise(dependency)
+    }
+} catch {
+    if let report = diorama.report {
+        let evaluation = report.evaluated(.allRecordsClaimed)
+        inspect(evaluation, report.publication)
+    }
+    throw error
+}
+```
+
+Here `exercise` and `inspect` represent application-owned functions. Evaluation
+returns facts without failing a test automatically. Publication problems remain
+separate from the selected Core conditions. Startup failure leaves `report` nil
+and carries its own evidence in the startup error. Copy the report before the
+next admitted execution clears the setup's property; copied reports stay frozen.
+
+Migration: use `result.report.finalization` for the former consumer
+`result.finalization`, `report.finalization.report.diagnostics` for formerly
+flat diagnostics, and `report.publication` for formerly flat publication fields.
+Core's lower-level `ScenarioFinalizationResult` accessors remain available.

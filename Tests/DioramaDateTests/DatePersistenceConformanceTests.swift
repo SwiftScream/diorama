@@ -32,9 +32,9 @@ struct DatePersistenceConformanceTests {
                 try await context.clock.sleep(until: start.advanced(by: .milliseconds(2)))
                 #expect(start.duration(to: context.clock.now) >= .milliseconds(2))
             }
-        #expect(result.report.diagnostics.isEmpty)
-        #expect(result.finalization.evaluate(.allRecordsClaimed).isSatisfied)
-        #expect(result.finalization.evaluate(.allClaimedRecordsConsumed).isSatisfied)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
+        #expect(result.report.evaluated(.allRecordsClaimed).isSatisfied)
+        #expect(result.report.evaluated(.allClaimedRecordsConsumed).isSatisfied)
         #expect(try codec.encode(#require(result.definition)) == bytes)
     }
 
@@ -62,8 +62,8 @@ struct DatePersistenceConformanceTests {
                 return native
             }
         #expect(recorded.body == [2000.00049, 2002.00049, 2009.00049].map { Date(timeIntervalSince1970: $0) })
-        #expect(recorded.report.disposition == .published)
-        #expect(recorded.report.diagnostics.isEmpty)
+        #expect(recorded.report.publication.disposition == .published)
+        #expect(recorded.report.finalization.report.diagnostics.isEmpty)
         let published = try Data(contentsOf: file)
         let expected = try #require(String(data: bytes, encoding: .utf8))
             .replacingOccurrences(of: "\"-1s\"", with: "\"7s\"")
@@ -81,10 +81,10 @@ struct DatePersistenceConformanceTests {
         #expect(replayed.body == [1_893_448_802.125, 1_893_448_807.125, 1_893_448_814.125].map {
             Date(timeIntervalSince1970: $0)
         })
-        #expect(replayed.finalization.evaluate(.allRecordsClaimed).isSatisfied)
-        #expect(replayed.finalization.evaluate(.allClaimedRecordsConsumed).isSatisfied)
-        #expect(replayed.report.diagnostics.isEmpty)
-        #expect(replayed.report.disposition == .notRequested)
+        #expect(replayed.report.evaluated(.allRecordsClaimed).isSatisfied)
+        #expect(replayed.report.evaluated(.allClaimedRecordsConsumed).isSatisfied)
+        #expect(replayed.report.finalization.report.diagnostics.isEmpty)
+        #expect(replayed.report.publication.disposition == .notRequested)
         #expect(try Data(contentsOf: file) == published)
         #expect(source.count == 3)
         #expect(passive.count == 2)
@@ -108,15 +108,15 @@ struct DatePersistenceConformanceTests {
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let recording = try await Diorama(file: file, scenarioID: "date-only-file", mode: .record)
             .execute { context in try await context.clock.sleep(for: .milliseconds(1)) }
-        #expect(recording.finalization.usage.isEmpty)
+        #expect(recording.report.finalization.usage.isEmpty)
         #expect(recording.definition?.attachments.isEmpty == true)
-        #expect(recording.report.diagnostics.isEmpty)
-        #expect(recording.report.disposition == .notRequested)
+        #expect(recording.report.finalization.report.diagnostics.isEmpty)
+        #expect(recording.report.publication.disposition == .notRequested)
         let replay = try await Diorama(file: file, scenarioID: "date-only-file", mode: .replay)
             .execute { context in try await context.clock.sleep(for: .milliseconds(1)) }
-        #expect(replay.finalization.usage.isEmpty)
-        #expect(replay.report.diagnostics.isEmpty)
-        #expect(replay.report.disposition == .notRequested)
+        #expect(replay.report.finalization.usage.isEmpty)
+        #expect(replay.report.finalization.report.diagnostics.isEmpty)
+        #expect(replay.report.publication.disposition == .notRequested)
         #expect(try Data(contentsOf: file) == bytes)
     }
 
@@ -130,13 +130,13 @@ struct DatePersistenceConformanceTests {
             .execute { context, _ in try await context.clock.sleep(for: .milliseconds(1)) }
         let bytes = try Data(contentsOf: file)
         #expect(try bytes == (DateConformanceSupport.fixture("date-empty")))
-        #expect(recorded.report.disposition == .published)
-        #expect(recorded.report.diagnostics.isEmpty)
+        #expect(recorded.report.publication.disposition == .published)
+        #expect(recorded.report.finalization.report.diagnostics.isEmpty)
         let replayed = try await Diorama(file: file, scenarioID: "empty-wall", mode: .replay, systems: system)
             .execute { context, _ in try await context.clock.sleep(for: .milliseconds(1)) }
-        #expect(replayed.report.diagnostics.isEmpty)
-        #expect(replayed.finalization.evaluate(.allRecordsClaimed).isSatisfied)
-        #expect(replayed.finalization.evaluate(.allClaimedRecordsConsumed).isSatisfied)
+        #expect(replayed.report.finalization.report.diagnostics.isEmpty)
+        #expect(replayed.report.evaluated(.allRecordsClaimed).isSatisfied)
+        #expect(replayed.report.evaluated(.allClaimedRecordsConsumed).isSatisfied)
         #expect(source.count == 0)
         #expect(try Data(contentsOf: file) == bytes)
     }
@@ -149,14 +149,14 @@ struct DatePersistenceConformanceTests {
         let recorded = try await Diorama(scenarioID: "concurrent", mode: .record, systems: system)
             .execute { context, wall in try await concurrentReads(wall, clock: context.clock) }
         #expect(recorded.body == native.map { Date(timeIntervalSince1970: $0) })
-        #expect(recorded.report.diagnostics.isEmpty)
+        #expect(recorded.report.finalization.report.diagnostics.isEmpty)
         let definition = try #require(recorded.definition)
         let replay = try await Diorama(definition: definition, scenarioID: "concurrent", mode: .replay, systems: system)
             .execute { context, wall in try await concurrentReads(wall, clock: context.clock) }
         #expect(replay.body == recorded.body)
-        #expect(replay.finalization.evaluate(.allRecordsClaimed).isSatisfied)
-        #expect(replay.finalization.evaluate(.allClaimedRecordsConsumed).isSatisfied)
-        #expect(replay.report.diagnostics.isEmpty)
+        #expect(replay.report.evaluated(.allRecordsClaimed).isSatisfied)
+        #expect(replay.report.evaluated(.allClaimedRecordsConsumed).isSatisfied)
+        #expect(replay.report.finalization.report.diagnostics.isEmpty)
         #expect(source.count == native.count)
     }
 

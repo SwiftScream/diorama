@@ -40,7 +40,7 @@ struct DioramaHeterogeneousTests {
                     return ConsumerStableValue(-1)
                 } == ConsumerStableValue(42))
             }
-            #expect(result.finalization.report.diagnostics.isEmpty)
+            #expect(result.report.finalization.report.diagnostics.isEmpty)
         }
     }
 
@@ -78,7 +78,7 @@ struct DioramaHeterogeneousTests {
                 return try [first.next { ConsumerStableValue(1) }, second.next { ConsumerStableValue(2) }]
             }
             #expect(result.body == [ConsumerStableValue(1), ConsumerStableValue(2)])
-            #expect(result.finalization.report.diagnostics.isEmpty)
+            #expect(result.report.finalization.report.diagnostics.isEmpty)
         }
         #expect(factories.withLock { $0 } == 2)
     }

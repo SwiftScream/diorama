@@ -2169,35 +2169,41 @@ measured by these line counts.
 
 ### 003-Ra4 — Review structured retained-report evaluation
 
-- Status: Design discussion; no public API change is approved.
+- Status: Complete. The owner approves the result/report separation, public
+  naming, implementation, and feature-branch PR on 2026-10-15.
+  [Evidence](../evidence/003-Ra4-structured-retained-reports.md) records the selected
+  API, preserved caller-owned outputs, and completed verification.
 - Prerequisites: 003-Fa09A, 003-Fa09, 003-B09; DD05 final-only diagnostics and
-  DD18 retained-report/original-error semantics.
-- Finding: After a body throws, `Diorama.report` preserves safe rendered usage
-  and cleanup evidence, but exposes neither their structured values nor the
-  evaluator available on `ScenarioFinalizationResult`. Replaying one of two
-  Random records and throwing preserves the original error and renders an
-  unclaimed record, while structured diagnostics are empty. A public compiler
-  probe confirms the retained report has no `evaluate` method.
-- Scope: Review a shared, payload-free completed-facts representation that can
-  support typed usage/cleanup inspection and evaluation from either successful
-  results or retained reports. Decide the API and whether deferred rendering
-  simplifies representation; do not assume a measured performance benefit.
-- Intended benefit: Consumers and test integrations can evaluate the retained
-  report after an original body error without parsing text or restructuring body
-  error handling. This is a behavior-preserving simplification proposal, not a
-  defect in the accepted final-report-only contract; no capability loss is proposed.
-- Expected files/modules: A reviewed API proposal involving `DioramaReport`,
-  Core finalization/evaluation facts, retained-report tests, and usage guidance.
-- Tests/verification: V-doc for the design outcome. If the owner approves
-  implementation in this unit, V-code additionally proves successful and throwing
-  body evaluation, cleanup/publication failures, immutable retained snapshots,
-  sequential reuse, and absence of native/payload/arbitrary-error retention.
+  [DD18's structured report amendment](../design-decisions/18-diorama-setup-and-scenario-data.md#structured-retained-reports--owner-approved-2026-10-15).
+- Finding: After a body throws, the former `Diorama.report` preserves rendered
+  usage and cleanup evidence but exposes neither their structured values nor
+  Core's evaluator. Replaying one of two Random records and throwing preserves
+  the original error and renders an unclaimed record, while diagnostics are
+  empty. This is an API/design concern, not a breach of the earlier contract.
+- Selected outcome: Keep `DioramaResult<Success>` as the successful return,
+  storing the body, shared report, healthy definition, exact load outcome, and
+  detailed publication outcome. Store `ScenarioFinalizationFacts` and
+  `DioramaPublicationSummary` on `DioramaReport`; expose `evaluated(...)` and
+  `rendered()`. Build the report once and render text only on request. Preserve
+  caller-owned definitions and errors without retaining them on Diorama.
+- Public behavior: Both body outcomes expose the same immutable structured
+  report and evaluation semantics. Startup failure leaves the retained report
+  nil. Sequential reuse clears only the current stored report; copied reports
+  remain frozen. Core finalization accessors retain their existing behavior.
+- Files/modules: Core finalization/evaluation/rendering, Diorama result/report
+  and publication summaries, consumer call sites, ownership regressions,
+  examples, and the DD05/DD18 amendments.
+- Tests/verification: V-code and V-doc; successful and throwing body evaluation,
+  cleanup/publication failures, immutable retained snapshots, sequential reuse,
+  preserved in-memory replay and publication-failure recovery, and absence of
+  native/payload/arbitrary-error retention. Rendering has no measured performance
+  claim. Required platform and coverage checks remain mandatory.
 - Exclusions: Live diagnostics, implicit test policy, retaining the semantic
-  definition solely for evaluation, replacing the original body error, and
-  unapproved capability or accepted-contract changes.
-- Checkpoint: R; resolve the design before J01/J02 select their common APIs.
-  Record the owner-selected outcome even if the proposal is declined. Do not
-  infer implementation approval from this planning entry.
+  definition solely for evaluation, replacing the original body error, new
+  dependencies, and test-framework integration.
+- Checkpoint: R; implementation and PR creation are owner-authorized. The selected
+  design resolves the J01/J02 prerequisite without starting those units. Merge
+  still requires passing required checks and separate owner authorization.
 
 ### 003-Ra5 — Classify missing envelope versions consistently
 

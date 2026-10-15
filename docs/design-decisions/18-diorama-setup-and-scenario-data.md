@@ -552,3 +552,50 @@ delivers this independently before Fa09. It does not change Core diagnostic
 sinks, add completion callbacks, expose partial reports, or introduce
 checkpoint/cursor APIs. Diagnostic-delivery simplification remains Fa09;
 inspection during execution is deferred to later test-integration design.
+
+## Structured retained reports — owner-approved 2026-10-15
+
+The owner approves the Ra4 design and implementation after reviewing result
+ownership, definition access, publication evidence, and naming. `DioramaResult`
+continues to name the successful return from `Diorama.execute`;
+`DioramaReport` names the shared immutable evidence retained after either body
+outcome. The owner also authorizes a feature branch and pull request.
+
+`DioramaResult<Success>` stores the body value, `report: DioramaReport`, the
+optional complete healthy output `definition`, the exact optional `loadResult`,
+and detailed `publication`. The definition remains available for in-memory
+inspection, editing, replay, or explicit publication, even after encoding or
+storage failure. Exact load outcomes may own a decoded baseline, and detailed
+publication/load outcomes may own arbitrary underlying errors. These remain
+caller-owned through the returned result; Diorama does not retain that result.
+
+`DioramaReport` stores `finalization: ScenarioFinalizationFacts` and
+`publication: DioramaPublicationSummary`. The Core facts contain the completed
+`DiagnosticReport`, ordered attachment usage, and cleanup outcomes, without a
+semantic definition. The publication summary retains the existing safe prior-
+document, disposition, preservation, candidate-count, and issue evidence.
+Neither property owns recorded payloads, body values/errors, native dependencies,
+storage, or arbitrary underlying errors. There is no cached rendered string.
+
+`report.evaluated(condition, attachments:)` evaluates the existing explicit Core
+conditions using the shared facts. Attachment scoping, unclaimed-record waivers,
+unknown-key failures, and deterministic ordering are unchanged. Publication
+issues remain separately inspectable; they do not become Core diagnostics or
+implicitly affect test policy. `report.rendered()` builds deterministic text on
+demand from the same facts, preserving the existing report text and escaping.
+No performance improvement is claimed without measurement.
+
+Core's `ScenarioFinalizationResult` owns the definition and shared `facts`;
+its existing accessors, evaluation, and rendering delegate to those facts.
+The consumer result instead exposes facts through `result.report.finalization`.
+The report is built once before `execute` returns or rethrows the original body
+error; the successful result stores the same value as `Diorama.report`.
+Startup failure, cancellation, admission, sequential reuse, publication health,
+and immutable snapshots retain the preceding amendment's semantics.
+
+This amends the earlier consumer result/report shape: the direct consumer
+`finalization` property moves under `report`; formerly flat report fields move
+under `finalization.report` or `publication`. No definition or detailed outcome
+capability is removed from the successful return. DD05's final-only diagnostics
+and DD10's lifecycle boundaries remain unchanged. This does not authorize live
+inspection or test-framework integration.

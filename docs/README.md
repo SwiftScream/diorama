@@ -296,6 +296,10 @@ test-integration design. They do not authorize those APIs.
   exercises absent envelope versions and preserves malformed and unsupported
   version distinctions through public codec and repository APIs.
 
+- [Structured retained-report evidence](evidence/003-Ra4-structured-retained-reports.md)
+  records shared finalization evaluation, safe publication summaries, caller-owned
+  definition/error lifetimes, and the result/report API migration.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

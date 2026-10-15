@@ -37,18 +37,18 @@ struct DioramaPublicationTests {
         for (key, expected) in expectations {
             #expect(try PublicationFixtures.values(key, in: definition) == expected)
         }
-        #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [
+        #expect(result.report.finalization.report.diagnostics.map(\.diagnostic.issue) == [
             .baseline(.loadedAttachmentNotConfigured),
         ])
-        #expect(result.finalization.usage.last?.allowsUnclaimedReplayRecords == true)
+        #expect(result.report.finalization.usage.last?.allowsUnclaimedReplayRecords == true)
         #expect(try codec.encode(baseline) == bytes)
         #expect(storage.readCount == 1)
         #expect(storage.writeCount == 1)
         #expect(try codec.encode(definition) == storage.document)
         guard case .published = result.publication else { Issue.record("Expected a committed candidate"); return }
-        #expect(result.report.disposition == .published)
-        #expect(result.report.preservation == .committedByThisRun)
-        #expect(result.report.issues.isEmpty)
+        #expect(result.report.publication.disposition == .published)
+        #expect(result.report.publication.preservation == .committedByThisRun)
+        #expect(result.report.publication.issues.isEmpty)
     }
 
     @Test(arguments: [ScenarioMode.replay, .passthrough])
@@ -68,9 +68,9 @@ struct DioramaPublicationTests {
         #expect(storage.document == bytes)
         #expect(storage.writeCount == 0)
         guard case .notRequested = result.publication else { Issue.record("Unexpected write request"); return }
-        #expect(result.report.disposition == .notRequested)
-        #expect(result.report.preservation == .notApplicable)
-        #expect(result.report.priorDocument == .present)
+        #expect(result.report.publication.disposition == .notRequested)
+        #expect(result.report.publication.preservation == .notApplicable)
+        #expect(result.report.publication.priorDocument == .present)
     }
 
     @Test(arguments: [false, true])
@@ -101,7 +101,7 @@ struct DioramaPublicationTests {
             }
         #expect(result.body == "body value")
         let definition = try #require(result.definition)
-        #expect(result.finalization.report.recordingHealth.isHealthy)
+        #expect(result.report.finalization.report.recordingHealth.isHealthy)
         guard case let .failed(error) = result.publication else { Issue.record("Expected publication failure"); return }
         switch error {
         case let .encoding(cause):
@@ -111,11 +111,11 @@ struct DioramaPublicationTests {
             #expect(!failEncoding)
             #expect(cause as? PublicationFixtures.Failure == .storage)
         }
-        #expect(result.report.disposition == .failed)
-        #expect(result.report.priorDocument == .present)
-        #expect(result.report.preservation == .unchangedByThisRun)
-        #expect(result.report.issues.map(\.stage) == [failEncoding ? .encoding : .storage(nil)])
-        #expect(result.report.issues.map(\.cause) == [.unspecified])
+        #expect(result.report.publication.disposition == .failed)
+        #expect(result.report.publication.priorDocument == .present)
+        #expect(result.report.publication.preservation == .unchangedByThisRun)
+        #expect(result.report.publication.issues.map(\.stage) == [failEncoding ? .encoding : .storage(nil)])
+        #expect(result.report.publication.issues.map(\.cause) == [.unspecified])
         #expect(storage.document == bytes)
         #expect(storage.writeCount == (failEncoding ? 0 : 1))
         let replay = try await Diorama(definition: definition, scenarioID: "retained", mode: .replay, systems: system)
@@ -163,8 +163,8 @@ struct DioramaPublicationTests {
                 #expect(error as? PublicationFixtures.Failure == .body)
             }
         }
-        #expect(setup.report?.disposition == (unhealthy ? .refusedUnhealthy : .published))
-        #expect(setup.report?.candidate.isComplete == !unhealthy)
+        #expect(setup.report?.publication.disposition == (unhealthy ? .refusedUnhealthy : .published))
+        #expect(setup.report?.publication.candidate.isComplete == !unhealthy)
         #expect(storage.writeCount == (unhealthy ? 0 : 1))
         if unhealthy {
             #expect(storage.document == bytes)

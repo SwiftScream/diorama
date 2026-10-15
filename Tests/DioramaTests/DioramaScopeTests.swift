@@ -26,7 +26,7 @@ struct DioramaScopeTests {
         }
         #expect(state.value == 1)
         #expect(probe.events.withLock { $0.last } == "cleanup-a")
-        #expect(setup.report?.scenarioID.rawValue == "actor")
+        #expect(setup.report?.finalization.report.scenarioID.rawValue == "actor")
     }
 
     @Test
@@ -63,7 +63,7 @@ struct DioramaScopeTests {
             } else {
                 let result = try await task.value
                 #expect(result.body)
-                #expect(result.finalization.cleanup.map(\.disposition) == [.completed])
+                #expect(result.report.finalization.cleanup.map(\.disposition) == [.completed])
             }
             #expect(setup.report != nil)
         }

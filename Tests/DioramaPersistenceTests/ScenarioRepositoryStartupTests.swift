@@ -29,7 +29,7 @@ struct ScenarioRepositoryStartupTests {
         }
         #expect(baseline.attachments.map(\.id.key.rawValue) == ["boundaries"])
         #expect(result.body == [0, UInt64.max])
-        #expect(result.finalization.report.diagnostics.isEmpty)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
         #expect(storage.readCount == 1)
         #expect(storage.writeCount == 0)
     }
@@ -125,10 +125,10 @@ struct ScenarioRepositoryStartupTests {
         default: .incompatibleSystem
         }
 
-        #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [
+        #expect(result.report.finalization.report.diagnostics.map(\.diagnostic.issue) == [
             .baseline(.baselineIgnoredForRecording(expected)),
         ])
-        #expect(result.finalization.report.recordingHealth.isHealthy)
+        #expect(result.report.finalization.report.recordingHealth.isHealthy)
         #expect(storage.writeCount == 1)
     }
 
@@ -141,7 +141,7 @@ struct ScenarioRepositoryStartupTests {
         let recordingResult = try await Diorama(repository: missing,
                                                 scenarioID: "repository-startup", mode: .record,
                                                 systems: recording).execute { _, _ in () }
-        #expect(recordingResult.finalization.report.diagnostics.isEmpty)
+        #expect(recordingResult.report.finalization.report.diagnostics.isEmpty)
         #expect(recordingProbe.activationCount == 1)
 
         let passthroughProbe = StartupProbe()
@@ -151,7 +151,7 @@ struct ScenarioRepositoryStartupTests {
         let passthroughResult = try await Diorama(repository: invalid,
                                                   scenarioID: "repository-startup", mode: .passthrough,
                                                   systems: passthrough).execute { _, _ in () }
-        #expect(passthroughResult.finalization.report.diagnostics.isEmpty)
+        #expect(passthroughResult.report.finalization.report.diagnostics.isEmpty)
         #expect(passthroughProbe.activationCount == 1)
         #expect(missingStorage.writeCount == 1)
         #expect(invalidStorage.writeCount == 0)
@@ -258,11 +258,11 @@ struct UnmatchedAttachmentStartupTests {
             Issue.record("Expected the exact loaded baseline"); return
         }
         #expect(baseline.attachments.map(\.id.key.rawValue) == ["account-id", "retry-jitter"])
-        #expect(result.finalization.usage.map(\.attachmentID.key.rawValue) == ["account-id"])
-        #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [
+        #expect(result.report.finalization.usage.map(\.attachmentID.key.rawValue) == ["account-id"])
+        #expect(result.report.finalization.report.diagnostics.map(\.diagnostic.issue) == [
             .baseline(.loadedAttachmentNotConfigured),
         ])
-        #expect(result.finalization.report.diagnostics.map(\.diagnostic.context) == [
+        #expect(result.report.finalization.report.diagnostics.map(\.diagnostic.context) == [
             .attachment(AttachmentID(
                 systemTypeID: DioramaRandomSystem.type.id,
                 key: AttachmentKey(rawValue: "retry-jitter"))),
