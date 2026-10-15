@@ -2309,7 +2309,7 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Public behavior: Start inactive selects the next group; repeated active start and inactive stop are idempotent.
   Restart gets a fresh anchor.
   Current location updates before delivery and survives failure.
-  Open groups stay active/silent; exhausted start diagnoses and becomes inert if the handler returns.
+  Open groups stay active/silent; exhausted start retains a diagnostic for the completed report and becomes inert.
 - Tests/verification: V-code; batch order, duplicate/cached measurement times, failure then recovery, current reads, start/stop/restart, iterator cancellation, inert-session release, claimed/unconsumed report, basic shutdown quiescence.
 - Exclusions: Matching manager configuration, concurrent sessions within one attachment, failure as thrown termination, synthetic completion on mismatch.
 - Checkpoint: R; review the full portable update lifecycle and offline guarantee.
