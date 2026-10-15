@@ -184,10 +184,21 @@ their stopping phase. Cleanup preserves State needed for accepted record freeze.
 Passthrough has `makePassthroughState(in:)` and
 `makePassthroughDependency(using:)`, returning ordinary values. Core invokes its
 hooks on rollback and after successful publication. The system chooses native
-shutdown and escaped-dependency usability; no-op hooks preserve injected
-consumer-owned dependencies. Hooks tolerate consumer-initiated shutdown.
+shutdown and escaped-dependency usability within its lifecycle contract. Hook
+invocation alone does not require invalidating the native dependency: no-op hooks
+can preserve continued use after finish. Hooks tolerate consumer-initiated
+shutdown and must complete any cleanup the system owns.
 Passthrough still has no track access, recording, interception, or wrapper around
 ordinary native operations. The shared execution services retain their own gates.
+
+`DioramaRandom` and `DioramaDate` return their native sources directly, use `Void`
+passthrough state, and inherit the default no-op stop and cleanup hooks. Retained
+sources therefore continue after finish with native copy and sharing semantics,
+without Diorama operation diagnostics. Existing
+[Random tests](../Tests/DioramaRandomTests/DioramaRandomTests.swift) and
+[Date tests](../Tests/DioramaDateTests/PurePassthroughDateTests.swift) cover this
+behavior. A system that owns native resources can instead stop them in its hooks;
+its documentation must specify the resulting post-finish behavior.
 
 ## Immediate and incremental recording
 

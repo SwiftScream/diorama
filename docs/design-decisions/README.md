@@ -48,8 +48,10 @@ On 2026-10-15, the owner approves implementation of
 [DD21's state-owned lifecycle amendment](21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15).
 All modes have ordinary State/Dependency factories and definition-level stop and
 cleanup hooks. Runtime state views replace resource handles; lifecycle access
-expires after each hook. This reconciles DD10, DD19, and DD20, including Core's
-initiation of passthrough shutdown after publication.
+expires after each hook. This reconciles DD10, DD19, and DD20: Core invokes
+lifecycle hooks in every mode, including passthrough after publication. Each
+system defines its hooks' native cleanup behavior and the resulting dependency
+lifetime; no-op passthrough hooks can preserve continued use after finish.
 
 On 2026-10-13, the owner approves
 [DD21's factory-owned construction amendment](21-managed-native-lifecycle.md#factory-owned-construction--owner-approved-2026-10-13).

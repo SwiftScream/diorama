@@ -193,7 +193,7 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [DD18: Setup and scenario data](../design-decisions/18-diorama-setup-and-scenario-data.md) | Complete reusable `Diorama` setup; immutable data-only `ScenarioDefinition`; direct codec boundary without public `PersistedScenario`; load per execution; valid in-memory results independent of publication success. 003-C04A–003-C07, 003-H07, 003-J03–003-J04. |
 | [Overview](../design-overview.md)                                                            | Ignoring a configured attachment changes verification only. Every loaded payload still requires persistent registration plus schema and prepared-value validation before unmatched attachments are diagnosed and discarded. 003-C01–003-C06 including 003-C04A–003-C04B, 003-J03.                                                                                                           |
 | [DD19: System-owned records](../design-decisions/19-system-owned-records.md) | Core record capture/selection without lifecycle shape constraints; domain capture and delivery in G03A/G04/G05 and H12A/H12B. E04R and revised E05 deliver the accepted record-services boundary. |
-| [DD20: System definitions and pure passthrough](../design-decisions/20-system-definitions-and-pure-passthrough.md) | Native passthrough behavior and consumer-owned lifetime; one public protocol authoring path; Core-owned record/replay state, synchronization, safe notification delivery, and lifecycle. Preserve existing services when retiring the old path. 003-Fa01–003-Fa02; native lifecycle follow-up at G08/I01. |
+| [DD20: System definitions and pure passthrough](../design-decisions/20-system-definitions-and-pure-passthrough.md) | Native passthrough behavior; one public protocol authoring path; Core-owned state, synchronization, diagnostic retention, and lifecycle. DD21's state-owned amendment extends lifecycle hooks to every mode; system hooks define passthrough cleanup and continued dependency use. 003-Fa01–003-Fa02; native lifecycle follow-up at G08/I01. |
 | [DD21: Managed native lifecycle](../design-decisions/21-managed-native-lifecycle.md) | Async activation, ordinary State/Dependency factories, tracked member access, expiring lifecycle contexts, and awaited all-mode stop/cleanup. 003-Fa08; actual native adapter evidence remains G08/I01. |
 | [Dependency policy](../dependency-policy.md)                                                 | Candidate status is not adoption approval. Tools and HTTP products need exact reviewed adoption records before use. 003-A02, 003-H01, and any later demonstrated need.                                                                                                                       |
 | [Quality policy](../quality-gates-and-ci.md)                                                 | One complete tooling/CI bootstrap review unit, warning-free strict concurrency, all applicable platforms, required Codecov uploads. 003-A01–003-A04, 003-B10, every subsequent code unit.                                                                                                        |
@@ -2022,9 +2022,14 @@ failure, without depending on Fa02 or changing Core diagnostic delivery.
 
 ## Phase G — Location domain and Apple bridge
 
-Fa01/Fa02 precede this phase. Use the DD20 system-definition boundary and native
-passthrough ownership. DD16's scenario-scoped cleanup and inert escaped-handle
-rules continue for record/replay; passthrough follows its live API lifetime.
+Fa01/Fa02 precede this phase. Use the DD20 system-definition boundary and
+[DD21's state-owned lifecycle amendment](../design-decisions/21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15).
+Core invokes lifecycle hooks in every mode; the system defines their native
+cleanup behavior. Passthrough dependencies may remain usable after finish when
+their system's hooks preserve that lifetime, as the no-op passthrough hooks in
+Random and Date do. DD16's scenario-scoped cleanup and inert escaped-handle
+rules continue for record/replay. G08 documents Location's passthrough policy
+and G09 verifies it, including any continued use after finish.
 Investigate native construction and cleanup at the start of G08, with evidence
 before relying on it; G09 broadens that protection rather than introducing it.
 Fa03–Fa05 have explicit prerequisite gates below; Fa08 implements the R5 public
@@ -2147,9 +2152,11 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Expected files/modules: Core Location native bridge/converters and controlled adapter-boundary tests; documented native field availability.
 - Public behavior: Forward configuration and supported native behavior; record prepared portable values while live consumers receive the promised facade values/native Error.
   Unsupported user-info entries warn and omit only that value; other conversion failures preserve live behavior and block publication.
-  Pure passthrough has consumer-owned native lifetime and no Diorama recording
-  conversion or post-finish policy. Its facade retains ordinary native isolation
-  and explicit shutdown obligations.
+  Pure passthrough has no Diorama recording conversion or operation interception.
+  Core invokes its lifecycle hooks; document the system-defined native cleanup
+  and retained-facade behavior, including whether use continues after finish.
+  Its facade retains ordinary native isolation, and hooks tolerate
+  consumer-initiated shutdown.
 - Tests/verification: V-code; supported measurement fields and unknown access values, callbacks/errors, initial cached location, batching, no raw origin leak, source isolation, passthrough no track changes, counted owned-manager operations.
 - Exclusions: Consumer-manager mutation, live Linux source, native error string persistence, nondeterministic simulator GPS as the sole correctness evidence.
 - Checkpoint: R; review native conversion fidelity and owned-manager boundaries.
@@ -2160,8 +2167,8 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Prerequisites: 003-G08; DD10, DD14, DD16.
 - Scope: Complete private-manager/proxy/sequence cleanup and broader portable, Apple, multi-attachment and re-record conformance.
 - Expected files/modules: Location/Core Location integration tests, capability documentation, Apple controlled callback harness and portable replay fixtures.
-- Public behavior: In record/replay, finish stops owned resources, detaches proxy, cancels pending and drains claimed callbacks, ends async sequences as runtime cleanup, and leaves escaped handles inert without inventing a delegate completion. Pure passthrough retains DD20 native lifetime.
-- Tests/verification: V-code; record/replay finish during batches/access barriers, cancellation, late native events, no managed location callbacks after finish, frozen-property rules, multiple independent managers, Apple-recorded portable fixtures replaying on Linux; passthrough continuation and consumer-owned cleanup. Distinguish actual Apple integration evidence from controlled mocks.
+- Public behavior: In record/replay, finish stops owned resources, detaches proxy, cancels pending and drains claimed callbacks, ends async sequences as runtime cleanup, and leaves escaped handles inert without inventing a delegate completion. Passthrough hooks implement G08's documented native cleanup and retained-facade policy, which may preserve continued use after finish.
+- Tests/verification: V-code; record/replay finish during batches/access barriers, cancellation, late native events, no managed location callbacks after finish, frozen-property rules, multiple independent managers, Apple-recorded portable fixtures replaying on Linux; passthrough hook invocation, documented continued-use or shutdown behavior, and tolerance of consumer-initiated shutdown. Distinguish actual Apple integration evidence from controlled mocks.
 - Exclusions: Treating simulator lack of deterministic GPS as evidence of live fidelity, adding unsupported services, persisting teardown as stream completion.
 - Checkpoint: R; stop at the complete initial location milestone.
 
@@ -2381,7 +2388,9 @@ Each unit extends one public URLSession system.
 Bring the relevant spike cases into production conformance tests deliberately; do not import the spike package.
 Every instrumented record/replay profile rejects both permanently excluded and
 not-yet-built operations. DD20 passthrough uses the uninstrumented native session
-and does not inherit those restrictions or scenario-owned invalidation.
+and does not inherit those operation restrictions. Under DD21's state-owned
+amendment, Core invokes its lifecycle hooks too; the system defines native
+cleanup and whether a retained session remains usable after finish.
 A unit passes only for capabilities proved on its declared platforms.
 Temporary differences are documented; the complete milestone is not delivered while required surfaces remain unimplemented or unresolved.
 Narrowing the milestone requires an approved decision amendment.
@@ -2405,10 +2414,13 @@ the accepted Linux milestone profile; its upstream repair is not required.
   creation/completion. Finalization uses admitted task references directly;
   avoiding enumeration there does not repair the initial routing lookup.
   All factories return concrete `URLSession` dependencies. Pure passthrough
-  returns an ordinary uninstrumented session with native lifetime/capabilities.
+  returns an ordinary uninstrumented session with native capabilities. Document
+  its system-defined stop/cleanup policy and retained-session lifetime, including
+  any continued use after finish and tolerance of consumer-initiated invalidation.
   At the start of this unit, establish the managed native cleanup integration
-  with Fa02's runtime: explicit invalidation, routing removal, detached live
-  forwarding, and replay callback drainage. Releasing state alone is not proof.
+  with Fa08's all-mode hooks: record/replay invalidation, routing removal,
+  detached live forwarding, and replay callback drainage. Releasing state alone
+  is not proof.
 - Tests/verification: V-code; bodyless GET first on macOS/Linux then iOS, all modes, configuration immutability, two sessions/executions, no private routing metadata in preparation/diagnostics/network, absent/ambiguous/expired ownership, late lookup after cancellation, zero live replay access, startup rollback, basic cancellation/finish and the approved native invalidation boundary.
 - Exclusions: Global protocol registration, shared/existing-session mutation, advertising record/replay bodies/delegate decisions/redirects/auth before their units, live bypass for unsupported tasks or non-HTTP schemes in instrumented modes.
 - Checkpoint: R; review the smallest safe native vertical path and its precise temporary profile.
@@ -2522,12 +2534,12 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Expected files/modules: URLSession ownership/race conformance tests and documented forwarding-tail topology; focused fixes only as evidence requires.
 - Public behavior: Horizon stops recording immediately and permits necessary live forwarding tails without scenario retention; replay callbacks quiesce.
   Open before-head, partial-body and unanswered decisions never get invented terminal events.
-  Returned record/replay sessions are invalidated; new task creation after execution is invalid native use and crashes on tested runtimes, as approved in DD12/DD17. DD20 passthrough sessions retain native lifetime.
+  Returned record/replay sessions are invalidated; new task creation after execution is invalid native use and crashes on tested runtimes, as approved in DD12/DD17. Passthrough hooks implement I01's documented native cleanup and retained-session policy, which may preserve continued use after finish.
   Await native invalidation acknowledgement and owned delivery drainage for
   replay; gracefully invalidate live sessions without waiting for open consumer
   work. A live continuation has weak task/owner backreferences and no scenario
   retention. Key decision disposal per task so cancellation stays local.
-- Tests/verification: V-code; finish at every phase, repeated/concurrent/canceled finish waiters, no replay callbacks after quiescence, late live results forwarded without candidate mutation, source/session ownership, routing/lease release, claimed/unconsumed facts and healthy explicit-open persistence.
+- Tests/verification: V-code; finish at every phase, repeated/concurrent/canceled finish waiters, no replay callbacks after quiescence, late live results forwarded without candidate mutation, source/session ownership, routing/lease release, claimed/unconsumed facts and healthy explicit-open persistence; passthrough hook invocation, documented continued-use or shutdown behavior, and tolerance of consumer-initiated invalidation.
 - Exclusions: Canceling live work merely to reach a horizon, leak masking through global strong registries, recording caller cancellation, new timeout policy.
 - Checkpoint: R; review production shutdown evidence independently from happy paths.
 
@@ -2648,7 +2660,7 @@ The complete initial outcome requires all of the following, with review records 
    Compatibility and golden fixtures protect every first-party schema.
    Ignoring affects verification only, and neither replay nor migration-on-read writes to persistence.
 6. Explicit/scoped finish and opt-in test integrations expose complete outcomes; they cannot leave Diorama-owned replay callbacks running after quiescence or alter consumer-owned live behavior merely to end recording.
-   Later managed-handle misuse is separately inspectable without changing the final report or retaining execution machinery; pure passthrough has no post-finish policy. Test reporting respects the test context's lifetime.
+   Later managed-handle misuse is separately inspectable without changing the final report or retaining execution machinery. Passthrough operations remain native and uninstrumented; all-mode hooks implement the system's documented cleanup and post-finish usability. Test reporting respects the test context's lifetime.
 7. Canonical quality checks and required macOS/iOS Simulator/Linux jobs pass, debug/release strict compilation and public documentation are warning-free, every expected coverage upload succeeds, and pins/adoption records/update automation satisfy the delivery policies.
    Unavailable checks remain gaps.
 8. Documentation and plan status reflect delivered behavior and exclusions.

@@ -49,8 +49,12 @@ definition-level request-stop and cleanup hooks. Async requirements permit
 synchronous and actor-isolated witnesses. Factories own failed partial
 construction; Core owns successful returns, rollback, and awaited shutdown.
 Runtime state views provide locked mutation and tracked native-member access.
-Passthrough hooks determine shutdown, including no-op cleanup for injected
-consumer-owned dependencies.
+Core invokes lifecycle hooks in every mode; each system defines what those hooks
+do within its lifecycle contract. Passthrough hooks may preserve a dependency's
+continued use after finish. `DioramaRandom` and `DioramaDate` use the default
+no-op passthrough hooks, so retained native sources remain usable without Diorama
+operation diagnostics. Other systems may stop their native resources through
+their hooks and document the resulting dependency lifetime.
 
 The original review of decisions 1 through 12 identified scheduler, clock,
 location, consumer-extension, and HTTP-composition prerequisites. Decisions 13
@@ -597,9 +601,3 @@ posture, proving system, scheduler, clock, location, shared HTTP domain, and
 URLSession lifecycle well enough to synthesize the clean-slate implementation
 plan. Evidence-producing implementation spikes may narrow an advertised
 platform capability, but they must not silently weaken these semantics.
-
-The [DD21 factory-owned construction amendment](design-decisions/21-managed-native-lifecycle.md#factory-owned-construction--owner-approved-2026-10-13)
-assigns failed partial construction to system factories. Core adopts cleanup
-obligations only from successful results, retaining rollback before publication
-and awaited managed shutdown afterward. Passthrough results transfer ordinary
-native lifetime to the consumer at publication.
