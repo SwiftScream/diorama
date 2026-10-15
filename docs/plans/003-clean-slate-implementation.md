@@ -2038,7 +2038,7 @@ concern, not a failure to implement an accepted contract. Ra3's phase ordering
 is reproduced, while its contract interpretation needs confirmation as noted
 in that unit. No Critical or High finding is confirmed.
 
-These units remain unstarted. Their placement together does not make all five
+Each unit records its own status. Their placement together does not make all five
 prerequisites for Location. Preserve the following dependency deadlines:
 
 | Unit | Priority / kind | Planned timing | Rough production fix size |
@@ -2060,7 +2060,9 @@ measured by these line counts.
 
 ### 003-Ra1 — Release scoped invocation dependencies before finalization
 
-- Status: Not started; scope confirmation required.
+- Status: Complete. The owner authorizes the fix and its own branch/PR on
+  2026-10-15. [Evidence](../evidence/003-Ra1-scoped-dependency-lifetime.md)
+  records release-before-report and publication regressions in Debug and Release.
 - Prerequisites: 003-Fa08, 003-Fa09A; DD21's state-owned release-before-report
   contract, DD18's original-error and retained-report amendment, DD05/DD10.
 - Finding: `Diorama.execute` creates a dependency tuple captured by the body
