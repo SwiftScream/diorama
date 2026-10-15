@@ -1,7 +1,9 @@
 /// A system-owned merge of a validated baseline and a fresh prepared recording.
 ///
 /// Inputs belong to the same typed track. The callback runs once during normal
-/// record-mode finalization, after capture freezes and outside lease state locks.
+/// record-mode finalization, after every track freezes and execution-owned state
+/// and dependencies release, provided capture remains healthy across the scenario.
+/// It runs outside lease/state locks.
 /// It must be deterministic, use only prepared stable content, and validate its
 /// domain's complete result. It must not read live sources or wait for finish.
 /// Core preserves the track identity and validates the returned header and values

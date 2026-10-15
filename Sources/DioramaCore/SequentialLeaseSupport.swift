@@ -28,12 +28,15 @@ protocol AnySequentialLease: Sendable {
     var id: TrackID { get }
     func join() async
     @discardableResult
-    func close(mergingRecording: Bool) -> ClosedSequentialTrack
+    func close() -> ClosedSequentialTrack
 }
 
+/// Frozen usage and stable recording inputs, detached from runtime capture.
+/// Only normal finish invokes the recording finalizer, after all leases close
+/// and execution-owned State/Dependency references release with healthy capture.
 struct ClosedSequentialTrack: Sendable {
     let usage: SequentialTrackUsage
-    let recording: (any AnySequentialTrack)?
+    let makeRecording: @Sendable () -> (any AnySequentialTrack)?
 }
 
 /// Safe evidence for a failed typed sequential-track operation.

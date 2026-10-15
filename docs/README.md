@@ -270,6 +270,9 @@ test-integration design. They do not authorize those APIs.
 - [Scoped dependency lifetime evidence](evidence/003-Ra1-scoped-dependency-lifetime.md)
   exercises release-time final facts and publication refusal while preserving
   dependencies intentionally retained by application values, errors, or storage.
+- [Capture health before merge evidence](evidence/003-Ra3-capture-health-before-merge.md)
+  exercises scenario-wide capture and runtime-release health before ordered
+  recording merges, including later-track failures and rollback.
 - [Final-report-only diagnostic evidence](evidence/003-Fa09-diagnostic-delivery.md)
   records the delivery contract, API migration, concurrency simplification,
   deferred inspection considerations, and local platform verification.

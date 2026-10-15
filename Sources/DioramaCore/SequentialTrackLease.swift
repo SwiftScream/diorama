@@ -466,8 +466,8 @@ extension SequentialTrackLease: AnySequentialLease {
     }
 
     @discardableResult
-    func close(mergingRecording: Bool = false) -> ClosedSequentialTrack {
-        closing.withLock { _ in finishClosing(mergingRecording: mergingRecording) }
+    func close() -> ClosedSequentialTrack {
+        closing.withLock { _ in finishClosing() }
     }
 
     private func freezeRecords() {
@@ -502,7 +502,7 @@ extension SequentialTrackLease: AnySequentialLease {
         withExtendedLifetime(accumulators) {}
     }
 
-    private func finishClosing(mergingRecording: Bool) -> ClosedSequentialTrack {
+    private func finishClosing() -> ClosedSequentialTrack {
         if !state.withLock({ $0.closed }) {
             freezeRecords()
         }
@@ -515,17 +515,21 @@ extension SequentialTrackLease: AnySequentialLease {
             reporter.record(Diagnostic(issue: .verification(.recordingNotAdmitted), context: .record(identity),
                                        recordingImpact: .invalidatesCandidate))
         }
-        let recording: SequentialTrack<Value, Header>? = switch (mergingRecording, detached.merge) {
-        case let (true, .apply(policy, baseline, fresh)) where reporter.isRecordingHealthy:
-            policy.apply(baseline: baseline, recording: fresh, reporter: reporter)
+        let makeRecording: @Sendable () -> (any AnySequentialTrack)?
+        switch detached.merge {
+        case let .apply(policy, baseline, fresh):
+            let reporter = reporter
+            makeRecording = {
+                policy.apply(baseline: baseline, recording: fresh, reporter: reporter).map {
+                    SequentialTrackBox(track: $0)
+                }
+            }
         default:
-            detached.recording
+            let recording = detached.recording.map { SequentialTrackBox(track: $0) }
+            makeRecording = { recording }
         }
         withExtendedLifetime(detached) {}
-        return ClosedSequentialTrack(usage: detached.usage,
-                                     recording: recording.map {
-                                         SequentialTrackBox(track: $0)
-                                     })
+        return ClosedSequentialTrack(usage: detached.usage, makeRecording: makeRecording)
     }
 
     private func detachClosedContents() -> ClosedContents {
