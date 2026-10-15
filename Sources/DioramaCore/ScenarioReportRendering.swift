@@ -1,4 +1,4 @@
-public extension ScenarioFinalizationResult {
+public extension ScenarioFinalizationFacts {
     /// Renders ordered, safe facts without inspecting recorded values or errors.
     ///
     /// Diorama owns the text format; it is a human-readable report, not a
@@ -35,6 +35,14 @@ public extension ScenarioFinalizationResult {
             lines.append("Cleanup \(ReportText.attachment(outcome.attachmentID)) \(disposition)")
         }
         return lines.joined(separator: "\n")
+    }
+}
+
+public extension ScenarioFinalizationResult {
+    /// Renders the payload-free facts without inspecting the resulting definition.
+    /// - Returns: A deterministic multiline description of this frozen result.
+    func rendered() -> String {
+        facts.rendered()
     }
 }
 
