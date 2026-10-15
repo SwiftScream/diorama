@@ -103,7 +103,8 @@ struct ScenarioClockLifetimeTests {
         _ = try await source.nextSleep()
         source.advance(to: .seconds(3), waking: false)
         #expect(retainedTime.closeAdmission() == nil)
-        await engine?.stop()?.value
+        engine?.stop()
+        await engine?.drain()
         retainedTime.close()
         engine = nil
         // The canceled application's continuation may not have resumed yet.

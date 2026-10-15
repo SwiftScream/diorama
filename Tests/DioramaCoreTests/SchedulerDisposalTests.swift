@@ -5,6 +5,38 @@ import Testing
 
 @Suite(.timeLimit(.minutes(1)))
 struct SchedulerDisposalTests {
+    @Test
+    func `stop cancels registrations but retains captures and sleeps until drainage`() async throws {
+        let source = SchedulerTestClock()
+        let reporter = try DiagnosticReporter(scenarioID: ScenarioID(rawValue: "stop-drain"),
+                                              definition: ScenarioDefinition())
+        let admission = ExecutionAdmission()
+        let time = ExecutionTime(clock: source.source, admission: admission, reporter: reporter)
+        let engine = DeadlineEngine(time: time, admission: admission, reporter: reporter)
+        let clock = ScenarioClock(time: time, scheduler: engine, reporter: reporter)
+        let journal = SchedulerJournal()
+        time.start()
+        let sleeper = Task {
+            defer { journal.append("sleep-ended") }
+            try await clock.sleep(until: .init(offset: .seconds(10)))
+        }
+        _ = try await source.nextSleep()
+        let handle = try registerPendingCapture(on: engine, journal: journal)
+        #expect(time.closeAdmission() == nil)
+        engine.stop()
+        #expect(handle.registration.phase == .canceled)
+        #expect(handle.registration.engine == nil)
+        // Also exercise a cancellation caller that fetched its engine before stop.
+        #expect(!engine.cancel(handle.registration))
+        _ = try await source.nextCancellation()
+        #expect(journal.values.isEmpty)
+        #expect(source.activeWaits == 0)
+        await engine.drain()
+        await #expect(throws: CancellationError.self) { try await sleeper.value }
+        #expect(journal.values.sorted() == ["disposed", "sleep-ended"])
+        time.close()
+    }
+
     @Test(arguments: [false, true], [false, true])
     func `finish joins direct canceled capture disposal despite canceled waiters`(
         alreadyCanceled: Bool, failClock: Bool) async throws
@@ -142,6 +174,15 @@ struct SchedulerDisposalTests {
         }
         return try lease.schedule(at: .seconds(10), for: SchedulerFixtures.record()) {
             withExtendedLifetime(marker) { _ = Issue.record("Canceled delivery must not run") }
+        }
+    }
+
+    private func registerPendingCapture(on engine: DeadlineEngine, journal: SchedulerJournal)
+        throws -> ScheduledItemHandle
+    {
+        let marker = SchedulerReleaseMarker { journal.append("disposed") }
+        return try engine.register(.absolute(.seconds(20)), order: .execution) {
+            withExtendedLifetime(marker) { _ = Issue.record("Pending delivery must not run") }
         }
     }
 }
