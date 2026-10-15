@@ -59,6 +59,13 @@ struct ScenarioEvaluationTests {
         ]).failures == [
             .unknownAttachment(AttachmentKey(rawValue: "x")), .unknownAttachment(AttachmentKey(rawValue: "z")),
         ])
+        for condition: ScenarioEvaluationCondition in [
+            .noUnexpectedOperations, .noDiagnostics, .allRecordsClaimed,
+            .allClaimedRecordsConsumed, .healthyRecording, .successfulCleanup,
+        ] {
+            #expect(result.facts.evaluated(condition) == result.evaluate(condition))
+        }
+        #expect(result.facts.rendered() == result.rendered())
         let before = result.evaluate(.noUnexpectedOperations)
         #expect(!first.report(.system(DiagnosticLabel("late"))))
         #expect(result.evaluate(.noUnexpectedOperations) == before)

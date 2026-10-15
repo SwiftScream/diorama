@@ -42,7 +42,7 @@ public struct ScenarioEvaluation: Equatable, Sendable {
     }
 }
 
-public extension ScenarioFinalizationResult {
+public extension ScenarioFinalizationFacts {
     /// Evaluates frozen facts without reporting test failures or new diagnostics.
     ///
     /// A selected attachment scope excludes scenario-level diagnostics. A system's
@@ -57,8 +57,8 @@ public extension ScenarioFinalizationResult {
     ///   - attachments: Keys to inspect, or `nil` for the whole scenario.
     ///     An empty set deliberately selects no attachments.
     /// - Returns: Ordered safe evidence and satisfaction of this condition.
-    func evaluate(_ condition: ScenarioEvaluationCondition,
-                  attachments: Set<AttachmentKey>? = nil) -> ScenarioEvaluation
+    func evaluated(_ condition: ScenarioEvaluationCondition,
+                   attachments: Set<AttachmentKey>? = nil) -> ScenarioEvaluation
     {
         let known = Set(usage.map(\.attachmentID.key))
         let unknown = (attachments ?? []).subtracting(known).sorted { $0.rawValue < $1.rawValue }
@@ -98,6 +98,20 @@ public extension ScenarioFinalizationResult {
             }.map { .cleanup($0) }
         }
         return ScenarioEvaluation(condition: condition, failures: unknown.map { .unknownAttachment($0) } + facts)
+    }
+}
+
+public extension ScenarioFinalizationResult {
+    /// Evaluates the payload-free facts without inspecting the resulting definition.
+    ///
+    /// - Parameters:
+    ///   - condition: The condition deliberately selected by the consumer.
+    ///   - attachments: Selected keys, or nil for the whole scenario.
+    /// - Returns: Ordered safe evidence and satisfaction of this condition.
+    func evaluate(_ condition: ScenarioEvaluationCondition,
+                  attachments: Set<AttachmentKey>? = nil) -> ScenarioEvaluation
+    {
+        facts.evaluated(condition, attachments: attachments)
     }
 }
 
