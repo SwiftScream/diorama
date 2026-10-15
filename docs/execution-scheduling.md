@@ -54,7 +54,7 @@ Zero and already-passed deadlines, including offsets before the execution
 origin, are queued for the next drain.
 Registration never invokes a handoff inline. The worker may run concurrently
 with the registering caller. Commit shared system state through
-`withActiveState` before registering; system state is serialized by Core.
+`execution.state.withLock` before registering; system state is serialized by Core.
 Registration inside protection rejects with `protectedOperation`. Use
 `operation.afterCommit` to publish synchronous registration after state commits. The worker submits tasks serially outside scheduler and
 execution locks. Delivery tasks may register additional work.

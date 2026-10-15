@@ -76,10 +76,10 @@ Execution-clock reads and sleeps never create content to persist.
 
 A declared wall system that records no reads publishes an explicit empty wall
 payload. Replay of that payload may use the execution clock without consuming
-wall values. Calling `wall.now` instead exhausts the empty recording, reports
-an unexpected replay operation, and returns Unix epoch if the configured
-handler returns. A declared replay wall whose track is missing remains a setup
-error. See the [wall schema](date-schema-v1.md).
+wall values. Calling `wall.now` instead exhausts the empty recording, retains
+an unexpected replay operation for the completed report, and returns Unix epoch.
+A declared replay wall whose track is missing remains a setup error. See the
+[wall schema](date-schema-v1.md).
 
 ## Several walls and attachment modes
 

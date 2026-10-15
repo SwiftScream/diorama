@@ -1,6 +1,7 @@
 /// A Swift clock over one scenario execution's shared monotonic scheduler.
 ///
-/// Obtain it from ``ScenarioExecution/context`` or ``SystemPreparationContext/clock``.
+/// Obtain it from ``ScenarioExecution/context``, ``SystemStateContext/clock``,
+/// or ``SystemExecution/clock``.
 /// Reads and sleeps require no system attachment and never create recorded
 /// values or usage counts. Every mode uses the same one-to-one real-time rate.
 /// Finish cancels pending sleeps and freezes time at the admission-closing
