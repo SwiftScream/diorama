@@ -2035,8 +2035,8 @@ The 2026-10-15 review inspects the delivered A–F and amended Fa implementation
 at `b866f96f4b8037f6da7698ceaee06f37080bc345`, with a clean worktree. The four
 defects below have targeted public-API reproductions; Ra4 is an API/design
 concern, not a failure to implement an accepted contract. Ra3's phase ordering
-is reproduced, while its contract interpretation needs confirmation as noted
-in that unit. No Critical or High finding is confirmed.
+is reproduced; its implementation scope below resolves the original boundary
+interpretation. No Critical or High finding is confirmed.
 
 Each unit records its own status. Their placement together does not make all five
 prerequisites for Location. Preserve the following dependency deadlines:
@@ -2126,7 +2126,9 @@ measured by these line counts.
 
 ### 003-Ra3 — Establish complete capture health before merging
 
-- Status: Not started; confirm the phase-boundary interpretation at scope review.
+- Status: Complete, 2026-10-15. The owner requests the Ra3 fix on a separate
+  branch and authorizes PR creation. See the
+  [capture-health evidence](../evidence/003-Ra3-capture-health-before-merge.md).
 - Prerequisites: 003-F04, 003-Fa08; DD21's freeze/release/candidate sequence and
   the [recording merge contract](../record-services.md#recording-merge).
 - Finding: `ScenarioExecution` closes and merges each lease in order;
@@ -2134,11 +2136,11 @@ measured by these line counts.
   A two-track probe invokes the first merge before a later accumulator freezes
   unsuccessfully. The final candidate is correctly rejected. The bounded costs
   are premature merge work and potentially misleading merge-failure facts.
-- Contract interpretation: The review reads the global health gate and accepted
-  finalization sequence as requiring complete capture health before merges.
-  The phrase "unhealthy capture" could instead be read per track. Confirm the
-  intended boundary before implementation; any material decision change requires
-  explicit owner discussion rather than being hidden inside this fix.
+- Contract interpretation: This fix applies the scenario-wide health gate in
+  the requested Ra3 scope. All capture freeze and required State/Dependency
+  release precede candidate merges, following DD21's accepted sequence. A later
+  track's capture failure or required release-time invalidation skips every
+  merge; a merge failure also skips subsequent merges.
 - Scope: Separate all-track capture freeze and detachment from merge application.
   Complete the required State/Dependency release phase before candidate merging,
   retaining only the stable inputs needed by the merge. Preserve deterministic
@@ -2153,9 +2155,17 @@ measured by these line counts.
 - Tests/verification: V-code and V-doc; later-track freeze failure, release-time
   invalidation, healthy multi-track merge ordering, exactly-once freeze/merge,
   malformed merge results, rollback, Date overrides, and capture release.
+- Delivered: Leases close into frozen usage and deferred typed recording
+  finalizers. Normal finish releases runtime owners before invoking finalizers
+  in deterministic order under scenario health; rollback only closes leases.
+  Six public regression tests cover ten invocations. The focused merge, Date,
+  capture, continuation, and lifecycle suites and canonical `scripts/check`
+  pass; required PR checks cover macOS, iOS Simulator, Linux, and coverage.
 - Exclusions: New correspondence policies, capability removal, live access from
   merges, persistence schema changes, and broad lease decomposition.
-- Checkpoint: R; complete before G06 or dependent HTTP re-record merging.
+- Checkpoint: R; implementation and PR creation are owner-authorized. Merge
+  requires a separate explicit request and passing checks for the revision.
+  No later unit is started.
 
 ### 003-Ra4 — Review structured retained-report evaluation
 

@@ -265,11 +265,15 @@ headers. A fresh recording can be empty. The callback owns correspondence,
 override preservation, deletion, and complete domain validation; Date uses
 positions, but Core imposes no correspondence policy.
 
-Healthy record-mode finish invokes a configured merge once after scheduling,
-managed operations, and record freeze. It runs outside lease/state locks, uses
-only stable values, remains deterministic, and never reads a live source or
-waits for recursive finish. Replay, passthrough, unhealthy capture, and startup
-rollback do not invoke it. Without a merge, fresh content replaces the track.
+Healthy record-mode finish invokes configured merges in attachment and track
+order after scheduling and managed operations drain, every track freezes, and
+Core releases its State/Dependency ownership. Capture health is scenario-wide:
+a failure on any track or during required runtime release prevents every merge.
+Each merge runs once outside lease/state locks, uses only stable values, remains
+deterministic, and never reads a live source or waits for recursive finish.
+Replay, passthrough, unhealthy capture, and startup rollback do not invoke it.
+Without a merge, fresh content replaces the track. A failed merge prevents
+subsequent merges as well as publication.
 
 Core checks the result's identity and validates its header and values without
 rerunning capture transformations. A thrown merge or changed identity reports

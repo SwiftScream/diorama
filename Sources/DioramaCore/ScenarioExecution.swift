@@ -74,7 +74,7 @@ public final class ScenarioExecution: Sendable {
 
         private func finalizeResources(reporter: DiagnosticReporter) async -> FinalizedContents {
             let cleanup = await stopAndClean(reporter: reporter)
-            return release(cleanup: cleanup)
+            return release(cleanup: cleanup, reporter: reporter)
         }
 
         private func stopAndClean(reporter: DiagnosticReporter) async -> [AttachmentCleanup] {
@@ -84,21 +84,26 @@ public final class ScenarioExecution: Sendable {
                 owners.0, leases: owners.1, schedulerTask: schedulerTask, reporter: reporter)
         }
 
-        private func release(cleanup: [AttachmentCleanup]) -> FinalizedContents {
+        private func release(cleanup: [AttachmentCleanup], reporter: DiagnosticReporter) -> FinalizedContents {
             time.close()
             var detached = contents.withLock { contents in
                 let detached = contents
                 contents = ResourceContents()
                 return detached
             }
-            let tracks = detached.leases.map { $0.close(mergingRecording: true) }
+            let tracks = detached.leases.map { $0.close() }
             for system in detached.systems {
                 system.release()
             }
             // Drop dependencies and hook captures before candidate/report creation.
             // Their destruction may report or reenter and occurs outside all locks.
             detached.systems.removeAll()
-            let definition = detached.definition?.replacingRecordings(tracks.compactMap(\.recording))
+            // Every capture and required runtime release contributes health before
+            // the first merge. A failed merge also prevents subsequent merge work.
+            let recordings = tracks.compactMap { track in
+                reporter.isRecordingHealthy ? track.makeRecording() : nil
+            }
+            let definition = detached.definition?.replacingRecordings(recordings)
             return FinalizedContents(definition: definition,
                                      cleanup: cleanup,
                                      usage: usage.snapshot(tracks.map(\.usage)))
@@ -368,7 +373,7 @@ public final class ScenarioExecution: Sendable {
         return await Task {
             let cleanup = await stopAndClean(owners, leases: leases, reporter: reporter)
             for lease in leases {
-                lease.close(mergingRecording: false)
+                lease.close()
             }
             for system in owners {
                 system.release()
