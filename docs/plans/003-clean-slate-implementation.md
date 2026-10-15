@@ -2038,7 +2038,7 @@ concern, not a failure to implement an accepted contract. Ra3's phase ordering
 is reproduced, while its contract interpretation needs confirmation as noted
 in that unit. No Critical or High finding is confirmed.
 
-These units remain unstarted. Their placement together does not make all five
+Each unit records its own status. Their placement together does not make all five
 prerequisites for Location. Preserve the following dependency deadlines:
 
 | Unit | Priority / kind | Planned timing | Rough production fix size |
@@ -2187,7 +2187,9 @@ measured by these line counts.
 
 ### 003-Ra5 — Classify missing envelope versions consistently
 
-- Status: Not started; scope confirmation required.
+- Status: Complete. The owner authorizes the fix and its own branch/PR on
+  2026-10-15. [Evidence](../evidence/003-Ra5-envelope-version-classification.md)
+  records the public classification regression and preserved rejection behavior.
 - Prerequisites: 003-C02, 003-C04A; DD08 and the version-one persistence schema.
 - Finding: `decodeSchemaVersion` converts a missing nested envelope version to
   `malformed` before the intended `unversionedEnvelope` mapping can run.

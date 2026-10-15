@@ -282,6 +282,10 @@ test-integration design. They do not authorize those APIs.
   records factory-owned partial construction, typed resource handoff, actor
   access, awaited finalization, passthrough abandonment, and platform verification.
 
+- [Envelope-version classification evidence](evidence/003-Ra5-envelope-version-classification.md)
+  exercises absent envelope versions and preserves malformed and unsupported
+  version distinctions through public codec and repository APIs.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

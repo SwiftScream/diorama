@@ -48,6 +48,9 @@ private struct PersistedScenarioHeader: Codable {
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.strictContainer(keyedBy: CodingKeys.self)
+        guard container.contains(.schemaVersion) else {
+            throw PersistedScenarioCodingError.unversionedEnvelope
+        }
         schemaVersion = try decodeSchemaVersion(
             from: container,
             forKey: .schemaVersion,

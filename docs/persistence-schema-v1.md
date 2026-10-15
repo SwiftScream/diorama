@@ -122,8 +122,10 @@ versions are not coerced or partially loaded. Zero is a valid version value but
 remains unsupported until an explicit reader registers it.
 
 An unversioned top-level value, including the earlier proof-of-concept exchange
-array, is rejected as an unversioned envelope. Version dispatch never guesses a
-schema from the fields that happen to be present.
+array, is rejected as an unversioned envelope. A missing `diorama` header or a
+header without `schemaVersion` has the same classification. A present but null,
+nonnumeric, fractional, or out-of-range version is malformed. Version dispatch
+never guesses a schema from the fields that happen to be present.
 
 Structural failures report only schema-authored field names and array positions
 as coding paths. Decoder descriptions and payload values are not retained in
