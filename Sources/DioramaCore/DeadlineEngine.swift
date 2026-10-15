@@ -76,6 +76,9 @@ final class DeadlineEngine: Sendable {
     }
 
     private let state = Mutex(State())
+    // Cancellation can detach work after common admission closes. Only the
+    // engine lock and stop's removal of pending work close this separate gate.
+    private let canceledCaptures = OperationTracker(admission: ExecutionAdmission())
     private let wake = AsyncStream<Wake>.makeStream()
     private let time: ExecutionTime
     private let admission: ExecutionAdmission
@@ -143,6 +146,7 @@ final class DeadlineEngine: Sendable {
     func stop() -> Task<Void, Never>? {
         let detached = state.withLock { state in
             state.closed = true
+            canceledCaptures.closeAdmission()
             for item in state.pending {
                 item.registration.transition(to: .canceled)
             }
@@ -160,13 +164,29 @@ final class DeadlineEngine: Sendable {
             sleep.complete(.failure(CancellationError()))
         }
         withExtendedLifetime(detached.1) {}
-        return detached.0
+        guard let worker = detached.0 else { return nil }
+        // Join separately from run(): a clock failure or closed admission can
+        // end the worker before a caller cancels the remaining pending work.
+        return Task {
+            await worker.value
+            await self.canceledCaptures.waitUntilIdle()
+        }
     }
 
     func cancel(_ registration: ScheduledRegistration) -> Bool {
+        guard discardPending(registration) else { return false }
+        // discardPending's local captures have expired. In managed State this
+        // action follows the deferred capture release, after the State unlocks.
+        PostUnlockActions.perform { self.canceledCaptures.leave() }
+        return true
+    }
+
+    private func discardPending(_ registration: ScheduledRegistration) -> Bool {
         let removed = state.withLock { state -> Item? in
             guard let index = state.pending.firstIndex(where: { $0.registration === registration })
             else { return nil }
+            let admitted = canceledCaptures.enter()
+            precondition(admitted, "Pending work must retain disposal admission")
             registration.transition(to: .canceled)
             let item = state.pending.remove(at: index)
             if case let .sleep(sleep) = item.work {

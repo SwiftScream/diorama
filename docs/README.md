@@ -285,6 +285,10 @@ test-integration design. They do not authorize those APIs.
   records factory-owned partial construction, typed resource handoff, actor
   access, awaited finalization, passthrough abandonment, and platform verification.
 
+- [Canceled callback disposal evidence](evidence/003-Ra2-canceled-callback-disposal.md)
+  records shutdown accounting for direct and deferred cancellation, release-time
+  diagnostic retention, and preserved consumer ownership.
+
 - [Envelope-version classification evidence](evidence/003-Ra5-envelope-version-classification.md)
   exercises absent envelope versions and preserves malformed and unsupported
   version distinctions through public codec and repository APIs.

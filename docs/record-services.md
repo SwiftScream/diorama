@@ -340,12 +340,21 @@ and rate, while later executions have independent timing and mutable state.
 
 Finish closes admission, requests scheduler stop, and invokes every returned
 State's stop hook in reverse order before joining any work. It then drains
-scheduler deliveries, tracked scopes, state operations, and direct lease reads;
+scheduler deliveries and canceled callback capture releases, tracked scopes,
+state operations, and direct lease reads;
 awaits reverse cleanup; freezes records; releases State and Dependency outside
 locks; and constructs the candidate and final report. Repeated or canceled finish
 waiters await the same owned result. Finish does not wait for arbitrary consumer
 work. Calls after closure can add separate diagnostics but cannot mutate frozen
 results. Recording dependencies may continue live reads according to their contract.
+
+Canceling an accepted pending callback releases its captures outside scheduler
+and managed State locks. Cancellation under State protection defers destruction
+until after that State commits and unlocks. Finish joins these releases even
+when cancellation comes directly through a retained scheduling handle, so their
+release-time facts participate in candidate health and the final report. This
+releases Core's capture ownership; it does not require destruction of objects
+also retained by the consumer.
 
 The former closure-based `ScenarioSystem` constructor, `PreparedSystem`,
 `ActivatedSystem`, `SystemPreparationContext`, and raw recording and selection

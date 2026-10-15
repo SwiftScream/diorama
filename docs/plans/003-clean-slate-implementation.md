@@ -2095,7 +2095,9 @@ measured by these line counts.
 
 ### 003-Ra2 — Join canceled callback capture disposal
 
-- Status: Not started; scope confirmation required.
+- Status: Complete — canceled callback capture disposal joined at shutdown,
+  2026-10-15. [Evidence](../evidence/003-Ra2-canceled-callback-disposal.md)
+  records the reproduced race, controlled disposal checks, and verification.
 - Prerequisites: 003-E03, 003-Fa08; DD14 scheduler quiescence and DD21 ownership.
 - Finding: `DeadlineEngine.cancel` removes accepted pending work and releases
   its captures outside locks on the cancellation caller. Direct public handle
