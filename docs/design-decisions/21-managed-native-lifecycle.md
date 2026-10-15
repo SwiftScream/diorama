@@ -922,3 +922,59 @@ Reconciliation:
 Production public compiler probes and runtime tests replace evidence for the
 superseded handle API. Native Location and URLSession conformance remains at
 G08/I01; this amendment introduces neither adapter nor dependency.
+
+## Typed mode definitions — owner-approved 2026-10-16
+
+The owner approves implementation of `SystemModeDefinition<State, Dependency>`
+after discussing the fresh infrastructure review's F2 authoring concern. This
+amendment replaces the twelve mode-specific factory and lifecycle protocol
+requirements with three required `SystemDefinition` properties: `record`,
+`replay`, and `passthrough`. Their declaration types share `Dependency` and bind
+their respective `RecordState`, `ReplayState`, and `PassthroughState`. The
+existing system identity, typed tracks, and validation boundary remain.
+
+Each immutable, Sendable mode definition groups four typed callbacks:
+
+- `makeState`: borrowing `SystemStateContext`, async throwing, returning State;
+- `makeDependency`: `SystemExecution<State>`, async throwing, returning Dependency;
+- `requestStop`: borrowing `SystemLifecycleContext<State>` and `Dependency?`,
+  async nonthrowing;
+- `cleanUp`: the same lifecycle inputs, async nonthrowing, returning
+  `SystemCleanupResult`.
+
+Synchronous and actor-isolated callbacks remain supported, supplied as inline
+closures or references to named methods. Stop defaults to no work and cleanup
+defaults to `.completed` through initializer arguments. Supplied callbacks are
+checked against these function types; a throwing lifecycle function cannot
+silently leave a default protocol witness selected. Omitted callbacks still
+mean no owned shutdown work, and runtime tests must verify native cleanup.
+
+The general initializer requires both factories. Two constrained initializers
+for `State == Void` supply an empty State factory and accept either a dependency
+factory receiving `SystemExecution<Void>` or a zero-argument dependency factory.
+Both retain optional lifecycle callbacks: a Void State does not imply that its
+Dependency owns no activity. `makeState` and `makeDependency` are the selected
+factory names. No implicit mode declaration or State-as-Dependency conversion
+is introduced. Empty tracks and no additional validation retain their defaults.
+
+Declarations describe reusable configuration. Reading one must not construct
+live execution resources; construction belongs in its factories. After every
+attachment validates, Core obtains only the selected mode declaration once for
+that activation and uses that same declaration's factories and shutdown hooks.
+Every execution still creates fresh State. The declaration's construction-only
+captures need not remain owned by its activated lifecycle.
+
+All state-owned lifecycle semantics remain: factories unwind failed partial
+construction; Core adopts each successful return before cancellation can
+abandon it; optional nil dependencies preserve the outer ownership optional;
+stop precedes drainage; cleanup precedes freeze and release; and one owned task
+completes finalization despite canceled waiters. Passthrough retains its
+system-defined native lifetime and no track access. This changes authoring,
+not scheduling, persistence, diagnostics, or application-consumer execution.
+
+The old mode-specific methods are removed from the public protocol without
+compatibility forwarding. Migrate first-party definitions, consumer proofs,
+compiler probes, and the current authoring guide together. Earlier decision and
+Fa08 evidence remain historical. The current public probes must reject actual
+throwing callback signatures, missing mode declarations, and incompatible State
+or Dependency types, with ordinary compiler diagnostics rather than crashes.

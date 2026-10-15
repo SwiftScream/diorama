@@ -3,6 +3,13 @@
 - Status: Accepted
 - Consolidated design approved by owner: 2026-09-07
 
+On 2026-10-16, the owner approves
+[DD21's typed mode definitions amendment](21-managed-native-lifecycle.md#typed-mode-definitions--owner-approved-2026-10-16).
+`SystemDefinition` requires `record`, `replay`, and `passthrough` declarations of
+`SystemModeDefinition<State, Dependency>`, grouping construction and shutdown
+callbacks with lifecycle defaults and Void-State convenience initializers.
+The state-owned lifecycle and application-consumer contracts remain unchanged.
+
 This index tracks decisions produced through the completed
 [design decision process](../plans/001-design-decision-process.md) and
 [follow-up process](../plans/002-follow-up-design-decisions.md). No decision is

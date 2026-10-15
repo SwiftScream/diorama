@@ -2232,6 +2232,33 @@ measured by these line counts.
   changes to preparation, and changes to file publication policy.
 - Checkpoint: R; can wait for the next persistence diagnostic maintenance unit.
 
+## Phase Rb — Typed mode authoring review follow-up
+
+### 003-Rb1 — Group system construction and lifecycle by mode
+
+- Status: In progress. The owner approves the grouped declaration design,
+  `SystemModeDefinition` naming, lifecycle defaults, Void-State conveniences,
+  and implementation on 2026-10-16.
+- Prerequisites: 003-Fa08; the fresh review's F1 scheduler stop/disposal fix.
+  [DD21's typed mode amendment](../design-decisions/21-managed-native-lifecycle.md#typed-mode-definitions--owner-approved-2026-10-16)
+  records the approved change to the public authoring contract.
+- Finding: F2 from the review at `628721f` identifies silent default-witness
+  selection for mistakenly throwing lifecycle declarations. The owner also
+  requests grouping the three repeated sets of factory and lifecycle methods.
+- Scope: Replace those protocol methods with required record/replay/passthrough
+  declarations, obtain the selected declaration once per activation, and migrate
+  production systems, public consumer proofs, compiler probes, and current docs.
+  Keep optional lifecycle callbacks and both Void-State dependency conveniences.
+- Tests/verification: V-code and V-doc; actual public callback signature
+  rejection, associated-type inference, actor-isolated and synchronous callbacks,
+  each convenience initializer, per-run State and selected declaration ownership,
+  and existing startup/rollback/cancellation/finalization acceptance. Run canonical
+  macOS, iOS, and Linux gates with current-build coverage and Release builds.
+- Exclusions: Compatibility forwarding, new dependencies, persistence changes,
+  lifecycle ordering changes, and Location or HTTP implementation.
+- Checkpoint: R; present the complete implementation for owner review. PR
+  creation and merge require separate authorization.
+
 ## Phase G — Location domain and Apple bridge
 
 Fa01/Fa02 and Ra1 precede this phase. Ra2 precedes G04; Ra3 precedes G06.

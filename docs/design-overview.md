@@ -3,7 +3,7 @@
 - Status: Accepted
 - Created: 2026-09-05
 - Approved by owner: 2026-09-07
-- Last reviewed: 2026-10-15
+- Last reviewed: 2026-10-16
 - Scope: Decisions 1 through 21
 - Derived from: [Accepted design decisions](design-decisions/README.md)
 
@@ -44,9 +44,12 @@ Passthrough supplies ordinary native behavior without recording or interception.
 The execution clock remains execution-owned in all setups.
 
 [Decision 21](design-decisions/21-managed-native-lifecycle.md), as amended on
-2026-10-15, gives every mode ordinary State/Dependency factories and
-definition-level request-stop and cleanup hooks. Async requirements permit
-synchronous and actor-isolated witnesses. Factories own failed partial
+2026-10-16, groups each mode's ordinary State/Dependency factories and
+request-stop and cleanup callbacks in `SystemModeDefinition<State, Dependency>`.
+Definitions supply required `record`, `replay`, and `passthrough` properties.
+Async callback types permit synchronous and actor-isolated functions; initializer
+defaults supply no-op lifecycle behavior and conveniences support Void State.
+Factories own failed partial
 construction; Core owns successful returns, rollback, and awaited shutdown.
 Runtime state views provide locked mutation and tracked native-member access.
 Core invokes lifecycle hooks in every mode; each system defines what those hooks
