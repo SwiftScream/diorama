@@ -13,7 +13,7 @@ struct DioramaSetupTests {
             return lease
         }
         #expect(result.loadResult == nil)
-        #expect(result.finalization.report.scenarioID.rawValue == "setup")
+        #expect(result.report.finalization.report.scenarioID.rawValue == "setup")
         #expect(result.body.isClosed)
         #expect(probe.events.withLock { $0.filter { $0 == "cleanup-a" }.count } == 1)
     }
@@ -28,7 +28,7 @@ struct DioramaSetupTests {
         let baseline = try ScenarioDefinition(attachments: [system.attachment])
         let empty = try Diorama(definition: baseline, scenarioID: "setup", mode: .replay, systems: system)
         let result = try await empty.execute { _, _ in () }
-        #expect(result.finalization.report.diagnostics.isEmpty)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
     }
 
     @Test
@@ -60,10 +60,11 @@ struct DioramaSetupTests {
             return try replaying.consumeNext()
         }
         #expect(result.body == 1)
-        #expect(result.finalization.usage.map(\.attachmentID) == [record.attachment.id, replay.attachment.id])
-        #expect(result.finalization.usage[0].tracks[0].activity == .record(recordedCount: 1, incompleteCount: 0))
-        #expect(result.finalization.usage[1].allowsUnclaimedReplayRecords)
-        #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [
+        #expect(result.report.finalization.usage.map(\.attachmentID) == [record.attachment.id, replay.attachment.id])
+        #expect(result.report.finalization.usage[0].tracks[0].activity
+            == .record(recordedCount: 1, incompleteCount: 0))
+        #expect(result.report.finalization.usage[1].allowsUnclaimedReplayRecords)
+        #expect(result.report.finalization.report.diagnostics.map(\.diagnostic.issue) == [
             .baseline(.loadedAttachmentNotConfigured),
         ])
     }
@@ -121,7 +122,8 @@ struct DioramaSetupTests {
             let result = try await setup.execute { _, lease in
                 try lease.record(capturing: { 7 }, preparation: ValuePreparation<Int>())
             }
-            #expect(result.finalization.usage[0].tracks[0].activity == .record(recordedCount: 1, incompleteCount: 0))
+            #expect(result.report.finalization.usage[0].tracks[0].activity
+                == .record(recordedCount: 1, incompleteCount: 0))
         }
         #expect(probe.events.withLock { $0 } == [
             "prepare-a", "activate-a", "cleanup-a", "prepare-a", "activate-a", "cleanup-a",

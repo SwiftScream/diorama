@@ -34,9 +34,13 @@ struct DioramaRun: Sendable {
     {
         let finalization = await execution.finish()
         let publication = Self.publish(finalization.definition, to: repository)
-        report = DioramaReport(finalization: finalization, publication: publication, loadResult: loadResult)
+        let completedReport = DioramaReport(
+            finalization: finalization.facts,
+            publication: DioramaPublicationSummary(finalization: finalization,
+                                                   publication: publication, loadResult: loadResult))
+        report = completedReport
         let value = try bodyResult.get()
-        return DioramaResult(body: value, finalization: finalization,
+        return DioramaResult(body: value, report: completedReport, definition: finalization.definition,
                              loadResult: loadResult, publication: publication)
     }
 
@@ -53,28 +57,22 @@ struct DioramaRun: Sendable {
     }
 }
 
-/// A successful scoped body value and completed run evidence, without retained adapters.
+/// A successful body value, shared report, and explicit caller-owned output.
+/// Body values and detailed errors may themselves retain application resources.
 public struct DioramaResult<Success: Sendable>: Sendable {
     /// The body's successfully returned value.
     public let body: Success
 
-    /// Immutable lifecycle, usage, and diagnostic evidence after cleanup.
-    public let finalization: ScenarioFinalizationResult
-
-    /// The exact repository load outcome, or nil for an in-memory baseline.
-    public let loadResult: ScenarioLoadResult?
+    /// The same safe completed evidence retained by the setup after either body outcome.
+    public let report: DioramaReport
 
     /// Complete healthy semantic output, independently of encoding or storage success.
-    public var definition: ScenarioDefinition? {
-        finalization.definition
-    }
+    /// Retaining this result explicitly retains its output payloads; the report does not.
+    public let definition: ScenarioDefinition?
 
-    /// Optional repository publication, independently of the body's successful value.
+    /// The exact repository load outcome, including a loaded baseline or underlying error.
+    public let loadResult: ScenarioLoadResult?
+
+    /// Detailed optional publication, including underlying encoding or storage errors.
     public let publication: DioramaPublication
-
-    /// Safe aggregate of finalization and publication facts, computed on demand
-    /// without inspecting payloads or rendering arbitrary errors.
-    public var report: DioramaReport {
-        DioramaReport(finalization: finalization, publication: publication, loadResult: loadResult)
-    }
 }

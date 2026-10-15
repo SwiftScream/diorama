@@ -96,8 +96,8 @@ struct DioramaFileSetupTests {
             _ = second.next()
         }
         guard case .missing = result.loadResult else { Issue.record("Expected missing file"); return }
-        #expect(result.finalization.usage.count == 2)
-        #expect(result.finalization.report.diagnostics.isEmpty)
+        #expect(result.report.finalization.usage.count == 2)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
         #expect(FileManager.default.fileExists(atPath: location.fileURL.path))
         guard case .published = result.publication else { Issue.record("Expected publication"); return }
     }
@@ -134,7 +134,7 @@ struct DioramaFileSetupTests {
             _ = generator.next()
             _ = generator.next()
         }
-        #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [
+        #expect(result.report.finalization.report.diagnostics.map(\.diagnostic.issue) == [
             .baseline(.loadedAttachmentNotConfigured),
         ])
         let baselineText = try #require(String(data: bytes, encoding: .utf8))

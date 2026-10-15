@@ -146,7 +146,7 @@ struct WholeTrackAdmissionTests {
                         #expect(values.map { _ in source.now } == values.map(\.value))
                     }
                 }
-            #expect(result.report.diagnostics.isEmpty)
+            #expect(result.report.finalization.report.diagnostics.isEmpty)
             #expect(result.definition != nil)
             let track = try #require(try original.track(original.trackIDs[0],
                                                         as: OverridableValue<Date>.self, header: Int?.self))
@@ -154,8 +154,8 @@ struct WholeTrackAdmissionTests {
             #expect(track.records.map(\.value) == values)
             #expect(probe.events.withLock { $0.count } == (mode == .record ? 1 : 0))
             if mode == .replay {
-                #expect(result.finalization.evaluate(.allRecordsClaimed).isSatisfied)
-                #expect(result.finalization.evaluate(.allClaimedRecordsConsumed).isSatisfied)
+                #expect(result.report.evaluated(.allRecordsClaimed).isSatisfied)
+                #expect(result.report.evaluated(.allClaimedRecordsConsumed).isSatisfied)
             }
         }
     }

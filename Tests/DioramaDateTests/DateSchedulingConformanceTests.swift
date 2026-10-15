@@ -57,9 +57,9 @@ struct DateSchedulingConformanceTests {
                 return response
             }
         #expect(result.body == (timesOut ? nil : 200))
-        #expect(result.report.diagnostics.isEmpty)
-        #expect(result.finalization.evaluate(.allRecordsClaimed).isSatisfied)
-        #expect(result.finalization.evaluate(.allClaimedRecordsConsumed).isSatisfied == !timesOut)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
+        #expect(result.report.evaluated(.allRecordsClaimed).isSatisfied)
+        #expect(result.report.evaluated(.allClaimedRecordsConsumed).isSatisfied == !timesOut)
         #expect(source.count == 2)
     }
 

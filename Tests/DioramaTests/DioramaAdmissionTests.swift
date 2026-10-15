@@ -44,7 +44,7 @@ struct DioramaAdmissionTests {
             let result = try await first.value
             #expect(phase != "rollback")
             #expect(setup.report == result.report)
-            #expect(result.report.diagnostics.isEmpty)
+            #expect(result.report.finalization.report.diagnostics.isEmpty)
         } catch let failure as ScenarioStartupFailure {
             #expect(phase == "rollback")
             #expect(failure.cleanup.map(\.disposition) == [.completed, .completed])
@@ -63,7 +63,7 @@ struct DioramaAdmissionTests {
             return 7
         }
         #expect(result.body == 7)
-        #expect(result.report.diagnostics.isEmpty)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
         #expect(setup.report == result.report)
     }
 

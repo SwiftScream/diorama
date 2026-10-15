@@ -548,3 +548,14 @@ See [the inspection considerations](../diagnostic-inspection-design-notes.md).
 Fa09 precedes the still-unimplemented Fa02. Fa02 must adopt this amended
 contract instead of building notification machinery that Fa09 would remove.
 Its managed state, work, and native lifetime obligations remain separate.
+
+## Structured completed evaluation — owner-approved 2026-10-15
+
+[DD18's structured retained-report amendment](18-diorama-setup-and-scenario-data.md#structured-retained-reports--owner-approved-2026-10-15)
+shares payload-free Core finalization facts between successful results and
+retained consumer reports. `DioramaReport.evaluated(condition, attachments:)`
+uses the existing evaluation conditions and ordering after either successful or
+throwing body completion. Usage and cleanup remain structured evidence rather
+than being available only in rendered text after a body error. Evaluation does
+not inspect payloads, create diagnostics, evaluate publication implicitly, or
+replace the original error. Rendering remains explicit and is fully deferred.

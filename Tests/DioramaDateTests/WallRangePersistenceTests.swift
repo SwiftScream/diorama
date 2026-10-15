@@ -36,9 +36,9 @@ struct WallRangePersistenceTests {
             .execute { _, wall in wall.now }
         #expect(result.body == Date(timeIntervalSince1970: seconds))
         #expect(result.definition == nil)
-        #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [.conversionFailed])
-        #expect(result.report.disposition == .refusedUnhealthy)
-        #expect(result.report.preservation == .unchangedByThisRun)
+        #expect(result.report.finalization.report.diagnostics.map(\.diagnostic.issue) == [.conversionFailed])
+        #expect(result.report.publication.disposition == .refusedUnhealthy)
+        #expect(result.report.publication.preservation == .unchangedByThisRun)
         #expect(try Data(contentsOf: file) == bytes)
         #expect(source.count == 1)
     }
@@ -52,12 +52,12 @@ struct WallRangePersistenceTests {
         let system = try DioramaDateSystem.instance(named: "clock") { source }
         let recorded = try await Diorama(file: file, scenarioID: "range", mode: .record, systems: system)
             .execute { _, wall in seconds.map { _ in wall.now } }
-        #expect(recorded.report.disposition == .published)
+        #expect(recorded.report.publication.disposition == .published)
         let replay = try await Diorama(file: file, scenarioID: "range", mode: .replay,
                                        systems: DateConformanceSupport.offline("clock"))
             .execute { _, wall in seconds.map { _ in wall.now } }
         #expect(replay.body == recorded.body)
-        #expect(replay.report.diagnostics.isEmpty)
+        #expect(replay.report.finalization.report.diagnostics.isEmpty)
         #expect(source.count == seconds.count)
     }
 

@@ -95,7 +95,7 @@ struct WallOverrideMergeTests {
             #expect(try WallMergeFixtures.content(candidate, named: name) == original)
             #expect(try WallMergeFixtures.content(baseline, named: name) == original)
         }
-        #expect(result.finalization.report.diagnostics.isEmpty)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
         #expect(source.count == 2)
         #expect(passthroughSource.count == 1)
     }
@@ -121,13 +121,13 @@ struct WallOverrideMergeTests {
         #expect(try codec.encode(candidate) == expected)
         #expect(try codec.encode(codec.decode(expected)) == expected)
         #expect(try codec.encode(baseline) == baselineBytes)
-        #expect(result.finalization.report.diagnostics.isEmpty)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
         #expect(!result.report.rendered().contains("2033-"))
         let replay = try await Diorama(definition: candidate, scenarioID: "replay", mode: .replay, systems: system)
             .execute { _, wall in native.map { _ in wall.now } }
         #expect(replay.body == recording.effectiveDates)
         #expect(source.count == native.count)
-        #expect(replay.finalization.report.diagnostics.isEmpty)
+        #expect(replay.report.finalization.report.diagnostics.isEmpty)
     }
 
     @Test
@@ -178,8 +178,8 @@ struct WallOverrideMergeTests {
         #expect(merged.observations.map(\.value) == deltas)
         #expect(merged.observations.enumerated().allSatisfy { position, value in value.isOverride == (position == 2) })
         #expect(merged.origin == (native.isEmpty ? nil : original.origin))
-        #expect(result.finalization.report.recordingHealth.isHealthy)
-        #expect(result.finalization.report.diagnostics.isEmpty)
+        #expect(result.report.finalization.report.recordingHealth.isHealthy)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
         #expect(try WallMergeFixtures.content(baseline) == original)
     }
 
@@ -201,14 +201,14 @@ struct WallOverrideMergeTests {
         #expect(merged.observations == (empty ? [] : [.observed(0)]))
         #expect(merged.origin?.isOverride == (empty ? nil : true))
         #expect(merged.offsetMinutes == (empty ? nil : 660))
-        #expect(result.report.disposition == .published)
-        #expect(result.report.issues.isEmpty)
-        #expect(result.finalization.report.diagnostics.isEmpty)
+        #expect(result.report.publication.disposition == .published)
+        #expect(result.report.publication.issues.isEmpty)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
         #expect(try Data(contentsOf: file) == codec.encode(candidate))
         let replay = try await Diorama(file: file, scenarioID: "file-replay", mode: .replay, systems: system)
             .execute { _, wall in native.map { _ in wall.now } }
         #expect(replay.body == merged.effectiveDates)
-        #expect(replay.report.disposition == .notRequested)
+        #expect(replay.report.publication.disposition == .notRequested)
         #expect(source.count == native.count)
     }
 
@@ -236,11 +236,11 @@ struct WallOverrideMergeTests {
             .execute { _, wall in native.map { _ in wall.now } }
         #expect(result.body == native)
         #expect(result.definition == nil)
-        #expect(result.report.disposition == .refusedUnhealthy)
-        #expect(result.report.preservation == .unchangedByThisRun)
-        let issues = result.finalization.report.diagnostics.map(\.diagnostic.issue)
+        #expect(result.report.publication.disposition == .refusedUnhealthy)
+        #expect(result.report.publication.preservation == .unchangedByThisRun)
+        let issues = result.report.finalization.report.diagnostics.map(\.diagnostic.issue)
         #expect(issues == [.verification(.recordingMergeFailed)])
-        #expect(result.report.issues.map(\.stage) == [.recording])
+        #expect(result.report.publication.issues.map(\.stage) == [.recording])
         #expect(try Data(contentsOf: file) == bytes)
         #expect(try WallMergeFixtures.content(baseline) == original)
         #expect(source.count == native.count)

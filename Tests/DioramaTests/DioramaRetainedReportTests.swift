@@ -20,12 +20,12 @@ struct DioramaRetainedReportTests {
         }
         let saved = try #require(alias.report)
         #expect(saved == first.report)
-        #expect(saved.diagnostics.map(\.diagnostic.issue) == [.system(DiagnosticLabel("first"))])
+        #expect(saved.finalization.report.diagnostics.map(\.diagnostic.issue) == [.system(DiagnosticLabel("first"))])
         let second = try await alias.execute { _, _ in
             #expect(setup.report == nil)
         }
         #expect(setup.report == second.report)
-        #expect(second.report.diagnostics.isEmpty)
+        #expect(second.report.finalization.report.diagnostics.isEmpty)
         #expect(saved == first.report)
         _ = first.body.report(.system(DiagnosticLabel("late")))
         #expect(setup.report == second.report)
@@ -42,10 +42,13 @@ struct DioramaRetainedReportTests {
             Issue.record("The body error was lost")
         } catch {
             #expect(error as? BodyFailure == .stopped)
-            #expect(setup.report?.diagnostics.map(\.diagnostic.issue) == [
+            #expect(setup.report?.finalization.report.diagnostics.map(\.diagnostic.issue) == [
                 .system(DiagnosticLabel("fixture-cleanup-failed")), .lifecycle(.cleanupFailed),
             ])
         }
+        let failed = try #require(setup.report)
+        #expect(failed.finalization.cleanup.map(\.disposition) == [.failed])
+        #expect(failed.evaluated(.successfulCleanup).failures == [.cleanup(failed.finalization.cleanup[0])])
         let result = try await setup.execute { _, value in value }
         #expect(result.body == 42)
         #expect(setup.report == result.report)

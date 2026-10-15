@@ -17,18 +17,18 @@ struct DioramaDateUsage {
             .execute { context, wall in
                 try await observationsAcrossRetry(wall: wall, clock: context.clock)
             }
-        guard recording.report.disposition == .published,
-              recording.report.diagnostics.isEmpty else { throw ExampleError.recordingFailed }
+        guard recording.report.publication.disposition == .published,
+              recording.report.evaluated(.noDiagnostics).isSatisfied else { throw ExampleError.recordingFailed }
         let bytes = try Data(contentsOf: file)
         let replay = try await Diorama(file: file, scenarioID: "date-replay", mode: .replay, systems: wall)
             .execute { context, wall in
                 try await observationsAcrossRetry(wall: wall, clock: context.clock)
             }
         guard replay.body == recording.body, source.readCount == 2,
-              replay.report.diagnostics.isEmpty,
-              replay.report.disposition == .notRequested,
-              replay.finalization.evaluate(.allRecordsClaimed).isSatisfied,
-              replay.finalization.evaluate(.allClaimedRecordsConsumed).isSatisfied,
+              replay.report.evaluated(.noDiagnostics).isSatisfied,
+              replay.report.publication.disposition == .notRequested,
+              replay.report.evaluated(.allRecordsClaimed).isSatisfied,
+              replay.report.evaluated(.allClaimedRecordsConsumed).isSatisfied,
               try Data(contentsOf: file) == bytes else { throw ExampleError.replayMismatch }
         print("wall observations replayed: \(replay.body.map { $0.ISO8601Format() })")
 
@@ -37,8 +37,8 @@ struct DioramaDateUsage {
                 try await context.clock.sleep(for: .milliseconds(2))
             }
         guard clockOnly.definition?.attachments.isEmpty == true,
-              clockOnly.finalization.usage.isEmpty,
-              clockOnly.report.diagnostics.isEmpty else { throw ExampleError.unexpectedClockContent }
+              clockOnly.report.finalization.usage.isEmpty,
+              clockOnly.report.evaluated(.noDiagnostics).isSatisfied else { throw ExampleError.unexpectedClockContent }
         print("retry delay also works without a wall attachment")
     }
 

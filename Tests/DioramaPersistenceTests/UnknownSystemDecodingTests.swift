@@ -36,7 +36,7 @@ struct UnknownSystemDecodingTests {
                 attachmentKey: AttachmentKey(rawValue: "inactive"),
                 systemTypeID: SystemTypeID(rawValue: "future.system"), schemaVersion: 999),
         ])
-        #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [
+        #expect(result.report.finalization.report.diagnostics.map(\.diagnostic.issue) == [
             .baseline(.loadedAttachmentNotConfigured),
         ])
         #expect(try codec.decode(codec.encode(definition)).attachments.count == 1)
@@ -76,8 +76,8 @@ struct UnknownSystemDecodingTests {
             }
             let issues: [DiagnosticIssue] = mode == .record ?
                 [.baseline(.baselineIgnoredForRecording(.incompatibleSetup))] : []
-            #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == issues)
-            #expect(result.finalization.report.recordingHealth.isHealthy)
+            #expect(result.report.finalization.report.diagnostics.map(\.diagnostic.issue) == issues)
+            #expect(result.report.finalization.report.recordingHealth.isHealthy)
         }
         #expect(storage.readCount == 1)
         #expect(storage.writeCount == (mode == .record ? 1 : 0))
@@ -110,8 +110,8 @@ struct UnknownSystemDecodingTests {
             scenarioID: "unknown-types", mode: .replay, systems: probe.system(key: "active"))
         let result = try await setup.execute { _, lease in try lease.consumeNext() }
         #expect(result.body == 7)
-        #expect(result.finalization.usage.count == 1)
-        #expect(result.finalization.report.diagnostics.map(\.diagnostic.issue) == [
+        #expect(result.report.finalization.usage.count == 1)
+        #expect(result.report.finalization.report.diagnostics.map(\.diagnostic.issue) == [
             .baseline(.loadedAttachmentNotConfigured), .baseline(.loadedAttachmentNotConfigured),
         ])
         #expect(probe.activationCount == 1)

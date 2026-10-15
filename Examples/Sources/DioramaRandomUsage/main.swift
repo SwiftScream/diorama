@@ -16,7 +16,7 @@ struct DioramaRandomUsage {
             }
         }
         let recordedValues = recording.body
-        try requireCleanFinalization(recording.finalization)
+        try requireCleanReport(recording.report)
 
         guard let replayDefinition = recording.definition else { throw ExampleError.unavailableDefinition }
 
@@ -29,7 +29,7 @@ struct DioramaRandomUsage {
             }
         }
         let replayedValues = replay.body
-        try requireCleanFinalization(replay.finalization)
+        try requireCleanReport(replay.report)
         guard recordedValues == replayedValues else { throw ExampleError.replayMismatch }
 
         print("recorded: \(recordedValues)")
@@ -49,23 +49,23 @@ struct DioramaRandomUsage {
                 var generator = generator
                 return generator.next()
             }
-        try requireCleanFinalization(recording.finalization)
+        try requireCleanReport(recording.report)
         guard case .published = recording.publication else { throw ExampleError.publicationFailed }
         let replay = try await Diorama(file: file, scenarioID: "file-replay", mode: .replay, systems: random)
             .execute { _, generator in
                 var generator = generator
                 return generator.next()
             }
-        try requireCleanFinalization(replay.finalization)
+        try requireCleanReport(replay.report)
         guard replay.body == recording.body else { throw ExampleError.replayMismatch }
         guard case .notRequested = replay.publication else { throw ExampleError.unexpectedPublication }
         print("file replay: \(replay.body)")
     }
 
-    private static func requireCleanFinalization(
-        _ finalization: ScenarioFinalizationResult) throws
+    private static func requireCleanReport(
+        _ report: DioramaReport) throws
     {
-        guard finalization.report.diagnostics.isEmpty else {
+        guard report.evaluated(.noDiagnostics).isSatisfied else {
             throw ExampleError.unexpectedDiagnostics
         }
     }

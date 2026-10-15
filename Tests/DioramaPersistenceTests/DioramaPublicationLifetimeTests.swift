@@ -21,7 +21,7 @@ struct DioramaPublicationLifetimeTests {
             report = result.report
         }
         #expect(releasedStorage == nil)
-        #expect(report.disposition == .published)
+        #expect(report.publication.disposition == .published)
         #expect(report.rendered().contains("scenario=\"lifetime\""))
     }
 
@@ -68,9 +68,9 @@ struct DioramaPublicationLifetimeTests {
         } else {
             guard case .published = result.publication else { Issue.record("Expected publication"); return }
         }
-        #expect(result.report.disposition == (fail ? .failed : .published))
-        #expect(result.report.candidate.isComplete)
-        #expect(result.report.priorDocument == .absent)
+        #expect(result.report.publication.disposition == (fail ? .failed : .published))
+        #expect(result.report.publication.candidate.isComplete)
+        #expect(result.report.publication.priorDocument == .absent)
         #expect(storage.writeCount == 1)
         #expect(storage.readCount == 1)
         #expect((storage.document == nil) == fail)
@@ -91,9 +91,9 @@ struct DioramaPublicationLifetimeTests {
         } catch {
             #expect(error as? PublicationFixtures.Failure == .body)
             let report = try #require(setup.report)
-            #expect(report.disposition == .failed)
-            #expect(report.candidate.isComplete)
-            #expect(report.issues.map(\.stage) == [.storage(nil)])
+            #expect(report.publication.disposition == .failed)
+            #expect(report.publication.candidate.isComplete)
+            #expect(report.publication.issues.map(\.stage) == [.storage(nil)])
             #expect(storage.writeCount == 1)
         }
         let next = try await setup.execute { _, _ in 7 }

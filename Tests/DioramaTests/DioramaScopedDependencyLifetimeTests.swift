@@ -76,18 +76,18 @@ struct DioramaScopedDependencyLifetimeTests {
         }
         #expect(saved.withLock { $0?.value } == 42)
         #expect(probe.releases.withLock { $0 } == 0)
-        #expect(result.report.diagnostics.isEmpty)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
         saved.withLock { $0 = nil }
         #expect(probe.releases.withLock { $0 } == 1)
         let reporter = try #require(probe.reporter.withLock { $0 })
         #expect(reporter.postFinishDiagnostics.map(\.diagnostic.issue) == [releaseIssue])
-        #expect(result.report.diagnostics.isEmpty)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
     }
 
     private func checkRelease(_ probe: ScopedReleaseProbe, report: DioramaReport) {
         #expect(probe.releases.withLock { $0 } == 1)
-        #expect(report.diagnostics.map(\.diagnostic.issue) == [releaseIssue])
-        #expect(!report.candidate.isComplete)
+        #expect(report.finalization.report.diagnostics.map(\.diagnostic.issue) == [releaseIssue])
+        #expect(!report.publication.candidate.isComplete)
         #expect(probe.reporter.withLock { $0?.postFinishDiagnostics.isEmpty } == true)
     }
 }

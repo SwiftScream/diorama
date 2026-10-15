@@ -15,14 +15,14 @@ struct DioramaExecutionClockTests {
             return context
         }
         #expect(result.definition?.attachments.isEmpty == true)
-        #expect(result.finalization.usage.isEmpty)
-        #expect(result.report.diagnostics.isEmpty)
+        #expect(result.report.finalization.usage.isEmpty)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
         let frozen = result.body.clock.now
         #expect(result.body.clock.now == frozen)
         await #expect(throws: (any Error).self) {
             try await result.body.clock.sleep(for: .milliseconds(1))
         }
-        #expect(result.report.diagnostics.isEmpty)
+        #expect(result.report.finalization.report.diagnostics.isEmpty)
     }
 
     @MainActor

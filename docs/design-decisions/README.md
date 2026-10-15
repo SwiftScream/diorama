@@ -28,6 +28,12 @@ sequential reuse, and stores a completed report before returning or rethrowing
 the original body error. This consumer ownership change preserves independent
 Core executions and the existing publication-health policy.
 
+On 2026-10-15, the owner approves
+[DD18's structured retained-report amendment](18-diorama-setup-and-scenario-data.md#structured-retained-reports--owner-approved-2026-10-15).
+`DioramaResult` preserves caller-owned outputs; `DioramaReport` shares structured
+finalization and safe publication evidence after either body outcome, with
+explicit evaluation and rendering on demand.
+
 On 2026-10-10, the owner accepts
 [Decision 20: System definitions and pure passthrough](20-system-definitions-and-pure-passthrough.md).
 Passthrough provides ordinary live behavior and consumer-owned lifetime;

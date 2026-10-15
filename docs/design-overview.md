@@ -263,8 +263,15 @@ exposes the shared execution clock; retaining it does not extend run lifetime.
 Startup and body errors throw, with finalization and optional publication
 completed before the original body error is rethrown. `Diorama.report` stores
 the safe completed aggregate on both successful and throwing body exits. A
-returned `DioramaResult` holds the successful body value, finalization facts,
-and concrete optional load outcome. The intermediate `DioramaRun` is internal;
+returned `DioramaResult` stores that same `DioramaReport`, the successful body
+value, optional healthy definition, exact optional load outcome, and detailed
+publication outcome. `DioramaReport.finalization` holds payload-free diagnostics,
+usage, and cleanup facts; `publication` holds safe publication evidence.
+`evaluated(...)` checks explicit Core conditions after either body outcome, and
+`rendered()` generates text on demand. The retained report owns neither semantic
+payloads nor arbitrary errors. See
+[DD18's report amendment](design-decisions/18-diorama-setup-and-scenario-data.md#structured-retained-reports--owner-approved-2026-10-15).
+The intermediate `DioramaRun` is internal;
 the consumer API has no diagnostic sink argument.
 Core has no opaque integration-evidence field. Its engine finalization remains
 independent of the consumer layer's optional publication responsibility.

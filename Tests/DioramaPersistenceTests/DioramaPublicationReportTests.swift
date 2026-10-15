@@ -28,8 +28,8 @@ struct DioramaPublicationReportTests {
             .execute { _, lease in
                 try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
             }
-        #expect(failure.report.disposition == .failed)
-        #expect(failure.report.issues.map(\.cause) == [.unspecified])
+        #expect(failure.report.publication.disposition == .failed)
+        #expect(failure.report.publication.issues.map(\.cause) == [.unspecified])
         #expect(!failure.report.rendered().contains("SECRET-ERROR-PAYLOAD"))
         #expect(descriptions.withLock { $0 } == 0)
 
@@ -37,10 +37,10 @@ struct DioramaPublicationReportTests {
             .execute { _, lease in
                 try lease.record(capturing: { 7 }, preparation: ValuePreparation<UInt64>())
             }
-        #expect(memory.report.priorDocument == .notApplicable)
-        #expect(memory.report.disposition == .notRequested)
-        #expect(memory.report.candidate.isComplete)
-        #expect(memory.report.issues.isEmpty)
+        #expect(memory.report.publication.priorDocument == .notApplicable)
+        #expect(memory.report.publication.disposition == .notRequested)
+        #expect(memory.report.publication.candidate.isComplete)
+        #expect(memory.report.publication.issues.isEmpty)
     }
 
     @Test(arguments: ["create", "write", "commit", "cleanup"])
@@ -87,17 +87,17 @@ struct DioramaPublicationReportTests {
 
     private func checkFileReport(_ report: DioramaReport, fault: String, rootPath: String) {
         let committed = fault == "cleanup"
-        #expect(report.priorDocument == .present)
-        #expect(report.candidate == PublicationCandidateSummary(
+        #expect(report.publication.priorDocument == .present)
+        #expect(report.publication.candidate == PublicationCandidateSummary(
             isComplete: true, attachmentCount: 1, trackCount: 1,
             recordedCount: 1, incompleteCount: 0))
-        #expect(report.diagnostics.isEmpty)
-        #expect(report.disposition == (committed ? .published : .failed))
-        #expect(report.preservation == (committed ? .committedByThisRun : .unchangedByThisRun))
+        #expect(report.finalization.report.diagnostics.isEmpty)
+        #expect(report.publication.disposition == (committed ? .published : .failed))
+        #expect(report.publication.preservation == (committed ? .committedByThisRun : .unchangedByThisRun))
         let operation: FileStorageOperation = fault == "commit" ? .commit : .stage
         let expectedStage: PublicationStage = committed ? .cleanup : .storage(operation)
         let expectedCode = fault == "create" || committed ? 13 : 5
-        #expect(report.issues == [
+        #expect(report.publication.issues == [
             PublicationIssue(stage: expectedStage, cause: .file(.posix(expectedCode))),
         ])
         let disposition = committed ? "published" : "failed"
@@ -145,19 +145,20 @@ struct DioramaPublicationReportTests {
         #expect(result.definition == nil)
         #expect(storage.writeCount == 0)
         #expect(storage.document == prior)
-        #expect(result.report.disposition == .refusedUnhealthy)
-        #expect(result.report.priorDocument == .present)
-        #expect(result.report.preservation == .unchangedByThisRun)
-        #expect(result.report.candidate.isComplete == false)
-        #expect(result.report.candidate.attachmentCount == 2)
-        #expect(result.report.diagnostics.first?.diagnostic.issue == .system(DiagnosticLabel("earlier")))
-        #expect(result.report.issues.count == 1)
+        #expect(result.report.publication.disposition == .refusedUnhealthy)
+        #expect(result.report.publication.priorDocument == .present)
+        #expect(result.report.publication.preservation == .unchangedByThisRun)
+        #expect(result.report.publication.candidate.isComplete == false)
+        #expect(result.report.publication.candidate.attachmentCount == 2)
+        #expect(result.report.finalization.report.diagnostics.first?.diagnostic.issue
+            == .system(DiagnosticLabel("earlier")))
+        #expect(result.report.publication.issues.count == 1)
         let stage: PublicationStage = switch fault {
         case "preparation-validation": .preparation(.validation)
         default: .conversion
         }
-        #expect(result.report.issues[0].stage == stage)
-        #expect(result.report.issues[0].context.trackID == second.attachment.trackIDs[0])
+        #expect(result.report.publication.issues[0].stage == stage)
+        #expect(result.report.publication.issues[0].context.trackID == second.attachment.trackIDs[0])
         #expect(result.report.rendered().contains("system-issue \"earlier\""))
         #expect(!result.report.rendered().contains("secret-native-path-and-payload"))
     }
@@ -178,9 +179,9 @@ struct DioramaPublicationReportTests {
         scenarioID: "double-fault", mode: .record, systems: system).execute { _, lease in
             try lease.record(capturing: { 42 }, preparation: ValuePreparation<UInt64>())
         }
-        #expect(result.report.disposition == .failed)
-        #expect(result.report.preservation == .unchangedByThisRun)
-        #expect(result.report.issues == [
+        #expect(result.report.publication.disposition == .failed)
+        #expect(result.report.publication.preservation == .unchangedByThisRun)
+        #expect(result.report.publication.issues == [
             PublicationIssue(stage: .storage(.commit), cause: .file(.posix(5))),
             PublicationIssue(stage: .cleanup, cause: .file(.posix(13))),
         ])
