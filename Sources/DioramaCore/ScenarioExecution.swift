@@ -8,7 +8,7 @@ private struct StartupServices {
 
     func close() {
         admission.close()
-        _ = scheduler.stop()
+        scheduler.stop()
         time.close()
     }
 }
@@ -78,10 +78,10 @@ public final class ScenarioExecution: Sendable {
         }
 
         private func stopAndClean(reporter: DiagnosticReporter) async -> [AttachmentCleanup] {
-            let schedulerTask = scheduler.stop()
+            scheduler.stop()
             let owners = contents.withLock { ($0.systems, $0.leases) }
             return await ScenarioExecution.stopAndClean(
-                owners.0, leases: owners.1, schedulerTask: schedulerTask, reporter: reporter)
+                owners.0, leases: owners.1, scheduler: scheduler, reporter: reporter)
         }
 
         private func release(cleanup: [AttachmentCleanup], reporter: DiagnosticReporter) -> FinalizedContents {
@@ -384,12 +384,12 @@ public final class ScenarioExecution: Sendable {
 
     private static func stopAndClean(
         _ systems: [AnyActivatedSystem], leases: [any AnySequentialLease],
-        schedulerTask: Task<Void, Never>? = nil, reporter: DiagnosticReporter) async -> [AttachmentCleanup]
+        scheduler: DeadlineEngine? = nil, reporter: DiagnosticReporter) async -> [AttachmentCleanup]
     {
         for system in systems.reversed() {
             await system.beginFinalization()
         }
-        await schedulerTask?.value
+        await scheduler?.drain()
         for system in systems {
             await system.quiesce()
         }

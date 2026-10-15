@@ -343,7 +343,9 @@ includes recorded application wait time. Each execution has one monotonic origin
 and rate, while later executions have independent timing and mutable state.
 
 Finish closes admission, requests scheduler stop, and invokes every returned
-State's stop hook in reverse order before joining any work. It then drains
+State's stop hook in reverse order before joining any work. The stop request
+cancels pending registrations but retains their callback captures until all stop
+hooks return, so capture destruction can depend on those stop signals. It then drains
 scheduler deliveries and canceled callback capture releases, tracked scopes,
 state operations, and direct lease reads;
 awaits reverse cleanup; freezes records; releases State and Dependency outside

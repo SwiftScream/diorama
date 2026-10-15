@@ -77,7 +77,7 @@ final class DeadlineEngine: Sendable {
 
     private let state = Mutex(State())
     // Cancellation can detach work after common admission closes. Only the
-    // engine lock and stop's removal of pending work close this separate gate.
+    // engine lock and drainage's removal of pending work close this separate gate.
     private let canceledCaptures = OperationTracker(admission: ExecutionAdmission())
     private let wake = AsyncStream<Wake>.makeStream()
     private let time: ExecutionTime
@@ -141,22 +141,38 @@ final class DeadlineEngine: Sendable {
         return handle
     }
 
-    /// Closes admission and transfers pending captures for destruction off-lock.
-    /// Startup rollback calls this before the worker has started.
-    func stop() -> Task<Void, Never>? {
-        let detached = state.withLock { state in
+    /// Closes admission without releasing pending captures. All system stop hooks
+    /// must run before drain: a capture's destructor may need their stop signal.
+    /// Startup rollback has no accepted work because logical time has not started.
+    func stop() {
+        state.withLock { state in
             state.closed = true
-            canceledCaptures.closeAdmission()
             for item in state.pending {
                 item.registration.transition(to: .canceled)
             }
+        }
+        wake.continuation.finish()
+    }
+
+    /// Called once by the execution-owned finalization task, after every stop hook.
+    func drain() async {
+        let worker = disposePending()
+        await worker?.value
+        // A clock failure or closed admission can end the worker before direct
+        // cancellation releases its captures. Join that independent obligation too.
+        await canceledCaptures.waitUntilIdle()
+    }
+
+    private func disposePending() -> Task<Void, Never>? {
+        let detached = state.withLock { state in
+            precondition(state.closed, "Scheduler drainage must follow stop")
+            canceledCaptures.closeAdmission()
             let detached = (state.worker, state.pending, state.canceledSleeps)
             state.worker = nil
             state.pending = []
             state.canceledSleeps = []
             return detached
         }
-        wake.continuation.finish()
         for item in detached.1 {
             item.work.cancel(with: CancellationError())
         }
@@ -164,13 +180,7 @@ final class DeadlineEngine: Sendable {
             sleep.complete(.failure(CancellationError()))
         }
         withExtendedLifetime(detached.1) {}
-        guard let worker = detached.0 else { return nil }
-        // Join separately from run(): a clock failure or closed admission can
-        // end the worker before a caller cancels the remaining pending work.
-        return Task {
-            await worker.value
-            await self.canceledCaptures.waitUntilIdle()
-        }
+        return detached.0
     }
 
     func cancel(_ registration: ScheduledRegistration) -> Bool {
@@ -183,7 +193,8 @@ final class DeadlineEngine: Sendable {
 
     private func discardPending(_ registration: ScheduledRegistration) -> Bool {
         let removed = state.withLock { state -> Item? in
-            guard let index = state.pending.firstIndex(where: { $0.registration === registration })
+            guard !state.closed,
+                  let index = state.pending.firstIndex(where: { $0.registration === registration })
             else { return nil }
             let admitted = canceledCaptures.enter()
             precondition(admitted, "Pending work must retain disposal admission")
@@ -196,7 +207,7 @@ final class DeadlineEngine: Sendable {
         }
         guard let removed else { return false }
         wake.continuation.yield(.changed)
-        // The worker or stop owns canceled-sleep completion. A caller paused
+        // The worker or drain owns canceled-sleep completion. A caller paused
         // here cannot resume a continuation after finalization has returned.
         // Capture destruction may reenter scheduling or reporting.
         PostUnlockActions.perform {
@@ -343,8 +354,11 @@ final class DeadlineEngine: Sendable {
     }
 
     private func fail(_ issue: SchedulingIssue) {
-        let discarded = state.withLock { state in
+        let discarded = state.withLock { state -> ([Item], [ClockSleep]) in
             state.failure = issue
+            // A timer failure can race stop. Once shutdown owns pending work,
+            // retain its captures until system stop hooks have completed.
+            guard !state.closed else { return ([], []) }
             for item in state.pending {
                 item.registration.transition(to: .canceled)
             }
