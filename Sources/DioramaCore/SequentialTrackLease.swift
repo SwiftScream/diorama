@@ -310,7 +310,7 @@ extension SequentialTrackLease {
         preparation: ValuePreparation<Header>) throws(SequentialOperationFailure)
     {
         let (attempt, previous) = try reserveHeaderAttempt()
-        defer { withExtendedLifetime(previous) {} }
+        defer { PostUnlockActions.perform { withExtendedLifetime(previous) {} } }
 
         let prepared: PreparedValue<Header>
         do {
