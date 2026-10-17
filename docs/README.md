@@ -315,6 +315,9 @@ test-integration design. They do not authorize those APIs.
   records the strict version-one model, deterministic fixtures, relocation,
   signed timestamp latency, decimal normalization, shared error persistence,
   access status policy, and local platform verification.
+- [Native Location materialization evidence](evidence/003-G03B-native-location-materialization.md)
+  records fidelity options, native reconstruction, copy/archive behavior,
+  safe diagnostic ownership, and Apple verification.
 - [Location incremental capture evidence](evidence/003-G03A-location-incremental-capture.md)
   records prepared callback reservations, session and access construction,
   freeze behavior, and runtime reference release.

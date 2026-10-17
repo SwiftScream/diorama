@@ -2470,8 +2470,10 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G03B — Native CLLocation materialization
 
-- Status: Approved. The owner confirms this separate prerequisite and authorizes
-  a PR stacked on the delegate-first documentation PR on 2026-10-18.
+- Status: Complete. The owner confirms the scope and authorizes the stacked PR
+  on 2026-10-18. Strict lint and fresh local macOS/iOS coverage gates pass;
+  required PR checks verify the applicable Linux boundary. See the
+  [native materialization evidence](../evidence/003-G03B-native-location-materialization.md).
 - Recommended model: GPT-6.1 Sol; reasoning: `high`. Native construction,
   copying, secure coding, and diagnostic ownership need focused Apple evidence.
 - Prerequisites: 003-G03, 003-G03A; DD05, DD06, DD09, DD16's native fidelity,
