@@ -402,7 +402,7 @@ struct LocationUpdateReplayTests {
     }
 }
 
-private final class LocationReplayMarker: Sendable {
+final class LocationReplayMarker: Sendable {
     let onRelease: @Sendable () -> Void
     init(onRelease: @escaping @Sendable () -> Void) {
         self.onRelease = onRelease
@@ -411,7 +411,7 @@ private final class LocationReplayMarker: Sendable {
     deinit { onRelease() }
 }
 
-private final class LocationReplayBlockingGate: Sendable {
+final class LocationReplayBlockingGate: Sendable {
     private let entered = AsyncStream<Void>.makeStream()
     private let semaphore = DispatchSemaphore(value: 0)
 
