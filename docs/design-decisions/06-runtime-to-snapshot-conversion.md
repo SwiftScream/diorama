@@ -388,3 +388,22 @@ URLSession's more restrictive metadata policy remains in force.
 The helper is an implementation detail shared across package modules, not a
 consumer-facing error type. Systems continue delivering native errors in their
 public dependency APIs.
+
+
+## Shared NSError persistence payload — owner-approved 2026-10-17
+
+The owner approves extracting the reusable bounded-error codec from G03 into
+`DioramaPersistence` as package-visible `NSErrorSnapshotPayload`, in a separate
+preparatory commit. It is an explicit `Codable` wrapper for Core's validated
+`NSErrorSnapshot`; the Core type does not acquire a `Codable` conformance.
+The recursive tagged value codec and coding errors remain private to
+Persistence. The shared format retains domain, integer code, and supported
+bounded user information, including exact integer values and unquantized
+finite real/date values. It validates decoded content through Core before use.
+
+This narrowly clarifies the earlier system-owned codec guidance. First-party
+systems may deliberately adopt the shared nested representation while owning
+their enclosing schema version, native observation boundaries, metadata
+allowlist/redaction, omission diagnostics, and any typed supplements. Adoption
+does not broaden a system's allowed metadata. Location's version-one error
+JSON and native error delivery remain unchanged by the extraction.

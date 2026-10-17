@@ -554,6 +554,11 @@ Async and delegate consumers receive native errors. Core's package-visible
 Location, URLSession, and future integrations on Apple platforms and Linux.
 Systems own preparation, diagnostics, typed supplements, and versioned codecs;
 the shared snapshot does not expose a new public error API or schema.
+[DD06's persistence payload amendment](design-decisions/06-runtime-to-snapshot-conversion.md#shared-nserror-persistence-payload--owner-approved-2026-10-17)
+adds a package-visible `NSErrorSnapshotPayload` Codable wrapper in
+DioramaPersistence. Systems may opt into its shared tagged representation
+while owning their metadata policies and enclosing schema versions. Core's
+snapshot remains independent of Codable.
 
 ### Consumer-system extension milestone
 

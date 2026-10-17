@@ -29,6 +29,10 @@ in DioramaCore and [DD16's native error delivery amendment](16-location-system.m
 The package-visible helper shares bounded capture, validation, and native
 reconstruction across systems; preparation, diagnostics, and codecs remain
 system-owned. Location's async and delegate APIs deliver native errors.
+[DD06's shared NSError persistence payload amendment](06-runtime-to-snapshot-conversion.md#shared-nserror-persistence-payload--owner-approved-2026-10-17)
+adds an opt-in package-visible `NSErrorSnapshotPayload` wrapper in
+DioramaPersistence. Systems retain their metadata policies and independently
+versioned enclosing schemas.
 
 On 2026-10-17, the owner approves
 [DD16's native consumer location amendment](16-location-system.md#native-consumer-locations-with-opt-in-replay-fidelity--owner-approved-2026-10-17).

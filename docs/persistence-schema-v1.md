@@ -136,3 +136,28 @@ envelope and the first-party random payload.
 There are no historical version readers because no earlier clean-slate schema
 exists. Future public schema versions must retain version 1 readers within the
 same major package series, as required by Decision 8.
+
+
+## Shared bounded NSError payload
+
+DioramaPersistence offers package-visible `NSErrorSnapshotPayload` as an
+optional nested representation for first-party system schemas, approved by
+[DD06](design-decisions/06-runtime-to-snapshot-conversion.md#shared-nserror-persistence-payload--owner-approved-2026-10-17).
+It wraps Core's validated `NSErrorSnapshot`, without making Core's type
+`Codable` or introducing a new registered system or envelope version.
+
+The object contains `domain`, integral `code`, and a string-keyed `userInfo`
+object. Every user-info value contains `type` and `value`. The type is one of
+`string`, `integer`, `real`, `boolean`, `data`, `date`, `array`, or `dictionary`.
+Integers retain Int64 precision, data uses Base64 in JSON, and dates use finite
+Unix-second numbers preserving available submillisecond precision. Reals and
+dates are not rounded by system-specific measurement precision rules.
+Arrays contain tagged values; dictionaries contain string-keyed tagged values.
+Unknown keys/cases and invalid scalar values are rejected. The complete decoded
+snapshot must satisfy Core's nesting, count, byte, domain, and date bounds.
+
+A system deliberately selects this representation as part of its independently
+versioned payload. It still owns error capture, metadata filtering/redaction,
+omission reporting, typed supplements, and schema compatibility. A change to
+the shared representation must account for every adopting system's version
+contract; sharing the codec does not silently change those schemas.
