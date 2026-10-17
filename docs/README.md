@@ -318,6 +318,9 @@ test-integration design. They do not authorize those APIs.
 - [Location update replay evidence](evidence/003-G04-location-update-replay.md)
   records main-actor callback delivery, claim progress, timing, reentrant
   stop/restart, shutdown quiescence, and local platform verification.
+- [Location access replay evidence](evidence/003-G05-location-access-replay.md)
+  records native access presentation, ordered request barriers, notification
+  timing, claim accounting, and callback shutdown.
 - [Native Location materialization evidence](evidence/003-G03B-native-location-materialization.md)
   records fidelity options, native reconstruction, copy/archive behavior,
   safe diagnostic ownership, and Apple verification.
