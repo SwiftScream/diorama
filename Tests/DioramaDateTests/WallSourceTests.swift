@@ -7,11 +7,12 @@ import Testing
 
 struct WallSourceTests {
     @Test
-    func `record returns native values and independently rounds absolute observations`() async throws {
+    func `record returns independently rounded absolute observations`() async throws {
         let base = 1_893_448_800.0
         let native = [0.00049, 0.00098, 0.00147, 0.00196].map {
             Date(timeIntervalSince1970: base + $0)
         }
+        let rounded = try native.map { try #require(StableTimeCodec.roundedToMillisecond($0)) }
         let probe = WallSourceProbe(values: native)
         let system = try DioramaDateSystem.instance(named: "wall") {
             probe.makeSource()
@@ -20,14 +21,13 @@ struct WallSourceTests {
         let execution = try await start(system)
         let wall = try execution.dependency(system)
 
-        for expected in native {
+        for expected in rounded {
             #expect(wall.now == expected)
         }
         let result = await execution.finish()
         #expect(result.report.diagnostics.isEmpty)
         let definition = try #require(result.definition)
         let recording = try DioramaDateSystem.recording(in: definition.attachments[0])
-        let rounded = try native.map { try #require(StableTimeCodec.roundedToMillisecond($0)) }
         #expect(recording.effectiveDates == rounded)
         #expect(recording.observations.map(\.value) == [0, 1, 0, 1])
         #expect(recording.origin?.value.offsetMinutes == zone.secondsFromGMT(for: native[0]) / 60)
@@ -305,12 +305,14 @@ extension WallSourceTests {
         let observed = wall.now
         let after = Date()
 
-        #expect(observed >= before)
-        #expect(observed <= after)
+        let lower = mode == .record ? try #require(StableTimeCodec.roundedToMillisecond(before)) : before
+        let upper = mode == .record ? try #require(StableTimeCodec.roundedToMillisecond(after)) : after
+        #expect(observed >= lower)
+        #expect(observed <= upper)
         let result = await execution.finish()
         let recording = try DioramaDateSystem.recording(in: #require(result.definition).attachments[0])
         if mode == .record {
-            #expect(try recording.effectiveDates == [#require(StableTimeCodec.roundedToMillisecond(observed))])
+            #expect(recording.effectiveDates == [observed])
         } else {
             #expect(recording == .empty)
         }

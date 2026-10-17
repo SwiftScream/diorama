@@ -569,3 +569,24 @@ runtime parsing or calendar-construction inputs.
 [Plan 003 Fa04](../plans/003-clean-slate-implementation.md#003-fa04--portable-wall-origin-persistence-integrity)
 owns implementation and full platform verification. Approval of this amendment
 does not claim that the range check is already implemented.
+
+
+## Normalized recording returns — owner-approved 2026-10-17
+
+The owner approves returning the admitted millisecond-normalized `Date` from
+successful record-mode reads, rather than the original native observation.
+This supersedes the native-return requirement in the wall `now` mode table
+and earlier recording descriptions. Each observation is still independently
+rounded before deriving successive deltas; the consumer now receives that
+same prepared absolute value. Replaying the fresh observed recording therefore
+returns identical dates, including submillisecond source inputs, repeated
+values, and backward wall jumps. Date-dependent decisions that trigger other
+recorded dependencies can follow the same path in record and replay.
+
+Passthrough remains native. Failed preparation still returns the observed
+native value, reports conversion failure, and prevents healthy publication.
+Escaped recording handles retain their documented live-source behavior after
+closure. Timezone selection affects display only. Authored origin/delta
+overrides still apply during finalization and can deliberately change later
+replay values; they are not substituted into fresh live reads. The persistence
+schema, millisecond codec, source read count, and source ordering are unchanged.

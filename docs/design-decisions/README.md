@@ -3,6 +3,13 @@
 - Status: Accepted
 - Consolidated design approved by owner: 2026-09-07
 
+On 2026-10-17, the owner approves
+[DD15's normalized recording returns amendment](15-clock-system.md#normalized-recording-returns--owner-approved-2026-10-17).
+Successful Date recording reads return the same millisecond-normalized values
+admitted to the track, keeping fresh observed recording and replay behavior
+consistent. Passthrough and failed-preparation returns remain native;
+closed-handle behavior is unchanged.
+
 On 2026-10-17, the owner selects
 [DD16's regional and global coordinate formats](16-location-system.md#regional-and-global-coordinate-formats--owner-approved-2026-10-17):
 regional east/north meter offsets and global latitude/longitude degree offsets,

@@ -49,7 +49,7 @@ struct WallRecordingState: Sendable {
             preconditionFailure("Admitted wall observation must be representable")
         }
         progress = next
-        return native
+        return next.previous
     }
 
     private func prepare(_ observed: Date) throws -> Progress {

@@ -101,16 +101,17 @@ struct WallOverrideMergeTests {
     }
 
     @Test
-    func `edited baseline rerecords to canonical overrides while live values remain native`() async throws {
+    func `rerecord returns fresh normalized dates before applying canonical overrides`() async throws {
         let codec = try WallMergeFixtures.codec()
         let baseline = try codec.decode(WallMergeFixtures.fixture("date-edited"))
         let baselineBytes = try codec.encode(baseline)
         let native = [0.00049, 0.00098, 0.0004].map { Date(timeIntervalSince1970: 2_000_000_000 + $0) }
+        let rounded = try native.map { try #require(StableTimeCodec.roundedToMillisecond($0)) }
         let source = WallMergeFixtures.Source(native)
         let system = try DioramaDateSystem.instance(named: "clock") { source }
         let result = try await Diorama(definition: baseline, scenarioID: "rerecord", mode: .record, systems: system)
             .execute { _, wall in native.map { _ in wall.now } }
-        #expect(result.body == native)
+        #expect(result.body == rounded)
         #expect(source.count == native.count)
         let candidate = try #require(result.definition)
         let recording = try WallMergeFixtures.content(candidate)

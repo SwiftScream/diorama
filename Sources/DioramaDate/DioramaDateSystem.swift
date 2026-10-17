@@ -83,7 +83,8 @@ public enum DioramaDateSystem {
     /// After recording closes, the returned dependency keeps its live source:
     /// reads diagnose closure and return native dates without recording them.
     /// Recording selects the current timezone for origin display at activation;
-    /// it never changes the absolute `Date` returned to the consumer.
+    /// timezone affects display only. Successful recording reads return the same
+    /// millisecond-normalized dates admitted to the track for replay.
     public static func instance(
         named name: String,
         allowsUnclaimedReplayRecords: Bool = false,

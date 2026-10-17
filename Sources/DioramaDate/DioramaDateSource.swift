@@ -6,7 +6,8 @@ import Foundation
 /// A date attachment accepts a source of this type and vends the same small
 /// dependency to application code. Sources need not round their native dates.
 public protocol DioramaDateSource: Sendable {
-    /// The current native or replayed wall observation.
+    /// The current wall observation, normalized to milliseconds on successful
+    /// recording reads and during replay. Passthrough returns native values.
     var now: Date { get }
 }
 

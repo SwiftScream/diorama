@@ -7,6 +7,41 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 struct DatePersistenceConformanceTests {
     @Test
+    func `normalized record returns preserve dependent reads through file replay`() async throws {
+        let source = DateConformanceSupport.Source([2000.00049, 2000.00098, 1999.99951, 2000.00147])
+        let dependentSource = DateConformanceSupport.Source([11.00049, 22.00049])
+        let date = try DioramaDateSystem.instance(named: "date") { source }
+        let dependent = try DioramaDateSystem.instance(named: "dependent") { dependentSource }
+        let file = try DateConformanceSupport.file()
+        defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
+        let cutoff = Date(timeIntervalSince1970: 2000)
+
+        let recorded = try await Diorama(file: file, scenarioID: "normalized-date", mode: .record,
+                                         systems: date, dependent)
+            .execute { _, date, dependent in
+                (0..<4).compactMap { _ in date.now == cutoff ? dependent.now : nil }
+            }
+        #expect(recorded.body == [11.0, 22.0].map { Date(timeIntervalSince1970: $0) })
+        #expect(recorded.report.publication.disposition == .published)
+        #expect(recorded.report.finalization.report.diagnostics.isEmpty)
+        let published = try Data(contentsOf: file)
+
+        let replayed = try await Diorama(file: file, scenarioID: "normalized-date", mode: .replay,
+                                         systems: DateConformanceSupport.offline("date"),
+                                         DateConformanceSupport.offline("dependent"))
+            .execute { _, date, dependent in
+                (0..<4).compactMap { _ in date.now == cutoff ? dependent.now : nil }
+            }
+        #expect(replayed.body == recorded.body)
+        #expect(replayed.report.finalization.report.diagnostics.isEmpty)
+        #expect(replayed.report.evaluated(.allRecordsClaimed).isSatisfied)
+        #expect(replayed.report.evaluated(.allClaimedRecordsConsumed).isSatisfied)
+        #expect(try Data(contentsOf: file) == published)
+        #expect(source.count == 4)
+        #expect(dependentSource.count == 2)
+    }
+
+    @Test
     func `portable multiwall golden replays absolute dates and canonical offsets with a runtime clock`() async throws {
         let bytes = try DateConformanceSupport.fixture()
         let codec = try DateConformanceSupport.codec()
@@ -53,15 +88,15 @@ struct DatePersistenceConformanceTests {
                                          systems: capture, replay, pass, empty)
             .execute { context, capture, replay, pass, _ in
                 let before = context.clock.now
-                let native = (0..<3).map { _ in capture.now }
+                let dates = (0..<3).map { _ in capture.now }
                 #expect(pass.now == Date(timeIntervalSince1970: 100))
                 try await context.clock.sleep(for: .milliseconds(2))
                 #expect(pass.now == Date(timeIntervalSince1970: -500))
                 #expect(before < context.clock.now)
                 _ = (0..<3).map { _ in replay.now }
-                return native
+                return dates
             }
-        #expect(recorded.body == [2000.00049, 2002.00049, 2009.00049].map { Date(timeIntervalSince1970: $0) })
+        #expect(recorded.body == [2000.0, 2002.0, 2009.0].map { Date(timeIntervalSince1970: $0) })
         #expect(recorded.report.publication.disposition == .published)
         #expect(recorded.report.finalization.report.diagnostics.isEmpty)
         let published = try Data(contentsOf: file)

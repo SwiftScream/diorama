@@ -16,8 +16,12 @@ system state, dependency, or live-source factory runs; admission does not repeat
 capture transformations. Passthrough skips runtime track-content validation.
 `DioramaDateSystem.instance(named:sourceFactory:)` creates a wall
 attachment. Record mode captures native `Date` values in source order, rounds
-each absolute value independently, and selects the origin's numeric timezone
-offset from the first observation using `TimeZone.current` captured at activation.
+each absolute value independently, returns that normalized value to the
+consumer, and selects the origin's numeric timezone offset from the first
+observation using `TimeZone.current` captured at activation.
+This matches replay's observed dates so submillisecond inputs cannot change
+consumer decisions merely because the execution mode changes; see
+[DD15's recording-return amendment](design-decisions/15-clock-system.md#normalized-recording-returns--owner-approved-2026-10-17).
 Re-recording clears the old header and produces a fresh observed origin and
 offset. Finalization preserves an authored whole-origin override, including
 its offset; there is no independent offset override. With no new observations,

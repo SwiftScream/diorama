@@ -500,6 +500,11 @@ Status: Resolved by
 [execution-clock ownership amendment](design-decisions/15-clock-system.md#execution-clock-ownership-amendment--owner-approved-2026-10-07)
 and [date-system naming amendment](design-decisions/15-clock-system.md#date-system-naming-amendment--owner-approved-2026-10-09).
 The optional `DioramaDate` attachment records and replays wall observations.
+Under [DD15's recording-return amendment](design-decisions/15-clock-system.md#normalized-recording-returns--owner-approved-2026-10-17),
+successful recording reads return the same millisecond-normalized absolute
+values stored for replay, preserving dependent decisions across a fresh
+record/replay cycle. Passthrough remains native; authored overrides remain
+intentional transformations applied during finalization.
 `DioramaCore` owns the runtime Swift `Clock`, available through executions and
 scoped `Diorama` runs without a wall attachment or persisted track. It shares
 the execution's scheduler and origin, never records reads or sleeps, and freezes

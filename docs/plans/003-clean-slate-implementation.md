@@ -1405,7 +1405,13 @@ Under resolved Q1, 003-D05 confirms or revises the provisional H/I breakdown aga
 - Prerequisites: 003-F02, 003-B04; DD06, DD09, DD15.
 - Scope: Vend the synchronous nonthrowing Date wall facet with an injected Sendable source, serialized capture, and startup-selected encoding timezone.
 - Expected files/modules: Clock wall source/live attachment and tests.
-- Public behavior: Live modes return native observations.
+- Follow-up correction (2026-10-17): The owner approves normalized record-mode
+  returns and PR creation on a separate branch from `master`, as recorded in
+  [DD15](../design-decisions/15-clock-system.md#normalized-recording-returns--owner-approved-2026-10-17).
+  Implementation and regression coverage are complete: a file-backed replay
+  preserves Date-dependent reads of a second recorded source.
+- Public behavior: Successful record-mode reads return their admitted
+  millisecond-normalized absolute Date; passthrough returns native observations.
   Record independently rounds absolute values before deriving deltas; first observed instant resolves the numeric timezone offset.
   The owner-approved 2026-10-06 review removes setup timezone selection:
   record activation captures `TimeZone.current`, and re-recording clears the
