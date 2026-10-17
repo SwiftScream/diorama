@@ -3,6 +3,13 @@
 - Status: Accepted
 - Consolidated design approved by owner: 2026-09-07
 
+On 2026-10-17, the owner selects
+[DD16's regional and global coordinate formats](16-location-system.md#regional-and-global-coordinate-formats--owner-approved-2026-10-17):
+regional east/north meter offsets and global latitude/longitude degree offsets,
+both from one attachment origin, with pole reflection and explicit attachment
+format selection. Persistence retains only the effective origin and offsets;
+replay and origin edits do not require the original origin.
+
 On 2026-10-17, the owner approves
 [DD06's shared NSError snapshot helper](06-runtime-to-snapshot-conversion.md#shared-nserror-snapshot-helper--owner-approved-2026-10-17)
 in DioramaCore and [DD16's native error delivery amendment](16-location-system.md#shared-error-snapshots-and-native-delivery--owner-approved-2026-10-17).

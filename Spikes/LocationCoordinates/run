@@ -1,0 +1,40 @@
+#!/bin/bash
+# Isolated G02 numerical evidence. Does not import or change Diorama products.
+set -euo pipefail
+
+probe_directory=$(cd "$(dirname "$0")" && pwd)
+probe_platform=${1:-macos}
+probe_output="$probe_directory/.build/$probe_platform"
+mkdir -p "$probe_output"
+
+case "$probe_platform" in
+    macos) probe_sdk=macosx; probe_target=arm64-apple-macosx15.0 ;;
+    ios) probe_sdk=iphonesimulator; probe_target=arm64-apple-ios18.0-simulator ;;
+    *) printf 'Usage: %s [macos|ios]\n' "$0" >&2; exit 2 ;;
+esac
+
+probe_sources=("$probe_directory/Mapping.swift" "$probe_directory/Probe.swift"
+    "$probe_directory/AngularMapping.swift" "$probe_directory/AngularProbe.swift")
+
+# A failed rerun must not leave an earlier success available to compare.py.
+rm -f "$probe_output/Onone.csv" "$probe_output/O.csv" "$probe_output/Onone.csv.angular" "$probe_output/O.csv.angular"
+
+xcodebuild -version
+xcrun swiftc --version
+probe_sdk_path=$(xcrun --sdk "$probe_sdk" --show-sdk-path)
+for optimization in Onone O; do
+    executable="$probe_output/probe-$optimization"
+    xcrun --sdk "$probe_sdk" swiftc -swift-version 6 -strict-concurrency=complete \
+        -enable-upcoming-feature NonisolatedNonsendingByDefault \
+        -enable-upcoming-feature InferIsolatedConformances \
+        -module-cache-path "$probe_output/module-cache" -sdk "$probe_sdk_path" \
+        -target "$probe_target" -"$optimization" -parse-as-library \
+        -warnings-as-errors "${probe_sources[@]}" -o "$executable"
+    printf '%s %s\n' "$probe_platform" "$optimization"
+    if [[ "$probe_platform" == ios ]]; then
+        xcrun simctl spawn "${DIORAMA_SIMULATOR:-booted}" "$executable" \
+            "$probe_directory" "$probe_output/$optimization.csv"
+    else
+        "$executable" "$probe_directory" "$probe_output/$optimization.csv"
+    fi
+done
