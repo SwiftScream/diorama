@@ -2393,25 +2393,51 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G03 — Location version-one codec and strict recording model
 
-- Recommended model: GPT-6 Sol; reasoning: `high`. Implement an approved geographic contract alongside independent measurement/delivery origins and exact scalar encoding.
-- Prerequisites: 003-G02 approved mapping, 003-Fa03, 003-C02, 003-F01; DD03, DD08, DD16.
-- Scope: Implement location-owned strict session/access records and coordinate/time codecs, including optional cached location and independent vertical origins.
-- Expected files/modules: Location codec and strict recordings; geographic, numeric, time, failure and schema fixtures.
-- Public behavior: Unit-bearing JSON numbers use finite shortest-round-trip doubles, normalized negative zero and no default quantization.
-  One attachment horizontal origin is separate from session measurement origins and successive delivery delays.
-  Use the explicit regional/global representation and normalization contract
-  accepted at G02; never infer or silently switch formats from a point's range.
+- Status: Complete. The owner approves PR creation and the
+  schema/precision review amendment, shared error codec preparation, and fresh
+  normalized consumer-value materialization on 2026-10-17. Full local macOS and iOS
+  gates pass; the required PR matrix supplies Linux verification. See the
+  [G03 codec evidence](../evidence/003-G03-location-recording-and-codec.md).
+- Recommended model: GPT-6 Sol; reasoning: `high`. Implement an approved geographic contract alongside timestamp origins, signed latency, and deliberate decimal precision.
+- Prerequisites: 003-G02 approved mapping, 003-Fa03, 003-C02, 003-F01; DD03, DD06, DD08, DD09, DD16.
+- Scope: Implement location-owned strict session/access records and coordinate/time codecs, including optional initial snapshot and independent vertical origins.
+  Extract Core's package-visible normalized `TimestampOrigin`, with Date adoption
+  and an opt-in Persistence ISO scalar wrapper, in a separate preparatory commit.
+  Date and Location both normalize native and textual origins at construction.
+  First add the shared package-visible `NSErrorSnapshotPayload` wrapper and its
+  portable test in Persistence as a separate preparatory commit; Location then
+  adopts it without changing its version-one error JSON.
+- Expected files/modules: Core timestamp origin, Date adoption, Persistence
+  timestamp/error payloads and portable tests; Location
+  codec and strict recordings; geographic, numeric, time, failure and schema fixtures.
+- Public behavior: Unit-bearing JSON numbers use the owner-approved
+  [precision and timestamp amendment](../design-decisions/16-location-system.md#location-persistence-review-amendment--owner-approved-2026-10-17),
+  including 3-decimal meter/speed/course values and 8-decimal geographic degrees.
+  Shared initial/session location values contain signed latency. Session timestamps
+  use the session-start timestamp origin plus cumulative scheduled event delay
+  minus latency; initial timestamps use their snapshot origin minus latency.
+  Coordinate and altitude origins stay separate, with independently overridable
+  altitude components. JSON field names follow the reviewed Location structure.
+  Use explicit `meters`/`degrees` formats with the G02 mapping semantics; never
+  infer or silently switch formats from a location's range.
   Persist only the effective origin and offsets; changing an origin retains
   offsets without an original-origin field or dependency on the original recording.
+  Fresh record observations and replay share normalized semantic materialization.
+  Normalize absolute altitudes after origin/offset addition. Decimal JSON spelling
+  preserves the canonical consumer Double; encoding rejects additional hidden
+  quantization. Baseline authored origins affect publication/replay only.
+  Native record/replay delivery remains in the later Location units.
   Access-only/empty recordings have no coordinate origins.
   Access storage uses an initial observation segment followed by one record per request barrier, each owning notifications until the next barrier; this preserves one ordered access state machine and independent unused requests.
   Define the handling of unsupported native or persisted authorization raw values without silently mapping them to known cases.
 - Tests/verification: V-code; deterministic macOS/iOS goldens, relocated artifacts
   that load and replay without original-origin data, explicit scalar
   encoding of `CLLocationCoordinate2D`, longitude/latitude/course normalization,
-  independent altitude components, cached timestamp, signed measurement versus
-  nonnegative delivery time, malformed/unknown schema, bounds.
-- Exclusions: Default lossy rounding of measurements, native archive payloads,
+  independent altitude components, initial/session signed latency, failure-inclusive
+  cumulative delivery time, normalization/idempotence, malformed/unknown schema,
+  arithmetic/date overflow, radius validation after rounding, canonical decimal
+  output, fresh/replayed downstream output equality, and authored-origin isolation.
+- Exclusions: Native adapter delivery, rounding bounded error values, native archive payloads,
   one shared up coordinate, positional event overrides, Linux Location support.
 - Checkpoint: R; review the stable geographic and lifecycle schema before replay.
 
@@ -2421,9 +2447,9 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Recommended model: GPT-6 Sol; reasoning: `high`.
 - Prerequisites: 003-G03, 003-E04R, 003-E01; DD03, DD09, DD16, DD19.
 - Scope: Build strict location sessions/access records from prepared batches, nonterminal failures, access notifications, and authorization markers through Core's record reservation/freeze boundary.
-- Public behavior: Reserve order before conversion; derive successive delivery delays independently of measurement timestamps; stop without dependency completion freezes open; incomplete preparation invalidates the candidate. Freeze detaches runtime state and rejects late observations.
+- Public behavior: Reserve order before conversion; derive successive delivery delays from monotonic capture and signed per-location latency from an explicit session-start timestamp reference; prepare fresh normalized values without baseline overrides for shared consumer materialization; stop without dependency completion freezes open; incomplete preparation invalidates the candidate. Freeze detaches runtime state and rejects late observations.
 - Expected files/modules: Location domain accumulators and controlled capture tests, without native Core Location objects.
-- Tests/verification: V-code; interleaved capture, slow conversion, nonterminal error then recovery, stop/restart, empty/open sessions, access barriers, one freeze, late rejection, resource release, prepared-only admission and unhealthy failures.
+- Tests/verification: V-code; interleaved capture, slow conversion, session-start references and signed latency, nonterminal error then recovery, stop/restart, empty/open sessions, access barriers, one freeze, late rejection, resource release, prepared-only admission and unhealthy failures.
 - Exclusions: Native recording, origin override merge, replay delivery, generic subscription helpers.
 - Checkpoint: R; domain capture proof before G06/G08 depend on it.
 
@@ -2442,9 +2468,12 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Public behavior: Start inactive selects the next group; repeated active start and inactive stop are idempotent.
   Restart gets a fresh anchor.
   Current location updates before delivery and survives failure.
+  Share G03's normalized semantic materialization with later record-mode delivery;
+  record uses fresh candidate origins while replay uses persisted effective origins.
   Open groups stay active/silent; exhausted start retains a diagnostic for the completed report and becomes inert.
-- Replay value behavior: Both floor and ellipsoidal-altitude fidelity options
-  default off and never affect capture. Native reconstruction is the default;
+- Materialized value behavior: Both floor and ellipsoidal-altitude fidelity options
+  default off and never affect captured content. G08 applies the same options to
+  normalized recording delivery. Native reconstruction is the default;
   enabling ellipsoidal fidelity uses the subclass for each location, while
   enabling floor fidelity uses it only when the recorded floor is non-nil.
   Subclass copies retain enabled values; secure archiving emits a loss diagnostic
@@ -2480,9 +2509,11 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Scope: Add preparation and merge for coordinate/measurement origins while replacing other location behavior wholesale on re-record.
 - Expected files/modules: Location origin policy/merge, privacy and file fixtures.
 - Public behavior: Authored origin override wins over re-evaluated setup default, then fresh origin.
-  Derive fresh offsets/deltas before substitution.
+  Derive fresh offsets/latencies and normalized consumer values before baseline
+  substitution. Never feed retained baseline origin overrides into record-mode
+  output or current state. Publication changes do not regenerate downstream records.
   Defaults persist as observed, not sticky overrides.
-  Keep session measurement overrides only where the corresponding sequential session survives.
+  Keep session timestamp-origin overrides only where the corresponding sequential session survives.
 - Tests/verification: V-code; relocation/retiming, independent vertical origins, disappearing sessions/locations, access-only replacement, changed defaults, transient raw origins absent from candidate/resources/diagnostics, override-only canonical writing, non-origin manual edits replaced as documented.
 - Exclusions: Whole-event/track overrides, heuristic event correspondence, claims that relocation removes all sensitive route information.
 - Checkpoint: R; review precedence, deletion behavior, and safe prepared output.
@@ -2518,8 +2549,12 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Expected files/modules: Core Location native bridge/converters and controlled adapter-boundary tests; documented native field availability.
 - Public behavior: Forward configuration and supported native behavior; record
   prepared stable values, including floor and ellipsoidal altitude regardless
-  of replay options, while live consumers receive original native locations
-  and native Error values.
+  of preservation options. Record consumers receive normalized native values
+  materialized from fresh prepared observations using G04/G03's shared rules.
+  Apply the same floor/ellipsoidal preservation options in record and replay.
+  Install normalized current state before callback delivery. Baseline authored
+  origins never affect record-mode materialization. Pure passthrough alone
+  forwards original native locations and errors.
   Unsupported user-info entries warn and omit only that value; other conversion failures preserve live behavior and block publication.
   Pure passthrough has no Diorama recording conversion or operation interception.
   Core invokes its lifecycle hooks; document the system-defined native cleanup
@@ -2527,7 +2562,8 @@ native evidence. Fa07 must precede coverage-dependent decisions.
   Its facade retains ordinary native isolation, and hooks tolerate
   consumer-initiated shutdown.
 - Tests/verification: V-code; supported measurement and native access values, callbacks/errors, initial cached location, batching, no raw origin leak, source isolation, passthrough no track changes, counted owned-manager operations.
-  Verify original object identity at record and passthrough delivery.
+  Verify normalized record/replay consumer and downstream-output equivalence,
+  no baseline-override feedback, and original object identity in passthrough.
 - Exclusions: Consumer-manager mutation, live Linux source, native error string persistence, nondeterministic simulator GPS as the sole correctness evidence.
 - Checkpoint: R; review native conversion fidelity and owned-manager boundaries.
 

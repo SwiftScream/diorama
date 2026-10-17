@@ -311,6 +311,10 @@ test-integration design. They do not authorize those APIs.
 - [Regional and global coordinate-mode evidence](evidence/003-G02-coordinate-modes.md)
   records WGS84 meter offsets, global angular offsets, numerical limits, and
   relocation using only the effective origin and retained offsets.
+- [Location recording and codec evidence](evidence/003-G03-location-recording-and-codec.md)
+  records the strict version-one model, deterministic fixtures, relocation,
+  signed timestamp latency, decimal normalization, shared error persistence,
+  access status policy, and local platform verification.
 - [Historical coordinate mapping evidence](evidence/003-G02-location-coordinate-codec.md)
   records the earlier polar, radius, and approximation investigations.
 - [Apple Location value contracts](evidence/003-G01-location-values.md) record
