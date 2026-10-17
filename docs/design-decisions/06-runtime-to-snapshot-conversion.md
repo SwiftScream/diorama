@@ -364,3 +364,27 @@ semantic values require no core `Codable` conformance, but every persisted track
 type must be registered and `Codable`. The initial first-party repository uses
 a versioned deterministic JSON document while native-to-stable conversion
 remains a separate system boundary.
+
+## Shared NSError snapshot helper — owner-approved 2026-10-17
+
+`DioramaCore` provides a package-visible `NSErrorSnapshot` helper for Location,
+URLSession, and future first-party integrations. Foundation supplies `NSError`
+on Apple platforms and Linux. The helper captures domain, integer code, and a
+bounded property-list-like value tree, validates explicit snapshots, and
+reconstructs fresh native errors. Unsupported user-info entries produce
+key/type-only omission facts for the calling system to report. It retains no
+native error graph and does not preserve arbitrary Swift error or subclass
+identity.
+
+This narrowly amends the earlier module-placement guidance: reusable Foundation
+conversion mechanics may live in Core, while Core's execution and track APIs
+continue to operate on system-owned prepared values. It introduces no universal
+failure taxonomy or required codec protocol. Systems still own their native
+observation boundaries, preparation/redaction, diagnostic context, typed
+supplements, and deliberate independently versioned persistence schemas. A
+shared structural allowlist is not permission to persist every supported value;
+URLSession's more restrictive metadata policy remains in force.
+
+The helper is an implementation detail shared across package modules, not a
+consumer-facing error type. Systems continue delivering native errors in their
+public dependency APIs.

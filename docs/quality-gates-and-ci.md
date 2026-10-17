@@ -255,9 +255,11 @@ container rather than whatever Swift version happens to be preinstalled on a
 floating Ubuntu runner. Its FoundationNetworking integration tests are part of
 the URLSession capability evidence from decision 12.
 
-Platform-limited systems remain conditional products or targets. A missing
-Core Location adapter on Linux must not prevent portable core, HTTP, random, or
-clock products from building and testing there.
+Platform-limited systems remain conditional products or targets. The Apple-only
+Location product is absent on Linux; its absence must not prevent core, HTTP,
+random, or date products from building and testing there. Location behavior and
+coverage are verified on macOS and iOS, while the Linux job still checks the
+applicable package graph and conditional target boundaries.
 
 ### FoundationNetworking known failures — owner-approved, 2026-09-26
 

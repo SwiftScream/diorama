@@ -1,7 +1,7 @@
 # Decision 16: Initial location system
 
 - Status: Accepted
-- Last updated: 2026-09-06
+- Last updated: 2026-10-16
 - Depends on: [Decision 1: Common abstraction](01-common-abstraction.md),
   [Decision 2: Shared and system-specific semantics](02-shared-vs-system-semantics.md),
   [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
@@ -13,6 +13,10 @@
   [Decision 10: Lifecycle and ownership](10-lifecycle-and-ownership.md),
   [Decision 14: Real-time replay scheduler](14-real-time-replay-scheduler.md), and
   [Decision 15: Initial clock system](15-clock-system.md)
+
+The [2026-10-16 Apple-only amendment](#apple-only-location-amendment--owner-approved-2026-10-16)
+supersedes the portable Location and Linux replay requirements in this
+historical decision.
 
 ## Decision
 
@@ -560,3 +564,175 @@ selection/capture, and domain-owned delivery. Its reconciliation supersedes
 requirements for generic Core interaction/subscription models or engines while
 preserving the domain invariants specified there. The earlier discussion above
 remains a historical record.
+
+## Apple-only location amendment — owner-approved 2026-10-16
+
+The owner narrows the initial Location system to Apple platforms. Recording,
+replay, the async event and access sequences, the delegate facade, and the
+`DioramaLocation` consumer value require Core Location. There is no Location
+product, public Location API, or Location replay promise on Linux. The earlier
+portable-domain, portable-replay, and Linux Location requirements above are
+superseded. The rest of Diorama retains its required Linux support.
+
+`DioramaLocation` remains a bespoke value because `CLLocation` cannot be
+constructed through public API with independently specified `floor` and
+`ellipsoidalAltitude`. Its Apple-facing coordinate is
+`CLLocationCoordinate2D`; use the established Core Location scalar and access
+types where they preserve the promised behavior. The async interface remains
+available on Apple platforms and emits the same bespoke location value. The
+delegate facade remains deliberately narrower than `CLLocationManager` and
+does not subclass it.
+
+Native consumer types do not become the recording format. The location system
+validates and converts a coordinate to explicit finite scalar values at the
+stable-record boundary. Versioned JSON continues to encode unit-bearing
+numbers, including the accepted origin-relative east/north displacement;
+`CLLocationCoordinate2D` is not encoded or decoded implicitly. The strict
+recording model remains independent of native object identity and archives.
+This also supersedes Decision 6's example of a *portable* `DioramaLocation`:
+the conversion boundary remains, but the public value and replay capability
+are Apple-only. No native `CLLocation` enters Core tracks or persistence.
+
+The supported fields, independent altitude origins, WGS84 mapping evidence,
+editable origin policy, timing, access barriers, failures, mismatch behavior,
+and record/replay lifecycle remain as specified above. Platform verification
+for Location uses macOS and iOS; the required Linux job continues to verify
+all applicable non-Location products and conditional package boundaries.
+
+## Native access-state amendment — owner-approved 2026-10-17
+
+`LocationAccessState` is an internal, complete snapshot for recording and
+replay, not a public consumer value. Its permission and accuracy fields use
+`CLAuthorizationStatus` and `CLAccuracyAuthorization` directly. The public
+manager facade continues to expose those native statuses and service
+availability separately. The Apple-only async access interface must not
+expose the internal snapshot type; its final consumer shape is set in G05.
+
+The earlier `LocationPermission` and `LocationAccuracyAuthorization` wrapper
+enums and the guarantee to preserve unknown future authorization raw values
+are superseded. Stable records still encode supported access cases deliberately
+and validate edited data before replay. G03 must define the handling of any
+unsupported native or persisted raw value without silently mapping it to a
+known status.
+
+## CLLocation-shaped value amendment — owner-approved 2026-10-17
+
+`DioramaLocation` presents supported measurements with Core Location property
+names and scalar types: `coordinate`, `altitude`, `ellipsoidalAltitude`,
+`horizontalAccuracy`, `verticalAccuracy`, `speed`, `speedAccuracy`, `course`,
+`courseAccuracy`, `timestamp`, and `sourceInformation`. The source-information
+property and initializer use `CLLocationSourceInformation`; its observed flags
+are stored internally so the value remains `Sendable`. Internal validated
+vertical, speed, course, and source groups are not public API. The public
+initializer accepts the corresponding scalars, with the independent
+ellipsoidal height and floor level added to preserve replay fidelity.
+
+Absent vertical, speed, and course groups read through the documented Core
+Location-style sentinels: zero heights with negative vertical accuracy, and
+negative speed/course and their accuracies. The initializer remains failable
+because a `DioramaLocation` must contain a valid coordinate, horizontal
+accuracy, and timestamp. `floor` remains `Int?` rather than `CLFloor?` because
+Core Location provides no public initializer for `CLFloor`; the logical level
+is the reproducible value. The earlier public grouped measurement and source
+types are superseded. Stable recording fields and their validity rules are
+unchanged.
+
+## CLLocation interface comparison — owner-approved 2026-10-17
+
+The public scalar initializer follows the order of Core Location's full
+`CLLocation` initializer through `sourceInfo`, then adds optional
+`ellipsoidalAltitude` and `floor` parameters. `DioramaLocation` also offers
+`distance(from:)` for another `DioramaLocation` or a native `CLLocation`. Both
+delegate coordinate distance to Core Location; its geodesic arc ignores
+altitude. This consumer convenience does not define the G02 persistence
+projection or enter the stable recording.
+
+The remaining public differences are intentional. `DioramaLocation` is a
+`Sendable` value, not an `NSObject` or native `CLLocation`; it does not expose
+native archiving, copying, identity, or descriptions. Its one failable
+initializer enforces valid recorded fields rather than reproducing native
+convenience initializers or invalid location states. `floor` is a logical
+`Int?`, not `CLFloor?`, because `CLFloor` cannot be publicly constructed.
+`sourceInformation` reconstructs a fresh native object from retained flags.
+Longitude and course are canonicalized, and missing vertical, speed, and
+course groups read as canonical invalid sentinels instead of preserving every
+native invalid input verbatim. The deprecated `getDistanceFrom` spelling is
+not reproduced.
+
+## Read-only CLLocation-shaped value amendment — owner-approved 2026-10-17
+
+Clients will receive `DioramaLocation` from the Location system; they do not
+construct one. Its scalar initializer is internal. This supersedes the public
+initializer portions of the two preceding G01 amendments. Internal creation
+continues to validate the same measurements and retain independent heights.
+
+The optional public `floor` is a `DioramaFloor?` with a non-optional integer
+`level`, matching the `location.floor?.level` access pattern of `CLLocation`.
+Its initializer is internal because the system supplies recorded and replayed
+floors. `DioramaFloor` remains a value rather than `CLFloor`, whose instances
+cannot be constructed through a public initializer. This supersedes the
+earlier public `Int?` floor shape; the recorded logical level is unchanged.
+
+## Native consumer locations with opt-in replay fidelity — owner-approved 2026-10-17
+
+The Location system delivers `CLLocation` to consumers in its async updates,
+cached location, and delegate facade. Recording and passthrough deliver the
+original native locations; recording still prepares independent, explicit
+stable measurements, including `floor.level` and `ellipsoidalAltitude`, before
+publication. Native object identity and archives do not enter the stable
+recording or JSON schema. This amendment supersedes the earlier public
+`DioramaLocation`/`DioramaFloor` consumer-value contract and all earlier
+descriptions of bespoke values at the delivery boundary. Internal validated
+measurement types may remain where useful for stable records.
+
+Each Location attachment has two independent replay-fidelity options, off by
+default: preserve recorded floor and preserve recorded ellipsoidal altitude.
+The options are execution configuration, not recorded or matched data; changing
+them does not change capture or the stable schema. With both options off,
+replay constructs an ordinary `CLLocation`. Enabling floor preservation uses a
+replay subclass only for a location with a recorded non-nil floor. Enabling
+ellipsoidal-altitude preservation uses the replay subclass for each delivered
+location, whether or not it has a floor. If floor preservation is off, replay
+does not promise the recorded floor; if ellipsoidal-altitude preservation is
+off, replay does not promise the recorded ellipsoidal value. Consumers observe
+whatever the ordinary native reconstruction supplies for a disabled field.
+The validity rules for recorded vertical measurements remain unchanged.
+
+The replay-only subclass is a genuine `CLLocation` initialized through public
+Core Location constructors for reproducible native fields. It overrides only
+the enabled replay-only getters and preserves them through copying. A recorded
+floor requires a corresponding `CLFloor` implementation. These opt-ins
+consciously accept Apple's guidance against creating or subclassing those
+classes; no subclass is delivered during recording or passthrough. The
+[native framework spike](../evidence/003-G01-cllocation-native-framework-spike.md)
+is feasibility evidence, not a guarantee for every first-party framework or
+future OS version. Test the production implementation on macOS and iOS.
+The earlier statements about `CLFloor` initialization mean there is no supported
+initializer that sets an arbitrary logical level. An inherited `CLFloor()`
+initializer compiles in the spike but does not supply that capability.
+
+Secure archiving a replay subclass encodes it as an ordinary `CLLocation` and
+emits a Diorama diagnostic that the enabled replay-only fields are lost. The
+decoded value is a native `CLLocation`; the archive is not a Diorama persistence
+format. Copying the replay subclass preserves enabled values. A native location
+does not need a subclass-loss diagnostic. The diagnostic's implementation must
+respect the final-report and post-finish reporting contract in Decision 5.
+
+This amendment leaves the narrow `DioramaLocationManager` facade, access
+semantics, origin-relative records, independent altitude components, timing,
+failure conversion, and Apple-only platform boundary intact. It replaces the
+earlier prohibition on native replay reconstruction tricks for the approved,
+opt-in subclass behavior only. `CLLocationManager` itself remains un-subclassed.
+
+## Shared error snapshots and native delivery — owner-approved 2026-10-17
+
+Both async and delegate consumers receive native `Error` values: the original
+error in live modes and a reconstructed `NSError` during replay. This supersedes
+the earlier stable failure value at the async delivery boundary. Neither
+`LocationFailure` nor its recursive value type is public API.
+
+Location reuses Core's package-visible `NSErrorSnapshot` for domain/code,
+bounded user information, omission facts, and reconstruction, as specified in
+[DD06's shared helper amendment](06-runtime-to-snapshot-conversion.md#shared-nserror-snapshot-helper--owner-approved-2026-10-17).
+Location retains ownership of its preparation, diagnostic reporting, and
+versioned codec. The recorded error fidelity and omission rules remain unchanged.

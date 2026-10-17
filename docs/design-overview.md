@@ -3,7 +3,7 @@
 - Status: Accepted
 - Created: 2026-09-05
 - Approved by owner: 2026-09-07
-- Last reviewed: 2026-10-16
+- Last reviewed: 2026-10-17
 - Scope: Decisions 1 through 21
 - Derived from: [Accepted design decisions](design-decisions/README.md)
 
@@ -144,8 +144,11 @@ The decisions combine into this design:
     quiescent shutdown.
 15. The optional `DioramaDate` system records wall observations. Core separately
     exposes the execution scheduler through a monotonic Swift `Clock`.
-16. The optional location system supplies a portable async domain and replay
-    model plus an Apple-only Core Location recorder and narrow delegate facade.
+16. The optional Apple-only location system supplies async replay and a narrow
+    Core Location delegate facade. Consumers receive `CLLocation`; live modes
+    retain native objects. Recordings always capture floor and ellipsoidal
+    altitude as explicit stable values. Two default-off replay options permit
+    a genuine subclass only for opted-in fidelity.
 17. An HTTP interaction is one recursive lifecycle tree containing shared
     messages and typed adapter supplements, with mutually exclusive returned,
     failed, and open leaves.
@@ -516,12 +519,22 @@ independent of display offset; round-trip verification belongs in tests.
 ### Initial location system contract
 
 Status: Resolved by
-[decision 16](design-decisions/16-location-system.md). The initial system now
-defines portable async replay, a narrow Apple delegate facade, stable location
-and NSError conversion, WGS84 route relocation, separate measurement and
-delivery timing, access-state request barriers, nonthrowing mismatch behavior,
-and finalization. Live location recording remains Apple-only while stable
-models and replay remain portable.
+[decision 16](design-decisions/16-location-system.md), as narrowed by its
+[Apple-only amendment](design-decisions/16-location-system.md#apple-only-location-amendment--owner-approved-2026-10-16)
+and revised by its
+[native consumer amendment](design-decisions/16-location-system.md#native-consumer-locations-with-opt-in-replay-fidelity--owner-approved-2026-10-17).
+The initial Apple-only system defines async replay, a narrow delegate facade,
+native `CLLocation` delivery, explicit stable recordings and NSError conversion,
+WGS84 route relocation, separate measurement and delivery timing, access-state
+request barriers, nonthrowing mismatch behavior, and finalization. Replay
+subclassing is limited to opted-in floor or ellipsoidal-altitude fidelity.
+Location is not available on Linux.
+
+Async and delegate consumers receive native errors. Core's package-visible
+`NSErrorSnapshot` shares bounded capture, validation, and reconstruction across
+Location, URLSession, and future integrations on Apple platforms and Linux.
+Systems own preparation, diagnostics, typed supplements, and versioned codecs;
+the shared snapshot does not expose a new public error API or schema.
 
 ### Consumer-system extension milestone
 

@@ -307,6 +307,11 @@ test-integration design. They do not authorize those APIs.
   records grouped factories and lifecycle callbacks, Void-State conveniences,
   actual signature rejection, per-activation ownership, and platform verification.
 
+- [Location proxy framework spike](evidence/003-G01-cllocation-proxy-framework-spike.md)
+  records how an exploratory `CLLocation` wrapper behaved in local Apple APIs.
+- [Native Location framework spike](evidence/003-G01-cllocation-native-framework-spike.md)
+  compares subclass and getter-swizzle replay candidates in the same APIs.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

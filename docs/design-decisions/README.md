@@ -3,6 +3,52 @@
 - Status: Accepted
 - Consolidated design approved by owner: 2026-09-07
 
+On 2026-10-17, the owner approves
+[DD06's shared NSError snapshot helper](06-runtime-to-snapshot-conversion.md#shared-nserror-snapshot-helper--owner-approved-2026-10-17)
+in DioramaCore and [DD16's native error delivery amendment](16-location-system.md#shared-error-snapshots-and-native-delivery--owner-approved-2026-10-17).
+The package-visible helper shares bounded capture, validation, and native
+reconstruction across systems; preparation, diagnostics, and codecs remain
+system-owned. Location's async and delegate APIs deliver native errors.
+
+On 2026-10-17, the owner approves
+[DD16's native consumer location amendment](16-location-system.md#native-consumer-locations-with-opt-in-replay-fidelity--owner-approved-2026-10-17).
+Location delivers `CLLocation` in every mode; stable records always retain floor
+and ellipsoidal altitude. Two default-off replay options permit a genuine
+`CLLocation` subclass only when needed for opted-in fidelity. Secure archiving
+decodes as native `CLLocation` and diagnoses replay-field loss. This supersedes
+DD16's bespoke consumer value amendments without changing stable records.
+
+On 2026-10-17, the owner approves
+[DD16's read-only CLLocation-shaped value amendment](16-location-system.md#read-only-cllocation-shaped-value-amendment--owner-approved-2026-10-17).
+The scalar initializer is internal and optional `floor` offers a non-optional
+`level` through `DioramaFloor`.
+
+On 2026-10-17, the owner approves
+[DD16's CLLocation interface comparison](16-location-system.md#cllocation-interface-comparison--owner-approved-2026-10-17).
+The scalar initializer follows native argument order, distance methods use
+Core Location's coordinate arc, and intentional public differences are listed
+for G01 review.
+
+On 2026-10-17, the owner approves
+[DD16's CLLocation-shaped value amendment](16-location-system.md#cllocation-shaped-value-amendment--owner-approved-2026-10-17).
+`DioramaLocation` exposes Core Location-style scalar measurements and native
+source information while retaining internal validated groups and an integer
+floor level for replay fidelity.
+
+On 2026-10-17, the owner approves
+[DD16's native access-state amendment](16-location-system.md#native-access-state-amendment--owner-approved-2026-10-17).
+The internal access snapshot uses Core Location authorization enums; the
+consumer facade exposes native statuses, and unknown future raw values are no
+longer guaranteed to round-trip.
+
+On 2026-10-16, the owner approves
+[DD16's Apple-only location amendment](16-location-system.md#apple-only-location-amendment--owner-approved-2026-10-16).
+`DioramaLocation` remains a bespoke value for floor and ellipsoidal-altitude
+fidelity but exposes `CLLocationCoordinate2D` at its Apple consumer boundary.
+The Location product, async replay, and delegate facade are Apple-only; its
+stable records retain explicit semantic scalars and origin-relative persistence.
+Linux remains required for applicable non-Location products.
+
 On 2026-10-16, the owner approves
 [DD21's typed mode definitions amendment](21-managed-native-lifecycle.md#typed-mode-definitions--owner-approved-2026-10-16).
 `SystemDefinition` requires `record`, `replay`, and `passthrough` declarations of

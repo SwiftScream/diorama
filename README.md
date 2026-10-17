@@ -20,7 +20,7 @@ The accepted design covers:
 - one-to-one real-time replay scheduling;
 - a small random-number proving system;
 - wall-clock observation and monotonic sleeping;
-- portable location replay with an Apple Core Location recording adapter;
+- Apple-only Core Location recording and replay with native location delivery;
 - shared HTTP semantics and a URLSession adapter for Apple Foundation and
   FoundationNetworking.
 

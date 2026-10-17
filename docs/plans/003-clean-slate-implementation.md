@@ -53,6 +53,27 @@ R1–R6 findings addressed by Phase Fa. This addition records planning scope and
 rough fix-size estimates; it does not start implementation or approve Ra4's
 public API design. Normal per-unit scope confirmation remains required.
 
+On 2026-10-16, the owner narrows Phase G through
+[DD16's Apple-only Location amendment](../design-decisions/16-location-system.md#apple-only-location-amendment--owner-approved-2026-10-16).
+Location recording and replay, including its async interface, now require Core
+Location. `DioramaLocation` stays bespoke to preserve floor and ellipsoidal
+altitude, while its Apple-facing coordinate uses `CLLocationCoordinate2D`.
+The strict records and JSON remain explicit semantic values; Linux Location
+replay is removed from the acceptance criteria. G01–G09 retain their review
+units with the revised platform and type boundaries below. This planning
+revision does not confirm G01 implementation scope.
+
+On 2026-10-17, the owner approves
+[DD16's native consumer Location amendment](../design-decisions/16-location-system.md#native-consumer-locations-with-opt-in-replay-fidelity--owner-approved-2026-10-17).
+It supersedes the bespoke consumer-value portions of the preceding paragraph
+and G01's earlier implementation scope. Location now delivers native `CLLocation`;
+recording always captures floor and ellipsoidal altitude in strict records.
+Two default-off, per-attachment replay options enable a genuine replay subclass
+only for ellipsoidal-altitude fidelity or a present recorded floor. The owner
+authorizes rewriting G01 as a documentation/plan commit followed by its revised
+implementation commit. The later replay/facade/adapter units below need their
+revised scope confirmed before implementation.
+
 On 2026-10-06, the owner accepts
 [Decision 19](../design-decisions/19-system-owned-records.md), its delivery-plan
 revision, and the scope of the combined E04R/revised E05 refactor.
@@ -196,7 +217,7 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [DD13: Random](../design-decisions/13-random-proving-system.md) | Reference-semantic record/replay generator, ordered raw UInt64, no timestamps, injected live source, zero after diagnosed exhaustion, public-only implementation. DD20 gives passthrough native copy/lifetime semantics. 003-B01–003-B08 including 003-B07A, 003-C07, 003-Fa01–003-Fa02. |
 | [DD14: Scheduler](../design-decisions/14-real-time-replay-scheduler.md)                      | One execution-owned ContinuousClock, one-to-one delays, deterministic handoff, no registration reentrancy, atomic cancel/claim, delivery acknowledgement. 003-E01–003-E08; availability gate Q2 applies.                                                                                     |
 | [DD15: Clock](../design-decisions/15-clock-system.md)                                        | Millisecond wall origins and signed successive deltas; positional overrides; empty wall payload; nonpersisted monotonic Clock. 003-F01–003-F07.                                                                                                                                              |
-| [DD16: Location](../design-decisions/16-location-system.md)                                  | Portable async replay, origin-relative WGS84 measurements, separate delivery time, access barriers, nonterminal failures, narrow Apple facade. 003-G01–003-G09.                                                                                                                              |
+| [DD16: Location](../design-decisions/16-location-system.md)                                  | Apple-only async replay with native `CLLocation` delivery and opt-in replay-only subclassing; origin-relative WGS84 records, separate delivery time, access barriers, nonterminal failures, narrow delegate facade. 003-G01–003-G09.                                                                                                                              |
 | [DD17: HTTP composition](../design-decisions/17-http-lifecycle-composition.md)               | One recursive tree, embedded typed supplements, exact bodies once, weighted delivery, conditional derived length, local delays and timing-only override merge. 003-H05–003-H14, 003-I01–003-I09.                                                                                                     |
 | [DD18: Setup and scenario data](../design-decisions/18-diorama-setup-and-scenario-data.md) | Complete reusable `Diorama` setup; immutable data-only `ScenarioDefinition`; direct codec boundary without public `PersistedScenario`; load per execution; valid in-memory results independent of publication success. 003-C04A–003-C07, 003-H07, 003-J03–003-J04. |
 | [Overview](../design-overview.md)                                                            | Ignoring a configured attachment changes verification only. Every loaded payload still requires persistent registration plus schema and prepared-value validation before unmatched attachments are diagnosed and discarded. 003-C01–003-C06 including 003-C04A–003-C04B, 003-J03.                                                                                                           |
@@ -476,7 +497,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | F     | 003-F01–003-F07; 003-F03A abandoned | Portable wall system and Core execution clock. |
 | Fa    | 003-Fa01–003-Fa07; 003-Fa09A; 003-Fa09 | Pure passthrough, managed system authoring, infrastructure-review follow-ups, retained consumer reports, and diagnostic-delivery simplification. |
 | Ra    | 003-Ra1–003-Ra5 | Post-Fa review follow-ups for scoped ownership, cancellation disposal, merge ordering, retained-report APIs, and envelope classification. |
-| G     | 003-G01–003-G09      | Portable location replay and narrow Apple live/delegate integration.         |
+| G     | 003-G01–003-G09      | Apple-only location recording, async replay, and narrow delegate integration. |
 | H     | 003-H01–003-H14      | Shared HTTP domain, resource publication, strict URLSession lifecycle data.  |
 | I     | 003-I01–003-I09      | Incremental production URLSession conformance across platform bridges.       |
 | J     | 003-J01–003-J04      | Opt-in test integrations, combined-system acceptance, user documentation.    |
@@ -490,11 +511,13 @@ The consumer entry product is `Diorama`, depending on `DioramaCore` and
 boundary; persistence owns codecs and storage. Consumer run orchestration belongs
 in `Diorama`, as approved in DD18's 2026-09-21 amendment.
 System products include `DioramaRandom`, `DioramaDate`, `DioramaLocation`, `DioramaHTTP`, and `DioramaURLSession`.
-Optional persistence, Core Location, XCTest, and Swift Testing code belongs in suitable separate targets/products when introduced.
+`DioramaLocation` is Apple-only; optional persistence, XCTest, and Swift Testing
+code belongs in suitable separate targets/products when introduced.
 Names such as `DioramaPersistence`, `DioramaCoreLocation`, `DioramaXCTest`, and `DioramaTesting` below are working labels.
 They do not impose a new architectural commitment.
 Core must compile without HTTP Types, test frameworks, or Apple-only adapters.
-Linux builds the portable location model/replay, not a fictitious live location provider.
+Linux excludes the Location product while building and testing all applicable
+products. Core Location must not enter their package dependencies.
 
 `Sources/<module>/`, `Tests/<module>Tests/`, and their fixture directories are the expected paths for a named module below.
 Add only relevant `Package.swift` entries, documentation, and CI coverage classification with each new target.
@@ -2264,6 +2287,16 @@ measured by these line counts.
 
 ## Phase G — Location domain and Apple bridge
 
+Under DD16's 2026-10-17 native consumer amendment, every Location API and
+implementation target in this phase is Apple-only. The async interface and
+delegate facade deliver `CLLocation`. Recording and passthrough retain native
+locations; replay uses an ordinary native location by default and a genuine
+subclass only for opted-in ellipsoidal altitude or a present opted-in floor.
+Strict records and persisted JSON always retain both fields as explicit
+semantic scalars, with origin-relative offsets. Verify Location on macOS and
+iOS; verify on Linux that the rest of the package builds without importing
+Location. The unit descriptions below use this native consumer boundary.
+
 Fa01/Fa02 and Ra1 precede this phase. Ra2 precedes G04; Ra3 precedes G06.
 Use the DD20 system-definition boundary and
 [DD21's state-owned lifecycle amendment](../design-decisions/21-managed-native-lifecycle.md#state-owned-lifecycle--owner-approved-2026-10-15).
@@ -2279,17 +2312,39 @@ Fa03–Fa05 have explicit prerequisite gates below; Fa08 implements the R5 publi
 boundary before G07/G08 depend on it. Synthetic lifecycle proof does not replace
 native evidence. Fa07 must precede coverage-dependent decisions.
 
-### 003-G01 — Portable location, access, and failure values
+### 003-G01 — Apple location measurement, access, and failure values
 
-- Recommended model: GPT-6 Sol; reasoning: `medium`. Portable location and bounded error values need deliberate range, omission, and unknown-value contracts.
+- Status: In progress; implement the shared Core snapshot before the Apple measurement/access foundations.
+- Exploratory evidence: [native `CLLocation` proxy framework interoperability](../evidence/003-G01-cllocation-proxy-framework-spike.md).
+- Exploratory evidence: [genuine `CLLocation` replay candidates](../evidence/003-G01-cllocation-native-framework-spike.md).
+- Recommended model: GPT-6 Sol; reasoning: `medium`. Apple-facing location and bounded error values need deliberate range and omission contracts.
 - Prerequisites: 003-Fa02, 003-Ra1, 003-F01, 003-B02; DD06, DD09, DD16, DD20, Q4.
-- Scope: Define stable location measurements, access state, source information, and bounded property-list-like failure values independent of Core Location.
-- Expected files/modules: `DioramaLocation` domain values, validation tests and supported-field/error-value documentation.
-- Public behavior: Preserve floor, independent orthometric/ellipsoidal heights, timestamp, accuracy, speed/course and optional source flags; invalid native sentinels map to absence.
-  Access preserves unknown permission/accuracy cases without rejecting plausible cross-field combinations.
-  Failures retain domain/code.
-- Tests/verification: V-code; finite/range checks, absent versus false source flags, nonpositive vertical accuracy, negative speed/course, canonical course, unknown access values, recursive error bounds and safe omission warnings.
-- Exclusions: CLLocation in portable types, actual coordinate mapping, native manager, arbitrary object/error graphs, localized error identity guarantees.
+- Scope: First add package-visible `NSErrorSnapshot` capture, validation, bounded
+  value types, omission facts, and native reconstruction to DioramaCore in a
+  preparatory commit. Then define Apple-only internal validated measurement
+  values, access state, and source information. Location reuses the shared
+  error snapshot instead of declaring public failure types. Validate
+  native coordinates and keep native objects out of strict recordings. Expose
+  no bespoke public location or floor value; consumers will use `CLLocation`.
+- Expected files/modules: Shared Core error snapshot and cross-platform tests;
+  Apple-only internal measurement values, validation tests, and supported-field
+  documentation. Error codecs remain system-owned.
+- Public behavior: Later Location APIs deliver `CLLocation`. Internal values
+  preserve floor, independent orthometric/ellipsoidal heights, timestamp,
+  accuracy, speed/course and optional source flags; invalid native sentinels
+  map to absence. Recording always retains both replay-opt-in fields.
+  Internal access snapshots use native authorization enums without rejecting plausible cross-field combinations.
+  Failures retain domain/code and supported information through the shared
+  helper; later async and delegate APIs deliver native errors.
+- Tests/verification: V-code on macOS/iOS plus the applicable Linux package
+  gate; finite/range checks, absent versus false source flags, nonpositive
+  vertical accuracy, negative speed/course, canonical course, native access
+  values, recursive error bounds, safe omission facts, detached mutable input,
+  and fresh NSError reconstruction. During owner review, run focused checks;
+  rerun the full gates before final PR readiness.
+- Exclusions: Replay subclass construction, actual coordinate mapping, native
+  manager, arbitrary object/error graphs, localized error identity guarantees,
+  Linux Location API.
 - Checkpoint: R; review stable field and omission contracts; use smaller commits for independent value families when helpful.
 
 ### 003-G02 — WGS84 mapping and numerical contract evidence
@@ -2299,7 +2354,7 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Scope: Evaluate the common-origin east/north mapping, inverse, WGS84 constants, valid regional envelope and singularities against independent reference data.
 - Expected files/modules: `Spikes/LocationCoordinates/` and `docs/evidence/location-coordinate-codec.md`; proposed stable mapping contract.
 - Public behavior: None yet; fix a reviewable codec interpretation before fixtures depend on numerical choices, without claiming global route-shape preservation.
-- Tests/verification: V-spike; known coordinate pairs, zero/displaced origins, antimeridian/polar cases, forward/inverse error, relocation, platform numerical agreement.
+- Tests/verification: V-spike; known coordinate pairs, zero/displaced origins, antimeridian/polar cases, forward/inverse error, relocation, macOS/iOS numerical agreement.
   Disclose any explored package and exact adoption proposal if needed.
 - Exclusions: Silent projection choice, guessed Earth constants, unapproved production geodesy dependency, guaranteeing globally identical geodesics.
 - Checkpoint: R; resolve Q4 and any dependency/decision changes before 003-G03.
@@ -2314,8 +2369,13 @@ native evidence. Fa07 must precede coverage-dependent decisions.
   One attachment horizontal origin is separate from session measurement origins and successive delivery delays.
   Access-only/empty recordings have no coordinate origins.
   Access storage uses an initial observation segment followed by one record per request barrier, each owning notifications until the next barrier; this preserves one ordered access state machine and independent unused requests.
-- Tests/verification: V-code; cross-platform goldens, longitude/latitude/course normalization, independent altitude components, cached timestamp, signed measurement versus nonnegative delivery time, malformed/unknown schema, bounds.
-- Exclusions: Default lossy rounding of measurements, native archive payloads, one shared up coordinate, positional event overrides, Linux live capture.
+  Define the handling of unsupported native or persisted authorization raw values without silently mapping them to known cases.
+- Tests/verification: V-code; deterministic macOS/iOS goldens, explicit scalar
+  encoding of `CLLocationCoordinate2D`, longitude/latitude/course normalization,
+  independent altitude components, cached timestamp, signed measurement versus
+  nonnegative delivery time, malformed/unknown schema, bounds.
+- Exclusions: Default lossy rounding of measurements, native archive payloads,
+  one shared up coordinate, positional event overrides, Linux Location support.
 - Checkpoint: R; review the stable geographic and lifecycle schema before replay.
 
 ### 003-G03A — Location-owned incremental capture
@@ -2330,25 +2390,40 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Exclusions: Native recording, origin override merge, replay delivery, generic subscription helpers.
 - Checkpoint: R; domain capture proof before G06/G08 depend on it.
 
-### 003-G04 — Portable sequential update replay
+### 003-G04 — Apple async sequential update replay
 
-- Recommended model: GPT-6 Sol; reasoning: `high`. AsyncSequence updates, cached state, open sessions, and iterator cancellation require a coherent portable lifecycle.
+- Recommended model: GPT-6 Sol; reasoning: `high`. AsyncSequence updates, cached state, open sessions, and iterator cancellation require a coherent Apple-only lifecycle.
 - Prerequisites: 003-G03, 003-Fa05, 003-Ra2, revised 003-E05, 003-E03; DD04–DD05, DD16.
-- Scope: Add location-owned AsyncSequence-first delivery over record claims and scheduling: ordered batches/nonterminal failures, one active session, non-consuming current location, progress, cancellation, and quiescence. Reuse relevant E06 test cases without adopting its generic schema.
-- Expected files/modules: Location portable service/update state machine and tests.
+- Scope: Add Apple-only location-owned AsyncSequence-first delivery over record
+  claims and scheduling: ordered batches/nonterminal failures, one active
+  session, non-consuming current location, progress, cancellation, and
+  quiescence. Deliver `CLLocation` using per-attachment replay-fidelity options.
+  Reuse relevant E06 test cases without adopting its generic schema. Confirm a
+  separate small native-materialization slice before implementation if the
+  replay subclass and secure-coding work would overload G04.
+- Expected files/modules: Location async service/update state machine and tests.
 - Public behavior: Start inactive selects the next group; repeated active start and inactive stop are idempotent.
   Restart gets a fresh anchor.
   Current location updates before delivery and survives failure.
   Open groups stay active/silent; exhausted start retains a diagnostic for the completed report and becomes inert.
+- Replay value behavior: Both floor and ellipsoidal-altitude fidelity options
+  default off and never affect capture. Native reconstruction is the default;
+  enabling ellipsoidal fidelity uses the subclass for each location, while
+  enabling floor fidelity uses it only when the recorded floor is non-nil.
+  Subclass copies retain enabled values; secure archiving emits a loss diagnostic
+  and decodes as native `CLLocation`.
 - Tests/verification: V-code; batch order, duplicate/cached measurement times, failure then recovery, current reads, start/stop/restart, iterator cancellation, inert-session release, claimed/unconsumed report, basic shutdown quiescence.
+  Include the four option combinations, nil/present floors, positive/invalid
+  vertical accuracy, copy, secure archive, and ordinary native replay on macOS
+  and iOS.
 - Exclusions: Matching manager configuration, concurrent sessions within one attachment, failure as thrown termination, synthetic completion on mismatch.
-- Checkpoint: R; review the full portable update lifecycle and offline guarantee.
+- Checkpoint: R; review the full async update lifecycle and offline guarantee.
 
 ### 003-G05 — Access state notifications and authorization barriers
 
 - Recommended model: GPT-6 Astra; reasoning: `high`. Authorization barriers and state-before-callback ordering interact with mismatches, scheduling, and shutdown.
 - Prerequisites: 003-G04, 003-E03; DD16 access/request contracts.
-- Scope: Implement initial/current access state, separate state sequence, automatic notifications, and ordered when-in-use/always request barriers.
+- Scope: Implement initial/current access state, separate state sequence, automatic notifications, and ordered when-in-use/always request barriers. Settle the public async event shape using native authorization values without exposing the internal `LocationAccessState` snapshot.
 - Expected files/modules: Location access state machine and timed barrier tests.
 - Public behavior: Initial state is readable before initial notification; observation begins at sequence/delegate registration.
   Complete state installs before callbacks; duplicates remain visible.
@@ -2372,19 +2447,27 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Exclusions: Whole-event/track overrides, heuristic event correspondence, claims that relocation removes all sensitive route information.
 - Checkpoint: R; review precedence, deletion behavior, and safe prepared output.
 
-### 003-G07 — Main-actor delegate facade over portable replay
+### 003-G07 — Main-actor delegate facade over location replay
 
 - Recommended model: GPT-6 Sol; reasoning: `medium`. A narrow MainActor facade must preserve weak-delegate ownership and exact frozen/inert post-finish behavior.
 - Prerequisites: 003-G04–003-G05 and completed 003-Fa08 public-boundary proof; DD16, DD21 consumer and
   escaped-handle contracts.
-- Scope: Add the narrow Diorama-owned Apple facade and weak delegate with portable locations, reproducible Apple access/configuration types and local replay state.
-- Expected files/modules: `DioramaCoreLocation` facade/delegate target, controlled main-actor replay tests and migration example.
+- Scope: Add the narrow Diorama-owned Apple facade and weak delegate with
+  native `CLLocation` values, reproducible Apple access/configuration types,
+  and local replay state. Share G04's attachment-wide replay-fidelity options.
+- Expected files/modules: Apple Location facade/delegate target, controlled
+  main-actor replay tests and migration example.
 - Public behavior: Current access/location are non-consuming; callbacks run on MainActor.
   The facade exposes only standard updates, two authorization requests, desiredAccuracy/distanceFilter/activityType/pauses configuration.
   Configuration is neither persisted nor matched.
   Closed handles are frozen/inert per DD16.
-- Tests/verification: V-code on Apple platforms plus Linux portable build; weak delegate, state-before-callback, Error reconstruction, replacing delegate after finish produces no callback, inert setters/start/requests and no-op stop.
-- Exclusions: CLLocationManager subclassing, native location reconstruction tricks, background/deferred/significant-change/heading/region/one-shot APIs.
+- Tests/verification: V-code on macOS/iOS plus the applicable Linux package
+  gate; weak delegate, state-before-callback, Error reconstruction, replacing
+  delegate after finish produces no callback, inert setters/start/requests and
+  no-op stop.
+- Exclusions: CLLocationManager subclassing, replay reconstruction beyond G04's
+  approved opt-in subclass, background/deferred/significant-change/heading/
+  region/one-shot APIs.
 - Checkpoint: R; review the bounded adoption surface independently from live access.
 
 ### 003-G08 — Private Core Location capture and live forwarding
@@ -2393,14 +2476,18 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Prerequisites: 003-G06–003-G07, 003-Fa08, 003-B02, 003-E01; DD06, DD09, DD16, DD20–DD21.
 - Scope: Add a private MainActor CLLocationManager bridge, with managed recording and native passthrough. Establish construction, rollback, cleanup invocation and callback isolation first; reserve ordering/time and prepare values for recording only.
 - Expected files/modules: Core Location native bridge/converters and controlled adapter-boundary tests; documented native field availability.
-- Public behavior: Forward configuration and supported native behavior; record prepared portable values while live consumers receive the promised facade values/native Error.
+- Public behavior: Forward configuration and supported native behavior; record
+  prepared stable values, including floor and ellipsoidal altitude regardless
+  of replay options, while live consumers receive original native locations
+  and native Error values.
   Unsupported user-info entries warn and omit only that value; other conversion failures preserve live behavior and block publication.
   Pure passthrough has no Diorama recording conversion or operation interception.
   Core invokes its lifecycle hooks; document the system-defined native cleanup
   and retained-facade behavior, including whether use continues after finish.
   Its facade retains ordinary native isolation, and hooks tolerate
   consumer-initiated shutdown.
-- Tests/verification: V-code; supported measurement fields and unknown access values, callbacks/errors, initial cached location, batching, no raw origin leak, source isolation, passthrough no track changes, counted owned-manager operations.
+- Tests/verification: V-code; supported measurement and native access values, callbacks/errors, initial cached location, batching, no raw origin leak, source isolation, passthrough no track changes, counted owned-manager operations.
+  Verify original object identity at record and passthrough delivery.
 - Exclusions: Consumer-manager mutation, live Linux source, native error string persistence, nondeterministic simulator GPS as the sole correctness evidence.
 - Checkpoint: R; review native conversion fidelity and owned-manager boundaries.
 
@@ -2408,10 +2495,19 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 - Recommended model: GPT-6 Astra; reasoning: `high`. Manager/proxy/sequence cleanup must prove quiescence across batches, barriers, late events, and platform boundaries.
 - Prerequisites: 003-G08; DD10, DD14, DD16.
-- Scope: Complete private-manager/proxy/sequence cleanup and broader portable, Apple, multi-attachment and re-record conformance.
-- Expected files/modules: Location/Core Location integration tests, capability documentation, Apple controlled callback harness and portable replay fixtures.
+- Scope: Complete private-manager/proxy/sequence cleanup and broader macOS,
+  iOS, multi-attachment and re-record conformance.
+- Expected files/modules: Location/Core Location integration tests, capability
+  documentation, Apple controlled callback harness and replay fixtures.
 - Public behavior: In record/replay, finish stops owned resources, detaches proxy, cancels pending and drains claimed callbacks, ends async sequences as runtime cleanup, and leaves escaped handles inert without inventing a delegate completion. Passthrough hooks implement G08's documented native cleanup and retained-facade policy, which may preserve continued use after finish.
-- Tests/verification: V-code; record/replay finish during batches/access barriers, cancellation, late native events, no managed location callbacks after finish, frozen-property rules, multiple independent managers, Apple-recorded portable fixtures replaying on Linux; passthrough hook invocation, documented continued-use or shutdown behavior, and tolerance of consumer-initiated shutdown. Distinguish actual Apple integration evidence from controlled mocks.
+- Tests/verification: V-code; record/replay finish during batches/access
+  barriers, cancellation, late native events, no managed location callbacks
+  after finish, frozen-property rules, multiple independent managers,
+  Apple-recorded fixtures replaying on macOS and iOS, plus Linux package
+  boundary; passthrough hook invocation, documented continued-use or shutdown
+  behavior, and tolerance of consumer-initiated shutdown. Distinguish actual
+  Apple integration evidence from controlled mocks. Exercise the opt-in subclass
+  and secure-archive diagnostic on both Apple platforms.
 - Exclusions: Treating simulator lack of deterministic GPS as evidence of live fidelity, adding unsupported services, persisting teardown as stream completion.
 - Checkpoint: R; stop at the complete initial location milestone.
 
@@ -2530,8 +2626,12 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 ### 003-H09 — Stable URLSession failure supplements
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Bounded native error extraction and reconstruction must preserve useful identity while omitting unsafe object graphs.
-- Prerequisites: 003-H05, 003-B02, 003-D02/003-D05 evidence; DD12, DD17, Q4.
-- Scope: Define URLSession-owned failure values, bounded safe userInfo allowlist, native extraction/materialization helpers and deliberate codec.
+- Prerequisites: 003-H05, 003-G01, 003-B02, 003-D02/003-D05 evidence; DD12, DD17, Q4.
+- Scope: Define URLSession-owned failure supplements and a deliberate codec,
+  reusing G01's package-visible Core `NSErrorSnapshot` for bounded values,
+  capture, validation, and native reconstruction. Apply URLSession's approved
+  key/metadata policy and preparation before admission; the shared structural
+  allowlist does not replace it.
 - Expected files/modules: URLSession stable failure/conversion files and tests; no interception implementation yet.
 - Public behavior: Preserve NSError domain/code, unknown numeric URLError codes, optional recognized name/prepared failing URL and approved typed metadata.
   Unsupported entries warn with key/type only and omit without poisoning health.
@@ -2877,7 +2977,8 @@ Do not implement these as preparation for later units:
 - Semantic JSON canonicalization/matching, JSON-path body sanitizer design, message/subtree overrides, reusable groups, cardinality ranges, alternative continuation trees, seeded random/distribution APIs or cursor rewinding.
 - Arbitrary replacement execution engines, a second HTTP client, cross-client fixture portability, universal HTTP error taxonomy or wire/proxy/TLS internals.
 - URLSession upload/download/resume/body-stream/WebSocket/stream/background tasks, task conversion, caching/cookie-store snapshots, metrics/progress/KVO, custom platform-security challenges, informational responses, hidden retries, protocol upgrades, server push and unvalidated platforms.
-- Additional Core Location services listed in DD16, a live Linux location source, or globally shape-preserving route relocation.
+- Additional Core Location services listed in DD16, Linux Location support, or
+  globally shape-preserving route relocation.
 - Optimistic concurrent publication, recording-duration locks, schema migration commands/frameworks, unhealthy recovery artifacts, speculative lazy/incremental raw spooling, additional text formats, POC importers and compatibility shims.
 - Speculative Swift Algorithms/Async Algorithms/SwiftScream packages or build tools.
   The clean slate does not inherit the POC's swift-docc-plugin approval.
@@ -2898,7 +2999,8 @@ The complete initial outcome requires all of the following, with review records 
    an explicit owner-selected design outcome before test-integration APIs.
    Core has no HTTP, test-framework or native-adapter dependency.
 3. Random is a supported first-party product with file round-trip and all DD13 failure/concurrency behavior.
-   Scheduler, clock and location meet DD14–DD16, including portable location replay and the bounded Apple facade/live source.
+   Scheduler, clock and location meet DD14–DD16, including Apple-only location
+   recording/replay and the bounded delegate facade.
 4. HTTP and URLSession meet DD11/DD12/DD17 with the full reviewed native matrix, recursive lifecycle, exact editable bodies, resource atomicity, correct re-record correspondence and one cross-platform system/schema.
    Required redirects/Basic/Digest/delegate behavior is delivered or its boundary has an explicit owner-approved amended decision, never an implicit omission.
 5. File persistence is optional, deterministic, versioned, validated and logically atomic; unhealthy publication preserves the old scenario.
