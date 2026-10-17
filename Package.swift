@@ -8,6 +8,23 @@ let strictConcurrencySettings: [SwiftSetting] = [
     .enableUpcomingFeature("InferIsolatedConformances"),
 ]
 
+#if canImport(CoreLocation)
+    let locationProducts: [Product] = [.library(name: "DioramaLocation", targets: ["DioramaLocation"])]
+    let locationTargets: [Target] = [
+        .target(
+            name: "DioramaLocation",
+            dependencies: ["DioramaCore"],
+            swiftSettings: strictConcurrencySettings),
+        .testTarget(
+            name: "DioramaLocationTests",
+            dependencies: ["DioramaLocation"],
+            swiftSettings: strictConcurrencySettings),
+    ]
+#else
+    let locationProducts: [Product] = []
+    let locationTargets: [Target] = []
+#endif
+
 let package = Package(
     name: "Diorama",
     platforms: [
@@ -28,7 +45,7 @@ let package = Package(
         .library(
             name: "DioramaPersistence",
             targets: ["DioramaPersistence"]),
-    ],
+    ] + locationProducts,
     targets: [
         .target(
             name: "Diorama",
@@ -87,5 +104,5 @@ let package = Package(
             ],
             resources: [.copy("Fixtures")],
             swiftSettings: strictConcurrencySettings),
-    ],
+    ] + locationTargets,
     swiftLanguageModes: [.v6])

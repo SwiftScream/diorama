@@ -2314,7 +2314,8 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G01 — Apple location measurement, access, and failure values
 
-- Status: In progress; implement the shared Core snapshot before the Apple measurement/access foundations.
+- Status: Complete; measurement/access foundations and the shared Core error snapshot are implemented. The original G01 implementation passed the full platform gates; the review extraction uses focused verification as requested by the owner. See evidence for the exact checks and revision boundary.
+- Evidence: [Apple Location value contracts](../evidence/003-G01-location-values.md).
 - Exploratory evidence: [native `CLLocation` proxy framework interoperability](../evidence/003-G01-cllocation-proxy-framework-spike.md).
 - Exploratory evidence: [genuine `CLLocation` replay candidates](../evidence/003-G01-cllocation-native-framework-spike.md).
 - Recommended model: GPT-6 Sol; reasoning: `medium`. Apple-facing location and bounded error values need deliberate range and omission contracts.
