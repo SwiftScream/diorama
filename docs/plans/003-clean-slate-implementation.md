@@ -2507,8 +2507,11 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G04 — Main-actor sequential update replay
 
-- Status: Approved. The owner authorizes implementation after the G03B PR on
-  2026-10-18, without a public async interface; no G04 PR is yet authorized.
+- Status: Complete. The owner authorizes implementation after the G03B PR,
+  without a public async interface, and stacked PR creation on 2026-10-18.
+  Strict lint, macOS/iOS coverage gates, and the pinned local Linux gate pass;
+  the required PR matrix verifies the integration revision. See the
+  [update replay evidence](../evidence/003-G04-location-update-replay.md).
 - Recommended model: GPT-6.1 Sol; reasoning: `high`. Callback delivery, cached
   state, open sessions, claim progress, and shutdown require careful ownership.
 - Prerequisites: 003-G03B, 003-Fa05, 003-Ra2, 003-Fa08, revised 003-E05,
@@ -2539,8 +2542,9 @@ native evidence. Fa07 must precede coverage-dependent decisions.
   requests/notifications, live Core Location, origin merge, configuration
   matching, concurrent sessions in one attachment, thrown dependency failure,
   and synthetic completion on mismatch.
-- Checkpoint: R; present the complete G04 diff and evidence for owner review.
-  Do not start G05 or open a G04 PR without further authorization.
+- Checkpoint: R; implementation and stacked PR creation are owner-authorized.
+  Merge requires passing required checks and a separate explicit request.
+  Do not start G05 without further authorization.
 
 ### 003-G05 — Access state notifications and authorization barriers
 
