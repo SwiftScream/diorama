@@ -2548,6 +2548,11 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G05 — Access state notifications and authorization barriers
 
+- Status: Complete. The owner confirms the outlined scope and GPT-6 Astra
+  at `high` reasoning on 2026-10-18. Canonical checks and local macOS, iOS,
+  and pinned Linux coverage gates pass. Implementation is stacked on G04;
+  the owner authorizes stacked PR creation on 2026-10-18.
+- Evidence: [Access state replay and authorization barriers](../evidence/003-G05-location-access-replay.md).
 - Recommended model: GPT-6 Astra; reasoning: `high`. Authorization barriers and state-before-callback ordering interact with mismatches, scheduling, and shutdown.
 - Prerequisites: 003-G04, 003-E03; DD16 access/request contracts.
 - Scope: Implement initial/current access state, internal main-actor notification callbacks, and ordered when-in-use/always request barriers. Use native authorization values at G07's manager boundary without exposing the internal `LocationAccessState` snapshot or adding async sequences.
@@ -2562,6 +2567,8 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Tests/verification: V-code; no-request external changes, duplicate notifications, callback reads, expected request never made/unused, early/wrong/duplicate requests, independent attachments, no live calls, cancellation and finalization races.
 - Exclusions: Assuming requests caused state changes, comparing request timing, turning disabled services into failure, configuration or state-read consumption.
 - Checkpoint: R; review barrier consumption and nonthrowing mismatch continuation.
+  PR creation is owner-authorized. Merge requires passing required checks and
+  a separate explicit request. Do not start G06 without further authorization.
 
 ### 003-G06 — Location origin policy and re-record replacement
 
