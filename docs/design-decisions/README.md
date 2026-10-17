@@ -17,6 +17,13 @@ consistent. Passthrough and failed-preparation returns remain native;
 closed-handle behavior is unchanged.
 
 On 2026-10-17, the owner approves
+[DD16's Location persistence review amendment](16-location-system.md#location-persistence-review-amendment--owner-approved-2026-10-17).
+The schema uses meter/degree format names, location-shaped values and origins,
+shared initial/session latency values, and deliberate decimal normalization.
+Timestamps derive from a session-start origin plus scheduled delivery offset
+minus signed latency; delay edits therefore also shift timestamps.
+
+On 2026-10-17, the owner approves
 [DD16's macOS authorization presentation amendment](16-location-system.md#macos-authorization-presentation--owner-approved-2026-10-17).
 The stable schema retains a known `whenInUse` state on every platform; macOS
 replay presents native `authorizedAlways` for it in G05 without rewriting the

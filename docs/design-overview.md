@@ -564,6 +564,16 @@ stored degree offsets and reflects pole crossings without promising physical
 route geometry. Only the effective origin is persisted; replay and later
 origin edits require no original origin or original recording.
 
+[DD16's persistence review amendment](design-decisions/16-location-system.md#location-persistence-review-amendment--owner-approved-2026-10-17)
+names these formats `meters` and `degrees`. Stable locations share a signed
+latency field: timestamps derive from a session-start origin plus cumulative
+scheduled event delays minus latency, or from an initial snapshot origin minus
+latency. Origin and offset fields distinguish coordinates and altitudes;
+altitude components retain independent override markers. Decimal normalization
+uses millimeters for meter values and three decimals for speed/course, with
+eight decimals for geographic degrees. These rules apply at record admission
+and leave live native values and bounded errors unchanged.
+
 Async and delegate consumers receive native errors. Core's package-visible
 `NSErrorSnapshot` shares bounded capture, validation, and reconstruction across
 Location, URLSession, and future integrations on Apple platforms and Linux.

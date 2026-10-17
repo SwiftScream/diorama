@@ -1,0 +1,65 @@
+{
+  "diorama" : {
+    "schemaVersion" : 1
+  },
+  "systems" : [
+    {
+      "attachmentKey" : "gps",
+      "payload" : {
+        "access" : {
+          "initialNotifications" : [
+            {
+              "delay" : "10ms",
+              "state" : {
+                "accuracy" : "reduced",
+                "permission" : "whenInUse",
+                "servicesEnabled" : true
+              }
+            }
+          ],
+          "initialState" : {
+            "accuracy" : "full",
+            "permission" : "notDetermined",
+            "servicesEnabled" : true
+          },
+          "requests" : [
+            {
+              "notifications" : [
+                {
+                  "delay" : "20ms",
+                  "state" : {
+                    "accuracy" : "full",
+                    "permission" : "always",
+                    "servicesEnabled" : true
+                  }
+                }
+              ],
+              "request" : "always"
+            }
+          ]
+        },
+        "coordinateFormat" : "degrees",
+        "coordinateOrigin" : {
+          "latitudeDegrees" : 80,
+          "longitudeDegrees" : 20
+        },
+        "initial" : {
+          "location" : {
+            "coordinateOffset" : {
+              "latitudeDegrees" : 20,
+              "longitudeDegrees" : 0
+            },
+            "horizontalAccuracyMeters" : 5,
+            "latency" : "0ms"
+          },
+          "timestampOrigin" : "2030-01-01T00:00:00.000Z"
+        },
+        "sessions" : [
+
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.location"
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "diorama" : {
+    "schemaVersion" : 1
+  },
+  "systems" : [
+    {
+      "attachmentKey" : "gps",
+      "payload" : {
+        "access" : {
+          "initialNotifications" : [
+            {
+              "delay" : "10ms",
+              "state" : {
+                "accuracy" : "reduced",
+                "permission" : "whenInUse",
+                "servicesEnabled" : true
+              }
+            }
+          ],
+          "initialState" : {
+            "accuracy" : "full",
+            "permission" : "notDetermined",
+            "servicesEnabled" : true
+          },
+          "requests" : [
+            {
+              "notifications" : [
+                {
+                  "delay" : "20ms",
+                  "state" : {
+                    "accuracy" : "full",
+                    "permission" : "always",
+                    "servicesEnabled" : true
+                  }
+                }
+              ],
+              "request" : "always"
+            }
+          ]
+        },
+        "altitudeOrigin" : {
+          "ellipsoidalMeters" : 110,
+          "meters" : 100
+        },
+        "coordinateFormat" : "meters",
+        "coordinateOrigin" : {
+          "latitudeDegrees" : -33.8688,
+          "longitudeDegrees" : 151.2093
+        },
+        "initial" : {
+          "location" : {
+            "altitudeOffset" : {
+              "ellipsoidalMeters" : 3,
+              "meters" : 2
+            },
+            "coordinateOffset" : {
+              "eastMeters" : 0,
+              "northMeters" : 0
+            },
+            "course" : {
+              "accuracyDegrees" : 1,
+              "degrees" : 0
+            },
+            "floor" : {
+              "level" : 1
+            },
+            "horizontalAccuracyMeters" : 3,
+            "latency" : "1s",
+            "sourceInformation" : {
+              "isProducedByAccessory" : false,
+              "isSimulatedBySoftware" : false
+            },
+            "speed" : {
+              "accuracyMetersPerSecond" : 0,
+              "metersPerSecond" : 0
+            },
+            "verticalAccuracyMeters" : 1
+          },
+          "timestampOrigin" : "2030-01-01T00:00:00.000Z"
+        },
+        "sessions" : [
+          {
+            "conclusion" : "openAtRecordingHorizon",
+            "events" : [
+              {
+                "delay" : "50ms",
+                "kind" : "batch",
+                "locations" : [
+                  {
+                    "altitudeOffset" : {
+                      "ellipsoidalMeters" : 3,
+                      "meters" : 2
+                    },
+                    "coordinateOffset" : {
+                      "eastMeters" : 0,
+                      "northMeters" : 0
+                    },
+                    "course" : {
+                      "accuracyDegrees" : 1,
+                      "degrees" : 0
+                    },
+                    "floor" : {
+                      "level" : 1
+                    },
+                    "horizontalAccuracyMeters" : 3,
+                    "latency" : "50ms",
+                    "sourceInformation" : {
+                      "isProducedByAccessory" : false,
+                      "isSimulatedBySoftware" : false
+                    },
+                    "speed" : {
+                      "accuracyMetersPerSecond" : 0,
+                      "metersPerSecond" : 0
+                    },
+                    "verticalAccuracyMeters" : 1
+                  }
+                ]
+              },
+              {
+                "delay" : "5s",
+                "error" : {
+                  "code" : 1,
+                  "domain" : "kCLErrorDomain",
+                  "userInfo" : {
+                    "reason" : {
+                      "type" : "string",
+                      "value" : "offline"
+                    },
+                    "retry" : {
+                      "type" : "boolean",
+                      "value" : true
+                    }
+                  }
+                },
+                "kind" : "failure"
+              },
+              {
+                "delay" : "2ms",
+                "kind" : "batch",
+                "locations" : [
+                  {
+                    "altitudeOffset" : {
+                      "ellipsoidalMeters" : 13,
+                      "meters" : 12
+                    },
+                    "coordinateOffset" : {
+                      "eastMeters" : -189170.219,
+                      "northMeters" : -158584.82
+                    },
+                    "horizontalAccuracyMeters" : 4,
+                    "latency" : "10052ms",
+                    "verticalAccuracyMeters" : 2
+                  }
+                ]
+              }
+            ],
+            "timestampOrigin" : "2030-01-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.location"
+    }
+  ]
+}

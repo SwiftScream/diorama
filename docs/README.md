@@ -21,9 +21,10 @@ The owner approved the consolidated design and implementation plan on
 9. [Execution scheduling](execution-scheduling.md)
 10. [Stable time scalars](stable-time-scalars.md)
 11. [Date payload schema version 1](date-schema-v1.md)
-12. [Typed system authoring and record services](record-services.md)
-13. [System-owned records and shared services](design-decisions/19-system-owned-records.md)
-14. [System definitions and pure passthrough](design-decisions/20-system-definitions-and-pure-passthrough.md)
+12. [Location payload schema version 1](location-schema-v1.md)
+13. [Typed system authoring and record services](record-services.md)
+14. [System-owned records and shared services](design-decisions/19-system-owned-records.md)
+15. [System definitions and pure passthrough](design-decisions/20-system-definitions-and-pure-passthrough.md)
 
 Read the individual decisions referenced by an implementation-plan item before
 working on it. The design overview summarizes their combined architecture but

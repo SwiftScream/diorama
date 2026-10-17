@@ -1,0 +1,49 @@
+{
+  "diorama" : {
+    "schemaVersion" : 1
+  },
+  "systems" : [
+    {
+      "attachmentKey" : "gps",
+      "payload" : {
+        "access" : {
+          "initialNotifications" : [
+            {
+              "delay" : "10ms",
+              "state" : {
+                "accuracy" : "reduced",
+                "permission" : "whenInUse",
+                "servicesEnabled" : true
+              }
+            }
+          ],
+          "initialState" : {
+            "accuracy" : "full",
+            "permission" : "notDetermined",
+            "servicesEnabled" : true
+          },
+          "requests" : [
+            {
+              "notifications" : [
+                {
+                  "delay" : "20ms",
+                  "state" : {
+                    "accuracy" : "full",
+                    "permission" : "always",
+                    "servicesEnabled" : true
+                  }
+                }
+              ],
+              "request" : "always"
+            }
+          ]
+        },
+        "sessions" : [
+
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.location"
+    }
+  ]
+}

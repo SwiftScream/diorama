@@ -804,3 +804,165 @@ G03 makes the schema capable of retaining the known `whenInUse` case on macOS.
 G05 implements and tests native replay presentation on macOS and iOS. This
 conversion reflects the available native statuses; it does not claim equal
 platform permission semantics outside the supported Location surface.
+
+
+## Location persistence review amendment — owner-approved 2026-10-17
+
+During G03 review, the owner approves the following version-one schema changes.
+This amendment supersedes the earlier stable field spellings, successive
+measurement deltas, independent measurement/delivery editing, and default
+unquantized scalar policy for Location measurement fields. It does not change
+native live delivery, the G02 mapping algorithms or geographic limits, access
+barriers, bounded error fidelity, or origin-only re-record preservation.
+
+### Location-shaped fields and origins
+
+Use `coordinateFormat: "meters"` or `"degrees"` for the previously named
+regional and global representations. Their established G02 semantics remain:
+bounded WGS84 east/north meter offsets, or latitude/longitude degree offsets
+with pole reflection. Format selection stays explicit and attachment-wide.
+
+Rename the effective horizontal `origin` to `coordinateOrigin` and each
+location's `position` to `coordinateOffset`. Group the independent altitude
+origins under `altitudeOrigin: { meters, ellipsoidalMeters }`. Each component
+retains its own observed/override interpretation; grouping does not turn them
+into a whole-object override. Per-location `altitudeOffset` contains `meters`
+and `ellipsoidalMeters`, each added to its respective effective origin.
+`verticalAccuracyMeters` is a sibling of `altitudeOffset`, like
+`horizontalAccuracyMeters`. The offset and positive vertical accuracy occur
+together and validate into one strict runtime measurement. Floor uses
+`floor: { level }`. Speed and course retain their value/accuracy groups.
+Source information uses the native names `isSimulatedBySoftware` and
+`isProducedByAccessory`.
+
+### Timestamp origins and latency
+
+Under [DD15's shared timestamp origin amendment](15-clock-system.md#shared-timestamp-origins--owner-approved-2026-10-17),
+Date and Location use Core's package-visible `TimestampOrigin`. Native dates
+and parsed ISO text normalize to milliseconds at construction. This replaces
+Location's earlier requirement that programmatic origins already survive the
+ISO millisecond round trip unchanged. Persisted ISO spelling and timestamp
+reconstruction rules remain the same; Codable stays outside Core.
+
+The owner-approved G03 naming refinement uses `initial` for the attachment's
+initial snapshot in the model and persistence, with `initial.location` and
+`initial.timestampOrigin`. Its internal type is `LocationInitialSnapshot`.
+This replaces the earlier `cached` key and `LocationCachedFix` name before
+version one is merged. The snapshot is optional when no initial location is
+available; the timestamp and location semantics below are unchanged.
+
+Cached and session entries share one location structure, with signed `latency`
+inside the location beside its other measurements. Remove the `point` wrapper
+and `measurementDelta`. A cached snapshot has a `timestampOrigin` alongside
+its `location`; a session has its own `timestampOrigin` alongside its events.
+
+A session origin denotes the wall-clock reference corresponding to session
+start, not its first location's timestamp. A cached origin denotes the initial
+snapshot's capture reference. Millisecond ISO origins and signed `s`/`ms`
+latencies use the existing shared codecs. Derive timestamps as:
+
+```
+session timestamp = timestampOrigin + cumulative event delay - location latency
+cached timestamp = timestampOrigin - location latency
+```
+
+Cumulative delay includes every preceding batch and failure and the current
+batch. All locations in a batch share its delivery offset, with their own
+latencies. Use scheduled logical delivery offsets, never actual callback
+arrival or scheduler lateness. Negative latency preserves future timestamps
+and wall-clock corrections relative to the monotonic timeline; it is not
+restricted to a physical nonnegative sensor age. Cached reads do not advance
+the reference. Origin overrides shift reconstructed timestamps while retaining
+latencies. Editing delivery delays now shifts later timestamps unless latencies
+are adjusted too. Validate cumulative delays, latency subtraction, and
+materialized dates before admission. Empty sessions still omit their origin.
+
+Later capture units must receive an explicit wall-time reference for each
+session start or cached snapshot and derive latency against the same rounded
+logical delivery offsets stored in the recording. Capture remains independent
+of an optional DioramaDate attachment; replay needs no live wall-clock read.
+
+### Decimal precision and normalization
+
+Normalize at the strict-record boundary, including edited JSON admission,
+rather than only when writing. Native live measurements retain their original
+precision. Use nearest decimal rounding with halfway cases away from zero:
+
+| Fields | Maximum decimal places |
+| --- | --- |
+| Meter coordinate offsets, altitude origins and offsets | 3 |
+| Horizontal/vertical accuracy, speed and speed accuracy | 3 |
+| Coordinate origin and degree offsets | 8 |
+| Course and course accuracy | 3 |
+
+Omit trailing zeros and normalize negative zero. Canonicalize angles after
+rounding (`360` course becomes `0`, `180` longitude becomes `-180`). A positive
+vertical accuracy that would round to zero becomes `0.001` m; other accuracy
+fields permit zero. Reader input may have additional decimal places, but
+invalid raw ranges, nonfinite values, and invalid sentinels remain rejected.
+Revalidate rounded offsets against the 2,500 km radius; reject an excess rather
+than clamp it. Prepare coordinate offsets against the normalized origin that
+will actually be persisted. Later origin edits retain normalized offsets
+exactly. The combined rounded codec remains subject to the G02 1 cm budget.
+
+The Location schema remains version one during this pre-PR review. Its former
+field layout is not a supported historical schema. These precision rules do
+not quantize `NSErrorSnapshot` user-info numbers or dates.
+
+
+## Shared NSError persistence adoption — owner-approved 2026-10-17
+
+The owner approves using `DioramaPersistence.NSErrorSnapshotPayload` for
+Location's version-one error objects, as specified by
+[DD06's shared persistence amendment](06-runtime-to-snapshot-conversion.md#shared-nserror-persistence-payload--owner-approved-2026-10-17).
+The shared package-visible wrapper replaces Location's private tagged error
+codec without changing the JSON representation. Location continues to own
+native capture, metadata policy, omission diagnostics, typed supplements, and
+its enclosing schema version. Core's `NSErrorSnapshot` retains bounded semantic
+validation and native reconstruction independently of Codable. Shared error
+round-trip tests live in Persistence so they are available on Linux as well
+as Apple platforms; Location's golden fixtures prove its unchanged integration.
+
+
+## Normalized recording values without baseline overrides — owner-approved 2026-10-17
+
+Location adopts [DD09's general record-delivery rule](09-normalization-and-redaction.md#normalized-record-delivery-and-baseline-override-isolation--owner-approved-2026-10-17).
+Record-mode locations, cached/current state, and supported failure values are
+materialized from fresh prepared semantic values before consumer delivery,
+using the same supported reconstruction rules as replay. Precision reduction
+therefore affects record consumers too. This supersedes the earlier promises
+to deliver original record-mode locations/errors and to retain original live
+measurement precision. Passthrough continues forwarding original native values.
+
+Use fresh normalized origins, offsets, and timing values from capture and the
+current setup policy. Reconstruct coordinates through the selected meter or
+degree mapping rather than independently rounding the raw absolute coordinate.
+Reconstruct altitude from normalized origin plus offset, then normalize the
+resulting absolute altitude to millimeters. Use the same millisecond timestamp
+reconstruction for fresh recording and replay. Install normalized current state
+before delivering callbacks. G03 supplies the semantic materializer; G03A and
+G08 supply capture and native delivery. No native adapter is added by G03.
+
+Do not read baseline authored coordinate, altitude, or timestamp origins when
+materializing record-mode output. G06 merges retained overrides into the
+publication candidate after fresh observation preparation, without feeding the
+merged values back into record consumers. The candidate persists only effective
+origins and retained offsets. An authored relocation or retiming may deliberately
+change replay and does not regenerate another system's recordings.
+
+Floor and ellipsoidal-altitude preservation options continue to control native
+field fidelity, not captured content. Apply the same options and materializer
+in record and replay; the existing opt-in subclass allowance therefore extends
+to normalized recording delivery. With the options off, neither mode promises
+those supplemental fields. Copy/secure-archive behavior and its diagnostic
+requirements remain as previously specified. Passthrough does not reconstruct
+locations or introduce these subclasses.
+
+Keep numerical quantization and decimal output tied to one policy. The
+normalized Double is a binary approximation to the selected three/eight-place
+decimal, not an exact decimal fraction. JSON encoding carries the corresponding
+Decimal number directly, without first converting it back to Double, and
+verifies that decoding it preserves the canonical binary value. A finite whole
+Double beyond Decimal's range may encode directly because it already needs no
+fractional rounding. Friendly spelling must not silently quantize an unprepared
+value. Error metadata remains outside Location measurement quantization.
