@@ -307,6 +307,11 @@ test-integration design. They do not authorize those APIs.
   records grouped factories and lifecycle callbacks, Void-State conveniences,
   actual signature rejection, per-activation ownership, and platform verification.
 
+- [Regional and global coordinate-mode evidence](evidence/003-G02-coordinate-modes.md)
+  records WGS84 meter offsets, global angular offsets, numerical limits, and
+  relocation using only the effective origin and retained offsets.
+- [Historical coordinate mapping evidence](evidence/003-G02-location-coordinate-codec.md)
+  records the earlier polar, radius, and approximation investigations.
 - [Apple Location value contracts](evidence/003-G01-location-values.md) record
   internal measurement validation, bounded failures, and platform verification.
 - [Location proxy framework spike](evidence/003-G01-cllocation-proxy-framework-spike.md)

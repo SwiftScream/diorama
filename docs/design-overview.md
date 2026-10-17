@@ -530,6 +530,14 @@ request barriers, nonthrowing mismatch behavior, and finalization. Replay
 subclassing is limited to opted-in floor or ellipsoidal-altitude fidelity.
 Location is not available on Linux.
 
+[DD16's coordinate-format amendment](design-decisions/16-location-system.md#regional-and-global-coordinate-formats--owner-approved-2026-10-17)
+selects regional east/north meter offsets and global latitude/longitude degree
+offsets, both relative to one attachment origin. Origin overrides remain the
+only re-record-preserving horizontal edits. Angular relocation retains the
+stored degree offsets and reflects pole crossings without promising physical
+route geometry. Only the effective origin is persisted; replay and later
+origin edits require no original origin or original recording.
+
 Async and delegate consumers receive native errors. Core's package-visible
 `NSErrorSnapshot` shares bounded capture, validation, and reconstruction across
 Location, URLSession, and future integrations on Apple platforms and Linux.

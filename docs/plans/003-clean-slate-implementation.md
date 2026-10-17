@@ -364,9 +364,24 @@ Resolving Q3 did not itself approve the plan; plan approval was recorded separat
 
 ### Q4 — Stable geographic mapping and bounded native error data
 
-DD16 specifies WGS84 origins and east/north meters but leaves the mapping algorithm, constants, singularities, and useful numerical error bounds to be fixed as part of the stable codec.
-003-G02 supplies independent numerical evidence and a proposed contract before 003-G03 encodes it.
+DD16 specifies WGS84 origins, regional east/north meters, and global degree
+offsets. The mapping algorithms, normalization, constants, singularities, and
+useful numerical error bounds must be fixed before the stable codec.
+003-G02 supplies independent numerical evidence and the accepted contract before 003-G03 encodes it.
 A choice that changes the accepted local/regional route semantics needs owner resolution, not an improvised projection or unapproved geodesy dependency.
+
+G02's [initial numerical evidence](../evidence/003-G02-location-coordinate-codec.md)
+evaluates bounded ellipsoidal azimuthal-equidistant mapping, all valid latitudes,
+and wider radii. The owner subsequently selects two formats on 2026-10-17:
+regional meter offsets within 2,500 km and global degree offsets, both with a
+centimeter positional error budget. The
+[current coordinate-mode evidence](../evidence/003-G02-coordinate-modes.md)
+records the accepted pole reflection, normalization, geometry limitations, and
+explicit per-attachment format selection. The owner approves the final contract
+and requests a single-commit PR on 2026-10-17. Persistence retains only the
+effective origin and offsets; replay and origin editing need no original origin.
+DD16 records this amendment. Q4's geographic choice is resolved; G03 implements
+and verifies the persistence contract.
 
 DD12/DD16/DD17 likewise leave exact safe user-info allowlists and recursive bounds to implementation review.
 003-G01/003-G03 and 003-H09 must document these before native capture depends on them.
@@ -2350,10 +2365,20 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G02 — WGS84 mapping and numerical contract evidence
 
+- Status: Complete on 2026-10-17; the owner accepts the regional/global contract and authorizes a single-commit PR.
+- Evidence: [Regional and global coordinate modes](../evidence/003-G02-coordinate-modes.md), with
+  [historical WGS84 mapping and radius experiments](../evidence/003-G02-location-coordinate-codec.md).
+- Scope/model confirmation: Owner confirms GPT-6 Astra / `xhigh` and the isolated experiment on 2026-10-17, with centimeter accuracy sufficient and latitude restrictions acceptable when they avoid unnecessary complexity.
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. An evidence-backed WGS84 mapping and inverse must bound numerical error and singularities before schema adoption.
 - Prerequisites: 003-G01, 003-Fa04; DD16 coordinate/scalar sections, dependency policy, Q4.
 - Scope: Evaluate the common-origin east/north mapping, inverse, WGS84 constants, valid regional envelope and singularities against independent reference data.
-- Expected files/modules: `Spikes/LocationCoordinates/` and `docs/evidence/location-coordinate-codec.md`; proposed stable mapping contract.
+  Owner-approved review extension: regional meter offsets within 2,500 km and
+  global degree offsets; accept pole reflection and retain origin-only overrides
+  without persisting or requiring the original origin.
+- Expected files/modules: `Spikes/LocationCoordinates/`,
+  `docs/evidence/003-G02-coordinate-modes.md`, historical
+  `docs/evidence/003-G02-location-coordinate-codec.md`, and the approved DD16
+  coordinate-format amendment; accepted stable mapping contract.
 - Public behavior: None yet; fix a reviewable codec interpretation before fixtures depend on numerical choices, without claiming global route-shape preservation.
 - Tests/verification: V-spike; known coordinate pairs, zero/displaced origins, antimeridian/polar cases, forward/inverse error, relocation, macOS/iOS numerical agreement.
   Disclose any explored package and exact adoption proposal if needed.
@@ -2368,10 +2393,15 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Expected files/modules: Location codec and strict recordings; geographic, numeric, time, failure and schema fixtures.
 - Public behavior: Unit-bearing JSON numbers use finite shortest-round-trip doubles, normalized negative zero and no default quantization.
   One attachment horizontal origin is separate from session measurement origins and successive delivery delays.
+  Use the explicit regional/global representation and normalization contract
+  accepted at G02; never infer or silently switch formats from a point's range.
+  Persist only the effective origin and offsets; changing an origin retains
+  offsets without an original-origin field or dependency on the original recording.
   Access-only/empty recordings have no coordinate origins.
   Access storage uses an initial observation segment followed by one record per request barrier, each owning notifications until the next barrier; this preserves one ordered access state machine and independent unused requests.
   Define the handling of unsupported native or persisted authorization raw values without silently mapping them to known cases.
-- Tests/verification: V-code; deterministic macOS/iOS goldens, explicit scalar
+- Tests/verification: V-code; deterministic macOS/iOS goldens, relocated artifacts
+  that load and replay without original-origin data, explicit scalar
   encoding of `CLLocationCoordinate2D`, longitude/latitude/course normalization,
   independent altitude components, cached timestamp, signed measurement versus
   nonnegative delivery time, malformed/unknown schema, bounds.

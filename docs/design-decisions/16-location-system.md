@@ -736,3 +736,54 @@ bounded user information, omission facts, and reconstruction, as specified in
 [DD06's shared helper amendment](06-runtime-to-snapshot-conversion.md#shared-nserror-snapshot-helper--owner-approved-2026-10-17).
 Location retains ownership of its preparation, diagnostic reporting, and
 versioned codec. The recorded error fidelity and omission rules remain unchanged.
+
+## Regional and global coordinate formats — owner-approved 2026-10-17
+
+The owner approves two explicit horizontal representations, both relative to
+one shared attachment origin. This amendment extends the original regional-only
+representation; its numerical rules are fixed in the accepted
+[G02 coordinate contract](../evidence/003-G02-coordinate-modes.md).
+
+- Regional coordinates store east/north meters using bounded Vincenty equations
+  for the WGS84 ellipsoidal azimuthal-equidistant mapping, with an inclusive
+  2,500 km radius and a 1 cm numerical error budget. All valid latitudes,
+  including both poles, are supported. Radius bounds each point from the
+  common origin, not accumulated route length. Failures are explicit.
+- Global coordinates store latitude/longitude degree offsets without a
+  geographic radius limit. Encoding subtracts the origin; decoding adds the
+  effective origin, reflects latitude across a crossed pole, adds 180 degrees
+  to longitude for that reflection, and normalizes longitude to `[-180, 180)`.
+  Thus latitude `+100°` becomes `+80°` with a longitude adjustment. The 1 cm
+  budget applies to round trips and this angular interpretation, not agreement
+  with meter-offset relocation. No geodesic solver is needed for this format.
+
+Choose one explicit format per attachment, shared by all sessions and its
+optional cached location. Regional is the default; global is an explicit setup
+choice. Never infer or switch formats from numeric magnitudes. G03 owns the
+persisted discriminator's spelling, within these accepted semantics.
+
+Persist only the effective origin and retained offsets, together with the
+format and ordinary recording metadata. The observed origin is transient
+capture input, and may be the effective origin when nothing replaces it. Once
+replaced, do not retain it in an original-origin field, origin history, shift
+from the original, or unused observed value beside an authored override. The
+origin can retain its authored marker without its replaced value. Replay and
+later origin edits must work without that
+original origin or recording. Replacing the origin in an existing recording
+retains the offsets exactly; do not decode and re-encode its points. This makes
+relocation before sharing possible without including the original absolute
+location. The existing privacy rules for candidate files and diagnostics apply.
+
+Both formats preserve repeated positions and closed-loop endpoints because
+identical offsets reconstruct identically. Neither promises all distances,
+angles, speeds inferred from coordinates, or route shape after relocation.
+Angular relocation can collapse different offsets onto a pole or separate
+original polar neighbors substantially; reflection ensures valid coordinates,
+not a rigid or one-to-one movement of the globe. Retaining offsets avoids
+losing their interpretation when a reflected point has multiple encodings.
+
+Separate vertical origins and the existing timing model remain unchanged.
+Only origin overrides survive re-recording; individual point overrides remain
+excluded. G03 must prove effective-origin-only persistence, including loading
+a relocated artifact without the original recording. This amendment accepts
+the mapping contract and introduces no production implementation or dependency.
