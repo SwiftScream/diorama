@@ -15,7 +15,7 @@ enum WallMergeFixtures {
         origin: OverridableValue<Date>, deltas: [OverridableValue<Int64>],
         offset: Int = 660) throws -> WallRecording
     {
-        let wallOrigin = try #require(WallOrigin(date: origin.value, offsetMinutes: offset))
+        let wallOrigin = try #require(TimestampOrigin(date: origin.value, offsetMinutes: offset))
         return try WallRecording(origin: origin.map { _ in wallOrigin }, observations: deltas)
     }
 

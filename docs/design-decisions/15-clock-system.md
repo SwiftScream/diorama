@@ -590,3 +590,19 @@ closure. Timezone selection affects display only. Authored origin/delta
 overrides still apply during finalization and can deliberately change later
 replay values; they are not substituted into fresh live reads. The persistence
 schema, millisecond codec, source read count, and source ordering are unchanged.
+
+## Shared timestamp origins — owner-approved 2026-10-17
+
+Date and Location share Core's package-visible `TimestampOrigin`: a normalized
+millisecond `Date` and retained numeric UTC display offset. Construction from
+either a native date or ISO 8601 text normalizes to the nearest millisecond,
+with halfway cases away from the Unix epoch, then validates the existing
+portable date and offset ranges. All systems use this same construction rule;
+Location no longer requires native inputs to be normalized in advance.
+Signed millisecond advancement also uses the shared value and portable range.
+
+Core's type has no `Codable` conformance. Persistence provides an opt-in
+`TimestampOriginPayload` wrapper for the existing ISO 8601 scalar spelling;
+systems retain their enclosing schemas and override policies. Date replaces
+its internal `WallOrigin` without changing persisted bytes or consumer behavior.
+Encoding preserves the already normalized instant and selected display offset.

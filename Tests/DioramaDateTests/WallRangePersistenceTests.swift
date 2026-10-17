@@ -63,9 +63,9 @@ struct WallRangePersistenceTests {
 
     @Test
     func `strict model rejects out of range origins observations and overrides`() throws {
-        #expect(WallOrigin(date: Date(timeIntervalSince1970: 100_000_000_000_000), offsetMinutes: 0) == nil)
+        #expect(TimestampOrigin(date: Date(timeIntervalSince1970: 100_000_000_000_000), offsetMinutes: 0) == nil)
         for bound in [-62_135_500_000.0, 253_402_250_000.0] {
-            let origin = try #require(WallOrigin(date: Date(timeIntervalSince1970: bound), offsetMinutes: 0))
+            let origin = try #require(TimestampOrigin(date: Date(timeIntervalSince1970: bound), offsetMinutes: 0))
             let delta: Int64 = bound < 0 ? -1 : 1
             #expect(throws: WallRecordingError.unrepresentableWallValue(position: 1)) {
                 _ = try WallRecording(origin: .observed(origin), observations: [.observed(0), .observed(delta)])

@@ -530,6 +530,12 @@ limits rounded wall dates to inclusive Unix seconds
 `-62_135_500_000...253_402_250_000`. Production uses fixed numeric comparisons,
 independent of display offset; round-trip verification belongs in tests.
 
+Date and Location share Core's package-visible `TimestampOrigin`, which
+normalizes native dates and parsed ISO origins to milliseconds at construction
+and retains the numeric display offset. It also validates signed millisecond
+advancement against the portable range. The value stays independent of Codable;
+Persistence offers an opt-in ISO scalar payload wrapper.
+
 ### Initial location system contract
 
 Status: Resolved by

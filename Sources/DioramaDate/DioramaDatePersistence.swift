@@ -41,16 +41,8 @@ private struct WallPayload: Codable, Sendable {
         case observations
     }
 
-    init(recording: WallRecording) throws {
-        if let recordedOrigin = recording.origin {
-            let value = recordedOrigin.value
-            guard let text = StableTimeCodec.formatOrigin(
-                value.date, offsetMinutes: value.offsetMinutes)
-            else { throw WallSchemaError.invalidOrigin }
-            origin = recordedOrigin.map { _ in text }
-        } else {
-            origin = nil
-        }
+    init(recording: WallRecording) {
+        origin = recording.origin?.map(\.text)
         observations = recording.observations.map { $0.map(StableTimeCodec.formatDuration) }
     }
 
@@ -70,15 +62,9 @@ private struct WallPayload: Codable, Sendable {
     }
 
     func recording() throws -> WallRecording {
-        let semanticOrigin: OverridableValue<WallOrigin>? = if let origin {
-            try origin.map { text in
-                guard let value = StableTimeCodec.parseOrigin(text),
-                      let wallOrigin = WallOrigin(date: value.date, offsetMinutes: value.offsetMinutes)
-                else { throw WallSchemaError.invalidOrigin }
-                return wallOrigin
-            }
-        } else {
-            nil
+        let semanticOrigin = try origin?.map { text in
+            guard let origin = TimestampOrigin(text) else { throw WallSchemaError.invalidOrigin }
+            return origin
         }
         let semanticObservations = try observations.enumerated().map { position, field in
             try field.map { text in

@@ -78,6 +78,15 @@ Systems with raw structured values using those keys must define another field
 schema. Each system's payload version still controls whether a field uses this
 form; the conformance does not add override behavior to other fields.
 
+## Shared timestamp origin scalar
+
+Core's package-visible `TimestampOrigin` normalizes native dates and parsed
+ISO 8601 origins to milliseconds at construction, retaining a numeric UTC
+display offset. Persistence's opt-in `TimestampOriginPayload` encodes that
+validated value as the existing ISO 8601 string, without changing its instant
+or offset. Core's semantic type remains independent of Codable. Systems own
+their enclosing schema versions, origin placement, and override policies.
+
 ## Random payload version 1
 
 The `diorama.random` payload is an object containing exactly `values`.

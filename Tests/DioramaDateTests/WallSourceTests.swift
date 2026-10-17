@@ -62,7 +62,7 @@ struct WallSourceTests {
     @Test
     func `passthrough returns native values without changing a loaded wall track`() async throws {
         let original = try WallRecording(
-            origin: .observed(#require(WallOrigin(
+            origin: .observed(#require(TimestampOrigin(
                 date: Date(timeIntervalSince1970: 100), offsetMinutes: 60))),
             observations: [.observed(0), .observed(5000)])
         let attachment = try DioramaDateSystem.attachment(named: "wall", recording: original)
@@ -80,7 +80,7 @@ struct WallSourceTests {
 
     @Test(arguments: [false, true])
     func `recording no reads replaces a nonempty baseline with an empty wall track`(overridden: Bool) async throws {
-        let origin = try #require(WallOrigin(date: Date(timeIntervalSince1970: 100), offsetMinutes: 60))
+        let origin = try #require(TimestampOrigin(date: Date(timeIntervalSince1970: 100), offsetMinutes: 60))
         let original = try WallRecording(
             origin: overridden ? .override(origin) : .observed(origin),
             observations: [.observed(0)])
@@ -224,7 +224,7 @@ struct WallSourceTests {
         let offset = TimeZone.current.secondsFromGMT(for: date) / 60
         let oldOffset = offset == 0 ? 60 : 0
         let original = try WallRecording(
-            origin: .observed(#require(WallOrigin(date: date, offsetMinutes: oldOffset))),
+            origin: .observed(#require(TimestampOrigin(date: date, offsetMinutes: oldOffset))),
             observations: [.observed(0)])
         let attachment = try DioramaDateSystem.attachment(named: "fresh-zone", recording: original)
         let probe = WallSourceProbe(values: [date.addingTimeInterval(1)])

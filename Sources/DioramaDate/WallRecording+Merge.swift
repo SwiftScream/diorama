@@ -6,7 +6,7 @@ extension WallRecording {
     /// Empty replacement deliberately discards every obsolete override.
     func preservingOverrides(from baseline: WallRecording) throws(WallRecordingError) -> WallRecording {
         guard !observations.isEmpty else { return .empty }
-        let mergedOrigin: OverridableValue<WallOrigin>? = if let authored = baseline.origin, authored.isOverride {
+        let mergedOrigin: OverridableValue<TimestampOrigin>? = if let authored = baseline.origin, authored.isOverride {
             authored
         } else {
             origin

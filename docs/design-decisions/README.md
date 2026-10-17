@@ -4,6 +4,12 @@
 - Consolidated design approved by owner: 2026-09-07
 
 On 2026-10-17, the owner approves
+[DD15's shared timestamp origin amendment](15-clock-system.md#shared-timestamp-origins--owner-approved-2026-10-17).
+Date and Location use Core's package-visible `TimestampOrigin`, normalizing
+native and textual inputs to milliseconds at construction. Codable remains
+outside Core, with an opt-in ISO scalar wrapper in Persistence.
+
+On 2026-10-17, the owner approves
 [DD15's normalized recording returns amendment](15-clock-system.md#normalized-recording-returns--owner-approved-2026-10-17).
 Successful Date recording reads return the same millisecond-normalized values
 admitted to the track, keeping fresh observed recording and replay behavior

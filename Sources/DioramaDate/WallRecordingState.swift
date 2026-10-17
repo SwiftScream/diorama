@@ -8,10 +8,9 @@ private enum WallPreparationError: Error {
 /// Recording-only state, accessed under Core's managed state protection.
 struct WallRecordingState: Sendable {
     private struct Progress: Sendable {
-        let origin: Date
+        let origin: TimestampOrigin
         let previous: Date
         let cumulative: Int64
-        let offsetMinutes: Int
     }
 
     private let timeZone: TimeZone
@@ -37,7 +36,7 @@ struct WallRecordingState: Sendable {
                 let prepared = try prepare(observed)
                 if progress == nil {
                     try operation.setHeader(
-                        on: lease, capturing: { prepared.offsetMinutes }, preparation: ValuePreparation<Int?>())
+                        on: lease, capturing: { prepared.origin.offsetMinutes }, preparation: ValuePreparation<Int?>())
                 }
                 next = prepared
                 return .observed(prepared.previous)
@@ -61,17 +60,16 @@ struct WallRecordingState: Sendable {
                 throw WallPreparationError.invalidObservation
             }
             let (cumulative, overflow) = progress.cumulative.addingReportingOverflow(delta)
-            guard !overflow, WallRecording.shiftDate(progress.origin, by: cumulative) == rounded else {
+            guard !overflow, progress.origin.advanced(by: cumulative) == rounded else {
                 throw WallPreparationError.invalidObservation
             }
             return Progress(
-                origin: progress.origin, previous: rounded, cumulative: cumulative,
-                offsetMinutes: progress.offsetMinutes)
+                origin: progress.origin, previous: rounded, cumulative: cumulative)
         }
         let seconds = timeZone.secondsFromGMT(for: observed)
         guard seconds.isMultiple(of: 60),
-              WallOrigin(date: rounded, offsetMinutes: seconds / 60) != nil
+              let origin = TimestampOrigin(date: rounded, offsetMinutes: seconds / 60)
         else { throw WallPreparationError.invalidObservation }
-        return Progress(origin: rounded, previous: rounded, cumulative: 0, offsetMinutes: seconds / 60)
+        return Progress(origin: origin, previous: rounded, cumulative: 0)
     }
 }

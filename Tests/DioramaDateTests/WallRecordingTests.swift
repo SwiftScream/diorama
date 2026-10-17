@@ -39,7 +39,7 @@ struct WallRecordingTests {
 
     @Test
     func `signed successive deltas retain repeats and backward wall values`() throws {
-        let origin = try #require(WallOrigin(
+        let origin = try #require(TimestampOrigin(
             date: Date(timeIntervalSince1970: 1_893_448_800), offsetMinutes: 660))
         let recording = try WallRecording(
             origin: .observed(origin),
@@ -106,7 +106,7 @@ struct WallRecordingTests {
 
     @Test
     func `builder rejects malformed structures and cumulative overflow`() throws {
-        let origin = try #require(WallOrigin(date: Date(timeIntervalSince1970: 0), offsetMinutes: 0))
+        let origin = try #require(TimestampOrigin(date: Date(timeIntervalSince1970: 0), offsetMinutes: 0))
         #expect(throws: WallRecordingError.originWithoutObservations) {
             _ = try WallRecording(origin: .observed(origin), observations: [])
         }
@@ -123,7 +123,7 @@ struct WallRecordingTests {
         let shifted = try WallRecording(origin: .observed(origin),
                                         observations: [.override(-1000), .observed(1000)])
         #expect(try shifted.origin == .override(
-            #require(WallOrigin(date: Date(timeIntervalSince1970: -1), offsetMinutes: 0))))
+            #require(TimestampOrigin(date: Date(timeIntervalSince1970: -1), offsetMinutes: 0))))
         #expect(shifted.observations == [.observed(0), .observed(1000)])
 
         let unheadered = try ScenarioAttachment(

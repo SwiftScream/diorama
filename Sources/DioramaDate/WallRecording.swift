@@ -1,23 +1,6 @@
 import DioramaCore
 import Foundation
 
-/// A millisecond wall origin and its fixed numeric display offset.
-struct WallOrigin: Equatable, Sendable {
-    /// The absolute instant, rounded to the nearest millisecond.
-    let date: Date
-    /// Whole minutes east of UTC, retained for canonical ISO 8601 output.
-    let offsetMinutes: Int
-
-    /// Creates a representable origin without persisting a regional timezone.
-    init?(date: Date, offsetMinutes: Int) {
-        guard StableTimeCodec.formatOrigin(date, offsetMinutes: offsetMinutes) != nil,
-              let rounded = StableTimeCodec.roundedToMillisecond(date)
-        else { return nil }
-        self.date = rounded
-        self.offsetMinutes = offsetMinutes
-    }
-}
-
 /// Safe structural failures for recorded wall observations.
 enum WallRecordingError: Error, Equatable, Sendable {
     /// Observations require an origin.
@@ -41,7 +24,7 @@ enum WallRecordingError: Error, Equatable, Sendable {
 /// There are no replay delays in this model.
 struct WallRecording: Equatable, Sendable {
     /// The first effective wall value, absent only for an empty recording.
-    let origin: OverridableValue<WallOrigin>?
+    let origin: OverridableValue<TimestampOrigin>?
     /// Effective successive deltas in deterministic read order.
     let observations: [OverridableValue<Int64>]
     /// Effective absolute values in the same order as `observations`.
@@ -67,7 +50,7 @@ struct WallRecording: Equatable, Sendable {
     /// A position-zero override shifts the origin and becomes an ordinary
     /// `0ms` entry. Later deltas keep their positions and authorship.
     init(
-        origin: OverridableValue<WallOrigin>?,
+        origin: OverridableValue<TimestampOrigin>?,
         observations: [OverridableValue<Int64>]) throws(WallRecordingError)
     {
         guard !observations.isEmpty else {
@@ -79,8 +62,8 @@ struct WallRecording: Equatable, Sendable {
 
         let first = observations[0]
         if first.isOverride {
-            guard let shiftedDate = Self.shiftDate(origin.value.date, by: first.value),
-                  let shifted = WallOrigin(
+            guard let shiftedDate = origin.value.advanced(by: first.value),
+                  let shifted = TimestampOrigin(
                       date: shiftedDate, offsetMinutes: origin.value.offsetMinutes)
             else {
                 throw .unrepresentableWallValue(position: 0)
@@ -100,7 +83,7 @@ struct WallRecording: Equatable, Sendable {
         }
 
         let dates = try Self.validatedDates(
-            origin: origin.value.date, observations: observations, cumulativeDeltas: cumulativeDeltas)
+            origin: origin.value, observations: observations, cumulativeDeltas: cumulativeDeltas)
 
         self.init(
             validatedOrigin: origin,
@@ -116,7 +99,7 @@ struct WallRecording: Equatable, Sendable {
             return
         }
         guard let offsetMinutes else { throw .missingOrigin }
-        guard let origin = WallOrigin(date: first.value, offsetMinutes: offsetMinutes),
+        guard let origin = TimestampOrigin(date: first.value, offsetMinutes: offsetMinutes),
               origin.date == first.value
         else { throw .unrepresentableWallValue(position: 0) }
 
@@ -140,7 +123,7 @@ struct WallRecording: Equatable, Sendable {
     }
 
     private init(
-        validatedOrigin: OverridableValue<WallOrigin>?,
+        validatedOrigin: OverridableValue<TimestampOrigin>?,
         observations: [OverridableValue<Int64>],
         effectiveDates: [Date])
     {
@@ -149,19 +132,13 @@ struct WallRecording: Equatable, Sendable {
         self.effectiveDates = effectiveDates
     }
 
-    static func shiftDate(_ origin: Date, by milliseconds: Int64) -> Date? {
-        let seconds = origin.timeIntervalSince1970 + Double(milliseconds) / 1000
-        guard seconds.isFinite else { return nil }
-        return StableTimeCodec.roundedToMillisecond(Date(timeIntervalSince1970: seconds))
-    }
-
     private static func validatedDates(
-        origin: Date, observations: [OverridableValue<Int64>], cumulativeDeltas: [Int64])
+        origin: TimestampOrigin, observations: [OverridableValue<Int64>], cumulativeDeltas: [Int64])
         throws(WallRecordingError) -> [Date]
     {
-        var dates = [origin]
+        var dates = [origin.date]
         for position in observations.indices.dropFirst() {
-            guard let date = shiftDate(origin, by: cumulativeDeltas[position]),
+            guard let date = origin.advanced(by: cumulativeDeltas[position]),
                   delta(from: dates[position - 1], to: date) == observations[position].value
             else { throw .unrepresentableWallValue(position: position) }
             dates.append(date)
