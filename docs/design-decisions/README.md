@@ -217,6 +217,13 @@ rounded wall dates use inclusive Unix-second bounds of `-62_135_500_000` and
 validation, with no timezone-dependent date bounds. Round-trip checks remain
 in cross-platform tests.
 
+On 2026-10-17, the owner approves
+[DD09's normalized record delivery rule](09-normalization-and-redaction.md#normalized-record-delivery-and-baseline-override-isolation--owner-approved-2026-10-17)
+for all system implementations. Record outputs and current state use fresh
+normalized values before delivery. Baseline authored overrides affect the
+publication candidate and later replay, never record-mode consumer behavior.
+Persistence spelling must preserve the normalized consumer value.
+
 | Number | Decision | Planned file | Status |
 | --- | --- | --- | --- |
 | 1 | [Common abstraction](01-common-abstraction.md) | `01-common-abstraction.md` | Accepted |

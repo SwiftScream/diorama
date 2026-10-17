@@ -142,6 +142,30 @@ Unix epoch as its initial default; Random uses zero fallback. Replay never
 creates a live source. This closed-safe lease is a supported retained capability,
 not permission to extract arbitrary active resources from managed state.
 
+## Normalized record outputs and authored overrides
+
+[DD09's general delivery rule](design-decisions/09-normalization-and-redaction.md#normalized-record-delivery-and-baseline-override-isolation--owner-approved-2026-10-17)
+applies to every system implementation. Reserve observation order/time before
+conversion as required, then prepare fresh normalized semantic values before
+returning dependency output, installing current state, or invoking callbacks.
+Materialize supported consumer fields from those same values in record and
+replay. Do not return a raw value while storing a differently rounded one.
+Persistence formatting must round-trip the canonical consumer value, rather
+than introduce another semantic transform. Native identity and unsupported
+metadata remain outside the system's stated fidelity contract.
+
+Keep baseline overrides out of this delivery path. They are inputs to the
+owning system's later correspondence/merge and publication rules. A fresh
+recording dependency uses current setup normalization and fresh observations;
+it must not read an authored baseline value to decide its return value or
+current state. Baseline-free recording remains valid. Apply overrides to the
+candidate without changing values already delivered or retaining replaced
+private values in persistence. Passthrough keeps its ordinary live behavior.
+
+Test both a fresh prepared-value round trip and downstream consumer output,
+then show that authored publication changes do not affect fresh delivery.
+Existing conversion-failure and health rules still apply to failed preparation.
+
 ## Native resources and awaited shutdown
 
 [DD21's typed mode amendment](design-decisions/21-managed-native-lifecycle.md#typed-mode-definitions--owner-approved-2026-10-16)

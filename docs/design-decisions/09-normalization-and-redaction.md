@@ -500,3 +500,62 @@ This proposal does not determine:
    offsets while warning that route context may remain sensitive.
 
 These resolved points constitute the accepted answer to decision 9.
+
+
+## Normalized record delivery and baseline override isolation — owner-approved 2026-10-17
+
+The owner requires this rule across first-party systems and custom system
+implementations: record-mode dependency outputs and current-state reads expose
+fresh normalized semantic values, prepared under the current execution's
+system policy before consumer delivery. Recording must not deliver a raw value
+while retaining a differently normalized value for replay. This applies to
+precision reduction, canonicalization, and other selected output normalization
+within the system's advertised replay capabilities.
+
+The record path is:
+
+```
+observe live dependency
+  -> prepare and validate fresh normalized semantic values
+  -> retain those values and materialize consumer output from them
+  -> deliver output and update consumer-visible current state
+```
+
+Record and replay share materialization rules for supported fields. This makes
+values that feed another system in the same scenario consistent across an
+unedited recording and replay, subject to the existing native-capability and
+numerical contracts. It does not promise native object identity, unrestricted
+native metadata, or a global ordering between independent callback timelines.
+System-owned policies and capability limits still define which values are
+reproducible. Preparation failures retain the owning system's established
+conversion/recording-health policy; an unhealthy candidate provides no parity
+guarantee. Passthrough retains its ordinary live semantics.
+
+Baseline authored overrides never participate in record-mode output
+normalization, current state, or consumer materialization. Record mode uses
+fresh observations and the explicitly selected setup normalization policy.
+Baseline overrides are correspondence/merge inputs applied to the publication
+candidate under their owning system's rules. They do not replace values already
+delivered to the application. Only permitted effective values enter the
+published candidate; fresh values needed during capture remain transient.
+This does not require persisting replaced observations or original origins.
+
+Authored edits intentionally change replay behavior. Editing an origin, time,
+response, or other supported override does not regenerate dependent recordings
+or make their contents consistent automatically. That coordination remains the
+scenario author's responsibility.
+
+Numerical quantization and persistence spelling use one policy. A binary
+floating-point value can approximate a canonical decimal without representing
+it exactly. Consumer delivery uses that canonical binary value; friendly
+encoding must decode to the same value, without introducing additional
+precision loss behind the consumer's back. Prepared-value round-trip and
+cross-system-output tests should exercise this invariant. Loading still does
+not rerun setup redaction/normalization pipelines; schema-defined scalar
+canonicalization and strict validation remain the reader's responsibility.
+
+This amendment clarifies the earlier record pipeline and supersedes raw native
+forwarding requirements where they conflict with normalized record delivery.
+It does not move system-specific normalization or materialization into Core,
+add a generic runtime conversion protocol, or require persistence for recording.
+Each implementation owns its preparation and delivery boundary.

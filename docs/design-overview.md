@@ -96,6 +96,15 @@ synthesis or implementation.
 
 ## Consolidated architecture
 
+[DD09's record-delivery amendment](design-decisions/09-normalization-and-redaction.md#normalized-record-delivery-and-baseline-override-isolation--owner-approved-2026-10-17)
+requires every system to deliver fresh normalized record-mode outputs and
+current state through the same supported materialization rules as replay.
+Baseline authored overrides affect only the publication candidate and replay;
+they never feed record-mode consumer behavior. Friendly persistence formatting
+must preserve the canonical consumer value. Authored fixture edits may
+intentionally diverge from dependent recordings, which are not regenerated.
+
+
 The decisions combine into this design:
 
 1. A sequentially reusable `Diorama` final class describes complete runtime
