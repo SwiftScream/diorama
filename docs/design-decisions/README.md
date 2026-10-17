@@ -10,6 +10,12 @@ admitted to the track, keeping fresh observed recording and replay behavior
 consistent. Passthrough and failed-preparation returns remain native;
 closed-handle behavior is unchanged.
 
+On 2026-10-17, the owner approves
+[DD16's macOS authorization presentation amendment](16-location-system.md#macos-authorization-presentation--owner-approved-2026-10-17).
+The stable schema retains a known `whenInUse` state on every platform; macOS
+replay presents native `authorizedAlways` for it in G05 without rewriting the
+recording or changing request barriers. Unknown raw values remain invalid.
+
 On 2026-10-17, the owner selects
 [DD16's regional and global coordinate formats](16-location-system.md#regional-and-global-coordinate-formats--owner-approved-2026-10-17):
 regional east/north meter offsets and global latitude/longitude degree offsets,

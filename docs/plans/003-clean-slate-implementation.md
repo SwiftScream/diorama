@@ -2464,6 +2464,9 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Expected files/modules: Location access state machine and timed barrier tests.
 - Public behavior: Initial state is readable before initial notification; observation begins at sequence/delegate registration.
   Complete state installs before callbacks; duplicates remain visible.
+  Present a persisted `whenInUse` state as native `authorizedAlways` on macOS,
+  while retaining the stored status and request-barrier identity; iOS presents
+  native `authorizedWhenInUse`. Test both platforms per DD16's accepted amendment.
   Matching requests release barriers and re-anchor following delays; mismatches leave the marker untouched.
   Observation registration claims the initial access segment; a matching request at the reached barrier claims only its next segment. Wrong/early requests cannot skip barriers. Unrequested request segments remain unused Core records; notifications and current-state reads are not separate consumption units.
 - Tests/verification: V-code; no-request external changes, duplicate notifications, callback reads, expected request never made/unused, early/wrong/duplicate requests, independent attachments, no live calls, cancellation and finalization races.

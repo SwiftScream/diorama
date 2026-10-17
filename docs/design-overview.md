@@ -535,6 +535,12 @@ request barriers, nonthrowing mismatch behavior, and finalization. Replay
 subclassing is limited to opted-in floor or ellipsoidal-altitude fidelity.
 Location is not available on Linux.
 
+[DD16's macOS authorization presentation amendment](design-decisions/16-location-system.md#macos-authorization-presentation--owner-approved-2026-10-17)
+keeps a recorded `whenInUse` access state in the stable payload. Replay on
+macOS presents native `authorizedAlways` for that known state, while iOS
+presents `authorizedWhenInUse`; request barriers retain their recorded kind.
+Unknown raw values are rejected at the stable-record boundary.
+
 [DD16's coordinate-format amendment](design-decisions/16-location-system.md#regional-and-global-coordinate-formats--owner-approved-2026-10-17)
 selects regional east/north meter offsets and global latitude/longitude degree
 offsets, both relative to one attachment origin. Origin overrides remain the

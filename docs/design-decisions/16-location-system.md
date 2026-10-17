@@ -787,3 +787,20 @@ Only origin overrides survive re-recording; individual point overrides remain
 excluded. G03 must prove effective-origin-only persistence, including loading
 a relocated artifact without the original recording. This amendment accepts
 the mapping contract and introduces no production implementation or dependency.
+
+## macOS authorization presentation — owner-approved 2026-10-17
+
+The owner approves a documented replay-only conversion for one **known**
+authorization case that macOS cannot present natively. A version-one recording
+retains `whenInUse` as its semantic state on every platform. When replaying
+that state on macOS, the Location access adapter presents native
+`authorizedAlways`, which is the supported authorized status there. On iOS it
+presents native `authorizedWhenInUse`. This mapping applies to initial and
+notified states, not to persisted values or authorization-request barrier
+matching. It does not generalize to unknown native or persisted raw values;
+G03 rejects those at the stable-record boundary as specified above.
+
+G03 makes the schema capable of retaining the known `whenInUse` case on macOS.
+G05 implements and tests native replay presentation on macOS and iOS. This
+conversion reflects the available native statuses; it does not claim equal
+platform permission semantics outside the supported Location surface.
