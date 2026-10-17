@@ -2443,7 +2443,11 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G03A — Location-owned incremental capture
 
-- Status: Approved in the DD19 plan revision; not started. Normal unit scope confirmation is required.
+- Status: Complete. The owner approves fixup squashing and PR creation against
+  master on 2026-10-18 after G03 merges. Full local macOS and iOS gates pass;
+  the required PR matrix verifies the portable Linux boundary. The owner confirms
+  the outlined scope and GPT-6.1 Sol at `high` reasoning on 2026-10-17.
+  See the [incremental capture evidence](../evidence/003-G03A-location-incremental-capture.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`.
 - Prerequisites: 003-G03, 003-E04R, 003-E01; DD03, DD09, DD16, DD19.
 - Scope: Build strict location sessions/access records from prepared batches, nonterminal failures, access notifications, and authorization markers through Core's record reservation/freeze boundary.

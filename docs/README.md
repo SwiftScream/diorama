@@ -315,6 +315,9 @@ test-integration design. They do not authorize those APIs.
   records the strict version-one model, deterministic fixtures, relocation,
   signed timestamp latency, decimal normalization, shared error persistence,
   access status policy, and local platform verification.
+- [Location incremental capture evidence](evidence/003-G03A-location-incremental-capture.md)
+  records prepared callback reservations, session and access construction,
+  freeze behavior, and runtime reference release.
 - [Historical coordinate mapping evidence](evidence/003-G02-location-coordinate-codec.md)
   records the earlier polar, radius, and approximation investigations.
 - [Apple Location value contracts](evidence/003-G01-location-values.md) record
