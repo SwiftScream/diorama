@@ -1,7 +1,7 @@
 # Decision 16: Initial location system
 
 - Status: Accepted
-- Last updated: 2026-10-16
+- Last updated: 2026-10-18
 - Depends on: [Decision 1: Common abstraction](01-common-abstraction.md),
   [Decision 2: Shared and system-specific semantics](02-shared-vs-system-semantics.md),
   [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
@@ -16,7 +16,9 @@
 
 The [2026-10-16 Apple-only amendment](#apple-only-location-amendment--owner-approved-2026-10-16)
 supersedes the portable Location and Linux replay requirements in this
-historical decision.
+historical decision. The
+[2026-10-18 delegate-first amendment](#delegate-first-location-interface--owner-approved-2026-10-18)
+supersedes the async consumer-interface requirements below.
 
 ## Decision
 
@@ -966,3 +968,46 @@ verifies that decoding it preserves the canonical binary value. A finite whole
 Double beyond Decimal's range may encode directly because it already needs no
 fractional rounding. Friendly spelling must not silently quantize an unprepared
 value. Error metadata remains outside Location measurement quantization.
+
+## Delegate-first Location interface — owner-approved 2026-10-18
+
+The owner defers the public async update and access interfaces and selects the
+main-actor `DioramaLocationManager` and weak delegate as the initial consumer
+interface. This amendment supersedes the AsyncSequence-first requirement, the
+async event/access sequence promises, iterator-cancellation requirements, and
+sequence termination at cleanup in this decision and its Apple-only amendment.
+The earlier interface descriptions remain historical. No async sequence,
+iterator, buffering policy, or sequence adapter is part of initial Location.
+A later async consumer interface requires a separately approved slice.
+
+Location still owns its replay state machines over Core record claims and the
+execution scheduler. Update batches and nonterminal native errors flow directly
+to main-actor delivery callbacks; access notifications use the same actor-bound
+callback model. These callbacks are Location delivery, not diagnostic sinks.
+The manager facade shares that internal state and delivery machinery; it does
+not iterate an async sequence. No generic event-broadcast or subscription layer
+is required. Async activation, tracked work, awaited cleanup, and scheduler
+quiescence remain part of the accepted Core lifecycle contract.
+
+Preserve one active session per attachment, idempotent start/stop, fresh restart
+anchors, ordered batches/failures, current state before callbacks, access
+request barriers, and separate claim/progress/consumption facts. Stop and
+finalization release pending delivery; open recordings stay active and silent
+at their horizon, without a synthetic delegate completion. Escaped record/replay
+managers remain frozen and inert under the existing lifecycle rules. No replay
+operation contacts a live manager. Native passthrough policy remains G08's
+explicit ownership and cleanup decision.
+
+The normalized native materializer is a separate prerequisite to update replay.
+It reconstructs `CLLocation` from the existing semantic measurements, with the
+same default-off floor and ellipsoidal fidelity options in record and replay.
+Copying, secure-archive loss diagnostics, fresh record-origin isolation, stable
+capture, and schema contracts remain unchanged. The materialization slice adds
+no live manager, delivery scheduler, or public manager facade.
+
+Plan 003 inserts G03B for native materialization, revises G04 to callback-based
+update replay and G05 to callback-based access replay, and retains G07 for the
+public manager/delegate facade, G08 for the live bridge, and G09 for broader
+native acceptance. The owner authorizes the documentation PR, a stacked G03B
+implementation PR, and then G04 implementation with GPT-6.1 Sol at `high`
+reasoning. These instructions do not authorize merging any PR or starting G05.

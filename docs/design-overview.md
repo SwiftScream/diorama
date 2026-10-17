@@ -153,10 +153,11 @@ The decisions combine into this design:
     quiescent shutdown.
 15. The optional `DioramaDate` system records wall observations. Core separately
     exposes the execution scheduler through a monotonic Swift `Clock`.
-16. The optional Apple-only location system supplies async replay and a narrow
-    Core Location delegate facade. Consumers receive `CLLocation`; live modes
-    retain native objects. Recordings always capture floor and ellipsoidal
-    altitude as explicit stable values. Two default-off replay options permit
+16. The optional Apple-only location system supplies a narrow main-actor
+    Core Location manager/delegate facade over Location-owned replay. Public
+    async sequences are deferred. Consumers receive `CLLocation`; record/replay
+    reconstruct normalized values and passthrough retains native objects.
+    Recordings always capture floor and ellipsoidal altitude as explicit stable values. Two default-off replay options permit
     a genuine subclass only for opted-in fidelity.
 17. An HTTP interaction is one recursive lifecycle tree containing shared
     messages and typed adapter supplements, with mutually exclusive returned,
@@ -543,7 +544,10 @@ Status: Resolved by
 [Apple-only amendment](design-decisions/16-location-system.md#apple-only-location-amendment--owner-approved-2026-10-16)
 and revised by its
 [native consumer amendment](design-decisions/16-location-system.md#native-consumer-locations-with-opt-in-replay-fidelity--owner-approved-2026-10-17).
-The initial Apple-only system defines async replay, a narrow delegate facade,
+The initial Apple-only system defines callback-based replay and a narrow
+main-actor manager/delegate facade under the
+[delegate-first amendment](design-decisions/16-location-system.md#delegate-first-location-interface--owner-approved-2026-10-18),
+which defers public async update and access sequences. It retains
 native `CLLocation` delivery, explicit stable recordings and NSError conversion,
 WGS84 route relocation, separate measurement and delivery timing, access-state
 request barriers, nonthrowing mismatch behavior, and finalization. Replay
@@ -572,9 +576,10 @@ latency. Origin and offset fields distinguish coordinates and altitudes;
 altitude components retain independent override markers. Decimal normalization
 uses millimeters for meter values and three decimals for speed/course, with
 eight decimals for geographic degrees. These rules apply at record admission
-and leave live native values and bounded errors unchanged.
+and apply to normalized record-mode consumer delivery. Passthrough preserves
+original native values; bounded error metadata is not quantized.
 
-Async and delegate consumers receive native errors. Core's package-visible
+Delegate consumers receive native errors. Core's package-visible
 `NSErrorSnapshot` shares bounded capture, validation, and reconstruction across
 Location, URLSession, and future integrations on Apple platforms and Linux.
 Systems own preparation, diagnostics, typed supplements, and versioned codecs;

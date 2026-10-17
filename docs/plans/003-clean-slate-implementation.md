@@ -74,6 +74,15 @@ authorizes rewriting G01 as a documentation/plan commit followed by its revised
 implementation commit. The later replay/facade/adapter units below need their
 revised scope confirmed before implementation.
 
+On 2026-10-18, the owner approves
+[DD16's delegate-first amendment](../design-decisions/16-location-system.md#delegate-first-location-interface--owner-approved-2026-10-18).
+Public async update/access interfaces are deferred. G03B isolates native
+`CLLocation` materialization; G04/G05 deliver through internal main-actor
+callbacks, and G07 exposes the manager/delegate facade. The owner authorizes
+this documentation PR, a stacked G03B PR, and then G04 implementation using
+GPT-6.1 Sol at `high` reasoning. Each stays a separate review unit; merge
+requires a separate request and passing required checks. G05 is not started.
+
 On 2026-10-06, the owner accepts
 [Decision 19](../design-decisions/19-system-owned-records.md), its delivery-plan
 revision, and the scope of the combined E04R/revised E05 refactor.
@@ -217,7 +226,7 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [DD13: Random](../design-decisions/13-random-proving-system.md) | Reference-semantic record/replay generator, ordered raw UInt64, no timestamps, injected live source, zero after diagnosed exhaustion, public-only implementation. DD20 gives passthrough native copy/lifetime semantics. 003-B01–003-B08 including 003-B07A, 003-C07, 003-Fa01–003-Fa02. |
 | [DD14: Scheduler](../design-decisions/14-real-time-replay-scheduler.md)                      | One execution-owned ContinuousClock, one-to-one delays, deterministic handoff, no registration reentrancy, atomic cancel/claim, delivery acknowledgement. 003-E01–003-E08; availability gate Q2 applies.                                                                                     |
 | [DD15: Clock](../design-decisions/15-clock-system.md)                                        | Millisecond wall origins and signed successive deltas; positional overrides; empty wall payload; nonpersisted monotonic Clock. 003-F01–003-F07.                                                                                                                                              |
-| [DD16: Location](../design-decisions/16-location-system.md)                                  | Apple-only async replay with native `CLLocation` delivery and opt-in replay-only subclassing; origin-relative WGS84 records, separate delivery time, access barriers, nonterminal failures, narrow delegate facade. 003-G01–003-G09.                                                                                                                              |
+| [DD16: Location](../design-decisions/16-location-system.md)                                  | Apple-only manager/delegate delivery with native `CLLocation` values and opt-in fidelity subclassing; origin-relative WGS84 records, separate delivery time, access barriers, nonterminal failures, narrow delegate facade. 003-G01–003-G09.                                                                                                                              |
 | [DD17: HTTP composition](../design-decisions/17-http-lifecycle-composition.md)               | One recursive tree, embedded typed supplements, exact bodies once, weighted delivery, conditional derived length, local delays and timing-only override merge. 003-H05–003-H14, 003-I01–003-I09.                                                                                                     |
 | [DD18: Setup and scenario data](../design-decisions/18-diorama-setup-and-scenario-data.md) | Complete reusable `Diorama` setup; immutable data-only `ScenarioDefinition`; direct codec boundary without public `PersistedScenario`; load per execution; valid in-memory results independent of publication success. 003-C04A–003-C07, 003-H07, 003-J03–003-J04. |
 | [Overview](../design-overview.md)                                                            | Ignoring a configured attachment changes verification only. Every loaded payload still requires persistent registration plus schema and prepared-value validation before unmatched attachments are diagnosed and discarded. 003-C01–003-C06 including 003-C04A–003-C04B, 003-J03.                                                                                                           |
@@ -512,7 +521,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | F     | 003-F01–003-F07; 003-F03A abandoned | Portable wall system and Core execution clock. |
 | Fa    | 003-Fa01–003-Fa07; 003-Fa09A; 003-Fa09 | Pure passthrough, managed system authoring, infrastructure-review follow-ups, retained consumer reports, and diagnostic-delivery simplification. |
 | Ra    | 003-Ra1–003-Ra5 | Post-Fa review follow-ups for scoped ownership, cancellation disposal, merge ordering, retained-report APIs, and envelope classification. |
-| G     | 003-G01–003-G09      | Apple-only location recording, async replay, and narrow delegate integration. |
+| G     | 003-G01–003-G09      | Apple-only location recording and callback replay through a narrow manager/delegate interface. |
 | H     | 003-H01–003-H14      | Shared HTTP domain, resource publication, strict URLSession lifecycle data.  |
 | I     | 003-I01–003-I09      | Incremental production URLSession conformance across platform bridges.       |
 | J     | 003-J01–003-J04      | Opt-in test integrations, combined-system acceptance, user documentation.    |
@@ -2309,10 +2318,12 @@ measured by these line counts.
 ## Phase G — Location domain and Apple bridge
 
 Under DD16's 2026-10-17 native consumer amendment, every Location API and
-implementation target in this phase is Apple-only. The async interface and
-delegate facade deliver `CLLocation`. Recording and passthrough retain native
-locations; replay uses an ordinary native location by default and a genuine
-subclass only for opted-in ellipsoidal altitude or a present opted-in floor.
+implementation target in this phase is Apple-only. Under the 2026-10-18
+delegate-first amendment, the manager/delegate interface delivers `CLLocation`;
+public async update/access sequences are deferred. Record and replay reconstruct
+normalized native locations, using an ordinary
+location by default and a genuine subclass only for opted-in ellipsoidal
+altitude or a present opted-in floor. Passthrough preserves native locations.
 Strict records and persisted JSON always retain both fields as explicit
 semantic scalars, with origin-relative offsets. Verify Location on macOS and
 iOS; verify on Linux that the rest of the package builds without importing
@@ -2457,45 +2468,85 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Exclusions: Native recording, origin override merge, replay delivery, generic subscription helpers.
 - Checkpoint: R; domain capture proof before G06/G08 depend on it.
 
-### 003-G04 — Apple async sequential update replay
+### 003-G03B — Native CLLocation materialization
 
-- Recommended model: GPT-6 Sol; reasoning: `high`. AsyncSequence updates, cached state, open sessions, and iterator cancellation require a coherent Apple-only lifecycle.
-- Prerequisites: 003-G03, 003-Fa05, 003-Ra2, revised 003-E05, 003-E03; DD04–DD05, DD16.
-- Scope: Add Apple-only location-owned AsyncSequence-first delivery over record
-  claims and scheduling: ordered batches/nonterminal failures, one active
-  session, non-consuming current location, progress, cancellation, and
-  quiescence. Deliver `CLLocation` using per-attachment replay-fidelity options.
-  Reuse relevant E06 test cases without adopting its generic schema. Confirm a
-  separate small native-materialization slice before implementation if the
-  replay subclass and secure-coding work would overload G04.
-- Expected files/modules: Location async service/update state machine and tests.
-- Public behavior: Start inactive selects the next group; repeated active start and inactive stop are idempotent.
-  Restart gets a fresh anchor.
-  Current location updates before delivery and survives failure.
-  Share G03's normalized semantic materialization with later record-mode delivery;
-  record uses fresh candidate origins while replay uses persisted effective origins.
-  Open groups stay active/silent; exhausted start retains a diagnostic for the completed report and becomes inert.
-- Materialized value behavior: Both floor and ellipsoidal-altitude fidelity options
-  default off and never affect captured content. G08 applies the same options to
-  normalized recording delivery. Native reconstruction is the default;
-  enabling ellipsoidal fidelity uses the subclass for each location, while
-  enabling floor fidelity uses it only when the recorded floor is non-nil.
-  Subclass copies retain enabled values; secure archiving emits a loss diagnostic
-  and decodes as native `CLLocation`.
-- Tests/verification: V-code; batch order, duplicate/cached measurement times, failure then recovery, current reads, start/stop/restart, iterator cancellation, inert-session release, claimed/unconsumed report, basic shutdown quiescence.
-  Include the four option combinations, nil/present floors, positive/invalid
-  vertical accuracy, copy, secure archive, and ordinary native replay on macOS
-  and iOS.
-- Exclusions: Matching manager configuration, concurrent sessions within one attachment, failure as thrown termination, synthetic completion on mismatch.
-- Checkpoint: R; review the full async update lifecycle and offline guarantee.
+- Status: Approved. The owner confirms this separate prerequisite and authorizes
+  a PR stacked on the delegate-first documentation PR on 2026-10-18.
+- Recommended model: GPT-6.1 Sol; reasoning: `high`. Native construction,
+  copying, secure coding, and diagnostic ownership need focused Apple evidence.
+- Prerequisites: 003-G03, 003-G03A; DD05, DD06, DD09, DD16's native fidelity,
+  normalized record-delivery, and delegate-first amendments.
+- Scope: Reconstruct native `CLLocation` values from G03's normalized semantic
+  measurements. Define independent default-off floor/ellipsoidal fidelity
+  options for reuse in record and replay. Use ordinary native construction
+  unless ellipsoidal fidelity is enabled or floor fidelity is enabled for a
+  present recorded floor. Implement the approved narrow CLLocation/CLFloor
+  subclasses and enabled-field-preserving copies.
+- Public behavior: Reproducible native fields retain normalized semantic values
+  and canonical absence sentinels. Disabled supplemental fields retain native
+  behavior. Secure archiving a fidelity subclass diagnoses enabled-field loss
+  and decodes as native CLLocation. Native values emit no subclass-loss fact.
+  Escaped copies retain only immutable measurements and safe diagnostic routing;
+  archive facts follow final-report/post-finish boundaries without runtime
+  resource retention. Both record and replay will use this materializer.
+- Expected files/modules: Location fidelity options and native materializer,
+  focused native value/copy/archive tests, and
+  `docs/evidence/003-G03B-native-location-materialization.md`.
+- Tests/verification: V-code on macOS/iOS and the applicable Linux package gate;
+  all four option combinations, nil/present floors, valid/absent vertical,
+  speed/course/source fields, timestamp precision, native distance, copying,
+  secure archive class/value behavior, exactly-once loss facts per encoding,
+  post-finish reporting, and absence of active-resource retention. Preserve the
+  G03 semantic normalization and origin-isolation contracts.
+- Exclusions: Public manager/delegate, async sequences, live manager, replay
+  delivery, scheduling, origin merge, dependencies, and schema changes.
+- Checkpoint: R; open the authorized stacked PR with final evidence, then proceed
+  with the separately authorized G04 unit. Merge remains separately authorized.
+
+### 003-G04 — Main-actor sequential update replay
+
+- Status: Approved. The owner authorizes implementation after the G03B PR on
+  2026-10-18, without a public async interface; no G04 PR is yet authorized.
+- Recommended model: GPT-6.1 Sol; reasoning: `high`. Callback delivery, cached
+  state, open sessions, claim progress, and shutdown require careful ownership.
+- Prerequisites: 003-G03B, 003-Fa05, 003-Ra2, 003-Fa08, revised 003-E05,
+  003-E03; DD04–DD05, DD16's delegate-first amendment, and DD21.
+- Scope: Add Location-owned main-actor replay delivery over record claims and
+  scheduling: ordered batches/nonterminal native errors, one active session,
+  non-consuming current location, progress, stop, and quiescence. Use a narrow
+  internal callback boundary that G07's manager facade can own directly.
+  Reuse relevant E06 cases without adopting its generic schema or adding a
+  generic subscription/event layer. Native values use G03B materialization.
+- Expected files/modules: Internal Location update replay state machine,
+  controlled actor-bound delivery tests, and
+  `docs/evidence/003-G04-location-update-replay.md`.
+- Public behavior contract for G07: Inactive start selects the next session;
+  active start and inactive stop are idempotent. Restart gets a fresh anchor.
+  Install current location before delivery; failures leave it unchanged.
+  Preserve batch boundaries and measurement timestamps independently from delay.
+  Open groups remain active/silent after their horizon. Exhausted start retains
+  a final-report diagnostic and becomes inert. Stop cancels pending work without
+  synthetic completion; finish drains accepted callbacks before report freeze.
+  Claims, progress, and consumption remain distinct under DD19.
+- Tests/verification: V-code; ordered/empty batches, duplicate/cached timestamps,
+  failure then recovery, initial/current reads, start/stop/restart, reentrant
+  callback operations, inert-session release, early stop and claimed/unconsumed
+  reports, open-horizon acknowledgement, independent attachments, offline replay,
+  pending/claimed delivery shutdown, and concurrent/canceled finish waiters.
+- Exclusions: AsyncSequence/iterators/buffering, public manager facade, access
+  requests/notifications, live Core Location, origin merge, configuration
+  matching, concurrent sessions in one attachment, thrown dependency failure,
+  and synthetic completion on mismatch.
+- Checkpoint: R; present the complete G04 diff and evidence for owner review.
+  Do not start G05 or open a G04 PR without further authorization.
 
 ### 003-G05 — Access state notifications and authorization barriers
 
 - Recommended model: GPT-6 Astra; reasoning: `high`. Authorization barriers and state-before-callback ordering interact with mismatches, scheduling, and shutdown.
 - Prerequisites: 003-G04, 003-E03; DD16 access/request contracts.
-- Scope: Implement initial/current access state, separate state sequence, automatic notifications, and ordered when-in-use/always request barriers. Settle the public async event shape using native authorization values without exposing the internal `LocationAccessState` snapshot.
+- Scope: Implement initial/current access state, internal main-actor notification callbacks, and ordered when-in-use/always request barriers. Use native authorization values at G07's manager boundary without exposing the internal `LocationAccessState` snapshot or adding async sequences.
 - Expected files/modules: Location access state machine and timed barrier tests.
-- Public behavior: Initial state is readable before initial notification; observation begins at sequence/delegate registration.
+- Public behavior: Initial state is readable before initial notification; observation begins at delegate registration through G07's facade.
   Complete state installs before callbacks; duplicates remain visible.
   Present a persisted `whenInUse` state as native `authorizedAlways` on macOS,
   while retaining the stored status and request-barrier identity; iOS presents
@@ -2522,14 +2573,16 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Exclusions: Whole-event/track overrides, heuristic event correspondence, claims that relocation removes all sensitive route information.
 - Checkpoint: R; review precedence, deletion behavior, and safe prepared output.
 
-### 003-G07 — Main-actor delegate facade over location replay
+### 003-G07 — Main-actor manager/delegate facade over location replay
 
 - Recommended model: GPT-6 Sol; reasoning: `medium`. A narrow MainActor facade must preserve weak-delegate ownership and exact frozen/inert post-finish behavior.
 - Prerequisites: 003-G04–003-G05 and completed 003-Fa08 public-boundary proof; DD16, DD21 consumer and
   escaped-handle contracts.
 - Scope: Add the narrow Diorama-owned Apple facade and weak delegate with
   native `CLLocation` values, reproducible Apple access/configuration types,
-  and local replay state. Share G04's attachment-wide replay-fidelity options.
+  and local configuration. Connect G04/G05's internal main-actor delivery directly
+  to delegate calls; the facade does not iterate an async sequence. Share G03B's
+  attachment-wide fidelity options.
 - Expected files/modules: Apple Location facade/delegate target, controlled
   main-actor replay tests and migration example.
 - Public behavior: Current access/location are non-consuming; callbacks run on MainActor.
@@ -2540,7 +2593,7 @@ native evidence. Fa07 must precede coverage-dependent decisions.
   gate; weak delegate, state-before-callback, Error reconstruction, replacing
   delegate after finish produces no callback, inert setters/start/requests and
   no-op stop.
-- Exclusions: CLLocationManager subclassing, replay reconstruction beyond G04's
+- Exclusions: CLLocationManager subclassing, replay reconstruction beyond G03B's
   approved opt-in subclass, background/deferred/significant-change/heading/
   region/one-shot APIs.
 - Checkpoint: R; review the bounded adoption surface independently from live access.
@@ -2554,7 +2607,7 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Public behavior: Forward configuration and supported native behavior; record
   prepared stable values, including floor and ellipsoidal altitude regardless
   of preservation options. Record consumers receive normalized native values
-  materialized from fresh prepared observations using G04/G03's shared rules.
+  materialized from fresh prepared observations using G03/G03B's shared rules.
   Apply the same floor/ellipsoidal preservation options in record and replay.
   Install normalized current state before callback delivery. Baseline authored
   origins never affect record-mode materialization. Pure passthrough alone
@@ -2573,13 +2626,13 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G09 — Location shutdown and cross-platform acceptance
 
-- Recommended model: GPT-6 Astra; reasoning: `high`. Manager/proxy/sequence cleanup must prove quiescence across batches, barriers, late events, and platform boundaries.
+- Recommended model: GPT-6 Astra; reasoning: `high`. Manager/proxy/callback cleanup must prove quiescence across batches, barriers, late events, and platform boundaries.
 - Prerequisites: 003-G08; DD10, DD14, DD16.
-- Scope: Complete private-manager/proxy/sequence cleanup and broader macOS,
+- Scope: Complete private-manager/proxy/callback cleanup and broader macOS,
   iOS, multi-attachment and re-record conformance.
 - Expected files/modules: Location/Core Location integration tests, capability
   documentation, Apple controlled callback harness and replay fixtures.
-- Public behavior: In record/replay, finish stops owned resources, detaches proxy, cancels pending and drains claimed callbacks, ends async sequences as runtime cleanup, and leaves escaped handles inert without inventing a delegate completion. Passthrough hooks implement G08's documented native cleanup and retained-facade policy, which may preserve continued use after finish.
+- Public behavior: In record/replay, finish stops owned resources, detaches proxy, cancels pending and drains claimed callbacks, and leaves escaped handles inert without inventing a delegate completion. Passthrough hooks implement G08's documented native cleanup and retained-facade policy, which may preserve continued use after finish.
 - Tests/verification: V-code; record/replay finish during batches/access
   barriers, cancellation, late native events, no managed location callbacks
   after finish, frozen-property rules, multiple independent managers,

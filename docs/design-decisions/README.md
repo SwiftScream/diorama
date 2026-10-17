@@ -3,6 +3,13 @@
 - Status: Accepted
 - Consolidated design approved by owner: 2026-09-07
 
+On 2026-10-18, the owner approves
+[DD16's delegate-first interface amendment](16-location-system.md#delegate-first-location-interface--owner-approved-2026-10-18).
+Initial Location exposes the main-actor manager/delegate interface. Public async
+update/access sequences are deferred; Location replay delivers through internal
+main-actor callbacks while preserving scheduling, access barriers, and lifecycle
+quiescence. Native materialization is a separate prerequisite to update replay.
+
 On 2026-10-17, the owner approves
 [DD15's shared timestamp origin amendment](15-clock-system.md#shared-timestamp-origins--owner-approved-2026-10-17).
 Date and Location use Core's package-visible `TimestampOrigin`, normalizing
