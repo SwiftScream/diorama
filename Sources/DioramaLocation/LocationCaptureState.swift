@@ -5,6 +5,7 @@ import DioramaCore
 struct LocationCaptureState: Sendable {
     let sessions: SequentialTrackLease<LocationSession, LocationTracks.SessionHeader>
     let access: SequentialTrackLease<LocationTracks.AccessSegment, LocationRecordedAccessState>
+    let callbackScope = LocationCaptureOwner()
     private let owner = LocationCaptureOwner()
     private var sessionDrafts: [RecordIdentity: LocationSessionDraft] = [:]
     private var accessDrafts: [RecordIdentity: LocationAccessDraft] = [:]
@@ -85,6 +86,23 @@ struct LocationCaptureState: Sendable {
         try beginAccessSegment(request: nil, operation: &operation)
     }
 
+    /// Activation has no logical clock yet; the empty prefix starts at zero.
+    mutating func initializeAccess(operation: inout SystemOperation<Self>) throws {
+        guard activeAccess == nil else { return }
+        try beginAccessSegment(request: nil, anchor: 0, operation: &operation)
+    }
+
+    /// The first tracking action resets only the unused initial observation anchor.
+    mutating func observeAccess(operation: inout SystemOperation<Self>) throws {
+        try beginAccess(operation: &operation)
+        if let activeAccess, var draft = accessDrafts[activeAccess],
+           draft.request == nil, draft.slots.isEmpty
+        {
+            draft.previousDelivery = try milliseconds(on: access.id, operation: &operation)
+            accessDrafts[activeAccess] = draft
+        }
+    }
+
     /// Each request seals the preceding segment and reserves its own Core record.
     mutating func requestAuthorization(
         _ request: LocationAuthorizationRequest, operation: inout SystemOperation<Self>) throws
@@ -126,9 +144,9 @@ struct LocationCaptureState: Sendable {
     }
 
     private mutating func beginAccessSegment(
-        request: LocationAuthorizationRequest?, operation: inout SystemOperation<Self>) throws
+        request: LocationAuthorizationRequest?, anchor: Int64? = nil, operation: inout SystemOperation<Self>) throws
     {
-        let anchor = try milliseconds(on: access.id, operation: &operation)
+        let anchor = try anchor ?? milliseconds(on: access.id, operation: &operation)
         let identity = try operation.beginRecord(
             on: access, preparation: ValuePreparation<LocationTracks.AccessSegment>(), capturing: { identity in
                 accessDrafts[identity] = LocationAccessDraft(request: request, previousDelivery: anchor)

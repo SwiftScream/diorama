@@ -99,6 +99,9 @@ enum ReportText {
     static func issue(_ issue: DiagnosticIssue) -> String {
         switch issue {
         case .conversionFailed: "conversion-failed"
+        case let .nativeErrorMetadataOmitted(key, runtimeType):
+            "native-error-metadata-omitted key=\(ReportFieldEscaping.quote(key)) "
+                + "type=\(ReportFieldEscaping.quote(runtimeType))"
         case let .preparationFailed(stage): "preparation-failed \(preparation(stage))"
         case let .lifecycle(fact): lifecycle(fact)
         case let .baseline(fact): baseline(fact)

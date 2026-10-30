@@ -152,7 +152,7 @@ public struct DioramaPublicationSummary: Equatable, Sendable {
 
     private static func stage(_ issue: DiagnosticIssue) -> PublicationStage {
         switch issue {
-        case .conversionFailed: .conversion
+        case .conversionFailed, .nativeErrorMetadataOmitted: .conversion
         case let .preparationFailed(stage): .preparation(stage)
         case .lifecycle(.cleanupFailed): .cleanup
         case .lifecycle, .baseline, .sequential, .logicalTime, .scheduling, .verification, .system:

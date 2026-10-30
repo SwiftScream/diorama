@@ -3,8 +3,10 @@ import DioramaCore
 import Foundation
 
 /// The attachment-wide interpretation of every horizontal offset.
-enum LocationCoordinateFormat: String, Codable, Sendable {
+public enum LocationCoordinateFormat: String, Codable, Sendable {
+    /// Regional east/north meter offsets within the supported radius.
     case meters
+    /// Global latitude/longitude degree offsets.
     case degrees
 }
 

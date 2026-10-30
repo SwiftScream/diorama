@@ -61,6 +61,9 @@ public enum DiagnosticContext: Equatable, Sendable {
 public enum DiagnosticIssue: Equatable, Sendable {
     /// Native extraction or stable conversion failed before preparation.
     case conversionFailed
+    /// A native error user-info entry is omitted without invalidating recording.
+    /// Only its key and runtime type are permitted; never include the entry value.
+    case nativeErrorMetadataOmitted(key: String, runtimeType: String)
     /// A configured preparation stage failed.
     case preparationFailed(PreparationStage)
     /// An execution, startup, or lease-lifetime fact.
@@ -132,8 +135,9 @@ public enum RecordingImpact: Equatable, Sendable {
 
 /// Safe structured context delivered to diagnostics consumers.
 ///
-/// No raw payload, arbitrary error, runtime type description, or test outcome
-/// is retained. Field and rule labels describe semantics, never field values.
+/// No raw payload, arbitrary error, or test outcome is retained. Native error
+/// omission facts explicitly permit only a user-info key and runtime type name.
+/// Field and rule labels describe semantics, never field values.
 public struct Diagnostic: Equatable, Sendable {
     /// The infrastructure or verification fact.
     public let issue: DiagnosticIssue

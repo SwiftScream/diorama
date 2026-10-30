@@ -4,9 +4,9 @@ import DioramaCore
 /// Main-actor delivery from a Diorama-owned location manager.
 @MainActor
 public protocol DioramaLocationManagerDelegate: AnyObject {
-    /// Receives one recorded batch, after current location updates.
+    /// Receives one native location batch, after current location updates.
     func locationManager(_ manager: DioramaLocationManager, didUpdateLocations locations: [CLLocation])
-    /// Receives a nonterminal reconstructed native error.
+    /// Receives a nonterminal native error.
     func locationManager(_ manager: DioramaLocationManager, didFailWithError error: Error)
     /// Observes a complete installed authorization and service state.
     func locationManagerDidChangeAuthorization(_ manager: DioramaLocationManager)
@@ -70,25 +70,25 @@ public final class DioramaLocationManager {
         backend.currentLocation
     }
 
-    /// Local requested accuracy; configuration is neither persisted nor matched.
+    /// Requested accuracy, forwarded in live modes; never persisted or matched.
     public var desiredAccuracy: CLLocationAccuracy {
         get { configuration.accuracy }
         set { set(\.accuracy, to: newValue) }
     }
 
-    /// Local requested minimum displacement in meters.
+    /// Requested minimum displacement in meters, forwarded in live modes.
     public var distanceFilter: CLLocationDistance {
         get { configuration.filter }
         set { set(\.filter, to: newValue) }
     }
 
-    /// Local requested activity category.
+    /// Requested activity category, forwarded in live modes.
     public var activityType: CLActivityType {
         get { configuration.activity }
         set { set(\.activity, to: newValue) }
     }
 
-    /// Local automatic-pause preference.
+    /// Automatic-pause preference, forwarded in live modes.
     public var pausesLocationUpdatesAutomatically: Bool {
         get { configuration.pauses }
         set { set(\.pauses, to: newValue) }

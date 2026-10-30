@@ -128,7 +128,8 @@ private extension DiagnosticIssue {
                  .activationFailed, .startupCanceled, .cleanupFailed:
                 false
             }
-        case .conversionFailed, .preparationFailed, .baseline, .verification, .system: false
+        case .conversionFailed, .nativeErrorMetadataOmitted, .preparationFailed, .baseline, .verification, .system:
+            false
         }
     }
 }
