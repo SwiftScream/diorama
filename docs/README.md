@@ -324,6 +324,9 @@ test-integration design. They do not authorize those APIs.
 - [Location origin and re-record evidence](evidence/003-G06-location-origin-merge.md)
   records setup-default preparation, origin-only override retention, complete
   replacement, privacy, and healthy or refused file publication.
+- [Native Location bridge evidence](evidence/003-G08-location-native-bridge.md)
+  records owned native capture, normalized delivery, passthrough, setup options,
+  and controlled-test/platform verification boundaries.
 - [Location manager evidence](evidence/003-G07-location-manager.md) records the
   main-actor manager, weak delegate, shared replay lifetime, frozen configuration,
   and compiled application migration.

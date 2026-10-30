@@ -2661,6 +2661,25 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G08 — Private Core Location capture and live forwarding
 
+- Status: Complete. The owner completes review, approves fixup squashing, and
+  authorizes stacked PR creation above G07A on 2026-11-02. The canonical host
+  gate passes all 603 tests. Initial fresh macOS coverage and direct iOS Simulator
+  library cross-compilation pass as recorded in evidence; the local Xcode gate
+  aborts before a build result and no local Linux result is claimed. Required
+  PR checks enforce the full platform and coverage matrix before merge.
+- Evidence: [Private native Location bridge](../evidence/003-G08-location-native-bridge.md).
+- Dependency restack: Refreshed above the reviewed G07 branch (`bb2b0cd`, PR #113)
+  on 2026-11-01. The replay State factory uses G07's two-lease initializer.
+  The owner approves squashing these mechanical updates on 2026-11-01;
+  G08 review continues.
+- Authorization review update: Restacked above G07A's request-started tracking
+  prerequisite (`03e5851`) on 2026-11-01. Native capture retains the initial
+  access state before tracking and starts tracking before forwarding requests,
+  including synchronous callbacks without a delegate. Focused suites pass 35
+  tests; the canonical macOS gate passes all 603 host tests, lint, compiler
+  probes, and release examples. The owner approves squashing the native and
+  evidence fixups on 2026-11-02; both are folded into their respective targets
+  with unchanged source and tests. No new iOS, Linux, or coverage run is claimed.
 - Recommended model: GPT-6 Sol; reasoning: `high`. Native callback conversion and live forwarding need field-fidelity evidence, safe preparation, and clear manager ownership.
 - Prerequisites: 003-G06–003-G07A, 003-Fa08, 003-B02, 003-E01; DD06, DD09, DD16, DD20–DD21.
 - Scope: Add a private MainActor CLLocationManager bridge, with managed recording and native passthrough. Establish construction, rollback, cleanup invocation and callback isolation first; reserve ordering/time and prepare values for recording only.
@@ -2683,7 +2702,9 @@ native evidence. Fa07 must precede coverage-dependent decisions.
   Verify normalized record/replay consumer and downstream-output equivalence,
   no baseline-override feedback, and original object identity in passthrough.
 - Exclusions: Consumer-manager mutation, live Linux source, native error string persistence, nondeterministic simulator GPS as the sole correctness evidence.
-- Checkpoint: R; review native conversion fidelity and owned-manager boundaries.
+- Checkpoint: R; owner review and fixup squashing are approved, and stacked PR
+  creation is authorized. Merge requires passing required CI and a separate
+  explicit request. G09 requires separate authorization.
 
 ### 003-G09 — Location shutdown and cross-platform acceptance
 

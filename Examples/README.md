@@ -100,7 +100,24 @@ application code receiving a `DioramaLocationManager`, keeping its delegate aliv
 configuring standard updates, and handling native locations and nonterminal errors.
 The delegate uses native `CLLocation` and reads already installed current state.
 
-G07 supplies the manager/delegate surface over controlled replay. The example
-accepts an injected manager; native manager construction and the live attachment
-integration belong to G08. It does not create a live Core Location manager.
-The compile-only migration target is absent from the Linux example graph.
+Create the attachment with `DioramaLocationSystem.instance(named: "gps")` and
+inject the returned dependency into the consumer. Record and passthrough own a
+private main-actor `CLLocationManager`; replay constructs no native manager.
+Applications supply their usual Core Location usage descriptions and entitlements.
+Only standard updates, when-in-use/always authorization requests, and the four
+configuration properties are exposed.
+
+`LocationRecordingOptions` selects regional meter offsets by default, or global
+degree offsets, with independently validated coordinate, altitude, ellipsoidal
+altitude, and timestamp origin defaults. These defaults affect normalized record
+delivery; baseline authored overrides affect publication and replay only.
+`LocationFidelityOptions` applies equally to record and replay. Capture always
+retains floor and ellipsoidal altitude, even when native preservation is disabled.
+Passthrough delivers original native locations/errors and does no recording
+conversion. All three modes stop at execution finish; retained managers freeze,
+setters/start/authorization requests diagnose closed use, and stop remains a no-op.
+
+The compile-only migration example accepts an injected manager without starting
+live access. Its target is absent from the Linux example graph. See the
+[native bridge evidence](../docs/evidence/003-G08-location-native-bridge.md) for
+controlled-test boundaries and platform verification.
