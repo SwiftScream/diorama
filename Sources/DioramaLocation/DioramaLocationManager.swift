@@ -25,15 +25,14 @@ public extension DioramaLocationManagerDelegate {
 /// Retained managers freeze at execution finish; callbacks always run on MainActor.
 @MainActor
 public final class DioramaLocationManager {
-    private struct Configuration {
+    struct Configuration {
         var accuracy = kCLLocationAccuracyBest
         var filter = kCLDistanceFilterNone
         var activity = CLActivityType.other
         var pauses = true
     }
 
-    private let updates: LocationUpdateReplay
-    private let access: LocationAccessReplay
+    private let backend: any LocationManagerBackend
     private let reporter: DiagnosticReporter
     private let context: DiagnosticContext
     private var configuration = Configuration()
@@ -44,7 +43,7 @@ public final class DioramaLocationManager {
     public weak var delegate: any DioramaLocationManagerDelegate? {
         didSet {
             guard delegate != nil else { return }
-            access.observe { [weak self] in
+            backend.observe { [weak self] in
                 guard let self else { return }
                 delegate?.locationManagerDidChangeAuthorization(self)
             }
@@ -53,22 +52,22 @@ public final class DioramaLocationManager {
 
     /// Last observed availability of device location services.
     public var locationServicesEnabled: Bool {
-        access.currentState.servicesEnabled
+        backend.currentState.servicesEnabled
     }
 
     /// Last authorization status, presented using this platform's native values.
     public var authorizationStatus: CLAuthorizationStatus {
-        access.currentState.permission
+        backend.currentState.permission
     }
 
     /// Last accuracy authorization.
     public var accuracyAuthorization: CLAccuracyAuthorization {
-        access.currentState.accuracy
+        backend.currentState.accuracy
     }
 
     /// Initial cached location or the last member of the latest nonempty batch.
     public var location: CLLocation? {
-        updates.currentLocation
+        backend.currentLocation
     }
 
     /// Local requested accuracy; configuration is neither persisted nor matched.
@@ -96,11 +95,22 @@ public final class DioramaLocationManager {
     }
 
     init(execution: SystemExecution<LocationReplayState>, fidelity: LocationFidelityOptions = .init()) throws {
-        updates = try LocationUpdateReplay(execution: execution, fidelity: fidelity)
-        access = try LocationAccessReplay(execution: execution)
+        let backend = try LocationReplayBackend(execution: execution, fidelity: fidelity)
+        self.backend = backend
         reporter = execution.reporter
         context = try execution.state.withLock { state, _ in .attachment(state.sessions.id.attachmentID) }
-        updates.setDelivery(locations: { [weak self] locations in
+        connect()
+    }
+
+    init(backend: any LocationManagerBackend, reporter: DiagnosticReporter, context: DiagnosticContext) {
+        self.backend = backend
+        self.reporter = reporter
+        self.context = context
+        connect()
+    }
+
+    private func connect() {
+        backend.setDelivery(locations: { [weak self] locations in
             guard let self else { return }
             delegate?.locationManager(self, didUpdateLocations: locations)
         }, failure: { [weak self] error in
@@ -111,35 +121,35 @@ public final class DioramaLocationManager {
 
     /// Selects the next session once; repeated active starts are idempotent.
     public func startUpdatingLocation() {
-        updates.start()
+        backend.start()
     }
 
     /// Stops the current session. Repeated and post-finish stops do nothing.
     public func stopUpdatingLocation() {
-        updates.stop()
+        backend.stop()
     }
 
     /// Starts access tracking if needed, then releases only the next matching when-in-use barrier.
     public func requestWhenInUseAuthorization() {
-        access.request(.whenInUse)
+        backend.request(.whenInUse)
     }
 
     /// Starts access tracking if needed, then releases only the next matching always barrier.
     public func requestAlwaysAuthorization() {
-        access.request(.always)
+        backend.request(.always)
     }
 
     /// Core's stop hook closes both timelines before awaiting scheduler drainage.
     func close() {
-        updates.close()
-        access.close()
+        backend.close()
     }
 
     private func set<Value>(_ keyPath: WritableKeyPath<Configuration, Value>, to value: Value) {
-        guard !updates.isClosed else {
+        guard !backend.isClosed else {
             reporter.record(Diagnostic(issue: .lifecycle(.leaseClosed), context: context))
             return
         }
         configuration[keyPath: keyPath] = value
+        backend.configure(configuration)
     }
 }
