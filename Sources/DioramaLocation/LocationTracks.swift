@@ -8,7 +8,7 @@ enum LocationTracks {
     private static let accessKey = TrackKey(rawValue: "access")
 
     struct SessionHeader: Equatable, Sendable {
-        let coordinateSpace: LocationHorizontalSpace?
+        let coordinateSpace: LocationCoordinateSpace?
         let altitudeOrigin: LocationAltitudeOrigin?
         let initial: LocationInitialSnapshot?
     }

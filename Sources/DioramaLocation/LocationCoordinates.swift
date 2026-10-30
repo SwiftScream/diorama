@@ -33,7 +33,7 @@ struct LocationCoordinate: Equatable, Sendable {
 }
 
 /// One offset whose cases cannot mix meter and degree values.
-enum LocationHorizontalOffset: Equatable, Sendable {
+enum LocationCoordinateOffset: Equatable, Sendable {
     case meters(eastMeters: Double, northMeters: Double)
     case degrees(latitudeDegrees: Double, longitudeDegrees: Double)
 
@@ -101,7 +101,7 @@ enum LocationHorizontalOffset: Equatable, Sendable {
 }
 
 /// Whole-origin editing retains all existing offsets verbatim.
-struct LocationHorizontalSpace: Equatable, Sendable {
+struct LocationCoordinateSpace: Equatable, Sendable {
     let format: LocationCoordinateFormat
     let origin: OverridableValue<LocationCoordinate>
 
@@ -109,7 +109,7 @@ struct LocationHorizontalSpace: Equatable, Sendable {
         .init(format: format, origin: .override(replacement))
     }
 
-    func coordinate(for offset: LocationHorizontalOffset) throws -> LocationCoordinate {
+    func coordinate(for offset: LocationCoordinateOffset) throws -> LocationCoordinate {
         guard offset.format == format else { throw LocationRecordingError.mixedCoordinateFormats }
         return try offset.coordinate(relativeTo: origin.value)
     }

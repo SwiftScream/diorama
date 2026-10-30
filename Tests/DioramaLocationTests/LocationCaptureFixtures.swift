@@ -26,7 +26,7 @@ private struct LocationCaptureDefinition: SystemDefinition {
     init(hasLocations: Bool) throws {
         let origin = try #require(LocationCoordinate(latitudeDegrees: 0, longitudeDegrees: 0))
         let header = LocationTracks.SessionHeader(
-            coordinateSpace: hasLocations ? LocationHorizontalSpace(
+            coordinateSpace: hasLocations ? LocationCoordinateSpace(
                 format: .degrees, origin: .observed(origin)) : nil,
             altitudeOrigin: nil, initial: nil)
         sessions = try TrackDefinition("sessions", header: ValuePreparation().admitPrepared(header))

@@ -5,7 +5,7 @@ extension LocationRecordedLocation {
     /// Shared normalized materialization for fresh recording observations and replay.
     /// Record adapters use a fresh observed recording here, before authored override merge.
     func measurement(
-        coordinateSpace: LocationHorizontalSpace?,
+        coordinateSpace: LocationCoordinateSpace?,
         altitudeOrigin: LocationAltitudeOrigin?,
         timestampOrigin: TimestampOrigin,
         deliveryMilliseconds: Int64) throws(LocationRecordingError) -> LocationMeasurement

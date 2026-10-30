@@ -363,7 +363,7 @@ struct LocationCodecTests {
         let point = try #require(LocationCoordinate(
             latitudeDegrees: nativePoint.latitude, longitudeDegrees: nativePoint.longitude))
         for format in [LocationCoordinateFormat.meters, .degrees] {
-            let offset = try LocationHorizontalOffset.encode(point, relativeTo: normalizedOrigin, format: format)
+            let offset = try LocationCoordinateOffset.encode(point, relativeTo: normalizedOrigin, format: format)
             let reconstructed = try offset.coordinate(relativeTo: normalizedOrigin)
             let error = try LocationGeodesy.forward(origin: nativePoint, point: reconstructed.geodesy).value.radius
             #expect(error < 0.01)
@@ -467,7 +467,7 @@ struct LocationCodecTests {
         #expect(coordinateText.contains("\"longitudeDegrees\":-100.12345679"))
         #expect(throws: (any Error).self) {
             // Encoding cannot silently quantize an unprepared value behind the consumer's back.
-            try JSONEncoder().encode(LocationHorizontalOffset.meters(eastMeters: 1.2345, northMeters: 0))
+            try JSONEncoder().encode(LocationCoordinateOffset.meters(eastMeters: 1.2345, northMeters: 0))
         }
     }
 
@@ -491,7 +491,7 @@ struct LocationCodecTests {
                 latitudeDegrees: reference.origin.0, longitudeDegrees: reference.origin.1))
             let point = try #require(LocationCoordinate(
                 latitudeDegrees: reference.point.0, longitudeDegrees: reference.point.1))
-            let offset = try LocationHorizontalOffset.encode(point, relativeTo: origin, format: .meters)
+            let offset = try LocationCoordinateOffset.encode(point, relativeTo: origin, format: .meters)
             guard case let .meters(actualEast, actualNorth) = offset else {
                 Issue.record("Expected regional offset")
                 return
@@ -505,7 +505,7 @@ struct LocationCodecTests {
         let pole = try #require(LocationCoordinate(latitudeDegrees: -90, longitudeDegrees: -179.999999))
         let polarPoint = try #require(LocationCoordinate(
             latitudeDegrees: -81.04623281595062, longitudeDegrees: -179.999999))
-        let offset = try LocationHorizontalOffset.encode(polarPoint, relativeTo: pole, format: .meters)
+        let offset = try LocationCoordinateOffset.encode(polarPoint, relativeTo: pole, format: .meters)
         guard case let .meters(east, north) = offset else {
             Issue.record("Expected regional offset")
             return
@@ -544,7 +544,7 @@ private enum LocationSamples {
     static func meters() throws -> LocationRecording {
         let origin = try #require(LocationCoordinate(latitudeDegrees: -33.8688, longitudeDegrees: 151.2093))
         let destination = try #require(LocationCoordinate(latitudeDegrees: -35.2809, longitudeDegrees: 149.13))
-        let space = LocationHorizontalSpace(format: .meters, origin: .observed(origin))
+        let space = LocationCoordinateSpace(format: .meters, origin: .observed(origin))
         func atOrigin(latency: Int64) throws -> LocationRecordedLocation {
             try #require(LocationRecordedLocation(
                 latencyMilliseconds: latency,
@@ -558,7 +558,7 @@ private enum LocationSamples {
         }
         let atDestination = try #require(LocationRecordedLocation(
             latencyMilliseconds: 10052,
-            coordinateOffset: LocationHorizontalOffset.encode(destination, relativeTo: origin, format: .meters),
+            coordinateOffset: LocationCoordinateOffset.encode(destination, relativeTo: origin, format: .meters),
             horizontalAccuracyMeters: 4,
             altitudeOffset: LocationAltitudeOffset(meters: 12, ellipsoidalMeters: 13, accuracyMeters: 2)))
         let session = try LocationSession(

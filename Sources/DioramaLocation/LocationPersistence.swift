@@ -97,7 +97,7 @@ extension LocationCoordinate: Codable {
     }
 }
 
-extension LocationHorizontalOffset: Codable {
+extension LocationCoordinateOffset: Codable {
     private enum CodingKeys: String, CodingKey, CaseIterable {
         case eastMeters, northMeters, latitudeDegrees, longitudeDegrees
     }
@@ -290,7 +290,7 @@ extension LocationRecordedLocation: Codable {
         }
         guard let value = try Self(
             latencyMilliseconds: latency,
-            coordinateOffset: fields.decode(LocationHorizontalOffset.self, forKey: .coordinateOffset),
+            coordinateOffset: fields.decode(LocationCoordinateOffset.self, forKey: .coordinateOffset),
             horizontalAccuracyMeters: fields.decode(Double.self, forKey: .horizontalAccuracyMeters),
             altitudeOffset: altitude,
             floor: fields.contains(.floor) ? fields.decode(LocationRecordedFloor.self, forKey: .floor) : nil,
@@ -498,7 +498,7 @@ extension LocationRecording: Codable {
 
     init(from decoder: any Decoder) throws {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
-        let coordinateSpace: LocationHorizontalSpace?
+        let coordinateSpace: LocationCoordinateSpace?
         if fields.contains(.coordinateOrigin), fields.contains(.coordinateFormat) {
             coordinateSpace = try .init(
                 format: fields.decode(LocationCoordinateFormat.self, forKey: .coordinateFormat),

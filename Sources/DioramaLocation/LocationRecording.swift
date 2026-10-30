@@ -53,7 +53,7 @@ struct LocationRecordedFloor: Equatable, Sendable {
 /// One stable location, including its signed age relative to logical delivery time.
 struct LocationRecordedLocation: Equatable, Sendable {
     let latencyMilliseconds: Int64
-    let coordinateOffset: LocationHorizontalOffset
+    let coordinateOffset: LocationCoordinateOffset
     let horizontalAccuracyMeters: Double
     let altitudeOffset: LocationAltitudeOffset?
     let floor: LocationRecordedFloor?
@@ -63,7 +63,7 @@ struct LocationRecordedLocation: Equatable, Sendable {
 
     init?(
         latencyMilliseconds: Int64,
-        coordinateOffset: LocationHorizontalOffset,
+        coordinateOffset: LocationCoordinateOffset,
         horizontalAccuracyMeters: Double,
         altitudeOffset: LocationAltitudeOffset? = nil,
         floor: LocationRecordedFloor? = nil,
@@ -72,7 +72,7 @@ struct LocationRecordedLocation: Equatable, Sendable {
         sourceInformation: LocationSourceInformation? = nil)
     {
         guard horizontalAccuracyMeters.isFinite, horizontalAccuracyMeters >= 0,
-              let coordinateOffset = LocationHorizontalOffset(normalizing: coordinateOffset)
+              let coordinateOffset = LocationCoordinateOffset(normalizing: coordinateOffset)
         else { return nil }
         self.latencyMilliseconds = latencyMilliseconds
         self.coordinateOffset = coordinateOffset
@@ -262,14 +262,14 @@ struct LocationAccessRecording: Equatable, Sendable {
 
 /// Validated domain content for one named Location attachment.
 struct LocationRecording: Equatable, Sendable {
-    let coordinateSpace: LocationHorizontalSpace?
+    let coordinateSpace: LocationCoordinateSpace?
     let altitudeOrigin: LocationAltitudeOrigin?
     let initial: LocationInitialSnapshot?
     let sessions: [LocationSession]
     let access: LocationAccessRecording
 
     init(
-        coordinateSpace: LocationHorizontalSpace?,
+        coordinateSpace: LocationCoordinateSpace?,
         altitudeOrigin: LocationAltitudeOrigin? = nil,
         initial: LocationInitialSnapshot? = nil,
         sessions: [LocationSession],
@@ -306,7 +306,7 @@ struct LocationRecording: Equatable, Sendable {
 
     private static func validateOrigins(
         points: [LocationRecordedLocation],
-        coordinateSpace: LocationHorizontalSpace?,
+        coordinateSpace: LocationCoordinateSpace?,
         altitudeOrigin: LocationAltitudeOrigin?) throws(LocationRecordingError)
     {
         guard points.isEmpty == (coordinateSpace == nil) else {
@@ -328,7 +328,7 @@ struct LocationRecording: Equatable, Sendable {
     }
 
     private static func validateCoordinates(
-        points: [LocationRecordedLocation], coordinateSpace: LocationHorizontalSpace?) throws(LocationRecordingError)
+        points: [LocationRecordedLocation], coordinateSpace: LocationCoordinateSpace?) throws(LocationRecordingError)
     {
         guard let coordinateSpace else { return }
         for point in points {
