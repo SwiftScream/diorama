@@ -1,7 +1,7 @@
 # 003-G07: Preparatory replay-header read
 
 - Date: 2026-11-01
-- Status: Implementation and canonical host verification complete; ready for owner review.
+- Status: Complete; owner review and fixup squashing are approved, and PR creation is authorized on 2026-11-01.
 - Authority: During G07 review, the owner approves a replay-header read and requests a separate preparatory commit.
 - Branch: `feat/003-g07-location-manager`.
 - Plan: [G07](../plans/003-clean-slate-implementation.md#003-g07--main-actor-managerdelegate-facade-over-location-replay).
@@ -30,14 +30,14 @@ the lease implementation. The public system-authoring compiler probe covers
 both accessor forms through ordinary imports.
 
 This Core API is a preparatory commit before G07's attachment-state refactor.
-Location state and engines are unchanged; removing their separately supplied
-headers is a subsequent review update. No persistence format, dependency,
+Location adopts the accessor in the following shared-state refactor, as recorded
+in [G07 evidence](003-G07-location-manager.md). No persistence format, dependency,
 platform floor, concurrency annotation, or accepted decision changes.
 
 ## Verification
 
 - `swift test -Xswiftc -warnings-as-errors --filter ReplayHeaderTests`: all six tests pass.
-- Review fixup: focused replay-header, track-header, and replay-selection suites
+- Focused replay-header, track-header, and replay-selection suites
   pass all 19 tests after restoring the helpers' private visibility.
 - `scripts/check`: pinned formatting and strict lint pass; all 588 host tests,
   coverage-export fixtures, public authoring/lifecycle compiler probes,
@@ -54,4 +54,5 @@ transform counts, readable empty and optional headers, wrong-mode errors,
 independence from record continuation, closure during a controlled stop hook,
 immutable final reports, and reference-header release with a retained lease.
 
-PR creation and merge retain G07's separate owner checkpoints.
+The owner approves squashing the review fixups and authorizes G07 PR creation
+on 2026-11-01. Merge requires passing required CI and a separate owner request.

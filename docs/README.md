@@ -324,6 +324,9 @@ test-integration design. They do not authorize those APIs.
 - [Location origin and re-record evidence](evidence/003-G06-location-origin-merge.md)
   records setup-default preparation, origin-only override retention, complete
   replacement, privacy, and healthy or refused file publication.
+- [Location manager evidence](evidence/003-G07-location-manager.md) records the
+  main-actor manager, weak delegate, shared replay lifetime, frozen configuration,
+  and compiled application migration.
 - [Native Location materialization evidence](evidence/003-G03B-native-location-materialization.md)
   records fidelity options, native reconstruction, copy/archive behavior,
   safe diagnostic ownership, and Apple verification.

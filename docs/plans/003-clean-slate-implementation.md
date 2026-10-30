@@ -2597,6 +2597,13 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G07 — Main-actor manager/delegate facade over location replay
 
+- Status: Complete. The owner completes review, approves fixup squashing, and
+  authorizes PR creation into `master` on 2026-11-01 after G06 merges. The
+  canonical host gate passes all 588 tests after review updates. Initial macOS
+  coverage and direct iOS Simulator library compilation pass as recorded in
+  evidence; no iOS runtime or local Linux test result is claimed. Required PR
+  checks enforce the full platform and coverage matrix before merge.
+- Evidence: [Main-actor Location manager and delegate](../evidence/003-G07-location-manager.md).
 - Recommended model: GPT-6 Sol; reasoning: `medium`. A narrow MainActor facade must preserve weak-delegate ownership and exact frozen/inert post-finish behavior.
 - Prerequisites: 003-G04–003-G05 and completed 003-Fa08 public-boundary proof; DD16, DD21 consumer and
   escaped-handle contracts.
@@ -2608,7 +2615,9 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Preparatory Core API: Complete, owner-authorized on 2026-11-01. Add a typed,
   non-consuming replay-header read through the lease and managed operation,
   with wrong-mode and closed-access failures. Six focused tests and the
-  canonical host gate pass; Location adoption remains a separate review update.
+  canonical host gate pass. The owner authorizes Location adoption as a separate
+  review update: shared State now contains only two leases, and each engine reads
+  its validated header through the managed operation during initialization.
   See [replay-header read evidence](../evidence/003-G07-replay-header-read.md).
 - Expected files/modules: Apple Location facade/delegate target, controlled
   main-actor replay tests and migration example.
@@ -2624,6 +2633,8 @@ native evidence. Fa07 must precede coverage-dependent decisions.
   approved opt-in subclass, background/deferred/significant-change/heading/
   region/one-shot APIs.
 - Checkpoint: R; review the bounded adoption surface independently from live access.
+  Owner review is complete and PR creation is authorized. Merge requires passing
+  required CI and a separate explicit request; G08 requires separate authorization.
 
 ### 003-G08 — Private Core Location capture and live forwarding
 
