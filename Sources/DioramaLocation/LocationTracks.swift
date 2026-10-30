@@ -8,7 +8,7 @@ enum LocationTracks {
     private static let accessKey = TrackKey(rawValue: "access")
 
     struct SessionHeader: Equatable, Sendable {
-        let horizontal: LocationHorizontalSpace?
+        let coordinateSpace: LocationHorizontalSpace?
         let altitudeOrigin: LocationAltitudeOrigin?
         let initial: LocationInitialSnapshot?
     }
@@ -23,7 +23,7 @@ enum LocationTracks {
         let sessionID = TrackID(attachmentID: id, key: sessionsKey)
         let accessID = TrackID(attachmentID: id, key: accessKey)
         let header = SessionHeader(
-            horizontal: recording.horizontal,
+            coordinateSpace: recording.coordinateSpace,
             altitudeOrigin: recording.altitudeOrigin,
             initial: recording.initial)
         let sessionPreparation = ValuePreparation<LocationSession>()
@@ -69,7 +69,7 @@ enum LocationTracks {
             requests.append(request)
         }
         return try LocationRecording(
-            horizontal: sessions.header.horizontal,
+            coordinateSpace: sessions.header.coordinateSpace,
             altitudeOrigin: sessions.header.altitudeOrigin,
             initial: sessions.header.initial,
             sessions: sessions.records.map(\.value),

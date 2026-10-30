@@ -208,7 +208,7 @@ struct LocationUpdateReplayFixtures {
             return false
         }
         return try LocationRecording(
-            horizontal: hasLocations ? LocationHorizontalSpace(format: .degrees, origin: .observed(
+            coordinateSpace: hasLocations ? LocationHorizontalSpace(format: .degrees, origin: .observed(
                 #require(LocationCoordinate(latitudeDegrees: 10, longitudeDegrees: 20)))) : nil,
             altitudeOrigin: nil,
             initial: initial.map { try LocationInitialSnapshot(timestampOrigin: timestampOrigin, location: $0) },

@@ -498,18 +498,18 @@ extension LocationRecording: Codable {
 
     init(from decoder: any Decoder) throws {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
-        let horizontal: LocationHorizontalSpace?
+        let coordinateSpace: LocationHorizontalSpace?
         if fields.contains(.coordinateOrigin), fields.contains(.coordinateFormat) {
-            horizontal = try .init(
+            coordinateSpace = try .init(
                 format: fields.decode(LocationCoordinateFormat.self, forKey: .coordinateFormat),
                 origin: fields.decode(OverridableValue<LocationCoordinate>.self, forKey: .coordinateOrigin))
         } else if !fields.contains(.coordinateOrigin), !fields.contains(.coordinateFormat) {
-            horizontal = nil
+            coordinateSpace = nil
         } else {
             throw malformed(decoder, "Coordinate format and origin must occur together")
         }
         self = try Self(
-            horizontal: horizontal,
+            coordinateSpace: coordinateSpace,
             altitudeOrigin: fields.contains(.altitudeOrigin)
                 ? fields.decode(LocationAltitudeOrigin.self, forKey: .altitudeOrigin) : nil,
             initial: fields.contains(.initial)
@@ -520,9 +520,9 @@ extension LocationRecording: Codable {
 
     func encode(to encoder: any Encoder) throws {
         var fields = encoder.container(keyedBy: CodingKeys.self)
-        if let horizontal {
-            try fields.encode(horizontal.format, forKey: .coordinateFormat)
-            try fields.encode(horizontal.origin, forKey: .coordinateOrigin)
+        if let coordinateSpace {
+            try fields.encode(coordinateSpace.format, forKey: .coordinateFormat)
+            try fields.encode(coordinateSpace.origin, forKey: .coordinateOrigin)
         }
         try fields.encodeIfPresent(altitudeOrigin, forKey: .altitudeOrigin)
         try fields.encodeIfPresent(initial, forKey: .initial)

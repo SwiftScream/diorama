@@ -262,14 +262,14 @@ struct LocationAccessRecording: Equatable, Sendable {
 
 /// Validated domain content for one named Location attachment.
 struct LocationRecording: Equatable, Sendable {
-    let horizontal: LocationHorizontalSpace?
+    let coordinateSpace: LocationHorizontalSpace?
     let altitudeOrigin: LocationAltitudeOrigin?
     let initial: LocationInitialSnapshot?
     let sessions: [LocationSession]
     let access: LocationAccessRecording
 
     init(
-        horizontal: LocationHorizontalSpace?,
+        coordinateSpace: LocationHorizontalSpace?,
         altitudeOrigin: LocationAltitudeOrigin? = nil,
         initial: LocationInitialSnapshot? = nil,
         sessions: [LocationSession],
@@ -277,10 +277,10 @@ struct LocationRecording: Equatable, Sendable {
     {
         let points = Self.points(initial: initial, sessions: sessions)
         try Self.validateOrigins(
-            points: points, horizontal: horizontal,
+            points: points, coordinateSpace: coordinateSpace,
             altitudeOrigin: altitudeOrigin)
-        try Self.validateCoordinates(points: points, horizontal: horizontal)
-        self.horizontal = horizontal
+        try Self.validateCoordinates(points: points, coordinateSpace: coordinateSpace)
+        self.coordinateSpace = coordinateSpace
         self.altitudeOrigin = altitudeOrigin
         self.initial = initial
         self.sessions = sessions
@@ -306,10 +306,10 @@ struct LocationRecording: Equatable, Sendable {
 
     private static func validateOrigins(
         points: [LocationRecordedLocation],
-        horizontal: LocationHorizontalSpace?,
+        coordinateSpace: LocationHorizontalSpace?,
         altitudeOrigin: LocationAltitudeOrigin?) throws(LocationRecordingError)
     {
-        guard points.isEmpty == (horizontal == nil) else {
+        guard points.isEmpty == (coordinateSpace == nil) else {
             throw points.isEmpty ? .unusedCoordinateOrigin : .missingCoordinateOrigin
         }
         let hasAltitude = points.contains { $0.altitudeOffset != nil }
@@ -328,15 +328,15 @@ struct LocationRecording: Equatable, Sendable {
     }
 
     private static func validateCoordinates(
-        points: [LocationRecordedLocation], horizontal: LocationHorizontalSpace?) throws(LocationRecordingError)
+        points: [LocationRecordedLocation], coordinateSpace: LocationHorizontalSpace?) throws(LocationRecordingError)
     {
-        guard let horizontal else { return }
+        guard let coordinateSpace else { return }
         for point in points {
-            guard point.coordinateOffset.format == horizontal.format else {
+            guard point.coordinateOffset.format == coordinateSpace.format else {
                 throw .mixedCoordinateFormats
             }
             do {
-                _ = try horizontal.coordinate(for: point.coordinateOffset)
+                _ = try coordinateSpace.coordinate(for: point.coordinateOffset)
             } catch {
                 throw .invalidCoordinate
             }
@@ -345,9 +345,9 @@ struct LocationRecording: Equatable, Sendable {
 
     /// Origin editing changes no point offsets or event ordering.
     func relocated(to origin: LocationCoordinate) throws(LocationRecordingError) -> Self {
-        guard let horizontal else { throw .missingCoordinateOrigin }
+        guard let coordinateSpace else { throw .missingCoordinateOrigin }
         return try Self(
-            horizontal: horizontal.relocated(to: origin),
+            coordinateSpace: coordinateSpace.relocated(to: origin),
             altitudeOrigin: altitudeOrigin,
             initial: initial, sessions: sessions, access: access)
     }
@@ -360,7 +360,7 @@ struct LocationRecording: Equatable, Sendable {
         deliveryMilliseconds: Int64) throws(LocationRecordingError) -> LocationMeasurement
     {
         try point.measurement(
-            horizontal: horizontal, altitudeOrigin: altitudeOrigin,
+            coordinateSpace: coordinateSpace, altitudeOrigin: altitudeOrigin,
             timestampOrigin: timestampOrigin, deliveryMilliseconds: deliveryMilliseconds)
     }
 }

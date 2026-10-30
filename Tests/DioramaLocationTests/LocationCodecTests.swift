@@ -52,7 +52,7 @@ struct LocationCodecTests {
         #expect(bytes == expected)
         let read = try decoded(bytes)
         #expect(read == recording)
-        let space = try #require(read.horizontal)
+        let space = try #require(read.coordinateSpace)
         let session = try #require(read.sessions.first)
         #expect(session.timestampOrigin?.value.text == "2030-01-01T00:00:00.000Z")
         guard case let .batch(firstDelay, firstLocations) = session.events[0],
@@ -94,7 +94,7 @@ struct LocationCodecTests {
         let expected = try fixture("degrees")
         #expect(bytes == expected)
         let read = try decoded(bytes)
-        let space = try #require(read.horizontal)
+        let space = try #require(read.coordinateSpace)
         #expect(space.format == .degrees)
         let initial = try #require(read.initial)
         let reflected = try space.coordinate(for: initial.location.coordinateOffset)
@@ -110,7 +110,7 @@ struct LocationCodecTests {
         let expected = try fixture("access-only")
         #expect(bytes == expected)
         let read = try decoded(bytes)
-        #expect(read.horizontal == nil)
+        #expect(read.coordinateSpace == nil)
         #expect(read.access.initialNotifications[0].state.permission == .whenInUse)
         let native = try LocationAccessState(
             servicesEnabled: true,
@@ -141,14 +141,14 @@ struct LocationCodecTests {
         let relocated = try original.relocated(to: origin)
         let after = try encoded(relocated)
         let read = try decoded(after)
-        #expect(read.horizontal?.origin == .override(origin))
+        #expect(read.coordinateSpace?.origin == .override(origin))
         #expect(read.sessions == original.sessions)
         #expect(read.initial == original.initial)
         let relocatedText = try utf8(after)
         #expect(!relocatedText.contains("151.2093"))
         #expect(before != after)
         let offset = try #require(read.initial?.location.coordinateOffset)
-        #expect(try read.horizontal?.coordinate(for: offset) == origin)
+        #expect(try read.coordinateSpace?.coordinate(for: offset) == origin)
     }
 
     @Test
@@ -159,7 +159,7 @@ struct LocationCodecTests {
         let read = try decoded(encoded(relocated))
         #expect(read.initial?.location.coordinateOffset == original.initial?.location.coordinateOffset)
         let offset = try #require(read.initial?.location.coordinateOffset)
-        let space = try #require(read.horizontal)
+        let space = try #require(read.coordinateSpace)
         let coordinate = try space.coordinate(for: offset)
         #expect(coordinate.latitudeDegrees == -60)
         #expect(coordinate.longitudeDegrees == 179.9)
@@ -200,7 +200,7 @@ struct LocationCodecTests {
     @Test
     func `strict model rejects mixed offsets and absent vertical origins`() throws {
         let regional = try LocationSamples.meters()
-        let space = try #require(regional.horizontal)
+        let space = try #require(regional.coordinateSpace)
         let global = try #require(LocationRecordedLocation(
             latencyMilliseconds: 0, coordinateOffset: .degrees(latitudeDegrees: 0, longitudeDegrees: 0),
             horizontalAccuracyMeters: 1))
@@ -209,15 +209,15 @@ struct LocationCodecTests {
             timestampOrigin: initialOrigin,
             location: global)
         #expect(throws: LocationRecordingError.mixedCoordinateFormats) {
-            try LocationRecording(horizontal: space, initial: initial,
+            try LocationRecording(coordinateSpace: space, initial: initial,
                                   sessions: [], access: regional.access)
         }
         #expect(throws: LocationRecordingError.missingVerticalOrigins) {
-            try LocationRecording(horizontal: space, initial: regional.initial,
+            try LocationRecording(coordinateSpace: space, initial: regional.initial,
                                   sessions: regional.sessions, access: regional.access)
         }
         #expect(throws: LocationRecordingError.unusedCoordinateOrigin) {
-            try LocationRecording(horizontal: space, sessions: [], access: regional.access)
+            try LocationRecording(coordinateSpace: space, sessions: [], access: regional.access)
         }
         let overflowingHeight = try #require(LocationRecordedLocation(
             latencyMilliseconds: 0, coordinateOffset: .meters(eastMeters: 0, northMeters: 0),
@@ -226,7 +226,7 @@ struct LocationCodecTests {
                 meters: 1e308, ellipsoidalMeters: 1e308, accuracyMeters: 1)))
         #expect(throws: LocationRecordingError.invalidMeasurement(position: 0)) {
             try LocationRecording(
-                horizontal: space,
+                coordinateSpace: space,
                 altitudeOrigin: LocationAltitudeOrigin(meters: .observed(1e308), ellipsoidalMeters: .observed(1e308)),
                 initial: .init(timestampOrigin: initialOrigin, location: overflowingHeight),
                 sessions: [], access: regional.access)
@@ -420,7 +420,7 @@ struct LocationCodecTests {
             .batch(delayMilliseconds: 10, locations: [location]),
         ])
         let fresh = try LocationRecording(
-            horizontal: .init(format: .meters, origin: .observed(coordinateOrigin)),
+            coordinateSpace: .init(format: .meters, origin: .observed(coordinateOrigin)),
             altitudeOrigin: altitudeOrigin, sessions: [session], access: LocationSamples.access())
         let delivered = try fresh.measurement(for: location, timestampOrigin: timeOrigin, deliveryMilliseconds: 10)
         #expect(delivered.vertical?.orthometricAltitudeMeters == 101.002)
@@ -538,7 +538,7 @@ private enum LocationSamples {
     }
 
     static func accessOnly() throws -> LocationRecording {
-        try LocationRecording(horizontal: nil, sessions: [], access: access())
+        try LocationRecording(coordinateSpace: nil, sessions: [], access: access())
     }
 
     static func meters() throws -> LocationRecording {
@@ -571,7 +571,7 @@ private enum LocationSamples {
                 .batch(delayMilliseconds: 2, locations: [atDestination]),
             ])
         return try LocationRecording(
-            horizontal: space,
+            coordinateSpace: space,
             altitudeOrigin: LocationAltitudeOrigin(meters: .observed(100), ellipsoidalMeters: .observed(110)),
             initial: .init(
                 timestampOrigin: #require(TimestampOrigin("2030-01-01T00:00:00.000Z")),
@@ -585,7 +585,7 @@ private enum LocationSamples {
             latencyMilliseconds: 0,
             coordinateOffset: .degrees(latitudeDegrees: 20, longitudeDegrees: 0), horizontalAccuracyMeters: 5))
         return try LocationRecording(
-            horizontal: .init(format: .degrees, origin: .observed(origin)),
+            coordinateSpace: .init(format: .degrees, origin: .observed(origin)),
             initial: .init(timestampOrigin: #require(TimestampOrigin("2030-01-01T00:00:00.000Z")),
                            location: point),
             sessions: [], access: access())

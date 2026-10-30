@@ -5,15 +5,15 @@ extension LocationRecordedLocation {
     /// Shared normalized materialization for fresh recording observations and replay.
     /// Record adapters use a fresh observed recording here, before authored override merge.
     func measurement(
-        horizontal: LocationHorizontalSpace?,
+        coordinateSpace: LocationHorizontalSpace?,
         altitudeOrigin: LocationAltitudeOrigin?,
         timestampOrigin: TimestampOrigin,
         deliveryMilliseconds: Int64) throws(LocationRecordingError) -> LocationMeasurement
     {
         guard let timestamp = timestamp(relativeTo: timestampOrigin, deliveryMilliseconds: deliveryMilliseconds)
         else { throw .invalidMeasurement(position: 0) }
-        guard let horizontal,
-              let coordinate = try? horizontal.coordinate(for: coordinateOffset)
+        guard let coordinateSpace,
+              let coordinate = try? coordinateSpace.coordinate(for: coordinateOffset)
         else { throw .invalidCoordinate }
         let vertical: LocationVerticalEstimate?
         if let offset = altitudeOffset {

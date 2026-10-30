@@ -66,7 +66,7 @@ final class LocationUpdateReplay {
             currentLocation = try LocationNativeMaterializer(
                 fidelity: fidelity, reporter: reporter, context: context)
                 .materialize(initial.location.measurement(
-                    horizontal: header.horizontal, altitudeOrigin: header.altitudeOrigin,
+                    coordinateSpace: header.coordinateSpace, altitudeOrigin: header.altitudeOrigin,
                     timestampOrigin: initial.timestampOrigin, deliveryMilliseconds: 0))
         }
     }
@@ -170,7 +170,7 @@ final class LocationUpdateReplay {
                         throw LocationRecordingError.invalidMeasurement(position: index)
                     }
                     return try materializer.materialize(point.measurement(
-                        horizontal: runtime.header.horizontal, altitudeOrigin: runtime.header.altitudeOrigin,
+                        coordinateSpace: runtime.header.coordinateSpace, altitudeOrigin: runtime.header.altitudeOrigin,
                         timestampOrigin: origin, deliveryMilliseconds: cumulativeMilliseconds))
                 }
                 if let last = values.last {

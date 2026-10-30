@@ -46,7 +46,7 @@ private struct LocationAccessReplayDefinition: SystemDefinition {
         self.control = control
         sessions = try TrackDefinition(
             "sessions", header: ValuePreparation().admitPrepared(LocationTracks.SessionHeader(
-                horizontal: nil, altitudeOrigin: nil, initial: nil)))
+                coordinateSpace: nil, altitudeOrigin: nil, initial: nil)))
         let segments: [LocationTracks.AccessSegment] = [.initial(recording.initialNotifications)]
             + recording.requests.map(LocationTracks.AccessSegment.request)
         access = try TrackDefinition(
