@@ -31,7 +31,7 @@ final class LocationAccessReplayJournal {
 }
 
 private final class LocationAccessReplayControl: Sendable {
-    let value = Mutex<SystemExecution<LocationAccessReplayState>?>(nil)
+    let value = Mutex<SystemExecution<LocationReplayState>?>(nil)
 }
 
 private enum LocationAccessReplayFixtureError: Error { case unexpectedLiveMode }
@@ -74,10 +74,10 @@ private struct LocationAccessReplayDefinition: SystemDefinition {
         record
     }
 
-    var replay: SystemModeDefinition<LocationAccessReplayState, LocationAccessReplay> {
+    var replay: SystemModeDefinition<LocationReplayState, LocationAccessReplay> {
         .init(makeState: { context in
-            try LocationAccessReplayState(
-                access: context.lease(for: access), initialState: context.track(access).header)
+            try LocationReplayState(
+                sessions: context.lease(for: sessions), access: context.lease(for: access))
         }, makeDependency: { @MainActor execution in
             control.value.withLock { $0 = execution }
             return try LocationAccessReplay(execution: execution)
@@ -90,7 +90,7 @@ private struct LocationAccessReplayDefinition: SystemDefinition {
 struct LocationAccessReplayFixtures {
     let execution: ScenarioExecution
     let access: [LocationAccessReplay]
-    let controls: [SystemExecution<LocationAccessReplayState>]
+    let controls: [SystemExecution<LocationReplayState>]
     let clock: LocationReplayClock
 
     static let initial = LocationRecordedAccessState(
@@ -107,7 +107,7 @@ struct LocationAccessReplayFixtures {
                       executionClock: ExecutionClock? = nil) async throws -> Self
     {
         var systems: [ScenarioSystem<LocationAccessReplay>] = []
-        var controls: [SystemExecution<LocationAccessReplayState>] = []
+        var controls: [SystemExecution<LocationReplayState>] = []
         var slots: [LocationAccessReplayControl] = []
         for (index, recording) in recordings.enumerated() {
             let slot = LocationAccessReplayControl()

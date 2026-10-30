@@ -1,11 +1,5 @@
 import DioramaCore
 
-/// Prepared access content and claims owned by Core for one attachment.
-struct LocationAccessReplayState: Sendable {
-    let access: SequentialTrackLease<LocationTracks.AccessSegment, LocationRecordedAccessState>
-    let initialState: LocationRecordedAccessState
-}
-
 /// Ordered access notifications and request barriers. G07 supplies delegate delivery.
 @MainActor
 final class LocationAccessReplay {
@@ -36,7 +30,7 @@ final class LocationAccessReplay {
     }
 
     private struct Runtime {
-        let execution: SystemExecution<LocationAccessReplayState>
+        let execution: SystemExecution<LocationReplayState>
         var phase: Phase = .unobserved
         var pending: ScheduledItemHandle?
     }
@@ -69,9 +63,9 @@ final class LocationAccessReplay {
         runtime == nil
     }
 
-    init(execution: SystemExecution<LocationAccessReplayState>) throws {
-        let (initial, trackID) = try execution.state.withLock { state, _ in
-            (state.initialState, state.access.id)
+    init(execution: SystemExecution<LocationReplayState>) throws {
+        let (initial, trackID) = try execution.state.withLock { state, operation in
+            try (operation.replayHeader(on: state.access), state.access.id)
         }
         currentState = LocationAccessState(initial)
         runtime = Runtime(execution: execution)

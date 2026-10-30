@@ -95,7 +95,7 @@ final class LocationReplayJournal {
 }
 
 private final class LocationReplayControl: Sendable {
-    let value = Mutex<SystemExecution<LocationUpdateReplayState>?>(nil)
+    let value = Mutex<SystemExecution<LocationReplayState>?>(nil)
 }
 
 private enum LocationReplayFixtureError: Error { case unexpectedMode }
@@ -147,10 +147,10 @@ private struct LocationReplayDefinition: SystemDefinition {
         record
     }
 
-    var replay: SystemModeDefinition<LocationUpdateReplayState, LocationUpdateReplay> {
+    var replay: SystemModeDefinition<LocationReplayState, LocationUpdateReplay> {
         .init(makeState: { context in
-            try LocationUpdateReplayState(
-                sessions: context.lease(for: sessions), header: context.track(sessions).header)
+            try LocationReplayState(
+                sessions: context.lease(for: sessions), access: context.lease(for: access))
         }, makeDependency: { @MainActor execution in
             control.value.withLock { $0 = execution }
             return try LocationUpdateReplay(execution: execution, fidelity: fidelity)
@@ -163,7 +163,7 @@ private struct LocationReplayDefinition: SystemDefinition {
 struct LocationUpdateReplayFixtures {
     let execution: ScenarioExecution
     let updates: [LocationUpdateReplay]
-    let controls: [SystemExecution<LocationUpdateReplayState>]
+    let controls: [SystemExecution<LocationReplayState>]
     let clock: LocationReplayClock
 
     static let timestampOrigin = TimestampOrigin(date: Date(timeIntervalSince1970: 1_700_000_000), offsetMinutes: 0)!
@@ -173,7 +173,7 @@ struct LocationUpdateReplayFixtures {
                       clock: LocationReplayClock = .init(), executionClock: ExecutionClock? = nil) async throws -> Self
     {
         var systems: [ScenarioSystem<LocationUpdateReplay>] = []
-        var controls: [SystemExecution<LocationUpdateReplayState>] = []
+        var controls: [SystemExecution<LocationReplayState>] = []
         var slots: [LocationReplayControl] = []
         for (index, recording) in recordings.enumerated() {
             let slot = LocationReplayControl()

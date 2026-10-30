@@ -2,12 +2,6 @@ import CoreLocation
 import DioramaCore
 import Foundation
 
-/// Core-owned stable content and claims; actor-bound delivery stays outside locks.
-struct LocationUpdateReplayState: Sendable {
-    let sessions: SequentialTrackLease<LocationSession, LocationTracks.SessionHeader>
-    let header: LocationTracks.SessionHeader
-}
-
 /// One attachment's update replay. G07 connects this directly to its weak delegate.
 /// The scheduler owns every delivery scope; no sequence or unstructured task is used.
 @MainActor
@@ -26,7 +20,7 @@ final class LocationUpdateReplay {
     }
 
     private struct Runtime {
-        let execution: SystemExecution<LocationUpdateReplayState>
+        let execution: SystemExecution<LocationReplayState>
         let header: LocationTracks.SessionHeader
         var phase: Phase = .inactive
         var pending: ScheduledItemHandle?
@@ -54,9 +48,9 @@ final class LocationUpdateReplay {
         runtime == nil
     }
 
-    init(execution: SystemExecution<LocationUpdateReplayState>, fidelity: LocationFidelityOptions = .init()) throws {
-        let (header, attachmentID) = try execution.state.withLock { state, _ in
-            (state.header, state.sessions.id.attachmentID)
+    init(execution: SystemExecution<LocationReplayState>, fidelity: LocationFidelityOptions = .init()) throws {
+        let (header, attachmentID) = try execution.state.withLock { state, operation in
+            try (operation.replayHeader(on: state.sessions), state.sessions.id.attachmentID)
         }
         runtime = Runtime(execution: execution, header: header)
         self.fidelity = fidelity
