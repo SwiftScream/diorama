@@ -1,7 +1,7 @@
 # Quality gates and CI policy
 
 - Status: Accepted
-- Last updated: 2026-10-16
+- Last updated: 2026-10-30
 - Reference project: [SwiftScream/URITemplate](https://github.com/SwiftScream/URITemplate)
 
 ## Purpose
@@ -70,6 +70,12 @@ scripts/lint         # non-mutating SwiftFormat and strict SwiftLint checks
 scripts/test         # tests on the current host
 scripts/check        # non-mutating local quality, build, and test gate
 ```
+
+For review fixups, run focused tests and the applicable macOS gate locally.
+The full macOS, iOS, and Linux matrix runs in CI when the branch is pushed;
+additional local platform checks require an explicit owner request. This
+review policy does not weaken required PR checks or initial implementation
+verification gates.
 
 `scripts/test` also runs the coverage-export fixture and public system-authoring
 compiler probes. The latter compile one external `SystemDefinition` and require

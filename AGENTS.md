@@ -191,6 +191,10 @@ depends on them.
 Run all checks required by the active plan item. If an environment prevents a
 check, report that fact precisely rather than claiming verification.
 
+For review fixups, run focused tests and the applicable macOS gate locally.
+Leave the full macOS, iOS, and Linux matrix to CI when the branch is pushed,
+unless the owner explicitly requests additional local platform checks.
+
 ## Engineering rules
 
 - Prefer small explicit types and existing accepted extension boundaries over
