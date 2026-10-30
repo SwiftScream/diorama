@@ -2572,6 +2572,13 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G06 — Location origin policy and re-record replacement
 
+- Status: Complete. Implementation and canonical host verification finish on
+  2026-10-30; macOS coverage passes. The owner completes review and authorizes
+  PR creation into `master` on 2026-10-31. The local iOS release build passes,
+  but test startup stalls; the local Linux attempt is interrupted during
+  platform-run diagnosis. Neither establishes a completed platform test result.
+  Required PR checks enforce the full platform and coverage matrix before merge.
+- Evidence: [Location origin policy and re-record replacement](../evidence/003-G06-location-origin-merge.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Origin precedence and surviving-session overrides must preserve fresh derivation while excluding raw sensitive values.
 - Prerequisites: 003-G03–003-G05, including 003-G03A, 003-Ra3, 003-F05, 003-C05; DD09, DD16.
 - Scope: Add preparation and merge for coordinate/measurement origins while replacing other location behavior wholesale on re-record.
@@ -2585,6 +2592,8 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Tests/verification: V-code; relocation/retiming, independent vertical origins, disappearing sessions/locations, access-only replacement, changed defaults, transient raw origins absent from candidate/resources/diagnostics, override-only canonical writing, non-origin manual edits replaced as documented.
 - Exclusions: Whole-event/track overrides, heuristic event correspondence, claims that relocation removes all sensitive route information.
 - Checkpoint: R; review precedence, deletion behavior, and safe prepared output.
+  Owner review is complete and PR creation is authorized. Merge requires passing
+  required CI and a separate explicit request. The owner moves on to G07 review.
 
 ### 003-G07 — Main-actor manager/delegate facade over location replay
 

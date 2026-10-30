@@ -321,6 +321,9 @@ test-integration design. They do not authorize those APIs.
 - [Location access replay evidence](evidence/003-G05-location-access-replay.md)
   records native access presentation, ordered request barriers, notification
   timing, claim accounting, and callback shutdown.
+- [Location origin and re-record evidence](evidence/003-G06-location-origin-merge.md)
+  records setup-default preparation, origin-only override retention, complete
+  replacement, privacy, and healthy or refused file publication.
 - [Native Location materialization evidence](evidence/003-G03B-native-location-materialization.md)
   records fidelity options, native reconstruction, copy/archive behavior,
   safe diagnostic ownership, and Apple verification.

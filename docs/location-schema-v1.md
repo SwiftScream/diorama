@@ -162,3 +162,39 @@ radius, invalid origin combinations, and bounded-error violations. Decoded
 content becomes one strict runtime interpretation before Core admits its
 session and access tracks. Later schema changes require an explicit reader;
 the general [persistence policy](persistence-schema-v1.md) applies.
+
+## Origin preparation and re-recording
+
+Capture derives coordinate and altitude offsets against fresh normalized
+observed origins, and signed timestamp latencies against the fresh session or
+initial-snapshot reference. Setup defaults then replace the corresponding
+origins before prepared admission and consumer materialization. Coordinate,
+orthometric altitude, ellipsoidal altitude, and timestamp defaults are
+independent. Defaults persist as ordinary observed values, so a later recording
+can change or remove them. An absent measurement never acquires an origin
+merely because a default exists. Loading does not reapply setup defaults.
+
+At record-mode finalization, an authored baseline coordinate origin wins over
+the current default or observation. Each authored altitude component wins
+independently. A session timestamp-origin override survives only at the same
+sequential session position, and only when that fresh session still contains
+locations. No event correspondence or route matching occurs. Missing sessions,
+missing altitude, and missing locations drop their obsolete origins. An initial
+snapshot has an ordinary timestamp origin; its location and timestamp are
+replaced with the fresh snapshot.
+
+Everything else is fresh replacement: coordinate format, offsets, latencies,
+delays, batches, failures, floors, other measurements, initial state, access
+notifications, and request barriers. Manual edits to those fields affect replay
+but do not survive re-recording. Origin merge retains the fresh offsets and
+latencies exactly and validates the combined spatial values and timestamps.
+An invalid combination blocks publication and preserves the previous file.
+
+Baseline overrides never enter record-mode consumer values or current state.
+Only the publication candidate and later replay see them. Replaced raw origins
+are absent from the candidate, resources, and diagnostics; canonical writing
+retains only effective values and their override markers. The
+[re-recording golden](../Tests/DioramaLocationTests/Fixtures/origin-rerecorded.json)
+fixes that output, and [G06 evidence](evidence/003-G06-location-origin-merge.md)
+records the preparation, deletion, and publication proofs. Native adapter
+construction and forwarding remain separate work.
