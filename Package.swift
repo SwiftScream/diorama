@@ -17,7 +17,7 @@ let strictConcurrencySettings: [SwiftSetting] = [
             swiftSettings: strictConcurrencySettings),
         .testTarget(
             name: "DioramaLocationTests",
-            dependencies: ["DioramaLocation", "DioramaCore", "DioramaPersistence"],
+            dependencies: ["Diorama", "DioramaLocation", "DioramaCore", "DioramaPersistence"],
             resources: [.copy("Fixtures")],
             swiftSettings: strictConcurrencySettings),
     ]

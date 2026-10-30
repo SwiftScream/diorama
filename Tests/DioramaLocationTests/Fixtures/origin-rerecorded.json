@@ -1,0 +1,131 @@
+{
+  "diorama" : {
+    "schemaVersion" : 1
+  },
+  "systems" : [
+    {
+      "attachmentKey" : "gps",
+      "payload" : {
+        "access" : {
+          "initialNotifications" : [
+            {
+              "delay" : "7ms",
+              "state" : {
+                "accuracy" : "reduced",
+                "permission" : "notDetermined",
+                "servicesEnabled" : false
+              }
+            }
+          ],
+          "initialState" : {
+            "accuracy" : "full",
+            "permission" : "notDetermined",
+            "servicesEnabled" : true
+          },
+          "requests" : [
+            {
+              "notifications" : [
+
+              ],
+              "request" : "always"
+            }
+          ]
+        },
+        "altitudeOrigin" : {
+          "ellipsoidalMeters" : {
+            "override" : 20
+          },
+          "meters" : {
+            "override" : 10
+          }
+        },
+        "coordinateFormat" : "degrees",
+        "coordinateOrigin" : {
+          "override" : {
+            "latitudeDegrees" : 50,
+            "longitudeDegrees" : 10
+          }
+        },
+        "initial" : {
+          "location" : {
+            "altitudeOffset" : {
+              "ellipsoidalMeters" : 3.445,
+              "meters" : 2.333
+            },
+            "coordinateOffset" : {
+              "latitudeDegrees" : 0.001,
+              "longitudeDegrees" : 0.002
+            },
+            "floor" : {
+              "level" : 3
+            },
+            "horizontalAccuracyMeters" : 3.123,
+            "latency" : "1250ms",
+            "speed" : {
+              "accuracyMetersPerSecond" : 0.2,
+              "metersPerSecond" : 4.321
+            },
+            "verticalAccuracyMeters" : 0.9
+          },
+          "timestampOrigin" : "2020-01-01T00:00:00.000+02:00"
+        },
+        "sessions" : [
+          {
+            "conclusion" : "openAtRecordingHorizon",
+            "events" : [
+              {
+                "delay" : "250ms",
+                "kind" : "batch",
+                "locations" : [
+                  {
+                    "altitudeOffset" : {
+                      "ellipsoidalMeters" : 3.445,
+                      "meters" : 2.333
+                    },
+                    "coordinateOffset" : {
+                      "latitudeDegrees" : 0.001,
+                      "longitudeDegrees" : 0.002
+                    },
+                    "floor" : {
+                      "level" : 3
+                    },
+                    "horizontalAccuracyMeters" : 3.123,
+                    "latency" : "1250ms",
+                    "speed" : {
+                      "accuracyMetersPerSecond" : 0.2,
+                      "metersPerSecond" : 4.321
+                    },
+                    "verticalAccuracyMeters" : 0.9
+                  }
+                ]
+              },
+              {
+                "delay" : "12ms",
+                "error" : {
+                  "code" : 1,
+                  "domain" : "safe.location",
+                  "userInfo" : {
+
+                  }
+                },
+                "kind" : "failure"
+              },
+              {
+                "delay" : "3ms",
+                "kind" : "batch",
+                "locations" : [
+
+                ]
+              }
+            ],
+            "timestampOrigin" : {
+              "override" : "2010-06-01T00:00:00.000-03:00"
+            }
+          }
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.location"
+    }
+  ]
+}
