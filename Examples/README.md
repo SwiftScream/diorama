@@ -91,3 +91,16 @@ Migration: use `result.report.finalization` for the former consumer
 `result.finalization`, `report.finalization.report.diagnostics` for formerly
 flat diagnostics, and `report.publication` for formerly flat publication fields.
 Core's lower-level `ScenarioFinalizationResult` accessors remain available.
+
+## Location manager migration
+
+On Apple platforms, `swift build --package-path Examples` also compiles
+[LocationConsumer](Sources/LocationMigration/LocationConsumer.swift). It shows
+application code receiving a `DioramaLocationManager`, keeping its delegate alive,
+configuring standard updates, and handling native locations and nonterminal errors.
+The delegate uses native `CLLocation` and reads already installed current state.
+
+G07 supplies the manager/delegate surface over controlled replay. The example
+accepts an injected manager; native manager construction and the live attachment
+integration belong to G08. It does not create a live Core Location manager.
+The compile-only migration target is absent from the Linux example graph.

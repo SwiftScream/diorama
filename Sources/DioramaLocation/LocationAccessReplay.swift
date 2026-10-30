@@ -60,7 +60,7 @@ final class LocationAccessReplay {
     private(set) var currentState: LocationAccessState
 
     var isClosed: Bool {
-        runtime == nil
+        runtime?.execution.isClosed ?? true
     }
 
     init(execution: SystemExecution<LocationReplayState>) throws {

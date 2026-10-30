@@ -2,6 +2,21 @@
 
 import PackageDescription
 
+#if canImport(CoreLocation)
+    let locationTargets: [Target] = [
+        .target(
+            name: "LocationMigration",
+            dependencies: [.product(name: "DioramaLocation", package: "Diorama")],
+            swiftSettings: [
+                .defaultIsolation(nil),
+                .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+                .enableUpcomingFeature("InferIsolatedConformances"),
+            ]),
+    ]
+#else
+    let locationTargets: [Target] = []
+#endif
+
 let package = Package(
     name: "DioramaExamples",
     platforms: [
@@ -34,5 +49,5 @@ let package = Package(
                 .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
                 .enableUpcomingFeature("InferIsolatedConformances"),
             ]),
-    ],
+    ] + locationTargets,
     swiftLanguageModes: [.v6])

@@ -45,7 +45,7 @@ final class LocationUpdateReplay {
     }
 
     var isClosed: Bool {
-        runtime == nil
+        runtime?.execution.isClosed ?? true
     }
 
     init(execution: SystemExecution<LocationReplayState>, fidelity: LocationFidelityOptions = .init()) throws {
