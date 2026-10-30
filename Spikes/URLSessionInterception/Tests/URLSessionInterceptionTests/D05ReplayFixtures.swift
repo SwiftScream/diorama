@@ -1,8 +1,8 @@
 import Foundation
+import Synchronization
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
 
 /// A test-controlled synchronous consumer callback. The test always releases it
 /// in cleanup; waiting for it is not a production timeout or quiescence test.
@@ -183,7 +183,7 @@ final class D05NativeObserver: NSObject, URLSessionDataDelegate {
         pending?()
     }
 
-    func complete(data: Data?, error: (any Error)?) {
+    func complete(data: Data?, error: any Error?) {
         events.withLock {
             if let data {
                 $0.body = data
@@ -194,12 +194,12 @@ final class D05NativeObserver: NSObject, URLSessionDataDelegate {
         event("completion")
     }
 
-    func urlSession(_: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_: URLSession, task: URLSessionTask, didCompleteWithError error: any Error?) {
         liveOperations.withLock { $0[ObjectIdentifier(task)] }?.finish()
         complete(data: nil, error: error)
     }
 
-    func urlSession(_: URLSession, didBecomeInvalidWithError _: (any Error)?) {
+    func urlSession(_: URLSession, didBecomeInvalidWithError _: any Error?) {
         event("invalidation")
         events.withLock { $0.invalidated = true }
     }

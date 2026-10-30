@@ -2,6 +2,9 @@
 --language-mode 6
 --exclude .build,.swiftpm
 
+# Preserve separate validation steps even when their failure bodies match.
+--disable repeatedGuard
+
 # Retain the reviewed baseline's compact closing delimiters and range operators.
 --closing-paren same-line
 --no-space-operators ..<,...

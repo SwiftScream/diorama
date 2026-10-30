@@ -1,9 +1,9 @@
 import Foundation
+import Synchronization
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
-import Testing
 
 @Suite(.serialized)
 struct D05ReplayTests {
@@ -152,9 +152,9 @@ private let d05DecisionPhases: [String] = {
     #if canImport(FoundationNetworking)
         // FN-11 traps and FN-15 can start live HTTP. Restore only on a patched
         // runtime; the ordinary Linux response-decision cancellation still runs.
-        return ProcessInfo.processInfo.environment["DIORAMA_VERIFY_FOUNDATION_FIXES"] == "1" ?
+        ProcessInfo.processInfo.environment["DIORAMA_VERIFY_FOUNDATION_FIXES"] == "1" ?
             ["response", "redirect", "challenge"] : ["response"]
     #else
-        return ["response", "redirect", "challenge"]
+        ["response", "redirect", "challenge"]
     #endif
 }()

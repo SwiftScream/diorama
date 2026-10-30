@@ -1,8 +1,8 @@
 import Foundation
+import Synchronization
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
 
 struct D03RedirectObservation: Sendable {
     var proposals: [URLRequest] = []
@@ -73,11 +73,11 @@ final class D03RedirectConsumer: NSObject, URLSessionDataDelegate {
         observation.withLock { $0.body.append(data) }
     }
 
-    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: any Error?) {
         complete(data: nil, response: nil, error: error)
     }
 
-    func complete(data: Data?, response: URLResponse?, error: (any Error)?) {
+    func complete(data: Data?, response: URLResponse?, error: any Error?) {
         observation.withLock {
             if let data {
                 $0.body = data
@@ -251,7 +251,7 @@ private func d03Emit(request: URLRequest, route: D03Route, operation: D03Operati
     }
 }
 
-func d03Session(delegate: (any URLSessionDelegate)? = nil, intercepted: Bool = false) -> URLSession {
+func d03Session(delegate: any URLSessionDelegate? = nil, intercepted: Bool = false) -> URLSession {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.urlCache = nil
     configuration.requestCachePolicy = .reloadIgnoringLocalCacheData

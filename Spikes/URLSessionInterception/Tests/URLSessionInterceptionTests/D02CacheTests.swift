@@ -1,9 +1,9 @@
 import Foundation
+import Synchronization
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
-import Testing
 
 private final class FreshProtocol: URLProtocol {
     static let starts = Mutex(0)

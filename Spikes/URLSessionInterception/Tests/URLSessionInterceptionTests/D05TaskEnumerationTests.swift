@@ -1,8 +1,8 @@
 import Foundation
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Testing
 
 extension D05ReplayTests {
     @Test(.enabled(if: d05AuditTaskEnumeration, "FN-19: enumeration can race native registry mutation"),

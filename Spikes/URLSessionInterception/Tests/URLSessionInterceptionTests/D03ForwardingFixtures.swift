@@ -1,8 +1,8 @@
 import Foundation
+import Synchronization
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
 
 private struct D03ForwardState: Sendable {
     var session: URLSession?
@@ -83,7 +83,7 @@ final class D03ForwardHop: NSObject, URLSessionDataDelegate {
         context.withLock { $0 }?.delivery.bytes(data)
     }
 
-    func urlSession(_ session: URLSession, task _: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_ session: URLSession, task _: URLSessionTask, didCompleteWithError error: any Error?) {
         state.withLock { $0.completed = true }
         let context = context.withLock { state in
             defer { state = nil }

@@ -1,8 +1,8 @@
 import Foundation
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Testing
 
 // FN-11: stock Linux traps in the native URLProtocolClient redirect callback.
 // Restore all assertions on a repaired runtime, or opt in to the crash probe.

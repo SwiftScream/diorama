@@ -43,7 +43,7 @@ final class D04DelegateProxy: NSObject, URLSessionDataDelegate {
         consumer.urlSession(session, dataTask: dataTask, didReceive: data)
     }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: any Error?) {
         consumer.urlSession(session, task: task, didCompleteWithError: error)
     }
 }

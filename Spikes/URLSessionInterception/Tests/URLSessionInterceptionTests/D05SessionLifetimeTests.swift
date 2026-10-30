@@ -1,14 +1,14 @@
 import Foundation
+import Synchronization
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
-import Testing
 
 final class D05LifetimeObserver: NSObject, URLSessionDelegate {
     let invalidations = Mutex(0)
 
-    func urlSession(_: URLSession, didBecomeInvalidWithError _: (any Error)?) {
+    func urlSession(_: URLSession, didBecomeInvalidWithError _: any Error?) {
         invalidations.withLock { $0 += 1 }
     }
 }

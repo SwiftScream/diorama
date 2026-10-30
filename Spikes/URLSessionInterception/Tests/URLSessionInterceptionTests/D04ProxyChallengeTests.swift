@@ -1,8 +1,8 @@
 import Foundation
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Testing
 
 extension D04ChallengeTests {
     @Test(arguments: ["Basic", "Digest"], d04CanBridgeChallenges ?

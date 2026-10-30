@@ -1,4 +1,6 @@
 import Foundation
+import Synchronization
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
@@ -7,8 +9,6 @@ import Foundation
 #else
     import Glibc
 #endif
-import Synchronization
-import Testing
 
 /// The test task alone accepts, reads, and writes this one loopback connection.
 /// Foundation runs its ordinary HTTP implementation; no URLProtocol is installed.
@@ -126,7 +126,7 @@ private final class NativeHTTPDelegate: NSObject, URLSessionDataDelegate {
         observation.withLock { $0.chunks.append(data) }
     }
 
-    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: any Error?) {
         observation.withLock {
             $0.errorDomain = (error as NSError?)?.domain
             $0.errorCode = (error as NSError?)?.code

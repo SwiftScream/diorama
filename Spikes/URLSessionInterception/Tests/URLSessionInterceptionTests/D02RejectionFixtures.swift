@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
@@ -7,7 +8,6 @@ import Foundation
 #else
     import Glibc
 #endif
-import Synchronization
 
 enum D02TaskKind: String, CaseIterable, Sendable {
     case data
@@ -106,7 +106,7 @@ final class D02TaskDelegate: NSObject, URLSessionTaskDelegate {
         }
     }
 
-    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: any Error?) {
         outcome.withLock {
             $0.completed = true
             $0.errorDomain = (error as NSError?)?.domain
@@ -115,7 +115,7 @@ final class D02TaskDelegate: NSObject, URLSessionTaskDelegate {
         }
     }
 
-    func completeOperation(error: (any Error)?) {
+    func completeOperation(error: any Error?) {
         outcome.withLock {
             $0.operationCompleted = true
             $0.operationErrorDomain = (error as NSError?)?.domain

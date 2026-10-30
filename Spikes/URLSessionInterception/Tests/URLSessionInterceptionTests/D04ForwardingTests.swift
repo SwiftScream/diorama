@@ -1,8 +1,8 @@
 import Foundation
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Testing
 
 extension D04ChallengeTests {
     @Test(.enabled(if: d04CanBridgeChallenges, "FN-15: custom authentication can escape to native HTTP"),

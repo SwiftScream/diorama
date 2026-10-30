@@ -1,8 +1,8 @@
 import Foundation
+import Synchronization
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
 
 private struct D05LiveContinuationState: Sendable {
     var tail: D05WeakObject<D05ForwardTail>?

@@ -1,9 +1,9 @@
 import Foundation
+import Synchronization
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
-import Testing
 
 private let ownershipURL = URL(string: "http://d01.invalid/bodyless-get")!
 private let ownershipRouteHeader = "X-Diorama-D01-Route"

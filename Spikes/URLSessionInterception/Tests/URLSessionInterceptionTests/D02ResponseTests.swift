@@ -1,9 +1,9 @@
 import Foundation
+import Synchronization
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
-import Testing
 
 private final class TwoChunkProtocol: URLProtocol {
     override static func canInit(with _: URLRequest) -> Bool {
@@ -63,7 +63,7 @@ private final class ResponseDelegate: NSObject, URLSessionDataDelegate {
         observation.withLock { $0.chunks.append(data) }
     }
 
-    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: any Error?) {
         observation.withLock {
             $0.errorDomain = (error as NSError?)?.domain
             $0.errorCode = (error as NSError?)?.code
@@ -71,7 +71,7 @@ private final class ResponseDelegate: NSObject, URLSessionDataDelegate {
         }
     }
 
-    func finish(data: Data?, response: URLResponse?, error: (any Error)?) {
+    func finish(data: Data?, response: URLResponse?, error: any Error?) {
         observation.withLock {
             $0.status = (response as? HTTPURLResponse)?.statusCode
             $0.header = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "X-D02")

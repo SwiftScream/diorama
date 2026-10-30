@@ -1,8 +1,8 @@
 import Foundation
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Testing
 
 extension D03RedirectTests {
     @Test(arguments: [301, 302, 303, 307, 308], ["automatic", "follow", "refuse", "modify", "modifyBody"])

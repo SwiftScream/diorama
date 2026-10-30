@@ -1,9 +1,9 @@
 import Foundation
+import Synchronization
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
-import Testing
 
 /// Uses its own protocol state, so it can run alongside the controlled suite.
 private final class TextProtocol: URLProtocol {

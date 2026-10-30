@@ -1,8 +1,8 @@
 import Foundation
+import Synchronization
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
 
 let d02DataPresentations = [
     "delegateURL", "delegateRequest", "completionURL", "completionRequest",
@@ -171,11 +171,11 @@ final class D02ControlledConsumer: NSObject, URLSessionDataDelegate {
         result.withLock { $0.chunks.append(data) }
     }
 
-    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: any Error?) {
         complete(data: nil, error: error)
     }
 
-    func complete(data: Data?, error: (any Error)?) {
+    func complete(data: Data?, error: any Error?) {
         result.withLock {
             if let data {
                 $0.chunks = [data]

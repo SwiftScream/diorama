@@ -255,7 +255,7 @@ struct AnyPreparedSystem: Sendable {
 
 struct AnyActivatedSystem: Sendable {
     let attachmentID: AttachmentID
-    let dependency: (any Sendable)?
+    let dependency: any Sendable?
     let deactivate: @Sendable () async throws -> Void
     var quiesce: @Sendable () async -> Void = {}
     var beginFinalization: @Sendable () async -> Void = {}

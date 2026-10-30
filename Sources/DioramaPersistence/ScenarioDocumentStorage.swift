@@ -21,12 +21,12 @@ public protocol ScenarioDocumentStorage: Sendable {
 /// Evidence of a completed storage commit, independent of cleanup success.
 public struct DocumentPublication: Sendable {
     /// Cleanup evidence after commit; never implies that publication was undone.
-    public let cleanupFailure: (any Error)?
+    public let cleanupFailure: any Error?
 
     /// Creates a receipt for an already completed commit.
     ///
     /// - Parameter cleanupFailure: Safe backend-owned cleanup evidence, if any.
-    public init(cleanupFailure: (any Error)? = nil) {
+    public init(cleanupFailure: any Error? = nil) {
         self.cleanupFailure = cleanupFailure
     }
 }

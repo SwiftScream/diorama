@@ -183,7 +183,7 @@ struct WallSourceTests {
             probe.makeSource()
         }
         let execution = try await start(system)
-        var wall: (any DioramaDateSource)? = try execution.dependency(system)
+        var wall: any DioramaDateSource? = try execution.dependency(system)
 
         #expect(wall?.now.timeIntervalSince1970.isInfinite == true)
         #expect(execution.reporter.report == nil)
@@ -205,7 +205,7 @@ struct WallSourceTests {
         let probe = WallSourceProbe(values: [date, later])
         let system = try DioramaDateSystem.instance(named: "closed") { probe.makeSource() }
         let execution = try await start(system)
-        var wall: (any DioramaDateSource)? = try execution.dependency(system)
+        var wall: any DioramaDateSource? = try execution.dependency(system)
         #expect(wall?.now == date)
         let final = await execution.finish()
         #expect(probe.releaseCount == 0)
@@ -284,7 +284,7 @@ extension WallSourceTests {
         let probe = WallSourceProbe(values: [Date(timeIntervalSince1970: 1), Date(timeIntervalSince1970: 2)])
         let system = try DioramaDateSystem.instance(named: "native-lifetime") { probe.makeSource() }
         let execution = try await start(system, mode: .passthrough)
-        var wall: (any DioramaDateSource)? = try execution.dependency(system)
+        var wall: any DioramaDateSource? = try execution.dependency(system)
         #expect(wall?.now == Date(timeIntervalSince1970: 1))
         let result = await execution.finish()
         #expect(probe.releaseCount == 0)

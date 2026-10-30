@@ -1,8 +1,8 @@
 import Foundation
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Testing
 
 private let controlledModes: [String] = {
     var modes = ["allow", "cancel", "pending", "taskCancel", "download"]

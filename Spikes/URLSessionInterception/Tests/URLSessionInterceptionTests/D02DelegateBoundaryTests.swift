@@ -1,9 +1,9 @@
 import Foundation
+import Synchronization
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
-import Testing
 
 #if canImport(Darwin)
     private typealias DelayedDecision = @Sendable (URLSession.DelayedRequestDisposition, URLRequest?) -> Void
@@ -53,7 +53,7 @@ import Testing
             consumer.urlSession(session, dataTask: dataTask, didReceive: data)
         }
 
-        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
+        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: any Error?) {
             consumer.urlSession(session, task: task, didCompleteWithError: error)
         }
     }

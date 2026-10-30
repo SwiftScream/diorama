@@ -1,8 +1,8 @@
 import Foundation
+import Synchronization
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
 
 final class D04ForwardHop: NSObject, URLSessionDataDelegate {
     private let queue = DispatchQueue(label: "D04ForwardHop")
@@ -73,7 +73,7 @@ final class D04ForwardHop: NSObject, URLSessionDataDelegate {
         delivery.bytes(data)
     }
 
-    func urlSession(_ session: URLSession, task _: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_ session: URLSession, task _: URLSessionTask, didCompleteWithError error: any Error?) {
         delivery.finish(error: error as NSError?)
         session.finishTasksAndInvalidate()
     }

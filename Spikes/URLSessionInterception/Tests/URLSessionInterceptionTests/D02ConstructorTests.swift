@@ -1,9 +1,9 @@
 import Foundation
+import Synchronization
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
-import Testing
 
 private struct ConstructorRequest: Sendable {
     let method: String?
@@ -81,7 +81,7 @@ private final class ConstructorDelegate: NSObject, URLSessionDataDelegate {
         }
     }
 
-    func urlSession(_: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_: URLSession, task: URLSessionTask, didCompleteWithError error: any Error?) {
         result.withLock {
             $0.status = (task.response as? HTTPURLResponse)?.statusCode
             $0.errorDomain = (error as NSError?)?.domain
@@ -89,7 +89,7 @@ private final class ConstructorDelegate: NSObject, URLSessionDataDelegate {
         }
     }
 
-    func finish(data: Data?, response: URLResponse?, error: (any Error)?) {
+    func finish(data: Data?, response: URLResponse?, error: any Error?) {
         result.withLock {
             $0.body = data ?? Data()
             $0.status = (response as? HTTPURLResponse)?.statusCode

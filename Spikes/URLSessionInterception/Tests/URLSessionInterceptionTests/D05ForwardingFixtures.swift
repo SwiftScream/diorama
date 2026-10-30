@@ -1,8 +1,8 @@
 import Foundation
+import Synchronization
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
 
 struct D05ForwardSetup: Sendable {
     let observation: D05ObservationGate
@@ -157,7 +157,7 @@ final class D05ForwardTail: NSObject, URLSessionDataDelegate {
         delivery.bytes(data)
     }
 
-    func urlSession(_ session: URLSession, task _: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_ session: URLSession, task _: URLSessionTask, didCompleteWithError error: any Error?) {
         state.withLock { $0.completed = true; $0.redirect = nil; $0.sender = nil }
         if operation.isCurrent(self) {
             setup.observation.observe("completion")
@@ -167,7 +167,7 @@ final class D05ForwardTail: NSObject, URLSessionDataDelegate {
         queue.async { session.finishTasksAndInvalidate() }
     }
 
-    func urlSession(_: URLSession, didBecomeInvalidWithError _: (any Error)?) {
+    func urlSession(_: URLSession, didBecomeInvalidWithError _: any Error?) {
         state.withLock {
             $0.session = nil
             $0.task = nil

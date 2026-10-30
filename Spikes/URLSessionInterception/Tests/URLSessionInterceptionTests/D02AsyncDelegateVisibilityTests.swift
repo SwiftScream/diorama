@@ -1,9 +1,9 @@
 import Foundation
+import Synchronization
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
-import Testing
 
 private struct DelegateVisibility: Sendable {
     var callbackGetter: String?
@@ -26,7 +26,7 @@ private final class IdentityDelegate: NSObject, URLSessionDataDelegate {
         completionHandler(.allow)
     }
 
-    func complete(data: Data?, error: (any Error)?) {
+    func complete(data: Data?, error: any Error?) {
         result.withLock {
             $0.data = data
             $0.errorDomain = (error as NSError?)?.domain

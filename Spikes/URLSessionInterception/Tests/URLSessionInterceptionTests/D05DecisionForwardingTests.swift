@@ -1,8 +1,8 @@
 import Foundation
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Testing
 
 extension D05ForwardingTests {
     @Test(.enabled(if: d05CanForwardDecisions, "FN-11/FN-15: custom redirects trap and challenge answers can escape"),

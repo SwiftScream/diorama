@@ -141,7 +141,7 @@ public final class ExecutionTime: Sendable {
     public func capture() throws(ExecutionTimeFailure) -> LogicalTimeCapture {
         switch read(reservingCapture: true) {
         case let .success(value):
-            return LogicalTimeCapture(owner: owner, order: value.order!, time: value.time)
+            LogicalTimeCapture(owner: owner, order: value.order!, time: value.time)
         case let .failure(issue): throw failure(issue)
         }
     }

@@ -132,9 +132,9 @@ struct LocationMeasurement: Equatable, Sendable {
         sourceInformation: LocationSourceInformation? = nil)
     {
         guard case let .accepted(vertical) = Self.nativeVertical(
-            orthometric: orthometricAltitudeMeters,
-            ellipsoidal: ellipsoidalAltitudeMeters,
-            accuracy: verticalAccuracyMeters),
+                  orthometric: orthometricAltitudeMeters,
+                  ellipsoidal: ellipsoidalAltitudeMeters,
+                  accuracy: verticalAccuracyMeters),
             case let .accepted(speed) = Self.nativeSpeed(
                 value: speedMetersPerSecond, accuracy: speedAccuracyMetersPerSecond),
             case let .accepted(course) = Self.nativeCourse(

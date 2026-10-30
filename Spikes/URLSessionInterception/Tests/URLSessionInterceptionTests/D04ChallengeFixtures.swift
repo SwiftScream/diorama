@@ -1,8 +1,8 @@
 import Foundation
+import Synchronization
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
 
 /// Only this explicitly selected metadata can enter evidence or diagnostics.
 /// Credentials remain transient native values; the fixture never describes them.
@@ -120,11 +120,11 @@ final class D04Consumer: NSObject, URLSessionDataDelegate {
         observation.withLock { $0.body.append(data) }
     }
 
-    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: any Error?) {
         complete(data: nil, response: nil, error: error)
     }
 
-    func complete(data: Data?, response: URLResponse?, error: (any Error)?) {
+    func complete(data: Data?, response: URLResponse?, error: any Error?) {
         observation.withLock {
             if let data {
                 $0.body = data

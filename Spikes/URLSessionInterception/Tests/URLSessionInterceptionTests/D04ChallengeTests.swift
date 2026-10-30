@@ -1,8 +1,8 @@
 import Foundation
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Testing
 
 var d04CanBridgeChallenges: Bool {
     #if canImport(FoundationNetworking)

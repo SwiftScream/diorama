@@ -1,9 +1,9 @@
 import Foundation
+import Synchronization
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
-import Testing
 
 private let routeHeader = "X-Diorama-D01-Route"
 private let forwardingProperty = "DioramaD01Forwarding"

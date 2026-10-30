@@ -36,13 +36,13 @@ public final class ScenarioSystemType: Sendable {
     public let id: SystemTypeID
 
     /// The type's optional persistence capability.
-    public let persistence: (any ScenarioSystemPersistence)?
+    public let persistence: any ScenarioSystemPersistence?
 
     /// Creates immutable system-wide metadata.
     /// - Parameters:
     ///   - id: Stable owner and semantic kind of the system.
     ///   - persistence: Optional versioned payload reader and writer.
-    public init(id: SystemTypeID, persistence: (any ScenarioSystemPersistence)? = nil) {
+    public init(id: SystemTypeID, persistence: any ScenarioSystemPersistence? = nil) {
         self.id = id
         self.persistence = persistence
     }
@@ -51,7 +51,7 @@ public final class ScenarioSystemType: Sendable {
     /// - Parameters:
     ///   - id: Stable string representation of the system identity.
     ///   - persistence: Optional versioned payload reader and writer.
-    public convenience init(_ id: String, persistence: (any ScenarioSystemPersistence)? = nil) {
+    public convenience init(_ id: String, persistence: any ScenarioSystemPersistence? = nil) {
         self.init(id: SystemTypeID(rawValue: id), persistence: persistence)
     }
 }

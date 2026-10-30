@@ -1,9 +1,9 @@
 import Foundation
+import Synchronization
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
-import Testing
 
 private struct CreationDiagnostic: Equatable, Sendable {
     let attachment: String
@@ -39,7 +39,7 @@ private final class DiagnosticDelegate: NSObject, URLSessionTaskDelegate {
         sink(diagnostic, task)
     }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: any Error?) {
         observer.urlSession(session, task: task, didCompleteWithError: error)
     }
 }

@@ -1,9 +1,9 @@
 import Foundation
+import Synchronization
+import Testing
 #if canImport(FoundationNetworking)
     import FoundationNetworking
 #endif
-import Synchronization
-import Testing
 
 private struct PreparedBody: Sendable {
     let data: Data?
@@ -127,7 +127,7 @@ private final class BodyForwardingDelegate: NSObject, URLSessionDataDelegate {
         delivery.bytes(data)
     }
 
-    func urlSession(_ session: URLSession, task _: URLSessionTask, didCompleteWithError error: (any Error)?) {
+    func urlSession(_ session: URLSession, task _: URLSessionTask, didCompleteWithError error: any Error?) {
         // Native completion can be in flight when the outer task finishes.
         // Record this before delivery so normal teardown does not recancel it.
         completed.withLock { $0 = true }
