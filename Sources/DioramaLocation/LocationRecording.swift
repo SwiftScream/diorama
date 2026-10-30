@@ -275,16 +275,23 @@ struct LocationRecording: Equatable, Sendable {
         sessions: [LocationSession],
         access: LocationAccessRecording) throws(LocationRecordingError)
     {
-        let points = Self.points(initial: initial, sessions: sessions)
-        try Self.validateOrigins(
-            points: points, coordinateSpace: coordinateSpace,
-            altitudeOrigin: altitudeOrigin)
-        try Self.validateCoordinates(points: points, coordinateSpace: coordinateSpace)
+        try Self.validateLocations(
+            coordinateSpace: coordinateSpace, altitudeOrigin: altitudeOrigin, initial: initial, sessions: sessions)
         self.coordinateSpace = coordinateSpace
         self.altitudeOrigin = altitudeOrigin
         self.initial = initial
         self.sessions = sessions
         self.access = access
+    }
+
+    /// Shared complete spatial validation for construction and the sessions-track merge.
+    static func validateLocations(
+        coordinateSpace: LocationCoordinateSpace?, altitudeOrigin: LocationAltitudeOrigin?,
+        initial: LocationInitialSnapshot?, sessions: [LocationSession]) throws(LocationRecordingError)
+    {
+        let points = points(initial: initial, sessions: sessions)
+        try validateOrigins(points: points, coordinateSpace: coordinateSpace, altitudeOrigin: altitudeOrigin)
+        try validateCoordinates(points: points, coordinateSpace: coordinateSpace)
     }
 
     private static func points(
