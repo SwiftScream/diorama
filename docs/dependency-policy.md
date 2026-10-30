@@ -1,7 +1,7 @@
 # Dependency approval policy
 
 - Status: Accepted
-- Last updated: 2026-09-07
+- Last updated: 2026-10-30
 
 ## Rule
 
@@ -29,9 +29,31 @@ An adoption record must identify:
 - relevant license, maintenance, toolchain, and platform constraints;
 - why the standard library or an already approved package is insufficient.
 
-Minor and patch upgrades within the approved major range do not require new
-owner approval. A new major version, an additional package product, a fork, or
-a different source repository does.
+An additional package product, a fork, or a different source repository requires
+separate adoption approval. Version updates follow the authorization rule below.
+
+## Update authorization
+
+Applying a dependency update requires an explicit owner instruction to update
+or owner approval of a proposed update. Checking for available updates or
+receiving an automated update proposal does not authorize applying it.
+
+An instruction to update authorizes selecting the latest stable release within
+the dependency's current major version, including minor-version updates of
+`0.x` packages. Such updates do not require another confirmation. For example,
+an instruction to update SwiftFormat authorizes moving from `0.63.0` to the
+latest stable `0.x` release.
+
+Before moving to a new major version, outline the version change, breaking
+changes, and expected migration work, then obtain explicit owner confirmation.
+An instruction that explicitly authorizes the target major version already
+satisfies this confirmation requirement; a general instruction to update does
+not. Moving from `0.x` to `1.x` is a major-version update.
+
+Updates retain the approved source repository, products, and purpose. Keep
+exact tool versions pinned, keep related bootstrap declarations consistent,
+and run the applicable validation and review gates. Update authorization does
+not grant permission to push, create a pull request, or merge.
 
 Dependabot should propose SwiftPM updates within these boundaries. Its pull
 requests receive the same CI and review as other changes and are not
@@ -92,11 +114,15 @@ development tools only and do not enter library targets or `Package.swift`.
 graphs, platform constraints, alternatives, and planned GitHub Actions pins, is in
 [003-A02 quality-tool adoption evidence](evidence/003-A02-quality-tool-adoptions.md).
 
+On 2026-10-30, the owner approves the update authorization rule above for Mint,
+SwiftFormat, and SwiftLint. It replaces their original update restrictions;
+the initial pins below remain historical adoption records.
+
 | Tool | Canonical source and product | Initial pin and approved update range | Purpose and ownership |
 | --- | --- | --- | --- |
-| Mint | `yonaskolb/Mint`; `mint` executable only | Exact bootstrap release `0.18.0` (`7bc67a0b925b949c8becc327bc08f56eeadc0051`); later releases require ordinary reviewed maintenance. | Resolves and runs exact development-tool executables from `Mintfile`; used only by local quality commands and CI bootstrap. |
-| SwiftFormat | `nicklockwood/SwiftFormat`; `swiftformat` executable only | Initial Mintfile pin `0.63.0` (`0256422f1a5e967c68dc923f1905c0a155dca188`); approved range `>= 0.63.0, < 0.64.0`. | Applies repository formatting locally and checks formatting without mutation in local/CI quality gates. |
-| SwiftLint | `realm/SwiftLint`; `swiftlint` executable only | Initial Mintfile pin `0.65.1` (`488642e6fc30e5ffc2b5eb24707bf1c7801f3f19`); approved range `>= 0.65.1, < 0.66.0`. | Runs strict style, documentation, and correctness checks in local/CI quality gates. |
+| Mint | `yonaskolb/Mint`; `mint` executable only | Initial bootstrap pin `0.18.0` (`7bc67a0b925b949c8becc327bc08f56eeadc0051`); authorized updates may select the latest stable `0.x` release. New major versions require explicit confirmation. | Resolves and runs exact development-tool executables from `Mintfile`; used only by local quality commands and CI bootstrap. |
+| SwiftFormat | `nicklockwood/SwiftFormat`; `swiftformat` executable only | Initial Mintfile pin `0.63.0` (`0256422f1a5e967c68dc923f1905c0a155dca188`); authorized updates may select the latest stable `0.x` release. New major versions require explicit confirmation. | Applies repository formatting locally and checks formatting without mutation in local/CI quality gates. |
+| SwiftLint | `realm/SwiftLint`; `swiftlint` executable only | Initial Mintfile pin `0.65.1` (`488642e6fc30e5ffc2b5eb24707bf1c7801f3f19`); authorized updates may select the latest stable `0.x` release. New major versions require explicit confirmation. | Runs strict style, documentation, and correctness checks in local/CI quality gates. |
 
 Each proposed source is MIT licensed and actively maintained as of the evidence
 date. Mint itself is deliberately exact-pinned because `Mintfile` records tools
