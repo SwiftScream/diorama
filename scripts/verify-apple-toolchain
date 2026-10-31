@@ -18,13 +18,13 @@ require_output() {
     fi
 }
 
-require_output Xcode 'Build version 27A266a' xcodebuild -version
+require_output Xcode 'Build version 27B52' xcodebuild -version
 require_output Swift \
-    'Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)' \
+    'Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)' \
     xcrun swift --version
-require_output 'macOS SDK' '26A425' xcrun --sdk macosx --show-sdk-build-version
-require_output 'iOS SDK' '24A430' xcrun --sdk iphoneos --show-sdk-build-version
-require_output 'iOS Simulator SDK' '24A430' \
+require_output 'macOS SDK' '26B118' xcrun --sdk macosx --show-sdk-build-version
+require_output 'iOS SDK' '24B8118' xcrun --sdk iphoneos --show-sdk-build-version
+require_output 'iOS Simulator SDK' '24B8118' \
     xcrun --sdk iphonesimulator --show-sdk-build-version
-require_output 'iOS Simulator runtime' '24A434' \
+require_output 'iOS Simulator runtime' '24B8117' \
     xcrun simctl list runtimes
