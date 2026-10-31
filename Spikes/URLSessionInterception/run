@@ -21,7 +21,7 @@ case ${1:-} in
         cd Spikes/URLSessionInterception
         test_status=0
         run xcodebuild test -quiet -scheme URLSessionInterception-Package \
-            -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0' \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.2' \
             -parallel-testing-enabled NO \
             -derivedDataPath "$repository_root/.build/urlsession-spike-ios" \
             -resultBundlePath "$result_bundle" \

@@ -94,7 +94,7 @@ case ${1:-} in
         result_bundle="$coverage_build/ios-tests.xcresult"
         derived_data="$coverage_build/ios-derived-data"
 
-        destination='platform=iOS Simulator,name=iPhone 17,OS=27.0'
+        destination='platform=iOS Simulator,name=iPhone 17,OS=27.2'
         common_settings=(
             -scheme Diorama-Package
             -destination "$destination"
