@@ -37,7 +37,7 @@ jobs:
     name: macOS
     runs-on: xcode-27
     env:
-      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -63,7 +63,7 @@ jobs:
     name: iOS
     runs-on: xcode-27
     env:
-      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -89,9 +89,9 @@ jobs:
     name: Linux
     runs-on: ubuntu-24.04
     container:
-      # Official swift:6.4.0-noble release image
+      # Official swift:6.4.2-noble release image
       image: >-
-        swift@sha256:64bab762bc73a3fda6d9ebc559258bd6d7660c10a705bb25ecacad2f99d066f9
+        swift@sha256:bca121f6eb59fd80340d1296887b2698ed8f3eb9eca7d80c181f8af769dc7ee0
     defaults:
       run:
         shell: bash
@@ -101,7 +101,7 @@ jobs:
       - name: Verify Linux toolchain and runtime
         run: |
           swift --version | tee /tmp/swift-version
-          grep --fixed-strings 'Swift version 6.4 (swift-6.4-RELEASE)' /tmp/swift-version
+          grep --fixed-strings 'Swift version 6.4.2 (swift-6.4.2-RELEASE)' /tmp/swift-version
           grep --fixed-strings 'Target: x86_64-unknown-linux-gnu' /tmp/swift-version
           test "$(dpkg --print-architecture)" = amd64
           curl_version=$(dpkg-query -W '-f=${Version}' libcurl4-openssl-dev)

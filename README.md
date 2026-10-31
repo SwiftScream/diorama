@@ -111,7 +111,7 @@ path, so the Diorama library package remains library-only.
 
 ## Development
 
-Development uses Xcode 27.0 and its Swift 6.4 toolchain. Install
+Development uses Xcode 27.2 and its Swift 6.4.2 toolchain. Install
 [Mint 0.18.0](https://github.com/yonaskolb/Mint/releases/tag/0.18.0), then install
 the repository's exact SwiftFormat and SwiftLint versions:
 
