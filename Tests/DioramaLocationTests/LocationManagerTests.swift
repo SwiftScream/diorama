@@ -189,6 +189,38 @@ struct LocationManagerTests {
     }
 
     @Test
+    func `authorization request works before delegate registration`() async throws {
+        let notifications = [
+            LocationAccessNotification(delayMilliseconds: 10, state: LocationAccessReplayFixtures.disabled),
+            LocationAccessNotification(delayMilliseconds: 20, state: LocationAccessReplayFixtures.disabled),
+        ]
+        let access = try LocationAccessRecording(
+            initialState: LocationAccessReplayFixtures.initial, initialNotifications: [],
+            requests: [.init(request: .whenInUse, notifications: notifications)])
+        let recording = try LocationRecording(coordinateSpace: nil, sessions: [], access: access)
+        let clock = LocationReplayClock()
+        let (execution, manager) = try await start(recording, clock: clock.source)
+        manager.requestWhenInUseAuthorization()
+        try await clock.waitForDeadline(.milliseconds(10))
+        clock.advance(to: .milliseconds(10))
+        try await clock.waitForDeadline(.milliseconds(30))
+        #expect(manager.delegate == nil)
+        #expect(manager.locationServicesEnabled == false)
+        #expect(manager.authorizationStatus == .denied)
+        #expect(manager.accuracyAuthorization == .reducedAccuracy)
+        let delegate = ManagerJournal()
+        manager.delegate = delegate
+        #expect(delegate.authorizations == 0)
+        clock.advance(to: .milliseconds(30))
+        #expect(try await delegate.next() == "access")
+        let result = await execution.finish()
+        #expect(delegate.authorizations == 1)
+        #expect(result.usage[0].tracks[1].claimedRecords.map(\.progressCount) == [0, 2])
+        #expect(result.usage[0].tracks[1].claimedRecords.allSatisfy(\.isConsumed) == true)
+        #expect(result.report.diagnostics.isEmpty)
+    }
+
+    @Test
     func `registration starts access observation and callbacks see complete native state`() async throws {
         let access = try LocationAccessRecording(
             initialState: LocationAccessReplayFixtures.initial,

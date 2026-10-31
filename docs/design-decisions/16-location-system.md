@@ -300,9 +300,10 @@ that is never made remains unused in the final report. An unexpected, duplicate,
 or wrong request is a serious runtime mismatch and never contacts Core
 Location.
 
-Authorization observation begins when the delegate or portable authorization
-sequence is registered. The initial access state is synchronously available
-before its initial notification.
+Authorization observation originally begins when the delegate or portable
+authorization sequence is registered. The request-started tracking amendment
+below supersedes this start rule. The initial access state is synchronously
+available before its initial notification.
 
 ## Error fidelity
 
@@ -1011,3 +1012,31 @@ public manager/delegate facade, G08 for the live bridge, and G09 for broader
 native acceptance. The owner authorizes the documentation PR, a stacked G03B
 implementation PR, and then G04 implementation with GPT-6.1 Sol at `high`
 reasoning. These instructions do not authorize merging any PR or starting G05.
+
+## Request-started authorization tracking — owner-approved 2026-11-01
+
+The owner approves supporting authorization requests before delegate registration
+as a prerequisite to G08. Access tracking begins at the first non-nil delegate
+registration or authorization request, whichever occurs first. Reading properties
+alone does not start tracking. Record and replay retain the captured initial
+access state until tracking starts; pre-tracking native notifications do not
+change record-mode current state. Pure passthrough retains native behavior.
+
+The first tracking action claims the initial access segment in replay. A request
+can immediately claim its matching request segment when the initial segment is
+empty. If initial notifications remain, they proceed normally and the early
+request diagnoses a mismatch without skipping them. Wrong requests leave the
+reached barrier available for recovery. Requests still cannot skip any barrier,
+and notification delays following a matched request anchor to that invocation.
+
+After tracking starts, notifications install complete current state even when
+there is no delegate. Only notifications delivered while a delegate is present
+invoke it; later registration neither repeats missed notifications nor resets
+claims, request position, or deadlines. Delegate replacement or removal affects
+callback delivery, not tracking. No initial callback is synthesized on later
+registration. Finish retains frozen state and cancels pending delivery as before.
+
+This explicitly supersedes the delegate-registration-only observation start rule
+in the original authorization barriers section and G05/G07 descriptions. G07A
+establishes replay and facade behavior; G08 applies the same rule to native
+capture. The stable recording schema and consumption units do not change.

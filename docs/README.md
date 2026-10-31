@@ -327,6 +327,9 @@ test-integration design. They do not authorize those APIs.
 - [Location manager evidence](evidence/003-G07-location-manager.md) records the
   main-actor manager, weak delegate, shared replay lifetime, frozen configuration,
   and compiled application migration.
+- [Request-started authorization tracking evidence](evidence/003-G07A-location-request-tracking.md)
+  records requests before delegate registration, state progression without a
+  delegate, unchanged notification deadlines, and ordered barrier recovery.
 - [Native Location materialization evidence](evidence/003-G03B-native-location-materialization.md)
   records fidelity options, native reconstruction, copy/archive behavior,
   safe diagnostic ownership, and Apple verification.

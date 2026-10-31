@@ -3,6 +3,11 @@
 - Status: Accepted
 - Consolidated design approved by owner: 2026-09-07
 
+On 2026-11-01, the owner approves
+[DD16's request-started authorization tracking amendment](16-location-system.md#request-started-authorization-tracking--owner-approved-2026-11-01).
+Delegate registration or the first authorization request starts access tracking;
+later registration preserves state and deadlines without repeating notifications.
+
 On 2026-10-18, the owner approves
 [DD16's delegate-first interface amendment](16-location-system.md#delegate-first-location-interface--owner-approved-2026-10-18).
 Initial Location exposes the main-actor manager/delegate interface. Public async

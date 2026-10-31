@@ -73,7 +73,8 @@ final class LocationAccessReplay {
         context = .track(trackID)
     }
 
-    /// First registration starts observation; replacement preserves its position.
+    /// First registration starts tracking unless a request already started it.
+    /// Later registration preserves its position and does not repeat notifications.
     /// Delivery is synchronous on MainActor within the scheduler's awaited scope.
     /// A callback must not wait for this execution's finish or launch owned work.
     func observe(_ notification: @escaping @MainActor @Sendable () -> Void) {
@@ -88,7 +89,10 @@ final class LocationAccessReplay {
             reporter.record(Diagnostic(issue: .lifecycle(.leaseClosed), context: context))
             return
         }
-        guard case let .barrier(sequence) = runtime.phase else {
+        if case .unobserved = runtime.phase {
+            begin(.observation)
+        }
+        guard let current = self.runtime, case let .barrier(sequence) = current.phase else {
             reporter.record(Diagnostic(
                 issue: .sequential(.selection(.noMatch)), context: context,
                 fieldPath: [DiagnosticLabel("request")], rule: Self.rule))

@@ -208,10 +208,17 @@ semantics. See [DD19's amendment](design-decisions/19-system-owned-records.md#cl
 
 Location access remains one ordered state machine, stored as an initial
 observation segment followed by one record per authorization-request barrier.
-Each segment owns notifications until the next barrier. Observation registration
-claims the initial segment; only a matching request at the reached barrier may
-claim the next one. Early or wrong requests cannot skip it. Unrequested request
-segments remain unclaimed records; current-state reads and individual notifications
+Each segment owns notifications until the next barrier. First delegate registration
+or an authorization request starts tracking and claims the initial segment. A
+request can immediately pass an empty initial segment; only a matching request
+at the reached barrier may claim the next one. Early or wrong requests cannot
+skip pending notifications or barriers. Once tracking starts, complete current
+state updates without a delegate; later registration preserves deadlines and
+does not repeat missed notifications. Before tracking, record/replay retain
+the captured initial state. See
+[DD16's tracking amendment](design-decisions/16-location-system.md#request-started-authorization-tracking--owner-approved-2026-11-01).
+Unrequested request segments remain unclaimed records; current-state reads and
+individual notifications
 do not consume separate records. This preserves DD16's unused-request facts
 without making all internal lifecycle events Core consumption units.
 

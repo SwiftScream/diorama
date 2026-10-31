@@ -2636,10 +2636,32 @@ native evidence. Fa07 must precede coverage-dependent decisions.
   Owner review is complete and PR creation is authorized. Merge requires passing
   required CI and a separate explicit request; G08 requires separate authorization.
 
+### 003-G07A — Request-started authorization tracking
+
+- Status: Implementation and canonical host verification complete on 2026-11-01.
+  The owner confirms scope; all 592 host tests and the canonical gate pass.
+  Owner review is the next checkpoint.
+- Evidence: [Request-started authorization tracking](../evidence/003-G07A-location-request-tracking.md).
+- Authority: [DD16's tracking amendment](../design-decisions/16-location-system.md#request-started-authorization-tracking--owner-approved-2026-11-01).
+- Prerequisites: Completed G05 and G07; inserted before G08.
+- Scope: Start replay access tracking on delegate registration or the first
+  authorization request. Support requests before a delegate exists, state
+  installation without callbacks, and later registration without redelivery or
+  deadline changes. Pending notifications and mismatched barriers remain ordered.
+- Expected files: Location access replay, facade documentation, focused replay
+  and facade tests, and contract/evidence documentation.
+- Tests/verification: Focused access/facade tests and the canonical macOS host
+  gate. Required PR CI retains the full platform matrix.
+- Exclusions: Native bridge changes (G08), schema changes, implicit request
+  queuing, synthesized notifications, and new consumer APIs.
+- Checkpoint: R; review the preparatory behavior commit independently. Restack
+  G08 above it and retain the authorized capture review update as an adjacent,
+  unsquashed fixup. No push, PR, or merge is authorized by this scope approval.
+
 ### 003-G08 — Private Core Location capture and live forwarding
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Native callback conversion and live forwarding need field-fidelity evidence, safe preparation, and clear manager ownership.
-- Prerequisites: 003-G06–003-G07, 003-Fa08, 003-B02, 003-E01; DD06, DD09, DD16, DD20–DD21.
+- Prerequisites: 003-G06–003-G07A, 003-Fa08, 003-B02, 003-E01; DD06, DD09, DD16, DD20–DD21.
 - Scope: Add a private MainActor CLLocationManager bridge, with managed recording and native passthrough. Establish construction, rollback, cleanup invocation and callback isolation first; reserve ordering/time and prepare values for recording only.
 - Expected files/modules: Core Location native bridge/converters and controlled adapter-boundary tests; documented native field availability.
 - Public behavior: Forward configuration and supported native behavior; record

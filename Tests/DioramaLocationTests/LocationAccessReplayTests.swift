@@ -9,6 +9,78 @@ import Testing
 struct LocationAccessReplayTests {
     private typealias Fixtures = LocationAccessReplayFixtures
 
+    @Test(arguments: [LocationAuthorizationRequest.whenInUse, .always]) @MainActor
+    func `request starts tracking and later observation preserves state and deadlines`(
+        kind: LocationAuthorizationRequest) async throws
+    {
+        let notifications = [
+            LocationAccessNotification(delayMilliseconds: 10, state: Fixtures.disabled),
+            LocationAccessNotification(delayMilliseconds: 20, state: Fixtures.always),
+        ]
+        let fixture = try await Fixtures.start([
+            Fixtures.recording(requests: [.init(request: kind, notifications: notifications)]),
+        ])
+        let replay = fixture.access[0]
+        fixture.clock.advance(to: .seconds(1))
+        replay.request(kind)
+        #expect(replay.currentState == LocationAccessState(Fixtures.initial))
+        try await fixture.clock.waitForDeadline(.milliseconds(1010))
+        fixture.clock.advance(to: .milliseconds(1010))
+        // Registering the next deadline proves the first state installed without an observer.
+        try await fixture.clock.waitForDeadline(.milliseconds(1030))
+        #expect(replay.currentState == LocationAccessState(Fixtures.disabled))
+        fixture.clock.advance(to: .milliseconds(1020))
+        let journal = LocationAccessReplayJournal()
+        journal.connect(replay)
+        #expect(journal.states.isEmpty)
+        #expect(replay.currentState == LocationAccessState(Fixtures.disabled))
+        fixture.clock.advance(to: .milliseconds(1030))
+        #expect(try await journal.next() == LocationAccessState(Fixtures.always))
+        let result = await fixture.execution.finish()
+        #expect(journal.states == [LocationAccessState(Fixtures.always)])
+        #expect(result.usage[0].tracks[1].claimedRecords.map(\.progressCount) == [0, 2])
+        #expect(result.usage[0].tracks[1].claimedRecords.allSatisfy(\.isConsumed) == true)
+        #expect(result.report.diagnostics.isEmpty)
+    }
+
+    @Test @MainActor
+    func `request tracking without any observer freezes at finish`() async throws {
+        let notifications = [
+            LocationAccessNotification(delayMilliseconds: 10, state: Fixtures.disabled),
+            LocationAccessNotification(delayMilliseconds: 20, state: Fixtures.always),
+        ]
+        let fixture = try await Fixtures.start([
+            Fixtures.recording(requests: [.init(request: .always, notifications: notifications)]),
+        ])
+        let replay = fixture.access[0]
+        replay.request(.always)
+        try await fixture.clock.waitForDeadline(.milliseconds(10))
+        fixture.clock.advance(to: .milliseconds(10))
+        try await fixture.clock.waitForDeadline(.milliseconds(30))
+        #expect(replay.currentState == LocationAccessState(Fixtures.disabled))
+        let result = await fixture.execution.finish()
+        fixture.clock.advance(to: .seconds(1))
+        replay.observe { Issue.record("Registration after finish delivered a notification") }
+        #expect(replay.currentState == LocationAccessState(Fixtures.disabled))
+        #expect(result.usage[0].tracks[1].claimedRecords.map(\.progressCount) == [0, 1])
+        #expect(result.usage[0].tracks[1].claimedRecords.map(\.isConsumed) == [true, false])
+        #expect(result.report.diagnostics.isEmpty)
+    }
+
+    @Test @MainActor
+    func `wrong first request leaves the reached barrier available for recovery`() async throws {
+        let fixture = try await Fixtures.start([
+            Fixtures.recording(requests: [.init(request: .always, notifications: [])]),
+        ])
+        let replay = fixture.access[0]
+        replay.request(.whenInUse)
+        replay.request(.always)
+        let result = await fixture.execution.finish()
+        #expect(result.usage[0].tracks[1].claimedRecords.map(\.identity.sequence) == [0, 1])
+        #expect(result.usage[0].tracks[1].claimedRecords.allSatisfy(\.isConsumed) == true)
+        #expect(result.report.diagnostics.map(\.diagnostic.issue) == [.sequential(.selection(.noMatch))])
+    }
+
     @Test @MainActor
     func `external changes preserve duplicates and install complete state before callbacks`() async throws {
         let fixture = try await Fixtures.start([

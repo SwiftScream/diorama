@@ -38,8 +38,9 @@ public final class DioramaLocationManager {
     private let context: DiagnosticContext
     private var configuration = Configuration()
 
-    /// Weak recipient. First non-nil registration begins access observation.
-    /// Replacement preserves the timeline; replacement after finish emits nothing.
+    /// Weak recipient. Registration or the first authorization request starts tracking.
+    /// Later registration preserves the timeline without repeating notifications.
+    /// Registration after finish emits nothing.
     public weak var delegate: any DioramaLocationManagerDelegate? {
         didSet {
             guard delegate != nil else { return }
@@ -118,12 +119,12 @@ public final class DioramaLocationManager {
         updates.stop()
     }
 
-    /// Releases only the next matching when-in-use request barrier.
+    /// Starts access tracking if needed, then releases only the next matching when-in-use barrier.
     public func requestWhenInUseAuthorization() {
         access.request(.whenInUse)
     }
 
-    /// Releases only the next matching always request barrier.
+    /// Starts access tracking if needed, then releases only the next matching always barrier.
     public func requestAlwaysAuthorization() {
         access.request(.always)
     }
