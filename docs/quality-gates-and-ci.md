@@ -1,7 +1,7 @@
 # Quality gates and CI policy
 
 - Status: Accepted
-- Last updated: 2026-10-30
+- Last updated: 2026-10-31
 - Reference project: [SwiftScream/URITemplate](https://github.com/SwiftScream/URITemplate)
 
 ## Purpose
@@ -107,7 +107,7 @@ package inputs into the container's writable working directory:
 container run --rm --arch x86_64 --cpus 2 --memory 4G \
   --mount type=bind,source="$PWD",target=/source,readonly \
   --workdir /work \
-  swift@sha256:64bab762bc73a3fda6d9ebc559258bd6d7660c10a705bb25ecacad2f99d066f9 \
+  swift@sha256:bca121f6eb59fd80340d1296887b2698ed8f3eb9eca7d80c181f8af769dc7ee0 \
   bash -lc 'mkdir -p /work && cp -R /source/Package.swift /source/Sources /source/Tests /source/scripts /source/Examples /work/ && scripts/coverage swiftpm linux'
 ```
 
@@ -120,14 +120,16 @@ code during every local check.
 
 ## Toolchain policy
 
-Diorama uses the latest stable Xcode and Apple Swift releases selected when the
-clean implementation is bootstrapped. The Apple selection is Xcode 27.0, build
-`27A266a`, with Apple Swift 6.4 (`swiftlang-6.4.0.34.1`,
-`clang-2100.3.34.1`). Linux uses the
-[official Swift 6.4 release image](https://www.swift.org/install/linux/ubuntu/24_04/)
-for Ubuntu 24.04, `swift:6.4.0-noble`, pinned to the digest above. The image
-reports `Swift version 6.4 (swift-6.4-RELEASE)` on x86_64 and includes
-`libcurl4-openssl-dev 8.5.0-2ubuntu10.13`, within the approved bounds.
+Diorama uses explicitly selected stable Xcode and Swift releases.
+The Apple selection is Xcode 27.2, build
+`27B52`, with Apple Swift 6.4.2 (`swiftlang-6.4.2.1.9`,
+`clang-2100.4.1.1`). The macOS SDK build is `26B118`; the iOS and iOS
+Simulator SDK build is `24B8118`. iOS tests use the iPhone 17 Simulator with
+iOS 27.2 runtime build `24B8117`. Linux uses the
+[official Swift 6.4.2 release image](https://www.swift.org/install/linux/ubuntu/24_04/)
+for Ubuntu 24.04, `swift:6.4.2-noble`, pinned to the digest above. The image
+reports `Swift version 6.4.2 (swift-6.4.2-RELEASE)` on x86_64 and includes
+`libcurl4-openssl-dev 8.5.0-2ubuntu10.16`, within the approved bounds.
 [003-A01's evidence](evidence/003-A01-toolchain-and-availability.md) records
 the original development snapshot and platform feasibility checks.
 
