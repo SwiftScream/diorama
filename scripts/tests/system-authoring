@@ -42,6 +42,10 @@ func use(_ execution: SystemExecution<HeaderlessSequentialTrackLease<Int>>) thro
     try execution.state.withLock { state, operation in try operation.consumeNext(on: state) }
 }
 func read(_ lease: HeaderlessSequentialTrackLease<Int>) throws -> Int { try lease.consumeNext() }
+func header(_ execution: SystemExecution<SequentialTrackLease<Int, String>>) throws -> String {
+    try execution.state.withLock { state, operation in try operation.replayHeader(on: state) }
+}
+func header(_ lease: SequentialTrackLease<Int, String>) throws -> String { try lease.replayHeader() }
 func setup() throws -> ScenarioSystem<ExternalDefinition.Dependency> {
     try ScenarioSystem(named: "positive", definition: ExternalDefinition())
 }

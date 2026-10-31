@@ -35,6 +35,14 @@ public struct SystemOperation<State: Sendable>: ~Copyable {
         try lease.consumeNext()
     }
 
+    /// Reads a prepared replay header without claims, consumption, or preparation.
+    /// Wrong-mode and closed-lease reads report and throw without continuation.
+    public func replayHeader<Header: Sendable>(
+        on lease: SequentialTrackLease<some Sendable, Header>) throws -> Header
+    {
+        try lease.replayHeader()
+    }
+
     /// Captures a track header using its system-owned policy.
     public func setHeader<Header: Sendable>(
         on lease: SequentialTrackLease<some Sendable, Header>, capturing capture: () throws -> Header,

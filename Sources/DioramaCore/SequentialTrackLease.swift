@@ -296,6 +296,39 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
 }
 
 extension SequentialTrackLease {
+    /// Reads the validated replay header without claiming or consuming records.
+    /// No preparation runs, and record continuation policies do not apply.
+    /// Reads are joined by finalization; closure releases the stored header.
+    ///
+    /// - Returns: The prepared baseline header, including on an empty track.
+    /// - Throws: A reported wrong-mode or closed-lease failure.
+    public func replayHeader() throws(SequentialOperationFailure) -> Header {
+        let admitted = reads.enter()
+        defer {
+            if admitted {
+                reads.leave()
+            }
+        }
+        let result: Result<Header, SequentialOperationFailure> = state.withLock { state in
+            if let failure = closedFailure(state) {
+                return .failure(failure)
+            }
+            guard mode == .replay else {
+                return .failure(operationFailure(.wrongMode(expected: .replay, actual: mode), context: .track(id)))
+            }
+            guard let header = state.baselineHeader else {
+                return .failure(operationFailure(.invalidTrackRequest, context: .track(id)))
+            }
+            return .success(header)
+        }
+        switch result {
+        case let .success(header): return header
+        case let .failure(failure):
+            reporter.record(failure.diagnostic)
+            throw failure
+        }
+    }
+
     /// Returns the validated baseline header without consuming a record.
     func baselineHeader() -> Header? {
         state.withLock { $0.baselineHeader }

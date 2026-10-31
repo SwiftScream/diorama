@@ -142,6 +142,17 @@ Unix epoch as its initial default; Random uses zero fallback. Replay never
 creates a live source. This closed-safe lease is a supported retained capability,
 not permission to extract arbitrary active resources from managed state.
 
+Headered replay tracks expose `lease.replayHeader()`, or
+`operation.replayHeader(on: lease)` inside a managed state operation. Both return
+the validated baseline header without claiming or consuming a record, rerunning
+preparation, or changing record continuation. Empty and exhausted tracks retain
+their header while open. Record-mode reads report and throw a wrong-mode failure;
+reads after admission closes report and throw a closed-lease failure, regardless
+of the record continuation policy. Finalization joins admitted direct reads and
+releases the lease's header storage. A returned header is an ordinary stable
+value owned by its caller; retaining a lease does not preserve header access
+after closure.
+
 ## Normalized record outputs and authored overrides
 
 [DD09's general delivery rule](design-decisions/09-normalization-and-redaction.md#normalized-record-delivery-and-baseline-override-isolation--owner-approved-2026-10-17)

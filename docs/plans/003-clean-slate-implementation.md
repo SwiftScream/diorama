@@ -2605,6 +2605,11 @@ native evidence. Fa07 must precede coverage-dependent decisions.
   and local configuration. Connect G04/G05's internal main-actor delivery directly
   to delegate calls; the facade does not iterate an async sequence. Share G03B's
   attachment-wide fidelity options.
+- Preparatory Core API: Complete, owner-authorized on 2026-11-01. Add a typed,
+  non-consuming replay-header read through the lease and managed operation,
+  with wrong-mode and closed-access failures. Six focused tests and the
+  canonical host gate pass; Location adoption remains a separate review update.
+  See [replay-header read evidence](../evidence/003-G07-replay-header-read.md).
 - Expected files/modules: Apple Location facade/delegate target, controlled
   main-actor replay tests and migration example.
 - Public behavior: Current access/location are non-consuming; callbacks run on MainActor.
