@@ -1,4 +1,6 @@
 disabled_rules:
+  # Keep related code together; file length does not determine design quality.
+  - file_length
   # SwiftFormat's redundantNilInit rule owns this transformation.
   - implicit_optional_initialization
   # SwiftFormat owns brace spacing and multiline declaration brace placement.
@@ -23,7 +25,3 @@ nesting:
 type_body_length:
   warning: 500
   error: 500
-
-file_length:
-  warning: 750
-  error: 1250
