@@ -1,7 +1,7 @@
 # 003-G07A: Request-started authorization tracking
 
-- Status: Implementation and canonical host verification complete; owner review
-  is the next checkpoint.
+- Status: Complete; owner review is complete and PR creation is authorized on
+  2026-11-02.
 - Authority: Owner approves the preparatory behavior change and G08 restack on
   2026-11-01 after reviewing the two native authorization mismatches.
 - Branch: `feat/003-g07a-location-request-tracking`.
@@ -45,7 +45,13 @@ a required PR gate. No iOS or Linux run is claimed for this review update.
 
 ## Review boundary
 
-One preparatory behavior commit contains replay, facade documentation, tests,
-the approved contract amendment, and owning plan/evidence updates. G08 is
-restacked above it; native capture feedback remains a separate adjacent,
-unsquashed fixup for owner review. No push, PR creation, or merge is authorized.
+The preparatory behavior commit contains replay, facade documentation, tests,
+the approved contract amendment, and owning plan/evidence updates. A separate
+documentation commit records completed review and PR authorization. The owner
+authorizes pushing G07A and creating its PR into `master` on 2026-11-02. Required
+PR checks enforce the full platform and coverage matrix; merge requires a
+separate explicit owner request.
+
+G08 is restacked above this prerequisite. Native capture feedback remains a
+separate adjacent, unsquashed fixup for owner review; this PR contains no native
+bridge changes and does not authorize G08 PR creation, merge, or G09 work.

@@ -2638,9 +2638,9 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G07A — Request-started authorization tracking
 
-- Status: Implementation and canonical host verification complete on 2026-11-01.
-  The owner confirms scope; all 592 host tests and the canonical gate pass.
-  Owner review is the next checkpoint.
+- Status: Complete. The owner completes review and authorizes PR creation into
+  `master` on 2026-11-02. All 592 host tests and the canonical gate pass locally;
+  required PR checks enforce the full platform and coverage matrix before merge.
 - Evidence: [Request-started authorization tracking](../evidence/003-G07A-location-request-tracking.md).
 - Authority: [DD16's tracking amendment](../design-decisions/16-location-system.md#request-started-authorization-tracking--owner-approved-2026-11-01).
 - Prerequisites: Completed G05 and G07; inserted before G08.
@@ -2654,9 +2654,10 @@ native evidence. Fa07 must precede coverage-dependent decisions.
   gate. Required PR CI retains the full platform matrix.
 - Exclusions: Native bridge changes (G08), schema changes, implicit request
   queuing, synthesized notifications, and new consumer APIs.
-- Checkpoint: R; review the preparatory behavior commit independently. Restack
-  G08 above it and retain the authorized capture review update as an adjacent,
-  unsquashed fixup. No push, PR, or merge is authorized by this scope approval.
+- Checkpoint: R; owner review is complete and PR creation is authorized.
+  Merge requires passing required CI and a separate explicit request. G08 stays
+  stacked above this prerequisite; its capture review update remains an adjacent,
+  unsquashed fixup for separate owner review.
 
 ### 003-G08 — Private Core Location capture and live forwarding
 
