@@ -49,6 +49,7 @@ private final class NativeJournal: DioramaLocationManagerDelegate {
     var states: [CLAuthorizationStatus] = []
     let signal = AsyncStream<Void>.makeStream()
     let accessSignal = AsyncStream<CLAuthorizationStatus>.makeStream()
+    let errorSignal = AsyncStream<Void>.makeStream()
 
     func locationManager(_ manager: DioramaLocationManager, didUpdateLocations locations: [CLLocation]) {
         if let last = locations.last {
@@ -60,6 +61,7 @@ private final class NativeJournal: DioramaLocationManagerDelegate {
 
     func locationManager(_: DioramaLocationManager, didFailWithError error: Error) {
         errors.append(error as NSError)
+        errorSignal.continuation.yield(())
     }
 
     func locationManagerDidChangeAuthorization(_ manager: DioramaLocationManager) {
@@ -484,5 +486,168 @@ extension LocationNativeBridgeTests {
                                                    coordinateOrigin: .init(latitude: 10, longitude: 20))
         let system = try DioramaLocationSystem.instance(named: "public", recording: options)
         #expect(system.attachment.id.systemTypeID == DioramaLocationSystem.type.id)
+    }
+}
+
+extension LocationNativeBridgeTests {
+    @Test(arguments: [ScenarioMode.record, .passthrough], [false, true])
+    func `finish releases driver and ignores retained late callbacks`(mode: ScenarioMode, stopFirst: Bool)
+        async throws
+    {
+        var driver: ControlledLocationDriver? = ControlledLocationDriver()
+        weak let releasedDriver = driver
+        let (execution, manager) = try await start(#require(driver), mode: mode)
+        let bridge = try #require(driver?.bridge)
+        let journal = NativeJournal()
+        manager.delegate = journal
+        manager.startUpdatingLocation()
+        bridge.receive([point(), point(13)])
+        manager.requestAlwaysAuthorization()
+        manager.desiredAccuracy = 7
+        if stopFirst {
+            manager.stopUpdatingLocation()
+        }
+        let frozen = manager.location
+        let waiter = Task { await execution.finish() }
+        waiter.cancel()
+        let result = await execution.finish()
+        #expect(await waiter.value.report == result.report)
+        #expect(driver?.connections == 2)
+        #expect(driver?.stops == (stopFirst ? 2 : 1))
+        #expect(driver?.bridge == nil)
+        driver = nil
+        #expect(releasedDriver == nil)
+        bridge.receive([point(14)])
+        bridge.receive(NSError(domain: "late", code: 1))
+        bridge.receiveAuthorization()
+        manager.startUpdatingLocation()
+        manager.requestWhenInUseAuthorization()
+        manager.desiredAccuracy = 99
+        manager.stopUpdatingLocation()
+        #expect(manager.location === frozen)
+        #expect(manager.desiredAccuracy == 7)
+        #expect(journal.batches.count == 1)
+        #expect(journal.errors.isEmpty)
+        #expect(journal.states.isEmpty)
+        #expect(result.report.diagnostics.isEmpty)
+        let content = try LocationOriginFixtures.content(#require(result.definition))
+        #expect(content.sessions.count == (mode == .record ? 1 : 0))
+        if mode == .record {
+            #expect(content.sessions[0].events.count == 1)
+            #expect(content.access.requests.map(\.request) == [.always])
+        }
+    }
+
+    @Test
+    func `separately keyed native managers capture independent sessions`() async throws {
+        let first = ControlledLocationDriver()
+        let second = ControlledLocationDriver()
+        let systems = try [first, second].enumerated().map { index, driver in
+            try ScenarioSystem(named: "gps-\(index)", definition: LocationDefinition(driverFactory: { driver }))
+        }
+        let execution = try await ScenarioExecution.start(
+            definition: ScenarioDefinition(attachments: systems.map(\.attachment)),
+            scenarioID: .init(rawValue: "independent"), defaultMode: .record,
+            systems: systems.map(AnyScenarioSystem.init))
+        let managers = try systems.map { try execution.dependency($0) }
+        let journals = [NativeJournal(), NativeJournal()]
+        for index in managers.indices {
+            managers[index].delegate = journals[index]
+            managers[index].startUpdatingLocation()
+        }
+        first.bridge?.receive([point(10)])
+        managers[0].stopUpdatingLocation()
+        first.bridge?.receive([point(11)])
+        second.bridge?.receive([point(20)])
+        second.bridge?.receive([point(21)])
+        #expect(journals.map(\.batches.count) == [1, 2])
+        #expect(managers[0].location?.coordinate.latitude == 10)
+        #expect(managers[1].location?.coordinate.latitude == 21)
+        let result = await execution.finish()
+        let definition = try #require(result.definition)
+        let eventCounts = try definition.attachments.map { attachment in
+            try LocationTracks.recording(in: attachment).sessions[0].events.count
+        }
+        #expect(eventCounts == [1, 2])
+        #expect(first.bridge == nil)
+        #expect(second.bridge == nil)
+        #expect(first.stops == 2)
+        #expect(second.stops == 1)
+        #expect(result.report.diagnostics.isEmpty)
+    }
+
+    @Test(arguments: [ScenarioMode.record, .passthrough])
+    func `real Core Location driver constructs forwards and detaches`(mode: ScenarioMode) async throws {
+        let driver = CoreLocationDriver()
+        let system = try ScenarioSystem(named: "gps", definition: LocationDefinition(driverFactory: { driver }))
+        let execution = try await ScenarioExecution.start(
+            definition: ScenarioDefinition(attachments: [system.attachment]),
+            scenarioID: .init(rawValue: "apple-driver"), defaultMode: mode,
+            systems: [AnyScenarioSystem(system)])
+        let manager = try execution.dependency(system)
+        let journal = NativeJournal()
+        manager.delegate = journal
+        manager.desiredAccuracy = kCLLocationAccuracyKilometer
+        manager.distanceFilter = 100
+        // Exercise native construction/configuration/stop without requesting permission or GPS.
+        // Delegate entry is controlled: this is not evidence of live sensor fidelity.
+        let sender = CLLocationManager()
+        driver.locationManager(sender, didUpdateLocations: [point()])
+        #expect(journal.batches.isEmpty)
+        let before = journal.states.count
+        driver.locationManagerDidChangeAuthorization(sender)
+        let count = journal.states.count
+        #expect(count == before + 1)
+        let result = await execution.finish()
+        let frozenCount = journal.states.count
+        driver.locationManager(sender, didUpdateLocations: [point(14)])
+        driver.locationManager(sender, didFailWithError: NSError(domain: "late", code: 2))
+        driver.locationManagerDidChangeAuthorization(sender)
+        #expect(journal.batches.isEmpty)
+        #expect(journal.errors.isEmpty)
+        #expect(journal.states.count == frozenCount)
+        #expect(result.report.diagnostics.isEmpty)
+    }
+}
+
+extension LocationNativeBridgeTests {
+    @Test(arguments: [false, true], [false, true])
+    func `apple recorded fixture decodes and replays through the production facade`(floor: Bool, ellipsoidal: Bool)
+        async throws
+    {
+        let url = try #require(Bundle.module.url(
+            forResource: "native-recorded", withExtension: "json", subdirectory: "Fixtures"))
+        let bytes = try Data(contentsOf: url)
+        let codec = try LocationOriginFixtures.codec()
+        let definition = try codec.decode(bytes)
+        #expect(try codec.encode(definition) == bytes)
+        let driver = ControlledLocationDriver()
+        let (execution, manager) = try await start(driver, mode: .replay, baseline: definition,
+                                                   fidelity: .init(preserveFloor: floor,
+                                                                   preserveEllipsoidalAltitude: ellipsoidal))
+        let journal = NativeJournal()
+        manager.delegate = journal
+        manager.startUpdatingLocation()
+        var iterator = journal.signal.stream.makeAsyncIterator()
+        _ = await iterator.next()
+        _ = await iterator.next()
+        let points = try #require(journal.batches.first)
+        #expect(points.count == 2)
+        #expect(points[0].coordinate.latitude == 12.12345679)
+        #expect(points[1].coordinate.latitude == 12.5)
+        #expect(points[0].horizontalAccuracy == 2.123)
+        #expect(manager.location === points[1])
+        #expect(journal.batches[1].isEmpty)
+        var errors = journal.errorSignal.stream.makeAsyncIterator()
+        _ = await errors.next()
+        #expect(journal.errors.first?.code == 42)
+        manager.requestWhenInUseAuthorization()
+        var access = journal.accessSignal.stream.makeAsyncIterator()
+        #expect(await access.next() == .denied)
+        let result = await execution.finish()
+        #expect(result.report.diagnostics.isEmpty)
+        #expect(driver.connections == 0)
+        #expect(driver.starts == 0)
+        #expect(driver.requests.isEmpty)
     }
 }
