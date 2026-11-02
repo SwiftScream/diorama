@@ -324,6 +324,9 @@ test-integration design. They do not authorize those APIs.
 - [Location origin and re-record evidence](evidence/003-G06-location-origin-merge.md)
   records setup-default preparation, origin-only override retention, complete
   replacement, privacy, and healthy or refused file publication.
+- [Location shutdown and acceptance evidence](evidence/003-G09-location-acceptance.md)
+  records native lifetime, independent attachments, persisted Apple capture, and
+  the controlled versus actual platform verification boundaries.
 - [Native Location bridge evidence](evidence/003-G08-location-native-bridge.md)
   records owned native capture, normalized delivery, passthrough, setup options,
   and controlled-test/platform verification boundaries.

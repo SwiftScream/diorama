@@ -2708,6 +2708,11 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 
 ### 003-G09 — Location shutdown and cross-platform acceptance
 
+- Status: Complete. The owner confirms scope and authorizes PR creation on
+  2026-11-02. The canonical host gate passes all 607 tests and the focused iOS 27.2
+  Simulator run passes all 114 Location tests. Required PR checks enforce
+  the complete platform and coverage matrix before integration.
+- Evidence: [Location shutdown and acceptance](../evidence/003-G09-location-acceptance.md).
 - Recommended model: GPT-6 Astra; reasoning: `high`. Manager/proxy/callback cleanup must prove quiescence across batches, barriers, late events, and platform boundaries.
 - Prerequisites: 003-G08; DD10, DD14, DD16.
 - Scope: Complete private-manager/proxy/callback cleanup and broader macOS,
@@ -2724,7 +2729,9 @@ native evidence. Fa07 must precede coverage-dependent decisions.
   Apple integration evidence from controlled mocks. Exercise the opt-in subclass
   and secure-archive diagnostic on both Apple platforms.
 - Exclusions: Treating simulator lack of deterministic GPS as evidence of live fidelity, adding unsupported services, persisting teardown as stream completion.
-- Checkpoint: R; stop at the complete initial location milestone.
+- Checkpoint: R; PR creation is authorized. Merge requires passing required CI
+  and a separate explicit owner request. Stop at the complete initial Location
+  milestone; H01 requires separate authorization.
 
 ## Phase H — Shared HTTP and stable URLSession lifecycle
 
