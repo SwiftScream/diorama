@@ -5,6 +5,47 @@ import PackageDescription
 #if canImport(CoreLocation)
     let locationTargets: [Target] = [
         .target(
+            name: "LocationExampleSupport",
+            dependencies: [.product(name: "DioramaLocation", package: "Diorama")],
+            swiftSettings: [
+                .defaultIsolation(nil),
+                .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+                .enableUpcomingFeature("InferIsolatedConformances"),
+            ]),
+        .executableTarget(
+            name: "DioramaLocationReplay",
+            dependencies: [
+                "LocationExampleSupport",
+                .product(name: "Diorama", package: "Diorama"),
+                .product(name: "DioramaLocation", package: "Diorama"),
+            ],
+            swiftSettings: [
+                .defaultIsolation(nil),
+                .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+                .enableUpcomingFeature("InferIsolatedConformances"),
+            ]),
+        .executableTarget(
+            name: "DioramaLocationRecording",
+            dependencies: [
+                "LocationExampleSupport",
+                .product(name: "Diorama", package: "Diorama"),
+                .product(name: "DioramaLocation", package: "Diorama"),
+            ],
+            exclude: ["Info.plist"],
+            swiftSettings: [
+                .defaultIsolation(nil),
+                .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+                .enableUpcomingFeature("InferIsolatedConformances"),
+            ],
+            linkerSettings: [
+                .unsafeFlags([
+                    "-Xlinker", "-sectcreate",
+                    "-Xlinker", "__TEXT",
+                    "-Xlinker", "__info_plist",
+                    "-Xlinker", "\(Context.packageDirectory)/Sources/DioramaLocationRecording/Info.plist",
+                ], .when(platforms: [.macOS])),
+            ]),
+        .target(
             name: "LocationMigration",
             dependencies: [.product(name: "DioramaLocation", package: "Diorama")],
             swiftSettings: [

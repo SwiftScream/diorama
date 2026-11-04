@@ -121,3 +121,49 @@ The compile-only migration example accepts an injected manager without starting
 live access. Its target is absent from the Linux example graph. See the
 [native bridge evidence](../docs/evidence/003-G08-location-native-bridge.md) for
 controlled-test boundaries and platform verification.
+
+## Record location on macOS
+
+Run from the repository root, optionally supplying an output path (the default is
+`location.json` in the current directory):
+
+```sh
+swift run --package-path Examples DioramaLocationRecording ./location.json
+```
+
+The example embeds its permission plist through macOS linker settings. Its Swift
+launcher copies the executable and metadata into `DioramaLocationRecording.app`
+beside the build product, signs the app locally with `/usr/bin/codesign`, and runs
+it with the terminal's input and output. No Bash script or Xcode project is needed.
+The recorder uses an AppKit application loop and may appear in the Dock while
+running. Allow location access when macOS asks, then return to the terminal.
+The program prints authorization changes, location batches, and errors; press
+Return in the terminal to stop updates and publish the recording.
+
+A standalone executable with only an embedded plist did not present a permission
+prompt on the tested Mac: Location reported failed Launch Services registration.
+The same executable inside an app bundle presented the prompt and delivered live
+updates after Allow. The bundle is therefore part of this example's launch path.
+
+Location availability and permission are controlled by macOS, and a recording
+may contain no location updates. Treat
+the resulting file as sensitive: location recordings can reveal places and times.
+
+## Replay location on macOS
+
+Pass a file produced by `DioramaLocationRecording`:
+
+```sh
+swift run --package-path Examples DioramaLocationReplay ./location.json
+```
+
+Record and replay share the same delegate, so authorization changes, location
+batches, and errors use identical console formatting. Replay delivers the stored
+normalized values at their recorded delays. It creates no native location manager,
+requires no permission prompt or app bundle, and does not modify the file.
+
+Press Return to finish and print the replay report. Sessions retain an open
+recording horizon rather than a completion event, so the example stays active
+after the last event. Pressing Return early cancels remaining deliveries; the
+report shows the resulting consumption facts. This example mirrors the recorder's
+single `gps` attachment, one standard-update session, and when-in-use request.
