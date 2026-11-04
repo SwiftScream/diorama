@@ -521,7 +521,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | F     | 003-F01–003-F07; 003-F03A abandoned | Portable wall system and Core execution clock. |
 | Fa    | 003-Fa01–003-Fa07; 003-Fa09A; 003-Fa09 | Pure passthrough, managed system authoring, infrastructure-review follow-ups, retained consumer reports, and diagnostic-delivery simplification. |
 | Ra    | 003-Ra1–003-Ra5 | Post-Fa review follow-ups for scoped ownership, cancellation disposal, merge ordering, retained-report APIs, and envelope classification. |
-| G     | 003-G01–003-G09      | Apple-only location recording and callback replay through a narrow manager/delegate interface. |
+| G     | 003-G01–003-G10      | Apple-only location recording and callback replay through a narrow manager/delegate interface. |
 | H     | 003-H01–003-H14      | Shared HTTP domain, resource publication, strict URLSession lifecycle data.  |
 | I     | 003-I01–003-I09      | Incremental production URLSession conformance across platform bridges.       |
 | J     | 003-J01–003-J04      | Opt-in test integrations, combined-system acceptance, user documentation.    |
@@ -2732,6 +2732,27 @@ native evidence. Fa07 must precede coverage-dependent decisions.
 - Checkpoint: R; PR creation is authorized. Merge requires passing required CI
   and a separate explicit owner request. Stop at the complete initial Location
   milestone; H01 requires separate authorization.
+
+### 003-G10 — Fresh Location consumer startup
+
+- Status: Complete. The owner approves the production fix on 2026-11-04
+  after the console example exposes fresh `Diorama` startup rejection. Focused
+  regression tests and the canonical macOS gate pass, including all 610 tests.
+- Evidence: [Fresh Location startup](../evidence/003-G10-fresh-location-startup.md).
+- Prerequisites: 003-G09; DD16, DD18, DD20.
+- Scope: Accept the exact recordless Location setup in record mode through
+  `Diorama`; retain strict validation for replay and nonempty baseline content.
+  Native activation captures the initial access segment as before.
+- Expected files/modules: Location definition validation, consumer-path
+  regression tests, and startup evidence.
+- Tests/verification: Reproduce the original failure; prove fresh in-memory and
+  missing-file recording, publication and replay equivalence, no native replay
+  construction, unchanged replay file bytes, and rejection of incomplete
+  recordings before activation. Run focused tests and the canonical macOS gate.
+- Exclusions: Schema changes, new public APIs, changes to Core layout removal,
+  native permission behavior, HTTP work, and additional local platform checks.
+- Checkpoint: R; stop for owner review. PR creation and merge require separate
+  authorization.
 
 ## Phase H — Shared HTTP and stable URLSession lifecycle
 

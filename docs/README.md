@@ -327,6 +327,8 @@ test-integration design. They do not authorize those APIs.
 - [Location shutdown and acceptance evidence](evidence/003-G09-location-acceptance.md)
   records native lifetime, independent attachments, persisted Apple capture, and
   the controlled versus actual platform verification boundaries.
+- [Fresh Location startup evidence](evidence/003-G10-fresh-location-startup.md)
+  records consumer-path empty-layout validation and first-recording replay coverage.
 - [Native Location bridge evidence](evidence/003-G08-location-native-bridge.md)
   records owned native capture, normalized delivery, passthrough, setup options,
   and controlled-test/platform verification boundaries.
