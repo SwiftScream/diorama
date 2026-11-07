@@ -364,6 +364,8 @@ test-integration design. They do not authorize those APIs.
   documents portable builders, ordered fields, exact bodies, and strict codecs.
 - [HTTP message value evidence](evidence/003-H02-http-message-values.md)
   records the H02 implementation and verification boundary.
+- [HTTP preparation evidence](evidence/003-H03-http-preparation.md) records typed
+  credential preparation, authored-value admission, and verification.
 
 ## Historical boundary
 

@@ -111,3 +111,91 @@ appropriate. These are planned recording behaviors, not implemented by this code
 Replay honors stored content. H08 owns derived Content-Length and edited-body
 consistency. See the [owning plan](plans/003-clean-slate-implementation.md#003-h07a--configurable-type-aware-body-storage-policy)
 for prerequisites, exclusions, and the required future scope checkpoint.
+
+## Preparation and credential admission
+
+`HTTPPreparation` creates immutable Core `ValuePreparation` policies for request
+messages, response heads, and typed body or adapter-owned failure values.
+`request` and `response` bind warning diagnostics to the execution reporter and
+context; use that same reporter/context when calling `prepare`. HTTP Types field
+names supply case-insensitive structural addressing without sorting fields or
+changing unrelated bytes. Field rules run before message-level custom redaction,
+then normalization, then field-rule validation and custom validation.
+
+The defaults replace Authorization and Proxy-Authorization with fixed Basic,
+Bearer, or Digest substitutes. Unknown schemes use `Bearer redacted`. Cookie
+values become `redacted`, retaining valid names and order. Set-Cookie also retains
+recognized, syntactically supported attributes (Secure, HttpOnly, Partitioned,
+SameSite, Path, Domain, Max-Age, and conventional GMT Expires). Unsupported or
+malformed cookie syntax uses `redacted=redacted`. Authentication-Info and
+Proxy-Authentication-Info become `nextnonce="redacted"`. Malformed recognized
+fields emit a safe `http.redaction.replacement-warning` fact without making
+the candidate unhealthy. These are deterministic replay fixtures, not credentials
+that authenticate with a server. Applications needing specific token formats or
+cookie behavior should configure replacements.
+
+`HTTPFieldRedactionPolicy(rules:)`, selected through
+`HTTPPreparation(fieldRedaction:)`, overlays supplied rules on the six default
+field mappings. Supplied rules take precedence by case-insensitive field name;
+each occurrence uses exactly one selected rule. Credential rules are public
+`HTTPFieldRedactionRule` values (`.authorization`, `.cookies`, `.setCookie`, and
+`.authenticationInfo`) that can also be assigned to custom field names.
+
+Every rule provides independent `redact` and `validate` closures. Capture
+redaction returns one `HTTPFieldRedactionResult`:
+
+- `.safe` retains the original field exactly.
+- `.replace(value)` replaces its value.
+- `.replaceWithWarning(value)` replaces its value and asks the policy to emit
+  `http.redaction.replacement-warning`, without recording either value.
+- `.remove` omits this occurrence and preserves all remaining field order.
+
+`HTTPFieldValue` carries exact validated bytes and offers optional lossless UTF-8
+`text`. Invalid HTTP bytes throw rather than being silently repaired. A retained
+or replaced field preserves its original name and HTTP Types indexing strategy.
+Rules own the replacement decision; no separate fallback configuration exists.
+The policy owns field iteration, warning emission, and removal. Thrown rule
+errors use Core's safe preparation-failure path.
+
+`.constant("fixture")` supplies replacement and exact-value validation;
+`.constant(HTTPFieldValue)` supports opaque bytes. `.remove` supplies unconditional
+removal and validation that rejects any retained occurrence. Custom conditional
+rules validate their allowed retained values. An absent field needs no per-field
+validation. All retained results, including `.safe`, still undergo final
+validation after normalization. Consumers own custom-rule confidentiality and
+application-specific validity; a rule can explicitly allow values that the
+defaults would redact.
+
+```swift
+let preparation = HTTPPreparation(fieldRedaction: HTTPFieldRedactionPolicy(rules: [
+    .authorization: try .constant("Bearer fixture-token"),
+    .cookie: .remove,
+]))
+```
+
+Defaults do not discover custom secrets, alter bodies, or redact
+WWW-Authenticate/Proxy-Authenticate. Cookie names, supported attributes, URLs,
+and ordinary fields can contain sensitive application data and need explicit
+consumer rules when applicable. Body/resource preparation remains typed and
+opt-in; these helpers perform no resource I/O or native adapter delivery.
+
+Live recording observations and replay inputs use `prepare`. Decoded, edited,
+or programmatic baselines use `admitPrepared`: it validates without rerunning
+redaction or normalization. The default credential invariant accepts only the
+built-in substitute for the recognized shape; constant rules accept only
+the configured value, and removal rules reject retained fields. A changed policy therefore rejects incompatible fixtures.
+Direct message decoding establishes structural validity only; adapter/system
+admission must apply the selected preparation policy before storage or replay.
+Full lifecycle and persistence registration integration belongs to later units.
+
+Normalization cannot reintroduce a credential that violates the selected policy.
+Failed transforms return Core's safe `PreparationFailure` without retaining the
+underlying error or payload. Record-purpose failure invalidates publication;
+replay-purpose failure never authorizes live fallback. Input values are immutable;
+this layer does not change the caller's original live value. Later adapters own
+consumer delivery under DD09's normalized-delivery amendment.
+
+The syntax checks follow [HTTP authentication grammar (RFC 9110)](https://www.rfc-editor.org/rfc/rfc9110.html#name-authentication)
+and the [cookie grammar (RFC 6265)](https://www.rfc-editor.org/rfc/rfc6265.html#section-4.1.1).
+The supported cookie attribute subset is deliberately conservative; unsupported
+extensions trigger whole-field substitution with a warning.

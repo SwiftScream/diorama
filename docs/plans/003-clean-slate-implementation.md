@@ -2832,13 +2832,21 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H03 — Typed HTTP preparation and credential defaults
 
+- Status: Complete on 2026-11-08 following owner confirmation of scope and
+  GPT-6 Astra at `high` reasoning. The owner authorizes stacked PR creation
+  on 2026-11-08.
+- Evidence: [Typed HTTP preparation](../evidence/003-H03-http-preparation.md).
+- Owner-approved review refinement: unify built-in and consumer field rules with
+  safe, replacement, warned replacement, and removal results; keep prepared-value
+  validation separate. Amend the existing H03 commit directly as requested.
+
 - Recommended model: GPT-6 Astra; reasoning: `high`. Credential defaults and consumer transforms must preserve valid replay substitutes and exclude secrets at every boundary.
 - Prerequisites: 003-H02, 003-B02; DD09, DD11, DD17.
 - Scope: Implement immutable setup preparation for inputs/outputs/errors, with structural canonicalization, credential redaction, normalization and validation.
 - Expected files/modules: HTTP typed policy/transform and safe-diff helpers; credential, malformed-field and consumer-transform tests.
 - Public behavior: Default safe substitutes cover Authorization, Proxy-Authorization, Cookie, Set-Cookie, Authentication-Info and Proxy-Authentication-Info.
   Preserve useful scheme/cookie syntax where possible; unparseable recognized fields get a safe whole-field substitute and warning, becoming unhealthy only if no valid safe substitute can be formed.
-- Tests/verification: V-code; same preparation on capture/decoded/edit/replay inputs, deterministic idempotence, secret-marker exclusion at every admission boundary, original live value unchanged, user rules and failed preparation.
+- Tests/verification: V-code; capture and live replay input transforms; validation-only admission of decoded/edited prepared values under DD09, deterministic idempotence, secret-marker exclusion at every admission boundary, original live value unchanged, user rules and failed preparation.
 - Exclusions: Default body mutation, automatic custom API-key discovery, transforming WWW-Authenticate/Proxy-Authenticate by default, raw logging, pseudonyms/named values, JSON-path parser/sanitizer feature design.
 - Checkpoint: R; review precise defaults and validity of replay substitutes.
 

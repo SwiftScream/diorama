@@ -54,11 +54,15 @@ let package = Package(
     targets: [
         .target(
             name: "DioramaHTTP",
-            dependencies: ["DioramaPersistence", .product(name: "HTTPTypes", package: "swift-http-types")],
+            dependencies: [
+                "DioramaCore",
+                "DioramaPersistence",
+                .product(name: "HTTPTypes", package: "swift-http-types"),
+            ],
             swiftSettings: strictConcurrencySettings),
         .testTarget(
             name: "DioramaHTTPTests",
-            dependencies: ["DioramaHTTP"],
+            dependencies: ["DioramaHTTP", "DioramaCore"],
             resources: [.copy("Fixtures")],
             swiftSettings: strictConcurrencySettings),
         .target(
