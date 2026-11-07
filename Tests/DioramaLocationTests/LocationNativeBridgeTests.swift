@@ -74,6 +74,83 @@ private final class NativeJournal: DioramaLocationManagerDelegate {
 @Suite(.timeLimit(.minutes(1)))
 @MainActor
 struct LocationNativeBridgeTests {
+    @Test(arguments: [false, true], [false, true])
+    func `mixed consumer recording omits only location passthrough without a baseline`(
+        fileBacked: Bool, hasPassthroughBaseline: Bool) async throws
+    {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("mixed.json")
+        let recordingDriver = ControlledLocationDriver()
+        let liveDriver = ControlledLocationDriver()
+        let record = try ScenarioSystem(named: "gps", definition: LocationDefinition(
+            driverFactory: { recordingDriver })).withMode(.record)
+        let live = try ScenarioSystem(named: "live", definition: LocationDefinition(driverFactory: { liveDriver }))
+        let original = try LocationOriginFixtures.authored()
+        let baseline = try ScenarioDefinition(attachments: hasPassthroughBaseline ? [
+            LocationTracks.attachment(named: "live", recording: original),
+        ] : [])
+        let codec = try LocationOriginFixtures.codec()
+        if fileBacked, hasPassthroughBaseline {
+            try codec.encode(baseline).write(to: file)
+        }
+        let setup = try fileBacked
+            ? Diorama(file: file, scenarioID: "mixed", mode: .passthrough, systems: live, record)
+            : Diorama(definition: baseline, scenarioID: "mixed", mode: .passthrough, systems: live, record)
+        let livePoint = point(40)
+        let result = try await setup.execute { _, live, record in
+            live.startUpdatingLocation()
+            liveDriver.bridge?.receive([livePoint])
+            #expect(live.location === livePoint)
+            record.startUpdatingLocation()
+            recordingDriver.bridge?.receive([point()])
+            record.stopUpdatingLocation()
+        }
+        let definition = try #require(result.definition)
+        let expected = hasPassthroughBaseline ? [live.attachment.id, record.attachment.id] : [record.attachment.id]
+        #expect(definition.attachments.map(\.id) == expected)
+        if hasPassthroughBaseline {
+            #expect(try LocationOriginFixtures.content(definition, named: "live") == original)
+        }
+        #expect(result.report.evaluated(.noDiagnostics).isSatisfied)
+        #expect(result.report.finalization.usage.map(\.attachmentID) == [live.attachment.id, record.attachment.id])
+        #expect(result.report.finalization.cleanup.map(\.disposition) == [.completed, .completed])
+        #expect(result.report.publication.candidate.attachmentCount == expected.count)
+        #expect(result.report.publication.candidate.trackCount == expected.count * 2)
+        #expect(result.report.publication.disposition == (fileBacked ? .published : .notRequested))
+        #expect(liveDriver.bridge == nil)
+        #expect(recordingDriver.bridge == nil)
+        let bytes = try codec.encode(definition)
+        #expect(try codec.encode(codec.decode(bytes)) == bytes)
+        if fileBacked {
+            #expect(try Data(contentsOf: file) == bytes)
+            try await replayMixedRecording(in: file, live: live, record: record)
+            #expect(recordingDriver.connections == 2)
+        }
+    }
+
+    private func replayMixedRecording(in file: URL, live: ScenarioSystem<DioramaLocationManager>,
+                                      record: ScenarioSystem<DioramaLocationManager>) async throws
+    {
+        let bytes = try Data(contentsOf: file)
+        let replay = try await Diorama(file: file, scenarioID: "replay", mode: .passthrough,
+                                       systems: live, record.withMode(.replay))
+            .execute { _, _, record in
+                let journal = NativeJournal()
+                record.delegate = journal
+                record.startUpdatingLocation()
+                var iterator = journal.signal.stream.makeAsyncIterator()
+                _ = await iterator.next()
+                record.stopUpdatingLocation()
+            }
+        #expect(replay.report.evaluated(.noDiagnostics).isSatisfied)
+        #expect(replay.report.evaluated(.allRecordsClaimed).isSatisfied)
+        #expect(replay.report.evaluated(.allClaimedRecordsConsumed).isSatisfied)
+        #expect(replay.report.publication.disposition == .notRequested)
+        #expect(try Data(contentsOf: file) == bytes)
+    }
+
     @Test(arguments: [false, true])
     func `fresh consumer recording publishes and replays without a baseline`(fileBacked: Bool) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

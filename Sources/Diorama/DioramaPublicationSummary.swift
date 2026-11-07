@@ -86,8 +86,9 @@ public struct DioramaPublicationSummary: Equatable, Sendable {
         }
         candidate = PublicationCandidateSummary(
             isComplete: finalization.definition != nil,
-            attachmentCount: finalization.usage.count,
-            trackCount: finalization.usage.reduce(0) { $0 + $1.tracks.count },
+            attachmentCount: finalization.definition?.attachments.count ?? finalization.usage.count,
+            trackCount: finalization.definition?.attachments.reduce(0) { $0 + $1.trackIDs.count }
+                ?? finalization.usage.reduce(0) { $0 + $1.tracks.count },
             recordedCount: recording.reduce(0) { $0 + $1.0 },
             incompleteCount: recording.reduce(0) { $0 + $1.1 })
 

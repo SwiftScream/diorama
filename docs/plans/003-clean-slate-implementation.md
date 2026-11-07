@@ -1072,8 +1072,11 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C08 — Passthrough without baseline recording
 
-- Status: In progress. The owner approves the rule amendment and implementation
-  scope on 2026-11-07 after the mixed-mode publication mismatch is identified.
+- Status: Complete locally on 2026-11-07. The owner approves the rule amendment
+  and implementation scope after the mixed-mode publication mismatch is
+  identified. Focused regressions and the canonical macOS gate pass, including
+  all 614 host tests; owner review is the next checkpoint.
+- Evidence: [Passthrough without baseline recording](../evidence/003-C08-passthrough-without-baseline.md).
 - Prerequisites: 003-C05–003-C07, 003-Fa01; DD07, DD18's
   [passthrough-without-baseline amendment](../design-decisions/18-diorama-setup-and-scenario-data.md#passthrough-without-baseline--owner-approved-2026-11-07), DD20.
 - Scope: Carry selected-baseline membership through consumer startup to Core
