@@ -49,6 +49,8 @@ public struct PublicationIssue: Equatable, Sendable {
 }
 
 /// Payload-free counts for the completed candidate or attempted recording.
+/// Attachment and track counts describe healthy output when available, otherwise
+/// the attempted execution. Capture counts always describe this run.
 /// `recordedCount` counts observations from this run, not preserved baseline data.
 public struct PublicationCandidateSummary: Equatable, Sendable {
     public let isComplete: Bool
@@ -84,10 +86,18 @@ public struct DioramaPublicationSummary: Equatable, Sendable {
             }
             return nil
         }
+        let membership: (attachments: Int, tracks: Int) = if let definition = finalization.definition {
+            // Usage includes live passthrough attachments omitted from recorded output.
+            // Count the attachments and tracks that actually belong to the candidate.
+            (definition.attachments.count, definition.attachments.reduce(0) { $0 + $1.trackIDs.count })
+        } else {
+            // An unhealthy run has no candidate; describe the attempted execution.
+            (finalization.usage.count, finalization.usage.reduce(0) { $0 + $1.tracks.count })
+        }
         candidate = PublicationCandidateSummary(
             isComplete: finalization.definition != nil,
-            attachmentCount: finalization.usage.count,
-            trackCount: finalization.usage.reduce(0) { $0 + $1.tracks.count },
+            attachmentCount: membership.attachments,
+            trackCount: membership.tracks,
             recordedCount: recording.reduce(0) { $0 + $1.0 },
             incompleteCount: recording.reduce(0) { $0 + $1.1 })
 

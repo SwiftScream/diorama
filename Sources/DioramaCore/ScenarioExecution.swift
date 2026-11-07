@@ -141,6 +141,8 @@ public final class ScenarioExecution: Sendable {
     /// prepares before any activates. Failure closes all created leases and
     /// unwinds successful activations in reverse order, continuing on cleanup
     /// failure. Arbitrary thrown errors are neither retained nor rendered.
+    /// Every supplied attachment is treated as recorded baseline content;
+    /// consumer setup separately identifies attachments with layout only.
     ///
     /// - Parameters:
     ///   - definition: Ordered attachment declarations and prepared stable data.
@@ -169,7 +171,9 @@ public final class ScenarioExecution: Sendable {
         defaultMode: ScenarioMode,
         systems: [AnyScenarioSystem],
         initialDiagnostics: [Diagnostic] = [],
-        clock: ExecutionClock) async throws(ScenarioStartupFailure) -> ScenarioExecution
+        clock: ExecutionClock,
+        unrecordedPassthroughAttachments: Set<AttachmentID> = [])
+        async throws(ScenarioStartupFailure) -> ScenarioExecution
     {
         let reporter = DiagnosticReporter(scenarioID: scenarioID, definition: definition)
         for diagnostic in initialDiagnostics {
@@ -188,6 +192,7 @@ public final class ScenarioExecution: Sendable {
                 definition: definition,
                 defaultMode: defaultMode,
                 systems: systems,
+                unrecordedPassthroughAttachments: unrecordedPassthroughAttachments,
                 services: services)
         } catch {
             // Prepared systems and activation resources have left their scope;
@@ -196,9 +201,27 @@ public final class ScenarioExecution: Sendable {
         }
     }
 
+    /// Consumer startup supplies provenance after baseline reconciliation. Only
+    /// passthrough attachments without authoritative content are excluded from
+    /// the candidate; preparation, activation, and reporting keep the full layout.
+    package static func start(
+        definition: ScenarioDefinition, scenarioID: ScenarioID, defaultMode: ScenarioMode,
+        systems: [AnyScenarioSystem], baselineAttachmentIDs: Set<AttachmentID>,
+        initialDiagnostics: [Diagnostic] = []) async throws(ScenarioStartupFailure) -> ScenarioExecution
+    {
+        let unrecorded = Set(systems.compactMap { system in
+            system.effectiveMode(defaultMode: defaultMode) == .passthrough
+                && !baselineAttachmentIDs.contains(system.attachmentID) ? system.attachmentID : nil
+        })
+        return try await start(
+            definition: definition, scenarioID: scenarioID, defaultMode: defaultMode, systems: systems,
+            initialDiagnostics: initialDiagnostics, clock: .continuous(), unrecordedPassthroughAttachments: unrecorded)
+    }
+
     private static func activate(
         definition: ScenarioDefinition, defaultMode: ScenarioMode,
-        systems: [AnyScenarioSystem], services: StartupServices) async throws(StartupRollback) -> ScenarioExecution
+        systems: [AnyScenarioSystem], unrecordedPassthroughAttachments: Set<AttachmentID>,
+        services: StartupServices) async throws(StartupRollback) -> ScenarioExecution
     {
         let reporter = services.reporter
         let admission = services.admission
@@ -245,7 +268,9 @@ public final class ScenarioExecution: Sendable {
         let activated = try await activatePrepared(prepared, definition: definition, leases: leases, services: services)
         let usage = ExecutionUsage(definition: definition, defaultMode: defaultMode, systems: systems)
         let execution = ScenarioExecution(systems: activated, leases: leases, reporter: reporter,
-                                          usage: usage, definition: definition, time: time, scheduler: scheduler)
+                                          usage: usage,
+                                          definition: definition.omittingAttachments(unrecordedPassthroughAttachments),
+                                          time: time, scheduler: scheduler)
         time.start()
         admission.publish()
         return execution

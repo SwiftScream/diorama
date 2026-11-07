@@ -329,6 +329,9 @@ test-integration design. They do not authorize those APIs.
   the controlled versus actual platform verification boundaries.
 - [Fresh Location startup evidence](evidence/003-G10-fresh-location-startup.md)
   records consumer-path empty-layout validation and first-recording replay coverage.
+- [Passthrough without baseline evidence](evidence/003-C08-passthrough-without-baseline.md)
+  records mixed-mode output membership, baseline preservation, native Location
+  publication, and candidate/report counts.
 - [Native Location bridge evidence](evidence/003-G08-location-native-bridge.md)
   records owned native capture, normalized delivery, passthrough, setup options,
   and controlled-test/platform verification boundaries.

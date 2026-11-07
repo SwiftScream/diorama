@@ -4,6 +4,7 @@ import DioramaCore
 struct ScenarioBaselineStartup {
     private struct Resolution {
         let definition: ScenarioDefinition
+        let baselineAttachmentIDs: Set<AttachmentID>
         let diagnostics: [Diagnostic]
     }
 
@@ -24,6 +25,7 @@ struct ScenarioBaselineStartup {
         }
         return try await ScenarioExecution.start(
             definition: resolution.definition, scenarioID: scenarioID, defaultMode: defaultMode, systems: systems,
+            baselineAttachmentIDs: resolution.baselineAttachmentIDs,
             initialDiagnostics: initialDiagnostics + resolution.diagnostics)
     }
 
@@ -46,7 +48,8 @@ struct ScenarioBaselineStartup {
             guard !keys.contains(attachment.id.key) else { return nil }
             return Diagnostic(issue: .baseline(.loadedAttachmentNotConfigured), context: .attachment(attachment.id))
         }
-        return Resolution(definition: resolved, diagnostics: diagnostics)
+        return Resolution(definition: resolved, baselineAttachmentIDs: Set(baseline.attachments.map(\.id)),
+                          diagnostics: diagnostics)
     }
 
     private func resolveUnusable(_ problem: ScenarioBaselineProblem)
@@ -61,7 +64,7 @@ struct ScenarioBaselineStartup {
         } else {
             []
         }
-        return Resolution(definition: layout.removingRecords(), diagnostics: diagnostics)
+        return Resolution(definition: layout.removingRecords(), baselineAttachmentIDs: [], diagnostics: diagnostics)
     }
 
     private func failure(_ diagnostic: Diagnostic) -> ScenarioStartupFailure {
