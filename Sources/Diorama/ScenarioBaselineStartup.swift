@@ -2,6 +2,11 @@ import DioramaCore
 
 /// Shared baseline policy for reusable in-memory and repository-backed setup.
 struct ScenarioBaselineStartup {
+    private struct Resolution {
+        let definition: ScenarioDefinition
+        let diagnostics: [Diagnostic]
+    }
+
     let layout: ScenarioDefinition
     let scenarioID: ScenarioID
     let defaultMode: ScenarioMode
@@ -12,18 +17,18 @@ struct ScenarioBaselineStartup {
         initialDiagnostics: [Diagnostic] = [])
         async throws(ScenarioStartupFailure) -> ScenarioExecution
     {
-        let resolution: (ScenarioDefinition, [Diagnostic]) = if let baseline {
+        let resolution = if let baseline {
             try resolve(baseline)
         } else {
             try resolveUnusable(problem)
         }
         return try await ScenarioExecution.start(
-            definition: resolution.0, scenarioID: scenarioID, defaultMode: defaultMode, systems: systems,
-            initialDiagnostics: initialDiagnostics + resolution.1)
+            definition: resolution.definition, scenarioID: scenarioID, defaultMode: defaultMode, systems: systems,
+            initialDiagnostics: initialDiagnostics + resolution.diagnostics)
     }
 
     private func resolve(_ baseline: ScenarioDefinition)
-        throws(ScenarioStartupFailure) -> (ScenarioDefinition, [Diagnostic])
+        throws(ScenarioStartupFailure) -> Resolution
     {
         if let missing = layout.attachments.first(where: {
             effectiveMode(for: $0.id) == .replay && baseline.attachment(for: $0.id.key) == nil
@@ -41,11 +46,11 @@ struct ScenarioBaselineStartup {
             guard !keys.contains(attachment.id.key) else { return nil }
             return Diagnostic(issue: .baseline(.loadedAttachmentNotConfigured), context: .attachment(attachment.id))
         }
-        return (resolved, diagnostics)
+        return Resolution(definition: resolved, diagnostics: diagnostics)
     }
 
     private func resolveUnusable(_ problem: ScenarioBaselineProblem)
-        throws(ScenarioStartupFailure) -> (ScenarioDefinition, [Diagnostic])
+        throws(ScenarioStartupFailure) -> Resolution
     {
         if layout.attachments.contains(where: { effectiveMode(for: $0.id) == .replay }) {
             throw failure(Diagnostic(issue: .baseline(.requiredBaselineUnavailable(problem))))
@@ -56,7 +61,7 @@ struct ScenarioBaselineStartup {
         } else {
             []
         }
-        return (layout.removingRecords(), diagnostics)
+        return Resolution(definition: layout.removingRecords(), diagnostics: diagnostics)
     }
 
     private func failure(_ diagnostic: Diagnostic) -> ScenarioStartupFailure {
