@@ -2751,8 +2751,8 @@ native evidence. Fa07 must precede coverage-dependent decisions.
   recordings before activation. Run focused tests and the canonical macOS gate.
 - Exclusions: Schema changes, new public APIs, changes to Core layout removal,
   native permission behavior, HTTP work, and additional local platform checks.
-- Checkpoint: R; stop for owner review. PR creation and merge require separate
-  authorization.
+- Checkpoint: R; the owner approves PR creation on 2026-11-07. Merge requires
+  passing required CI and a separate explicit owner request.
 
 ## Phase H — Shared HTTP and stable URLSession lifecycle
 

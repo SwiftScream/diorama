@@ -48,5 +48,5 @@ remain a separate manual check.
 - `git diff --check`: passes.
 
 This review uses local macOS verification. It makes no new local iOS or Linux
-verification claim. The branch is stacked on `example/location-recording`; the
-production review diff is against that branch and leaves its example fixups intact.
+verification claim. The production review diff is against `master`; the console
+examples remain on their separate feature branches.
