@@ -1,4 +1,5 @@
 import CoreLocation
+import Diorama
 @testable import DioramaCore
 @testable import DioramaLocation
 import DioramaPersistence
@@ -73,6 +74,94 @@ private final class NativeJournal: DioramaLocationManagerDelegate {
 @Suite(.timeLimit(.minutes(1)))
 @MainActor
 struct LocationNativeBridgeTests {
+    @Test(arguments: [false, true])
+    func `fresh consumer recording publishes and replays without a baseline`(fileBacked: Bool) async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("location.json")
+        let driver = ControlledLocationDriver()
+        let system = try ScenarioSystem(named: "gps", definition: LocationDefinition(driverFactory: { driver }))
+        let setup = try fileBacked
+            ? Diorama(file: file, scenarioID: "fresh", mode: .record, systems: system)
+            : Diorama(scenarioID: "fresh", mode: .record, systems: system)
+        let journal = NativeJournal()
+        let recorded = try await setup.execute { _, manager in
+            manager.delegate = journal
+            manager.startUpdatingLocation()
+            driver.bridge?.receive([point()])
+            manager.stopUpdatingLocation()
+        }
+        let definition = try #require(recorded.definition)
+        let content = try LocationOriginFixtures.content(definition)
+        #expect(content.sessions.count == 1)
+        #expect(content.sessions[0].events.count == 1)
+        #expect(content.access.requests.isEmpty)
+        #expect(recorded.report.evaluated(.noDiagnostics).isSatisfied)
+        #expect(driver.starts == 1)
+        #expect(driver.bridge == nil)
+        let bytes = fileBacked ? try Data(contentsOf: file) : nil
+        #expect(recorded.report.publication.disposition == (fileBacked ? .published : .notRequested))
+        let replaySetup = try fileBacked
+            ? Diorama(file: file, scenarioID: "replay", mode: .replay, systems: system)
+            : Diorama(definition: definition, scenarioID: "replay", mode: .replay, systems: system)
+        let replayJournal = NativeJournal()
+        let replay = try await replaySetup.execute { _, manager in
+            manager.delegate = replayJournal
+            manager.startUpdatingLocation()
+            var iterator = replayJournal.signal.stream.makeAsyncIterator()
+            _ = await iterator.next()
+            manager.stopUpdatingLocation()
+        }
+        let original = try #require(journal.batches.first?.first)
+        let replayed = try #require(replayJournal.batches.first?.first)
+        #expect(replayed.coordinate.latitude == original.coordinate.latitude)
+        #expect(replayed.coordinate.longitude == original.coordinate.longitude)
+        #expect(replayed.timestamp == original.timestamp)
+        #expect(replay.report.evaluated(.noDiagnostics).isSatisfied)
+        #expect(replay.report.evaluated(.allRecordsClaimed).isSatisfied)
+        #expect(replay.report.evaluated(.allClaimedRecordsConsumed).isSatisfied)
+        #expect(replay.report.publication.disposition == .notRequested)
+        #expect(driver.connections == 2) // One record connection and its shutdown; replay constructs no driver.
+        if fileBacked {
+            #expect(try Data(contentsOf: file) == bytes)
+        }
+    }
+
+    @Test
+    func `replay rejects a recordless setup before constructing a native driver`() async throws {
+        let driver = ControlledLocationDriver()
+        let system = try ScenarioSystem(named: "gps", definition: LocationDefinition(driverFactory: { driver }))
+        let empty = try ScenarioDefinition(attachments: [system.attachment]).removingRecords()
+        let setup = try Diorama(definition: empty, scenarioID: "invalid", mode: .replay, systems: system)
+        await #expect(throws: ScenarioStartupFailure.self) {
+            try await setup.execute { _, _ in Issue.record("Invalid replay must not start") }
+        }
+        #expect(driver.connections == 0)
+    }
+
+    @Test(arguments: [ScenarioMode.record, .replay])
+    func `sessions without an initial access segment remain invalid`(mode: ScenarioMode) async throws {
+        let driver = ControlledLocationDriver()
+        let system = try ScenarioSystem(named: "gps", definition: LocationDefinition(driverFactory: { driver }))
+        let sessions = try SequentialTrack(
+            id: system.attachment.trackIDs[0],
+            header: ValuePreparation().admitPrepared(LocationTracks.SessionHeader(
+                coordinateSpace: nil, altitudeOrigin: nil, initial: nil)),
+            values: [ValuePreparation().admitPrepared(LocationSession(timestampOrigin: nil, events: []))])
+        let access = try SequentialTrack<LocationTracks.AccessSegment, LocationRecordedAccessState>(
+            id: system.attachment.trackIDs[1],
+            header: ValuePreparation().admitPrepared(LocationAccessReplayFixtures.initial), values: [])
+        let baseline = try ScenarioDefinition(attachments: [
+            ScenarioAttachment(id: system.attachment.id).adding(sessions).adding(access),
+        ])
+        let setup = try Diorama(definition: baseline, scenarioID: "invalid", mode: mode, systems: system)
+        await #expect(throws: ScenarioStartupFailure.self) {
+            try await setup.execute { _, _ in Issue.record("Invalid baseline must not start") }
+        }
+        #expect(driver.connections == 0)
+    }
+
     private func point(_ latitude: Double = 12.123456789) -> CLLocation {
         CLLocation(coordinate: .init(latitude: latitude, longitude: 30), altitude: 10.12345,
                    horizontalAccuracy: 2.12345, verticalAccuracy: 1.23456,

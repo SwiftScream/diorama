@@ -50,6 +50,15 @@ struct LocationDefinition: SystemDefinition {
         guard context.mode != .passthrough else { return }
         try context.validate(sessions) { sessions in
             let access = try context.track(access)
+            // Diorama resolves fresh setup to a recordless layout. The native
+            // bridge captures the required initial access segment at activation.
+            // This exception is not a valid persisted or replay recording.
+            if context.mode == .record, sessions.records.isEmpty, access.records.isEmpty,
+               sessions.header == LocationTracks.SessionHeader(
+                   coordinateSpace: nil, altitudeOrigin: nil, initial: nil)
+            {
+                return
+            }
             _ = try LocationTracks.recording(in: ScenarioAttachment(id: context.attachmentID)
                 .adding(sessions).adding(access))
         }
