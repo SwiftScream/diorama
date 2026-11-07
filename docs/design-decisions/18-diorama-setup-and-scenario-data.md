@@ -75,6 +75,10 @@ Independent executions may share a definition without sharing consumption.
 
 ## Attachment membership and mixed modes
 
+The [2026-11-07 amendment](#passthrough-without-baseline--owner-approved-2026-11-07)
+supersedes the resulting-definition membership rule for passthrough without a
+baseline below.
+
 The configured systems define the complete attachment set for an execution and
 its resulting definition. Every attachment has one effective mode, inherited
 from the setup default or selected by its override. Tracks within one attachment
@@ -599,3 +603,34 @@ under `finalization.report` or `publication`. No definition or detailed outcome
 capability is removed from the successful return. DD05's final-only diagnostics
 and DD10's lifecycle boundaries remain unchanged. This does not authorize live
 inspection or test-framework integration.
+
+## Passthrough without baseline — owner-approved 2026-11-07
+
+The owner approves omitting configured passthrough attachments that have no
+recording in the selected usable baseline. Setup declares what participates in
+execution; it does not by itself establish recorded scenario content. The earlier
+rule requiring absent passthrough content to contribute an empty layout is
+superseded. Some systems require initial lifecycle records even when no operations
+occur, so a setup layout is not necessarily a valid empty recording.
+
+Record attachments contribute their new recordings, including valid empty
+recordings. Replay attachments require and preserve baseline content. Passthrough
+attachments preserve any existing baseline recording unchanged, including one
+with empty tracks; without a baseline recording, they contribute no attachment to
+the resulting `ScenarioDefinition`. This applies equally to in-memory output and
+whole-document publication. Membership follows baseline provenance, never record
+counts. An unusable baseline contributes no preserved content under DD07's
+existing rebuild policy.
+
+All configured systems still activate and participate in ordered usage, diagnostics,
+and cleanup. A fresh all-passthrough run produces an empty resulting definition
+and requests no publication. Replaying a previously omitted attachment requires
+recording it first; replay never constructs missing content or falls through live.
+When a healthy definition is available, publication candidate attachment and track
+counts describe that definition; execution usage continues to describe every
+configured attachment. Unhealthy attempts retain the existing usage-based counts.
+
+This amends DD18's execution/result membership equality and absent-passthrough
+layout rule. DD07/DD20's preservation of configured baseline content, whole-
+candidate health, persistence registration and strict decoding, and native
+passthrough behavior remain unchanged. No persistence schema change is required.
