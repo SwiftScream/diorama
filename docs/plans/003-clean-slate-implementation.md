@@ -1072,10 +1072,10 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 
 ### 003-C08 — Passthrough without baseline recording
 
-- Status: Complete locally on 2026-11-07. The owner approves the rule amendment
+- Status: Complete on 2026-11-07. The owner approves the rule amendment
   and implementation scope after the mixed-mode publication mismatch is
   identified. Focused regressions and the canonical macOS gate pass, including
-  all 614 host tests; owner review is the next checkpoint.
+  all 614 host tests. The owner authorizes the stacked PR on 2026-11-07.
 - Evidence: [Passthrough without baseline recording](../evidence/003-C08-passthrough-without-baseline.md).
 - Prerequisites: 003-C05–003-C07, 003-Fa01; DD07, DD18's
   [passthrough-without-baseline amendment](../design-decisions/18-diorama-setup-and-scenario-data.md#passthrough-without-baseline--owner-approved-2026-11-07), DD20.
@@ -1089,11 +1089,12 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
   missing, unusable, and partial baselines; default and overridden modes;
   existing empty/nonempty passthrough preservation; all-passthrough no-write
   output; replay refusal for omitted content. Run the canonical macOS gate;
-  leave the full platform matrix to CI when PR creation is authorized.
+  leave the full platform matrix to the required PR CI gate.
 - Exclusions: Persistence schema changes, relaxed Location validation, new public
   APIs, native passthrough instrumentation, dependency or platform changes.
-- Checkpoint: R; stop for owner review. PR creation and merge require separate
-  authorization.
+- Checkpoint: R; the owner approves PR creation on 2026-11-07, stacked on the
+  Location startup fix. Merge requires passing required CI and a separate
+  explicit owner request.
 
 ## Phase D — Isolated URLProtocol evidence
 

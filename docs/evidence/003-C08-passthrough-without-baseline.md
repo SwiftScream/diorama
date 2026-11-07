@@ -65,7 +65,9 @@ content for replay. After the change, it proves:
 - `git diff --check` passes.
 
 Verification is local macOS evidence. No additional local iOS or Linux run is
-claimed; the full matrix belongs to CI after separate PR authorization.
+claimed; the full macOS, iOS, and Linux matrix is the required PR CI gate.
+The owner approves stacked PR creation on 2026-11-07.
 This branch is stacked on the Location startup fix in PR #117. Review the C08
 diff against `fix/location-fresh-recording`. The two C08 commits separate the
 approved design/plan amendment from the implementation, tests, and evidence.
+A documentation-only fixup records PR authorization and the final plan status.
