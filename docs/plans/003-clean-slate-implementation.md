@@ -8,6 +8,14 @@
 
 The owner explicitly approved this plan on 2026-09-07, alongside the consolidated design.
 
+On 2026-11-08, the owner approves
+[DD17's type-aware body storage amendment](../design-decisions/17-http-lifecycle-composition.md#type-aware-body-storage--owner-approved-2026-11-08).
+H02 adds lossless inline UTF-8 text alongside base64 during its current review.
+New H07A owns configurable type-aware recording placement and resource extensions
+after H07; H08 retains derived Content-Length and body-edit consistency. Future
+units remain subject to their normal scope checkpoints; this approval does not
+start H07, H07A, or H08.
+
 On 2026-10-09, the owner authorizes a separate naming maintenance PR under
 [Decision 15's date-system naming amendment](../design-decisions/15-clock-system.md#date-system-naming-amendment--owner-approved-2026-10-09).
 Current module references use `DioramaDate`; `DioramaDateSystem`,
@@ -522,7 +530,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | Fa    | 003-Fa01–003-Fa07; 003-Fa09A; 003-Fa09 | Pure passthrough, managed system authoring, infrastructure-review follow-ups, retained consumer reports, and diagnostic-delivery simplification. |
 | Ra    | 003-Ra1–003-Ra5 | Post-Fa review follow-ups for scoped ownership, cancellation disposal, merge ordering, retained-report APIs, and envelope classification. |
 | G     | 003-G01–003-G10      | Apple-only location recording and callback replay through a narrow manager/delegate interface. |
-| H     | 003-H01–003-H14      | Shared HTTP domain, resource publication, strict URLSession lifecycle data.  |
+| H     | 003-H01–003-H14, including H07A | Shared HTTP domain, resource publication, strict URLSession lifecycle data.  |
 | I     | 003-I01–003-I09      | Incremental production URLSession conformance across platform bridges.       |
 | J     | 003-J01–003-J04      | Opt-in test integrations, combined-system acceptance, user documentation.    |
 
@@ -2804,18 +2812,21 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H02 — Shared message heads, fields, and body values
 
-- Status: Implementation complete on 2026-11-08; the owner confirms scope and
-  authorizes commencement on 2026-11-07. Owner review is the next checkpoint.
+- Status: Complete on 2026-11-08; the owner confirms scope and authorizes
+  commencement on 2026-11-07, then stacked PR creation on 2026-11-08.
 - Evidence: [Shared HTTP message values](../evidence/003-H02-http-message-values.md).
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Own the HTTP schema while preserving repeated fields and absent/empty/unavailable body distinctions.
 - Prerequisites: 003-H01 adoption approval, 003-C02; DD08, DD11, DD17.
 - Scope: Add HTTPTypes in-memory heads, ordered repeated fields, stable body cases and deliberate Diorama-owned message codecs/builders.
+  Owner-approved 2026-11-08 review extension: encode eligible inline bytes as
+  lossless UTF-8 text, with base64 fallback; retain one strict byte model.
+  Automatic resource placement and media-type policy belong to H07A.
 - Expected files/modules: `DioramaHTTP` message/body/field types, codecs and goldens; approved Package.swift additions and public documentation.
 - Public behavior: Method/target/status/fields retain declared semantics; absent, empty bytes, resource bytes and response-only unavailable content differ.
   Resource references are stable values, never filesystem handles.
   No invented HTTP version or dependency-owned Codable output becomes Diorama's contract.
-- Tests/verification: V-code; repeated fields including Set-Cookie, absent/empty request distinction, unsupported values, native-independent builders, exact byte fixtures, deterministic owned encoding and strict unknown-field rejection.
+- Tests/verification: V-code; repeated fields including Set-Cookie, absent/empty request distinction, unsupported values, native-independent builders, exact byte fixtures, deterministic owned encoding and strict unknown-field rejection, UTF-8 byte fidelity and base64 fallback, conflicting text/base64 rejection.
 - Exclusions: Native Foundation wrappers in stable data, header dictionaries, universal failure enum, live URLSession, premature general resource spooling.
 - Checkpoint: R; review value semantics and schema independently from lifecycle.
 
@@ -2885,21 +2896,36 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
   References are normally scenario-relative; inline/resource storage has identical byte meaning.
   Replay needs no writes.
 - Tests/verification: V-code; missing/unreadable/invalid references, safe path validation, old-reader resources during replacement, failed staging/commit, cleanup without breaking published readers, concurrent last-writer publication, prepared-only bytes and read-only replay on all applicable platforms.
-- Exclusions: Raw adapter spool generalized into repository staging, digests required solely to forbid edits, optimistic locks, multi-file partial success.
+- Exclusions: Automatic media-type placement/extension policy until H07A, raw adapter spool generalized into repository staging, digests required solely to forbid edits, optimistic locks, multi-file partial success.
 - Checkpoint: R; review exact layout and logical atomicity before resource output.
 
-### 003-H08 — Exact JSON resources and derived Content-Length
+### 003-H07A — Configurable type-aware body storage policy
 
-- Recommended model: GPT-6 Sol; reasoning: `medium`. Exact JSON bytes and provable Content-Length derivation require careful HTTP exception handling without mutation.
-- Prerequisites: 003-H07, 003-H06; DD11, DD17.
-- Scope: Select exact .json resources for valid UTF-8 application/json or +json bodies and implement the explicit body-byte-count field form when provable.
-- Expected files/modules: HTTP body persistence selection/derived fields, fixtures preserving JSON byte spelling and body-edit integration tests.
-- Public behavior: Keep whitespace, duplicate names, number spellings and escapes byte-exact.
+- Status: Approved on 2026-11-08; not started. Normal unit scope confirmation is required.
+- Recommended model: GPT-6 Sol; reasoning: `high`. Deterministic placement and naming must preserve exact bytes across media types, overrides, and publication.
+- Prerequisites: 003-H02–003-H03, 003-H07; DD07, DD09, DD11, DD17's type-aware body storage amendment.
+- Scope: Add immutable configurable recording policy selecting inline content or resources from prepared body bytes and media-type hints. Own typed extension selection and integrate with H07 publication.
+- Expected files/modules: HTTP body storage policy/configuration, media-type classification and resource extension mapping, persistence-selection integration, fixtures and public documentation.
+- Public behavior: Recognized images default to resources with appropriate extensions, including `.png` and `.jpeg`. Recognized text, including JSON/HTML, defaults to inline up to and including 200 prepared bytes and typed resources above that threshold, including `.json` and `.html`.
+  Unknown content uses the same threshold, with `.txt` for eligible UTF-8 text resources and `.bin` for opaque bytes. Inline encoding uses H02's lossless UTF-8 text/base64 rule; invalid UTF-8 stays exact through base64 or an opaque resource.
+  Consumers override placement, byte thresholds, and extensions by media type. Rule precedence, fallback, supported type mappings, and extension sanitization are explicit and deterministic. Thresholds measure prepared original bytes, not characters or escaped/encoded size.
+  Apply selection only to actual byte content, never absent/unavailable cases. Select only newly recorded prepared content. Preserve existing baseline references; replay honors stored representations without rerunning recording policy. No body transcoding, decompression, pretty printing, or structured JSON parsing/re-encoding for storage.
+- Tests/verification: V-code; 199/200/201-byte boundaries including multibyte text and JSON escaping; PNG/JPEG/JSON/HTML and unknown types; explicit always-inline/always-resource and threshold/extension overrides; deterministic rule precedence/naming; missing/malformed/conflicting/misleading media types; non-UTF-8, partial, and compressed/opaque content; no byte mutation; prepared-only resources; baseline preservation and read-only replay.
+- Exclusions: Embedded structured JSON, semantic JSON matching, content normalization, image decoding, a generalized MIME-sniffing engine, changes to resource atomicity, derived Content-Length, and unapproved parser/codec dependencies.
+- Checkpoint: R; review the exact public policy API, supported media-type mappings, metadata/encoding mismatch handling, extension safety, precedence, and byte-for-byte storage equivalence before automatic selection is accepted.
+
+### 003-H08 — Derived Content-Length and body-edit consistency
+
+- Recommended model: GPT-6 Sol; reasoning: `medium`. Provable Content-Length derivation and edited-body integration require careful HTTP exception handling without mutation.
+- Prerequisites: 003-H07A, 003-H06; DD11, DD17.
+- Scope: Implement the explicit body-byte-count field form when provable and verify body-edit integration across inline text, inline base64, and typed resources. H07A owns automatic placement and extensions.
+- Expected files/modules: HTTP derived fields, fixtures preserving exact body spelling, and body-edit/profile/length integration tests.
+- Public behavior: Keep whitespace, duplicate JSON names, number spellings, and escapes byte-exact.
   Derive only one valid Content-Length equal to a complete body with unambiguous method/status/encoding/transfer semantics; resolve from edited bytes before native materialization.
-  Absent lengths remain absent.
-- Tests/verification: V-code; JSON/+json detection, invalid UTF-8/JSON retained as exact opaque bytes, no re-encoding, edited resource/profile/length consistency, literal HEAD/partial/compressed/mismatched/repeated lengths, authored literal mismatch, ETag/Digest/Content-MD5/signatures unchanged, safe preparation first.
-- Exclusions: JSON pretty printing/canonical matching, competing structured body, recomputing validators or inventing signatures, overriding literal fields.
-- Checkpoint: R; review exact-byte authoring contract and derivation proof cases.
+  Absent lengths remain absent. Stored JSON may be inline text or a `.json` resource; no JSON re-encoding occurs.
+- Tests/verification: V-code; edited text/base64/resource bytes and profile/length consistency; JSON spellings and escaped text; literal HEAD/partial/compressed/mismatched/repeated lengths; authored literal mismatch; ETag/Digest/Content-MD5/signatures unchanged; safe preparation first.
+- Exclusions: Automatic storage selection, JSON pretty printing/canonical matching, competing structured body, recomputing validators or inventing signatures, overriding literal fields.
+- Checkpoint: R; review exact-byte editing and derivation proof cases.
 
 ### 003-H09 — Stable URLSession failure supplements
 

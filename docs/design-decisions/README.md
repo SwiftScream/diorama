@@ -3,6 +3,13 @@
 - Status: Accepted
 - Consolidated design approved by owner: 2026-09-07
 
+On 2026-11-08, the owner approves
+[DD17's type-aware body storage amendment](17-http-lifecycle-composition.md#type-aware-body-storage--owner-approved-2026-11-08).
+Inline content uses lossless UTF-8 text or base64. Configurable recording policy
+selects typed resources, with images externalized and a default 200-byte threshold
+for text and other content. Structured JSON remains deferred; small JSON can be
+inline text instead of always becoming a resource.
+
 On 2026-11-07, the owner approves
 [DD18's passthrough-without-baseline amendment](18-diorama-setup-and-scenario-data.md#passthrough-without-baseline--owner-approved-2026-11-07).
 Configured passthrough attachments remain active but contribute no resulting

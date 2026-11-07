@@ -99,3 +99,15 @@ Preparation/redaction, matching, derived Content-Length, resource loading,
 stream delivery, lifecycle conclusions, and native conversion are separate plan
 units. These builders do not perform those operations or authorize persisting
 unprepared secrets.
+
+## Recording placement policy
+
+[DD17's owner-approved storage amendment](design-decisions/17-http-lifecycle-composition.md#type-aware-body-storage--owner-approved-2026-11-08)
+separates this codec from future automatic resource selection. Plan 003 H07 adds
+resource mechanics; H07A adds configurable type-aware placement, thresholds, and
+extensions. Images default to resources; text and other content default to
+resources above 200 prepared bytes. JSON/HTML resources use `.json`/`.html` where
+appropriate. These are planned recording behaviors, not implemented by this codec.
+Replay honors stored content. H08 owns derived Content-Length and edited-body
+consistency. See the [owning plan](plans/003-clean-slate-implementation.md#003-h07a--configurable-type-aware-body-storage-policy)
+for prerequisites, exclusions, and the required future scope checkpoint.

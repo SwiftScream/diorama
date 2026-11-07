@@ -224,6 +224,10 @@ segments or contradictory byte coverage.
 
 ## Human-readable JSON resources
 
+The [type-aware body storage amendment](#type-aware-body-storage--owner-approved-2026-11-08)
+supersedes this section's unconditional JSON-resource selection. Its exact-byte
+and single-authority requirements remain in force.
+
 Exact application-observed body bytes remain the default. When a body has an
 `application/json` or `+json` media type and contains valid UTF-8 JSON, the
 initial file repository should store it as an exact `.json` resource. This
@@ -725,3 +729,55 @@ selection/capture, and domain-owned delivery. Its reconciliation supersedes
 requirements for generic Core interaction/subscription models or engines while
 preserving the domain invariants specified there. The earlier discussion above
 remains a historical record.
+
+## Type-aware body storage — owner-approved 2026-11-08
+
+The owner approves lossless inline UTF-8 text and configurable type-aware body
+placement. This supersedes unconditional `.json` resource selection above and
+in the original progression, body-authoring answer, and accepted-answer summary.
+Exact observed bytes remain authoritative. Embedded structured JSON is deferred;
+JSON bodies may be escaped inline text or exact `.json` resources, without parsing
+and re-encoding their contents or keeping competing authoritative copies.
+
+Inline content uses a JSON string when strict UTF-8 decoding followed by UTF-8
+encoding reproduces the original bytes exactly, including an empty body. Otherwise
+it uses standard padded base64. JSON escaping is a transport detail: no BOM
+stripping, newline conversion, Unicode normalization, replacement of malformed
+UTF-8, charset transcoding, or decompression is performed for storage. Both forms
+validate to the same byte model; partial prefixes follow the same rule.
+
+Recording selects resource versus inline placement after preparation/redaction,
+using an immutable configurable policy. The initial defaults are:
+
+- Recognized image media types always use resources with appropriate extensions,
+  including `.png` and `.jpeg`.
+- Recognized textual media types, including JSON and HTML, use inline text up to
+  and including 200 original body bytes and resources above that threshold,
+  including `.json` and `.html` as appropriate.
+- Unrecognized content uses the same 200-byte threshold, with `.txt` for eligible
+  UTF-8 text resources and `.bin` for opaque resources. Inline bytes use the
+  text/base64 codec rule above.
+
+Textual media types with ineligible UTF-8 bytes use base64 when inline; a media
+type hint never permits lossy text decoding.
+
+The threshold measures prepared logical bytes before base64 or JSON escaping,
+not Unicode character count or serialized document size. Consumers can override
+placement, thresholds, and extensions by media type. Rule precedence and fallback
+must be explicit and deterministic. Media type is a hint, not proof of actual
+encoding or byte format. The resource-selection unit must define handling of
+missing, malformed, conflicting, or misleading metadata and compressed/opaque
+content so extensions describe the bytes actually stored. No parser or image
+codec dependency is approved by this amendment.
+
+Policy applies only to actual byte content, never absent/unavailable cases. It
+applies to recording's newly produced content, not to replay or silently
+rewriting preserved baseline references. Replay honors the representation stored
+in the scenario. Changing placement does not change matching, lifecycle semantics,
+segmentation weights, or the rules for derived Content-Length. Resource naming
+and publication remain subject to the existing path and atomicity contracts.
+
+Plan 003 H02 provides only the inline codec. H07 provides resource mechanics;
+new H07A owns automatic placement, configuration, and extension selection. H08
+retains derived Content-Length and body-edit integration. Each future unit still
+requires its own scope confirmation before implementation.

@@ -1,10 +1,10 @@
 # 003-H02 — Shared HTTP message values
 
 - Date: 2026-11-08
-- Status: Implementation complete; owner review is the next checkpoint.
+- Status: Complete; stacked PR creation is owner-authorized on 2026-11-08.
 - Owning unit: [003-H02](../plans/003-clean-slate-implementation.md#003-h02--shared-message-heads-fields-and-body-values)
 - Contract: [HTTP message schema components](../http-message-schema-v1.md)
-- Base: `docs/003-h01-http-types-adoption` at `c95d207`.
+- Base: `docs/003-h01-http-types-adoption` at `51c52da`.
 
 ## Delivered behavior
 
@@ -78,7 +78,7 @@ revision before integration. This local review does not authorize pushing,
 creating a PR, merging, or starting H03.
 
 V-doc passes: all 295 local file links in the changed documentation resolve;
-new section links match their headings; the complete H02 diff against `c95d207`
+new section links match their headings; the complete H02 diff against `51c52da`
 passes `git diff --check`.
 
 ## Review unit
@@ -86,7 +86,7 @@ passes `git diff --check`.
 One coherent feature commit contains the manifest, shared values/codecs,
 public-consumer tests and goldens, documentation/plan evidence, and the required
 iOS warning-setting and generated-directory lint corrections. It is stacked on the H01 adoption record;
-the H02 diff is measured against `c95d207`, excluding H01's separate review unit.
+the H02 diff is measured against `51c52da`, excluding H01's separate review unit.
 
 
 ## Review update — base64 inline bodies, 2026-11-08
@@ -150,3 +150,22 @@ probes, release builds, and examples. Complete-diff whitespace checks and change
 document file-link checks pass. As required for a review fixup, no new local
 iOS/Linux matrix or coverage collection is claimed; the initial implementation
 results above remain historical, and hosted checks remain a PR integration gate.
+
+The separately committed documentation amendment records the owner-approved
+DD17 revision, updates its decision index and consolidated overview, extends H02's
+recorded scope, inserts approved future H07A after H07, and narrows H08 to derived
+Content-Length and edited-body consistency. H07A remains unstarted. Its public
+policy API, metadata handling, and exact media-type mappings retain an explicit
+scope/review checkpoint. All 304 local file links in the changed documentation
+resolve, new amendment/plan anchors resolve, and both isolated and complete H02
+whitespace checks pass.
+
+## Final review and pull request authorization
+
+The review updates described above are incorporated into the H02 implementation
+commit; references to unsquashed fixups describe their earlier review state.
+The separate body-storage design amendment remains its own documentation commit.
+The owner authorizes stacked H01/H02/H03 PR creation on 2026-11-08. H02 is complete
+and targets `docs/003-h01-http-types-adoption`; no H03 or later implementation is
+included in its diff. Required checks and a separate owner merge request govern
+integration. Local verification results above remain historical measurements.

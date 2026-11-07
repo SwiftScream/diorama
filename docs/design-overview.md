@@ -452,10 +452,15 @@ libraries.
 
 ### Exact bodies and editable delivery profiles
 
-Exact body bytes remain authoritative even when a JSON media type is stored in
-a readable `.json` resource. Body segments store observed byte counts as
-weights. An unchanged body reproduces exact boundaries; an edited body scales
-them deterministically and cannot make the runtime profile out of range. Only a
+Exact body bytes remain authoritative in inline UTF-8 text, inline base64, or
+resources. Under [DD17's type-aware storage amendment](design-decisions/17-http-lifecycle-composition.md#type-aware-body-storage--owner-approved-2026-11-08),
+recording policy selects placement and appropriate extensions: recognized images
+use resources; textual and other content default to resources above 200 prepared
+body bytes. Consumers can override placement, thresholds, and extensions by media
+type. Small JSON is escaped inline text; structured JSON remains deferred. Replay
+honors stored content without rerunning placement policy. Body segments store
+observed byte counts as weights. An unchanged body reproduces exact boundaries;
+an edited body scales them deterministically and cannot make the runtime profile out of range. Only a
 `Content-Length` proven equivalent to a complete stored body becomes a derived
 field value. Ambiguous lengths and other validators remain literal.
 
