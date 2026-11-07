@@ -515,7 +515,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | ----- | ------------ | ---------------------------------------------------------------------------- |
 | A     | 003-A01–003-A04      | Toolchain/approval evidence, minimal package, complete quality bootstrap.    |
 | B     | 003-B01–003-B11 plus 003-B07A | Public sequential core, an in-memory random system, and a compiled usage example. |
-| C     | 003-C01–003-C07 plus 003-C04A–003-C04B | Persisted random and consumer-defined systems; first complete vertical path. |
+| C     | 003-C01–003-C08 plus 003-C04A–003-C04B | Persisted random and consumer-defined systems; first complete vertical path and passthrough membership correction. |
 | D     | 003-D01–003-D05      | Isolated URLProtocol evidence and reviewed native capability boundaries.     |
 | E     | 003-E01–003-E08      | Shared real-time scheduler and system-owned record services.           |
 | F     | 003-F01–003-F07; 003-F03A abandoned | Portable wall system and Core execution clock. |
@@ -1069,6 +1069,28 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 - Exclusions: Scheduler, native adapters, new example packages/dependencies, general consumer behavior-engine replacement.
 - Checkpoint: R; the first vertical milestone is complete only with full platform evidence.
   Stop before introducing scheduler or native-adapter complexity.
+
+### 003-C08 — Passthrough without baseline recording
+
+- Status: In progress. The owner approves the rule amendment and implementation
+  scope on 2026-11-07 after the mixed-mode publication mismatch is identified.
+- Prerequisites: 003-C05–003-C07, 003-Fa01; DD07, DD18's
+  [passthrough-without-baseline amendment](../design-decisions/18-diorama-setup-and-scenario-data.md#passthrough-without-baseline--owner-approved-2026-11-07), DD20.
+- Scope: Carry selected-baseline membership through consumer startup to Core
+  finalization. Omit unrecorded passthrough attachments from semantic output and
+  publication while retaining every configured dependency, usage, and cleanup
+  entry. Preserve existing baseline content, including empty recordings.
+- Expected files/modules: Consumer startup, Core candidate construction,
+  publication summaries, mixed-mode regression tests, and acceptance evidence.
+- Tests/verification: Focused public consumer and Location publication regressions;
+  missing, unusable, and partial baselines; default and overridden modes;
+  existing empty/nonempty passthrough preservation; all-passthrough no-write
+  output; replay refusal for omitted content. Run the canonical macOS gate;
+  leave the full platform matrix to CI when PR creation is authorized.
+- Exclusions: Persistence schema changes, relaxed Location validation, new public
+  APIs, native passthrough instrumentation, dependency or platform changes.
+- Checkpoint: R; stop for owner review. PR creation and merge require separate
+  authorization.
 
 ## Phase D — Isolated URLProtocol evidence
 

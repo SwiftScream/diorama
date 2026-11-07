@@ -3,7 +3,7 @@
 - Status: Accepted
 - Created: 2026-09-05
 - Approved by owner: 2026-09-07
-- Last reviewed: 2026-10-17
+- Last reviewed: 2026-11-07
 - Scope: Decisions 1 through 21
 - Derived from: [Accepted design decisions](design-decisions/README.md)
 
@@ -316,6 +316,10 @@ construction; every execution loads its own fixed semantic baseline. A supplied
 definition is already fixed and reusable. Finalization constructs a new
 definition, preserving configured replay/passthrough content, replacing record
 content under system merge rules, and omitting unconfigured attachments.
+Under [DD18's passthrough-without-baseline amendment](design-decisions/18-diorama-setup-and-scenario-data.md#passthrough-without-baseline--owner-approved-2026-11-07),
+passthrough attachments without baseline recordings remain active for execution
+and reporting but are omitted from the resulting definition and publication.
+Existing baseline recordings remain preserved even when their tracks are empty.
 
 Each `ScenarioSystem` refers to a shared `ScenarioSystemType` containing stable
 identity and optional capabilities. Several keyed instances share that metadata.
