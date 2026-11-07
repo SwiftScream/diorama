@@ -2852,13 +2852,22 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H04 — Standard HTTP matcher and safe differences
 
+- Status: Complete on 2026-11-08 following owner confirmation of scope, stacked
+  development atop H03, and the recommended model/reasoning setting. The owner
+  approves review and authorizes stacked PR creation on 2026-11-11. Local
+  verification is recorded in the evidence; required PR checks enforce the full
+  platform and coverage matrix before separately authorized merge.
+- Evidence: [Prepared HTTP matching](../evidence/003-H04-http-matching.md).
+
 - Recommended model: GPT-6 Sol; reasoning: `high`. Prepared projections and safe differences need precise header-order, exact-body, and resource-equivalence semantics.
 - Prerequisites: 003-H03, 003-E05; DD04, DD09, DD11.
 - Scope: Match prepared method, scheme/authority, path/query, exact logical body, and prepared fields with the accepted configurable exclusion defaults.
 - Expected files/modules: HTTP matcher/projection/diff files and matching tests.
 - Public behavior: Default exclusions are Host, Content-Length, Connection, Keep-Alive, Proxy-Connection, Transfer-Encoding, and User-Agent; routing fields never enter prepared values at all.
   Name comparison is case-insensitive; order between different names is ignored and repeated-value order retained.
-  Include/exclude/strict-inclusion/typed matcher setup options are explicit.
+  `HTTPMatchFields` uses explicit `including` and `excluding` enum cases without
+  implicit defaults; `.standard` excludes the public `defaultExclusions` set,
+  which callers customize with set operations. Typed matcher setup remains available.
 - Tests/verification: V-code; reordered and repeated requests, meaningful custom fields and conditional headers, body absent/empty, inline/resource equivalence via controlled resolver, opt-in User-Agent, ambiguity/exhaustion safe diffs.
 - Exclusions: Silent query reordering, semantic JSON matching, multipart boundary normalization, ignoring a field as a substitute for redacting it.
 - Checkpoint: R; review full default field projection and selection diagnostics.

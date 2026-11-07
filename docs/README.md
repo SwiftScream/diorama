@@ -366,6 +366,8 @@ test-integration design. They do not authorize those APIs.
   records the H02 implementation and verification boundary.
 - [HTTP preparation evidence](evidence/003-H03-http-preparation.md) records typed
   credential preparation, authored-value admission, and verification.
+- [HTTP matching evidence](evidence/003-H04-http-matching.md) records prepared
+  projections, field participation, logical body equality, and safe selection facts.
 
 ## Historical boundary
 

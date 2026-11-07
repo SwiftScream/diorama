@@ -199,3 +199,42 @@ The syntax checks follow [HTTP authentication grammar (RFC 9110)](https://www.rf
 and the [cookie grammar (RFC 6265)](https://www.rfc-editor.org/rfc/rfc6265.html#section-4.1.1).
 The supported cookie attribute subset is deliberately conservative; unsupported
 extensions trigger whole-field substitution with a warning.
+
+## Prepared request matching
+
+`HTTPRequestMatcher` projects `PreparedValue<HTTPRequestMessage>` into immutable
+`HTTPRequestMatchProjection` values. Prepare live inputs with `HTTPPreparation`
+and validate stored inputs before projection. Compare projections produced with
+the same setup policy. Projection never changes the message or its persisted
+representation. Internal adapter routing fields must be removed before admission;
+field exclusion is not a privacy boundary.
+
+The standard comparison includes the literal prepared method, scheme, authority,
+path/query, logical body, and participating fields. Absent and present-empty
+bodies differ. Inline and resource-backed bodies with identical bytes match,
+regardless of resource path. Supply a controlled resolver for prepared scenario
+resources during projection; missing content fails with `resourceUnavailable`,
+without exposing the resolver error. Selection performs no resource I/O.
+
+Default field exclusions are Host, Content-Length, Connection, Keep-Alive,
+Proxy-Connection, Transfer-Encoding, and User-Agent. `HTTPMatchFields` is an enum:
+`.including(names)` matches only those fields, and `.excluding(names)` matches
+every field except those names. Neither case implicitly adds defaults.
+`.standard` is `.excluding(defaultExclusions)`. Customize the public
+`HTTPMatchFields.defaultExclusions` set with ordinary set operations: subtract
+names to opt them back in, or union names to exclude additional fields.
+An empty inclusion set ignores every field; an empty exclusion set matches every
+field. Name identity is case-insensitive, ordering between different
+names is irrelevant, and repeated values retain their order and exact bytes.
+Query order, JSON content, and multipart boundaries receive no implicit
+normalization.
+
+A typed custom matcher can compare resolved projections. Its comparison must be
+a deterministic equivalence relation. `selector(recordedInput:)` adapts projected
+records to Core's atomic equivalent FIFO claims; reordered distinct requests
+select their own records, and repeated equivalent requests exhaust in recorded
+order. Custom Core selectors can report unresolved ambiguity explicitly.
+`differences` reports only fixed component categories in deterministic order.
+Selector diagnostics include static policy/component labels and Core identities,
+never request values, captured field names, body bytes, or resource paths.
+Preparation and custom comparison safety remain setup responsibilities.
