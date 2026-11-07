@@ -211,6 +211,10 @@ public struct ScenarioDefinition: Sendable {
         attachments = validatedAttachments
     }
 
+    func omittingAttachments(_ ids: Set<AttachmentID>) -> ScenarioDefinition {
+        ScenarioDefinition(validatedAttachments: attachments.filter { !ids.contains($0.id) })
+    }
+
     func replacingRecordings(_ recordings: [any AnySequentialTrack]) -> ScenarioDefinition {
         // Every replacement comes from the typed lease prepared for this exact
         // track. Identity, value type, and prepared-value invariants are preserved.

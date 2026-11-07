@@ -3,6 +3,12 @@
 - Status: Accepted
 - Consolidated design approved by owner: 2026-09-07
 
+On 2026-11-07, the owner approves
+[DD18's passthrough-without-baseline amendment](18-diorama-setup-and-scenario-data.md#passthrough-without-baseline--owner-approved-2026-11-07).
+Configured passthrough attachments remain active but contribute no resulting
+attachment without a baseline recording. Existing baseline content remains
+preserved, including valid empty recordings.
+
 On 2026-11-01, the owner approves
 [DD16's request-started authorization tracking amendment](16-location-system.md#request-started-authorization-tracking--owner-approved-2026-11-01).
 Delegate registration or the first authorization request starts access tracking;
