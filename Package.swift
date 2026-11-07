@@ -46,8 +46,21 @@ let package = Package(
         .library(
             name: "DioramaPersistence",
             targets: ["DioramaPersistence"]),
+        .library(name: "DioramaHTTP", targets: ["DioramaHTTP"]),
     ] + locationProducts,
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-http-types.git", from: "1.8.0"),
+    ],
     targets: [
+        .target(
+            name: "DioramaHTTP",
+            dependencies: ["DioramaPersistence", .product(name: "HTTPTypes", package: "swift-http-types")],
+            swiftSettings: strictConcurrencySettings),
+        .testTarget(
+            name: "DioramaHTTPTests",
+            dependencies: ["DioramaHTTP"],
+            resources: [.copy("Fixtures")],
+            swiftSettings: strictConcurrencySettings),
         .target(
             name: "Diorama",
             dependencies: ["DioramaCore", "DioramaPersistence"],

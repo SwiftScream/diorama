@@ -1,0 +1,34 @@
+[
+  {
+    "kind" : "bytes",
+    "text" : ""
+  },
+  {
+    "kind" : "bytes",
+    "text" : "<html>\r\n<body title=\"café\">Hello</body>\r\n</html>\n"
+  },
+  {
+    "kind" : "bytes",
+    "text" : "{ \"amount\":1.00, \"amount\":2, \"escaped\":\"\\u0061\" }"
+  },
+  {
+    "kind" : "bytes",
+    "text" : "café"
+  },
+  {
+    "kind" : "bytes",
+    "text" : "café"
+  },
+  {
+    "kind" : "bytes",
+    "text" : "😀"
+  },
+  {
+    "kind" : "bytes",
+    "text" : "﻿body"
+  },
+  {
+    "kind" : "bytes",
+    "text" : "a\tb\nc\rd"
+  }
+]

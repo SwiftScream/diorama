@@ -2804,6 +2804,10 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H02 — Shared message heads, fields, and body values
 
+- Status: Implementation complete on 2026-11-08; the owner confirms scope and
+  authorizes commencement on 2026-11-07. Owner review is the next checkpoint.
+- Evidence: [Shared HTTP message values](../evidence/003-H02-http-message-values.md).
+
 - Recommended model: GPT-6 Sol; reasoning: `high`. Own the HTTP schema while preserving repeated fields and absent/empty/unavailable body distinctions.
 - Prerequisites: 003-H01 adoption approval, 003-C02; DD08, DD11, DD17.
 - Scope: Add HTTPTypes in-memory heads, ordered repeated fields, stable body cases and deliberate Diorama-owned message codecs/builders.

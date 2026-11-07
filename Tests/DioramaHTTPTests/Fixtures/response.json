@@ -1,0 +1,14 @@
+{
+  "fields" : [
+    {
+      "name" : "Set-Cookie",
+      "value" : "a=1"
+    },
+    {
+      "name" : "Set-Cookie",
+      "value" : "b=2"
+    }
+  ],
+  "reasonPhrase" : "Custom",
+  "status" : 299
+}

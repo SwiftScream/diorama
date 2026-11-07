@@ -100,6 +100,8 @@ case ${1:-} in
             -destination "$destination"
             IPHONEOS_DEPLOYMENT_TARGET=18.0
             SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
+            # External package targets otherwise inherit Xcode warning suppression.
+            SWIFT_SUPPRESS_WARNINGS=NO
         )
 
         run xcodebuild build "${common_settings[@]}" \

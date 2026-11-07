@@ -360,6 +360,11 @@ test-integration design. They do not authorize those APIs.
   records the approved dependency boundary, compatibility checks, and native
   conversion constraints.
 
+- [HTTP message values and schema components](http-message-schema-v1.md)
+  documents portable builders, ordered fields, exact bodies, and strict codecs.
+- [HTTP message value evidence](evidence/003-H02-http-message-values.md)
+  records the H02 implementation and verification boundary.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

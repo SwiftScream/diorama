@@ -1,0 +1,175 @@
+import DioramaPersistence
+import Foundation
+import HTTPTypes
+
+/// These representations belong to Diorama, independently of HTTPTypes.Codable.
+private struct FieldPayload: Codable {
+    let name: String
+    let value: String
+
+    enum CodingKeys: String, CodingKey, CaseIterable { case name, value }
+
+    init(_ field: HTTPField) {
+        name = field.name.rawName
+        value = field.withUnsafeBytesOfValue { bytes in
+            String(String.UnicodeScalarView(bytes.map { UnicodeScalar($0) }))
+        }
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.strictContainer(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        value = try container.decode(String.self, forKey: .value)
+    }
+
+    func field() throws -> HTTPField {
+        guard let name = HTTPField.Name(name), value.unicodeScalars.allSatisfy({ $0.value <= 255 }) else {
+            throw HTTPMessageError.invalidField
+        }
+        let bytes = value.unicodeScalars.map { UInt8($0.value) }
+        guard HTTPField.isValidValue(bytes) else { throw HTTPMessageError.invalidField }
+        return HTTPField(name: name, value: bytes)
+    }
+}
+
+extension HTTPRequestMessage: Codable {
+    private enum CodingKeys: String, CodingKey, CaseIterable {
+        case method, scheme, authority, path, fields, body
+    }
+
+    /// Reads the strict Diorama message shape, rejecting unsupported content.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.strictContainer(keyedBy: CodingKeys.self)
+        guard let method = try HTTPRequest.Method(container.decode(String.self, forKey: .method)) else {
+            throw HTTPMessageError.invalidHead
+        }
+        func target(_ key: CodingKeys) throws -> String? {
+            guard container.contains(key) else { return nil }
+            let value = try container.decode(String.self, forKey: key)
+            guard HTTPField.isValidValue(value) else { throw HTTPMessageError.invalidField }
+            return value
+        }
+        let head = try HTTPRequest(
+            method: method, scheme: target(.scheme), authority: target(.authority), path: target(.path),
+            headerFields: HTTPFields(container.decode([FieldPayload].self, forKey: .fields).map { try $0.field() }))
+        try self.init(head: head, body: container.decode(HTTPRequestBody.self, forKey: .body))
+    }
+
+    /// Writes explicit method/target/field/body keys, never dependency Codable.
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(head.method.rawValue, forKey: .method)
+        try container.encodeIfPresent(head.scheme, forKey: .scheme)
+        try container.encodeIfPresent(head.authority, forKey: .authority)
+        try container.encodeIfPresent(head.path, forKey: .path)
+        try container.encode(head.headerFields.map(FieldPayload.init), forKey: .fields)
+        try container.encode(body, forKey: .body)
+    }
+}
+
+extension HTTPResponseHead: Codable {
+    private enum CodingKeys: String, CodingKey, CaseIterable { case status, reasonPhrase, fields }
+
+    /// Reads a strict status and ordered fields, validating before native creation.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.strictContainer(keyedBy: CodingKeys.self)
+        let code = try container.decode(Int.self, forKey: .status)
+        let reason = try container.decode(String.self, forKey: .reasonPhrase)
+        guard (0...999).contains(code), HTTPField.isValidValue(reason) else { throw HTTPMessageError.invalidHead }
+        let status = HTTPResponse.Status(code: code, reasonPhrase: reason)
+        guard status.reasonPhrase == reason else { throw HTTPMessageError.invalidHead }
+        head = try HTTPResponse(
+            status: status,
+            headerFields: HTTPFields(container.decode([FieldPayload].self, forKey: .fields).map { try $0.field() }))
+    }
+
+    /// Writes Diorama's status, reason phrase, and literal field representation.
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(head.status.code, forKey: .status)
+        try container.encode(head.status.reasonPhrase, forKey: .reasonPhrase)
+        try container.encode(head.headerFields.map(FieldPayload.init), forKey: .fields)
+    }
+}
+
+extension HTTPRequestBody: Codable {
+    /// Reads only complete request body cases; unavailable is rejected.
+    public init(from decoder: any Decoder) throws {
+        switch try BodyPayload(from: decoder).body() {
+        case .absent: self = .absent
+        case let .bytes(bytes): self = .bytes(bytes)
+        case let .resource(resource): self = .resource(resource)
+        case .unavailable: throw HTTPMessageError.invalidBody
+        }
+    }
+
+    /// Writes one explicit body case.
+    public func encode(to encoder: any Encoder) throws {
+        let body: HTTPResponseBody = switch self {
+        case .absent: .absent
+        case let .bytes(bytes): .bytes(bytes)
+        case let .resource(resource): .resource(resource)
+        }
+        try BodyPayload(body).encode(to: encoder)
+    }
+}
+
+extension HTTPResponseBody: Codable {
+    /// Reads a single validated response content interpretation.
+    public init(from decoder: any Decoder) throws {
+        self = try BodyPayload(from: decoder).body()
+    }
+
+    /// Writes one explicit response content case.
+    public func encode(to encoder: any Encoder) throws {
+        try BodyPayload(self).encode(to: encoder)
+    }
+}
+
+private struct BodyPayload: Codable {
+    let kind: String
+    let text: String?
+    let base64: String?
+    let resource: String?
+
+    enum CodingKeys: String, CodingKey, CaseIterable { case kind, text, base64, resource }
+
+    init(_ body: HTTPResponseBody) {
+        switch body {
+        case .absent: (kind, text, base64, resource) = ("absent", nil, nil, nil)
+        case let .bytes(value):
+            if let string = String(validating: value, as: UTF8.self), Array(string.utf8) == value {
+                (kind, text, base64, resource) = ("bytes", string, nil, nil)
+            } else {
+                (kind, text, base64, resource) = ("bytes", nil, Data(value).base64EncodedString(), nil)
+            }
+        case let .resource(value): (kind, text, base64, resource) = ("resource", nil, nil, value.path)
+        case .unavailable: (kind, text, base64, resource) = ("unavailable", nil, nil, nil)
+        }
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.strictContainer(keyedBy: CodingKeys.self)
+        kind = try container.decode(String.self, forKey: .kind)
+        text = try container.contains(.text) ? container.decode(String.self, forKey: .text) : nil
+        base64 = try container.contains(.base64) ? container.decode(String.self, forKey: .base64) : nil
+        resource = try container.contains(.resource) ? container.decode(String.self, forKey: .resource) : nil
+        _ = try body()
+    }
+
+    func body() throws -> HTTPResponseBody {
+        switch (kind, text, base64, resource) {
+        case ("absent", nil, nil, nil): .absent
+        case let ("bytes", text?, nil, nil): .bytes(Array(text.utf8))
+        case let ("bytes", nil, encoded?, nil):
+            if let data = Data(base64Encoded: encoded), data.base64EncodedString() == encoded {
+                .bytes(Array(data))
+            } else {
+                throw HTTPMessageError.invalidBody
+            }
+        case let ("resource", nil, nil, path?): try .resource(HTTPBodyResource(path: path))
+        case ("unavailable", nil, nil, nil): .unavailable
+        default: throw HTTPMessageError.invalidBody
+        }
+    }
+}

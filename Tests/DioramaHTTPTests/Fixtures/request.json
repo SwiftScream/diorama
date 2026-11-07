@@ -1,0 +1,20 @@
+{
+  "authority" : "example.invalid",
+  "body" : {
+    "base64" : "AID/",
+    "kind" : "bytes"
+  },
+  "fields" : [
+    {
+      "name" : "X-Token",
+      "value" : "one"
+    },
+    {
+      "name" : "X-Token",
+      "value" : "two"
+    }
+  ],
+  "method" : "POST",
+  "path" : "/a?b=%2F",
+  "scheme" : "https"
+}

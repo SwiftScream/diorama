@@ -1,0 +1,20 @@
+[
+  {
+    "kind" : "absent"
+  },
+  {
+    "kind" : "bytes",
+    "text" : ""
+  },
+  {
+    "base64" : "AP8=",
+    "kind" : "bytes"
+  },
+  {
+    "kind" : "resource",
+    "resource" : "bodies/reply.bin"
+  },
+  {
+    "kind" : "unavailable"
+  }
+]
