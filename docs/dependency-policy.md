@@ -1,7 +1,7 @@
 # Dependency approval policy
 
 - Status: Accepted
-- Last updated: 2026-10-30
+- Last updated: 2026-11-07
 
 ## Rule
 
@@ -37,6 +37,12 @@ separate adoption approval. Version updates follow the authorization rule below.
 Applying a dependency update requires an explicit owner instruction to update
 or owner approval of a proposed update. Checking for available updates or
 receiving an automated update proposal does not authorize applying it.
+
+When the owner asks whether updates are available, report newer stable releases
+both within the approved major range and in newer major versions. For a newer
+major version, explain the breaking changes and expected migration work and
+seek explicit approval before applying it. An approved version range limits
+adoption, not which available updates are reported.
 
 An instruction to update authorizes selecting the latest stable release within
 the dependency's current major version, including minor-version updates of
@@ -104,6 +110,35 @@ An implementation task that proposes a new dependency must stop after any
 non-committing spike, present the adoption record for approval, and wait. It
 must not hide the dependency in generated files, build plugins, example
 packages, test utilities, or vendored source.
+
+## Approved HTTP package adoption — 003-H01
+
+Status: Approved by the owner on 2026-11-07 with the `from: "1.8.0"`
+version rule. No production manifest changes are part of this record.
+
+| Item | Approved adoption |
+| --- | --- |
+| Source / identity | `https://github.com/apple/swift-http-types.git`; `swift-http-types` |
+| Initial release | `1.8.0`, revision `bff4b6903cdc99dda49649dd52f46c11cfd3ed50` |
+| Version rule | `from: "1.8.0"` (SwiftPM range `1.8.0..<2.0.0`); actual updates follow Update authorization above. |
+| Products / owners | `HTTPTypes` for `DioramaHTTP`; `HTTPTypesFoundation` for `DioramaURLSession`. No HTTP dependency in Core. |
+| Purpose | Shared request/response heads and ordered repeated fields; Foundation conversions at the native adapter boundary. Diorama owns bodies, lifecycle, preparation, matching, diagnostics, and versioned persistence. |
+| Dependency graph | No external package dependencies. `HTTPTypesFoundation` depends on `HTTPTypes`. The default `FoundationURL` trait enables Foundation URL conveniences; retain it for the proposed adapter use. |
+| License / maintenance | Apache-2.0, with upstream `NOTICE.txt`; Apple-maintained repository with recent tagged releases and cross-platform CI. |
+| Toolchain / platforms | Release manifest requires Swift tools 6.1. Evaluated with Swift 6.4.2 / Xcode 27.2; compatible source availability for macOS 15, iOS 18, and Linux. Local Linux execution remains unverified. |
+
+The standard library has no equivalent HTTP message currency. Foundation's
+native dictionaries cannot represent the accepted ordered repeated-field model.
+Inventing replacements duplicates established validation and collection behavior;
+NIO introduces an unnecessary graph for this scope. This adoption follows DD11
+without adopting any NIO product or package.
+
+Foundation converters combine repeated fields and cannot establish lossless
+round trips. Adapter conformance must handle native limitations explicitly;
+Diorama must preserve ordered fields in its shared model and owned schema.
+The package's Codable representation is not Diorama's persistence contract.
+See [H01 evidence](evidence/003-H01-http-types-adoption.md) for upstream sources,
+reproduction commands, verification, and remaining platform limitations.
 
 ## Approved development-tool records
 

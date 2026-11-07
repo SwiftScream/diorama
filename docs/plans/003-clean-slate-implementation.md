@@ -2788,12 +2788,17 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H01 — Swift HTTP Types adoption record
 
+- Status: Complete. The owner confirms scope and the recommended model/reasoning
+  setting, then approves adoption with `from: "1.8.0"` on 2026-11-07. No
+  production dependency is added. The owner authorizes stacked PR creation on
+  2026-11-08; merge requires a separate request and passing required checks.
+- Evidence: [Swift HTTP Types adoption evaluation](../evidence/003-H01-http-types-adoption.md).
 - Recommended model: GPT-6 Sol; reasoning: `medium`. Review two package products, exact compatibility, and the dependency graph against an existing adoption policy.
 - Prerequisites: 003-A01, 003-C07, 003-D05 reviewed under resolved Q1; DD11, dependency policy.
 - Scope: Evaluate a compatible stable release and propose explicit adoption of HTTPTypes for DioramaHTTP and HTTPTypesFoundation for DioramaURLSession.
 - Expected files/modules: `docs/dependency-policy.md` adoption record and narrow isolated compatibility evidence if needed; no production dependency yet.
 - Public behavior: No runtime change; exact version rule and owning products become reviewable before manifest edits.
-- Tests/verification: V-doc/V-spike; canonical repository/package/products, major range and exact initial release, purpose, alternatives, transitive graph, license/maintenance, selected Swift toolchain and iOS16/macOS13/Linux support.
+- Tests/verification: V-doc/V-spike; canonical repository/package/products, major range and exact initial release, purpose, alternatives, transitive graph, license/maintenance, selected Swift toolchain and current iOS 18/macOS 15/Linux support.
 - Exclusions: Arbitrary latest revision, Algorithms/AsyncAlgorithms/NIO adoption, HTTP dependency in core, approval of unrelated products or future majors.
 - Checkpoint: R plus explicit adoption approval; stop before 003-H02 changes manifests.
 

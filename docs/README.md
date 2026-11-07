@@ -356,6 +356,10 @@ test-integration design. They do not authorize those APIs.
 - [Native Location framework spike](evidence/003-G01-cllocation-native-framework-spike.md)
   compares subclass and getter-swizzle replay candidates in the same APIs.
 
+- [Swift HTTP Types adoption evidence](evidence/003-H01-http-types-adoption.md)
+  records the approved dependency boundary, compatibility checks, and native
+  conversion constraints.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its
