@@ -368,6 +368,8 @@ test-integration design. They do not authorize those APIs.
   credential preparation, authored-value admission, and verification.
 - [HTTP matching evidence](evidence/003-H04-http-matching.md) records prepared
   projections, field participation, logical body equality, and safe selection facts.
+- [HTTP lifecycle evidence](evidence/003-H05-http-lifecycle.md) records strict
+  response/body ownership, failure/open leaves, completion-only trailers, and codecs.
 
 ## Historical boundary
 

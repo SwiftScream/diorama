@@ -2874,6 +2874,13 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H05 — Strict response/body/failed/open lifecycle
 
+- Status: Complete on 2026-11-08 following owner confirmation of scope and the
+  recommended model/reasoning setting. The owner approves review and authorizes
+  stacked PR creation on 2026-11-11. Local verification is recorded in the evidence;
+  required PR checks enforce the full platform and coverage matrix before
+  separately authorized merge.
+- Evidence: [Strict HTTP lifecycle](../evidence/003-H05-http-lifecycle.md).
+
 - Recommended model: GPT-6 Sol; reasoning: `high`. Recursive attempt/body results and tolerant persistence must validate to one strict lifecycle without duplicate content.
 - Prerequisites: 003-H02, 003-F01; DD03, DD11, DD17.
 - Scope: Add one root request and mutually exclusive attempt/body results, with response-owned head/content, partial prefixes and completion-only trailers.

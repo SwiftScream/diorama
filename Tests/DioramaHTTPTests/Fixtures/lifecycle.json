@@ -1,0 +1,337 @@
+[
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "body" : {
+          "conclusion" : {
+            "completion" : {
+              "after" : "3ms",
+              "trailers" : {
+                "after" : "2ms",
+                "fields" : [
+                  {
+                    "name" : "X-End",
+                    "value" : "first"
+                  },
+                  {
+                    "name" : "X-End",
+                    "value" : "second"
+                  },
+                  {
+                    "name" : "X-Raw",
+                    "value" : "ÿ"
+                  }
+                ]
+              }
+            },
+            "kind" : "returned"
+          },
+          "content" : {
+            "kind" : "bytes",
+            "text" : "ok"
+          }
+        },
+        "head" : {
+          "after" : "10ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Not Found",
+            "status" : 404
+          }
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/",
+      "scheme" : "https"
+    },
+    "result" : {
+      "failure" : {
+        "after" : "25ms",
+        "value" : "timeout"
+      },
+      "kind" : "failed"
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "open"
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "body" : {
+          "conclusion" : {
+            "failure" : {
+              "after" : "20ms",
+              "value" : "connectionLost"
+            },
+            "kind" : "failed"
+          },
+          "content" : {
+            "base64" : "AP8=",
+            "kind" : "bytes"
+          }
+        },
+        "head" : {
+          "after" : "10ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Service Unavailable",
+            "status" : 503
+          }
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "body" : {
+          "conclusion" : {
+            "kind" : "open"
+          },
+          "content" : {
+            "base64" : "4oI=",
+            "kind" : "bytes"
+          }
+        },
+        "head" : {
+          "after" : "10ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "OK",
+            "status" : 200
+          }
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "body" : {
+          "conclusion" : {
+            "completion" : {
+              "after" : "0ms"
+            },
+            "kind" : "returned"
+          },
+          "content" : {
+            "kind" : "absent"
+          }
+        },
+        "head" : {
+          "after" : "10ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "No Content",
+            "status" : 204
+          }
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "body" : {
+          "conclusion" : {
+            "completion" : {
+              "after" : "0ms"
+            },
+            "kind" : "returned"
+          },
+          "content" : {
+            "kind" : "bytes",
+            "text" : ""
+          }
+        },
+        "head" : {
+          "after" : "10ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "OK",
+            "status" : 200
+          }
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "body" : {
+          "conclusion" : {
+            "kind" : "open"
+          },
+          "content" : {
+            "kind" : "unavailable"
+          }
+        },
+        "head" : {
+          "after" : "10ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Found",
+            "status" : 302
+          }
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "body" : {
+          "conclusion" : {
+            "completion" : {
+              "after" : "0ms"
+            },
+            "kind" : "returned"
+          },
+          "content" : {
+            "kind" : "resource",
+            "resource" : "bodies/reply.bin"
+          }
+        },
+        "head" : {
+          "after" : "10ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "OK",
+            "status" : 200
+          }
+        }
+      }
+    }
+  }
+]

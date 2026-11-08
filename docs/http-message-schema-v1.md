@@ -21,10 +21,10 @@ let content = HTTPResponseBody.resource(
     try HTTPBodyResource(path: "bodies/items.bin"))
 ```
 
-Values are immutable, Sendable, and Hashable. Heads retain HTTP Types equality
-semantics (including case-insensitive field names and status-code equality).
+Message and body values are immutable, Sendable, and Hashable. Heads retain HTTP
+Types equality semantics (including case-insensitive field names and status-code equality).
 Codecs additionally preserve original field-name spelling and reason phrases.
-Bodies belong to the later response lifecycle, rather than `HTTPResponseHead`.
+Bodies belong to `HTTPResponseNode`'s body lifecycle, rather than `HTTPResponseHead`.
 `HTTPRequestBody` cannot express unavailable content; `HTTPResponseBody` can.
 Resource construction never accesses the filesystem. Resolution, publication,
 containment checks against symlinks, and byte comparison belong to later resource
@@ -95,10 +95,123 @@ object keys, pretty printing, unescaped slashes, semantic array order, and one
 trailing newline. The component Codable conformances do not configure encoders.
 Canonical request and response fixtures live in `Tests/DioramaHTTPTests/Fixtures`.
 
-Preparation/redaction, matching, derived Content-Length, resource loading,
-stream delivery, lifecycle conclusions, and native conversion are separate plan
-units. These builders do not perform those operations or authorize persisting
-unprepared secrets.
+Preparation/redaction and matching have their own policies described below.
+Derived Content-Length, resource loading, stream delivery, and native conversion
+remain separate plan units. Message builders do not perform those operations or
+authorize persisting unprepared secrets.
+
+## Strict lifecycle components
+
+`HTTPInteraction<Failure>` owns one `initialRequest` and one `result`. The
+adapter supplies a Sendable stable `Failure` type; the shared HTTP domain defines
+no universal transport failure taxonomy. Lifecycle values are immutable and
+Sendable, with conditional Equatable and Codable conformances when the failure
+type supports them. They contain semantic observations, without executing native
+callbacks or deciding whether a test passes.
+
+The attempt result is exactly one case:
+
+- `.received(HTTPResponseNode)` introduces one timed response head and one body
+  lifecycle.
+- `.failed(HTTPTimed<Failure>)` represents failure before any head.
+- `.openAtRecordingHorizon` explicitly preserves work still awaiting a head or
+  failure when observation ends.
+
+`HTTPBodyDelivery` owns exactly one `content` value and one `conclusion`. Returned
+content is complete. Failed and open content is only the prefix actually observed;
+neither conclusion invents later bytes. All existing content cases remain distinct:
+absent, present bytes (including empty), resource, and unavailable. Unavailable
+means that the adapter could not expose the content, rather than that it observed
+zero bytes. Resource construction validates a path without resolving its content.
+The lifecycle records what was exposed; native replay capabilities and resource
+availability require separate system admission.
+
+The body conclusion is exactly one of `.returned(HTTPBodyCompletion)`,
+`.failed(HTTPTimed<Failure>)`, or `.openAtRecordingHorizon`. Successful message
+delivery can have any representable HTTP status, including 4xx/5xx. A transport
+failure after a head remains a body failure, independent of that status. Open
+work has no completion delay or synthesized failure; later replay must preserve
+pending behavior until ordinary cancellation or execution cleanup.
+
+Only `HTTPBodyCompletion` can contain optional `HTTPTrailers`. Trailer fields use
+the same literal ordered-field representation and validation as message fields,
+including repeated names and exact byte values. Their delay precedes the trailer
+delivery; completion has a separate delay after the trailers. Omitted trailers
+differ from present empty trailer fields. Explicit null is rejected.
+
+`HTTPDelay(milliseconds:)` accepts Core's `OverridableValue<Int64>` and rejects a
+negative effective delay. `HTTPTimed(after:value:)` takes an already validated
+delay. A response head's delay starts at invocation; failure before a head also
+starts at invocation. A body conclusion's delay starts at the head or preceding
+body event, or at trailers when completion has them. Each delay uses the shared
+millisecond/seconds scalar grammar and canonical spelling. An observed scalar
+such as `"10ms"` is ordinary timing; `{"override":"1s"}` is authored timing.
+The shared editing form accepts observed plus override and selects one effective
+override before checking its nonnegative value. No discarded observation remains
+in the runtime model or canonical output.
+
+For example, a completed empty HTTP 503 response can be built without a native
+adapter:
+
+```swift
+import DioramaCore
+
+enum ExampleFailure: String, Codable, Sendable { case timeout }
+
+let headDelay = try HTTPDelay(milliseconds: .observed(10))
+let completionDelay = try HTTPDelay(milliseconds: .observed(0))
+let interaction = HTTPInteraction<ExampleFailure>(
+    initialRequest: request,
+    result: .received(HTTPResponseNode(
+        head: HTTPTimed(
+            after: headDelay,
+            value: HTTPResponseHead(head: HTTPResponse(status: .serviceUnavailable))),
+        body: HTTPBodyDelivery(
+            content: .bytes([]),
+            conclusion: .returned(HTTPBodyCompletion(after: completionDelay))))))
+```
+
+The generic failure value's validation and persisted contract belong to its
+adapter. Public lifecycle builders compose validated components; the enums make
+contradictory results, multiple conclusions, and failure/open trailers impossible
+to construct. Decoding follows the same component construction boundary.
+
+### Tagged lifecycle encoding
+
+The root has only required `initialRequest` and `result` fields. There is no
+separate root conclusion. The attempt result shapes are:
+
+```json
+{"kind":"received","response":{"head":{"after":"10ms","value":{"status":503,"reasonPhrase":"Service Unavailable","fields":[]}},"body":{"content":{"kind":"bytes","text":""},"conclusion":{"kind":"returned","completion":{"after":"0ms"}}}}}
+{"kind":"failed","failure":{"after":"25ms","value":"timeout"}}
+{"kind":"open"}
+```
+
+The illustrative `"timeout"` is a test adapter failure, not a production HTTP
+failure schema. Received responses require `head` and `body`. Timed heads and
+failures require `after` and `value`. Bodies require `content` and `conclusion`.
+The body conclusion shapes are:
+
+```json
+{"kind":"returned","completion":{"after":"3ms","trailers":{"after":"2ms","fields":[{"name":"X-End","value":"done"}]}}}
+{"kind":"failed","failure":{"after":"20ms","value":"connectionLost"}}
+{"kind":"open"}
+```
+
+Every lifecycle object rejects missing required fields, explicit nulls, unknown
+fields, unknown tags, and fields belonging to another tagged case. Missing leaves
+never imply open work. Structural errors retain the decoder's coding path;
+unknown lifecycle-tag and invalid-delay diagnostics omit the supplied value.
+The canonical `lifecycle.json` fixture covers complete bodies, partial failed/open
+prefixes, pre-head failure/open, trailers, and all body representations. The
+fixture's request and each response's content appear once at their owning node.
+
+This establishes the response/body foundation of DD17's recursive lifecycle.
+Redirect, authentication, and disposition nodes remain assigned to H10–H12;
+weighted segmentation and timing allocation remain assigned to H06. No future
+node placeholders, scheduler, capture accumulator, native failure mapping, system
+registration, or runtime delivery engine is introduced here. Full system schema
+version dispatch remains assigned to H13.
 
 ## Recording placement policy
 

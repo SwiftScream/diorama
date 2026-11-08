@@ -3,7 +3,7 @@ import Foundation
 import HTTPTypes
 
 /// These representations belong to Diorama, independently of HTTPTypes.Codable.
-private struct FieldPayload: Codable {
+struct FieldPayload: Codable {
     let name: String
     let value: String
 
