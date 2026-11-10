@@ -1,0 +1,20 @@
+[
+  {"weights":[20,80],"byteCount":100,"counts":[20,80]},
+  {"weights":[20,80],"byteCount":7,"counts":[1,6]},
+  {"weights":[20,80],"byteCount":101,"counts":[20,81]},
+  {"weights":[20,80],"byteCount":1000,"counts":[200,800]},
+  {"weights":[1,1,1],"byteCount":2,"counts":[0,1,1]},
+  {"weights":[1,1,1],"byteCount":4,"counts":[1,1,2]},
+  {"weights":[1,1],"byteCount":1,"counts":[0,1]},
+  {"weights":[1,1],"byteCount":3,"counts":[1,2]},
+  {"weights":[0,2,0,3,0],"byteCount":7,"counts":[0,2,0,5,0]},
+  {"weights":[0,0,0],"byteCount":7,"counts":[0,0,7]},
+  {"weights":[0,0,0],"byteCount":0,"counts":[0,0,0]},
+  {"weights":[2,3],"byteCount":0,"counts":[0,0]},
+  {"weights":[0],"byteCount":9,"counts":[9]},
+  {"weights":[7],"byteCount":9,"counts":[9]},
+  {"weights":[9223372036854775806,1],"byteCount":9223372036854775807,"counts":[9223372036854775806,1]},
+  {"weights":[1,1],"byteCount":9223372036854775807,"counts":[4611686018427387903,4611686018427387904]},
+  {"weights":[1,1,1],"byteCount":9223372036854775807,"counts":[3074457345618258602,3074457345618258602,3074457345618258603]},
+  {"weights":[9223372036854775805,1],"byteCount":9223372036854775807,"counts":[9223372036854775805,2]}
+]

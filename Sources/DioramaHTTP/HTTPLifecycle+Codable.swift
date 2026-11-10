@@ -66,8 +66,14 @@ extension HTTPResponseNode: Codable where Failure: Codable {
     /// Reads a response with one head and its body lifecycle.
     public init(from decoder: any Decoder) throws {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
-        try self.init(head: fields.decode(HTTPTimed<HTTPResponseHead>.self, forKey: .head),
-                      body: fields.decode(HTTPBodyDelivery<Failure>.self, forKey: .body))
+        let head = try fields.decode(HTTPTimed<HTTPResponseHead>.self, forKey: .head)
+        let body = try fields.decode(HTTPBodyDelivery<Failure>.self, forKey: .body)
+        do {
+            try self.init(head: head, body: body)
+        } catch {
+            throw DecodingError.dataCorruptedError(
+                forKey: .body, in: fields, debugDescription: "HTTP response cumulative delay exceeds its scalar range")
+        }
     }
 
     /// Writes response-owned content once.
@@ -79,19 +85,31 @@ extension HTTPResponseNode: Codable where Failure: Codable {
 }
 
 extension HTTPBodyDelivery: Codable where Failure: Codable {
-    private enum CodingKeys: String, CodingKey, CaseIterable { case content, conclusion }
+    private enum CodingKeys: String, CodingKey, CaseIterable { case content, segments, conclusion }
 
     /// Reads content and one required conclusion; truncation is never implicit open.
     public init(from decoder: any Decoder) throws {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
-        try self.init(content: fields.decode(HTTPResponseBody.self, forKey: .content),
-                      conclusion: fields.decode(HTTPBodyConclusion<Failure>.self, forKey: .conclusion))
+        let content = try fields.decode(HTTPResponseBody.self, forKey: .content)
+        let conclusion = try fields.decode(HTTPBodyConclusion<Failure>.self, forKey: .conclusion)
+        if fields.contains(.segments) {
+            let profile = try fields.decode(HTTPBodyProfile.self, forKey: .segments)
+            do {
+                try self.init(content: content, profile: profile, conclusion: conclusion)
+            } catch {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .segments, in: fields, debugDescription: "Invalid HTTP body profile or cumulative delay")
+            }
+        } else {
+            self.init(content: content, conclusion: conclusion)
+        }
     }
 
     /// Writes complete content or a partial prefix, never a competing second body.
     public func encode(to encoder: any Encoder) throws {
         var fields = encoder.container(keyedBy: CodingKeys.self)
         try fields.encode(content, forKey: .content)
+        try fields.encodeIfPresent(profile, forKey: .segments)
         try fields.encode(conclusion, forKey: .conclusion)
     }
 }
@@ -143,8 +161,15 @@ extension HTTPBodyCompletion: Codable {
     /// Reads validated local delays; omitted trailers differ from explicit null.
     public init(from decoder: any Decoder) throws {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
-        try self.init(after: fields.decode(HTTPDelay.self, forKey: .after),
-                      trailers: fields.contains(.trailers) ? fields.decode(HTTPTrailers.self, forKey: .trailers) : nil)
+        let after = try fields.decode(HTTPDelay.self, forKey: .after)
+        let trailers = try fields.contains(.trailers) ? fields.decode(HTTPTrailers.self, forKey: .trailers) : nil
+        do {
+            try self.init(after: after, trailers: trailers)
+        } catch {
+            throw DecodingError.dataCorruptedError(
+                forKey: .after, in: fields,
+                debugDescription: "HTTP completion cumulative delay exceeds its scalar range")
+        }
     }
 
     /// Writes completion timing and optional preceding trailers.

@@ -1,0 +1,34 @@
+{
+  "conclusion" : {
+    "completion" : {
+      "after" : "3ms",
+      "trailers" : {
+        "after" : "2ms",
+        "fields" : [
+
+        ]
+      }
+    },
+    "kind" : "returned"
+  },
+  "content" : {
+    "kind" : "bytes",
+    "text" : "€!"
+  },
+  "segments" : [
+    {
+      "after" : "10ms",
+      "byteWeight" : 1
+    },
+    {
+      "after" : "0ms",
+      "byteWeight" : 1
+    },
+    {
+      "after" : {
+        "override" : "25ms"
+      },
+      "byteWeight" : 2
+    }
+  ]
+}

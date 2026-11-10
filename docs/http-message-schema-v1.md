@@ -160,7 +160,7 @@ enum ExampleFailure: String, Codable, Sendable { case timeout }
 
 let headDelay = try HTTPDelay(milliseconds: .observed(10))
 let completionDelay = try HTTPDelay(milliseconds: .observed(0))
-let interaction = HTTPInteraction<ExampleFailure>(
+let interaction = try HTTPInteraction<ExampleFailure>(
     initialRequest: request,
     result: .received(HTTPResponseNode(
         head: HTTPTimed(
@@ -208,10 +208,99 @@ fixture's request and each response's content appear once at their owning node.
 
 This establishes the response/body foundation of DD17's recursive lifecycle.
 Redirect, authentication, and disposition nodes remain assigned to H10–H12;
-weighted segmentation and timing allocation remain assigned to H06. No future
+weighted segmentation and timing allocation are described below. No future
 node placeholders, scheduler, capture accumulator, native failure mapping, system
 registration, or runtime delivery engine is introduced here. Full system schema
 version dispatch remains assigned to H13.
+
+### Weighted delivery and local timing
+
+`HTTPBodySegment(byteWeight:after:)` stores one nonnegative `Int64` byte weight
+and one `HTTPDelay`. At recording time, the weight is the observed segment's
+byte count. `HTTPBodyProfile(segments:)` validates a nonempty sequence, including
+zero weights, with weight and effective delay sums each bounded by `Int64.max`.
+An omitted profile means that no segmented delivery shape is specified. An empty
+profile is rejected; use a zero-weight segment to retain an empty delivery event.
+
+`HTTPBodyDelivery(content:profile:conclusion:)` accepts profiles only for inline
+bytes or resources. Its immutable internal cases prevent absent/unavailable
+content from owning a profile. Returned, failed, and open bodies can all have
+profiles, including empty bytes and partial prefixes. Content remains stored once.
+The profile's weights need not sum to the current body's byte count.
+
+For example:
+
+```swift
+let profile = try HTTPBodyProfile(segments: [
+    HTTPBodySegment(byteWeight: 20, after: HTTPDelay(milliseconds: .observed(10))),
+    HTTPBodySegment(byteWeight: 80, after: HTTPDelay(milliseconds: .override(25))),
+])
+let body = try HTTPBodyDelivery<ExampleFailure>(
+    content: .bytes([1, 2, 3, 4, 5, 6, 7]),
+    profile: profile,
+    conclusion: .openAtRecordingHorizon)
+let allocations = try profile.allocate(byteCount: 7)
+// Byte ranges: 0..<1 and 1..<7; offsets from the head: 10ms and 35ms.
+```
+
+`allocate(byteCount:)` accepts the effective nonnegative `Int` byte length, either
+from inline bytes or a separately resolved resource. It returns one immutable
+`HTTPBodyAllocation` per segment, containing a contiguous `byteRange`, the
+successive `after` delay with its authorship, and a cumulative
+`offsetMilliseconds` from the response head. No resource I/O occurs here.
+
+For a body length N and positive total weight W, each nonfinal boundary is
+`floor(N * cumulativeWeight / W)`. The initial boundary is zero and the final
+boundary is N. Products use exact `Int128` arithmetic, which holds every product
+of the supported `Int` byte length and `Int64` weight; there is no floating-point
+rounding. Adjacent boundaries determine each range. The final segment absorbs
+the remainder. This reproduces unchanged observed boundaries exactly and scales
+edited bodies deterministically. Examples:
+
+| Weights | Effective byte count | Allocated byte counts |
+| --- | --- | --- |
+| 20, 80 | 100 | 20, 80 |
+| 20, 80 | 7 | 1, 6 |
+| 1, 1, 1 | 2 | 0, 1, 1 |
+| 1, 1, 1 | 4 | 1, 1, 2 |
+| 0, 0, 0 | 7 | 0, 0, 7 |
+| 2, 3 | 0 | 0, 0 |
+
+When all weights are zero, all nonfinal boundaries are zero and the final segment
+receives the entire effective body. Empty ranges retain their segment and timing
+position. Allocation neither copies bytes nor interprets text, so a boundary can
+split a UTF-8 scalar. The concatenated ranges always cover the authoritative body
+exactly, including at the maximum supported byte count.
+
+All timing is successive and uses effective milliseconds. Profile construction
+checks segment sums. Profiled body construction checks segments plus the
+conclusion. `HTTPBodyCompletion(after:trailers:)` now throws if the trailers and
+completion sum overflows; `HTTPResponseNode(head:body:)` now throws if the head
+plus the complete observed body timeline overflows. Thus the invocation-relative
+timeline must fit `0...Int64.max` milliseconds, even if every individual delay
+fits separately. Open bodies validate only their observed progress, without a
+synthetic terminal delay. Negative delays, overflowing sums, and invalid profile
+placement fail before runtime use. Decoding follows the same builder boundary
+and reports a coding path with a safe structural description.
+
+Bodies optionally encode `segments` alongside required `content` and `conclusion`:
+
+```json
+{"content":{"kind":"bytes","text":"edited!"},"segments":[{"byteWeight":20,"after":"10ms"},{"byteWeight":80,"after":{"override":"25ms"}}],"conclusion":{"kind":"open"}}
+```
+
+Each segment requires only `byteWeight` and `after`. Unknown/missing/null fields,
+negative/fractional/out-of-range weights, empty profiles, and overflowing totals
+are rejected. Explicit null `segments` is rejected; omission remains unprofiled.
+Canonical writing preserves weights and effective delay overrides, without
+derived ranges, totals, offsets, or duplicate segment bytes. Observed-plus-override
+timing selects the override before cumulative checks. Editing inline/resource
+length does not change the profile or require weights to be rewritten.
+
+`body-allocations.json` contains independent allocation examples, including
+rounding and integer bounds. `body-profile.json` proves canonical profile encoding
+with empty trailers and authored timing. Resource publication, scheduler delivery,
+capture, and native adapters remain separate work units.
 
 ## Recording placement policy
 

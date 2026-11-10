@@ -26,6 +26,12 @@ public struct HTTPDelay: Equatable, Sendable, Codable {
     public func encode(to encoder: any Encoder) throws {
         try milliseconds.map(StableTimeCodec.formatDuration).encode(to: encoder)
     }
+
+    static func add(_ elapsed: Int64, _ delay: Int64) throws -> Int64 {
+        let sum = elapsed.addingReportingOverflow(delay)
+        guard !sum.overflow else { throw HTTPLifecycleError.delayOverflow }
+        return sum.partialValue
+    }
 }
 
 /// A value delivered after one local delay, independent of global chronology.
@@ -60,10 +66,4 @@ extension HTTPTimed: Codable where Value: Codable {
         try fields.encode(after, forKey: .after)
         try fields.encode(value, forKey: .value)
     }
-}
-
-/// Safe structural validation failures without request, body, or failure values.
-public enum HTTPLifecycleError: Error, Equatable, Sendable {
-    /// A local delay cannot run backward.
-    case negativeDelay
 }

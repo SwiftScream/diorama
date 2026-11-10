@@ -370,6 +370,8 @@ test-integration design. They do not authorize those APIs.
   projections, field participation, logical body equality, and safe selection facts.
 - [HTTP lifecycle evidence](evidence/003-H05-http-lifecycle.md) records strict
   response/body ownership, failure/open leaves, completion-only trailers, and codecs.
+- [HTTP body allocation evidence](evidence/003-H06-body-allocation.md) records
+  weighted byte ranges, edited lengths, successive timing, and checked scalar bounds.
 
 ## Historical boundary
 

@@ -33,8 +33,9 @@ public struct HTTPResponseNode<Failure: Sendable>: Sendable {
     /// Complete content or an observed prefix, with exactly one conclusion.
     public let body: HTTPBodyDelivery<Failure>
 
-    /// Builds a response without classifying HTTP status codes as failures.
-    public init(head: HTTPTimed<HTTPResponseHead>, body: HTTPBodyDelivery<Failure>) {
+    /// Builds a response with bounded invocation-relative timing, regardless of status.
+    public init(head: HTTPTimed<HTTPResponseHead>, body: HTTPBodyDelivery<Failure>) throws {
+        _ = try HTTPDelay.add(head.after.milliseconds.value, body.durationMilliseconds)
         self.head = head
         self.body = body
     }
@@ -43,13 +44,49 @@ public struct HTTPResponseNode<Failure: Sendable>: Sendable {
 /// Exact response content appears once, independently of how delivery concludes.
 public struct HTTPBodyDelivery<Failure: Sendable>: Sendable {
     /// Complete returned content, or only the prefix observed before failure/open.
-    public let content: HTTPResponseBody
+    public var content: HTTPResponseBody {
+        switch storage {
+        case let .unprofiled(content): content
+        case let .bytes(bytes, _): .bytes(bytes)
+        case let .resource(resource, _): .resource(resource)
+        }
+    }
+
+    /// Optional weighted delivery shape, permitted only for byte or resource content.
+    public var profile: HTTPBodyProfile? {
+        switch storage {
+        case .unprofiled: nil
+        case let .bytes(_, profile), let .resource(_, profile): profile
+        }
+    }
+
     /// A single leaf owns completion, failure, or an explicit recording horizon.
     public let conclusion: HTTPBodyConclusion<Failure>
 
+    let durationMilliseconds: Int64
+    private let storage: Storage
+
+    private enum Storage: Equatable, Sendable {
+        case unprofiled(HTTPResponseBody)
+        case bytes([UInt8], HTTPBodyProfile)
+        case resource(HTTPBodyResource, HTTPBodyProfile)
+    }
+
     /// Builds body delivery; unavailable content never implies empty bytes.
     public init(content: HTTPResponseBody, conclusion: HTTPBodyConclusion<Failure>) {
-        self.content = content
+        storage = .unprofiled(content)
+        durationMilliseconds = conclusion.durationMilliseconds
+        self.conclusion = conclusion
+    }
+
+    /// Builds byte delivery with checked segment-to-conclusion cumulative timing.
+    public init(content: HTTPResponseBody, profile: HTTPBodyProfile, conclusion: HTTPBodyConclusion<Failure>) throws {
+        switch content {
+        case let .bytes(bytes): storage = .bytes(bytes, profile)
+        case let .resource(resource): storage = .resource(resource, profile)
+        case .absent, .unavailable: throw HTTPLifecycleError.bodyProfileWithoutBytes
+        }
+        durationMilliseconds = try HTTPDelay.add(profile.durationMilliseconds, conclusion.durationMilliseconds)
         self.conclusion = conclusion
     }
 }
@@ -62,6 +99,14 @@ public enum HTTPBodyConclusion<Failure: Sendable>: Sendable {
     case failed(HTTPTimed<Failure>)
     /// No terminal event occurs before the horizon; no completion is synthesized.
     case openAtRecordingHorizon
+
+    var durationMilliseconds: Int64 {
+        switch self {
+        case let .returned(completion): completion.durationMilliseconds
+        case let .failed(failure): failure.after.milliseconds.value
+        case .openAtRecordingHorizon: 0
+        }
+    }
 }
 
 /// Successful completion is the only branch permitted to own trailers.
@@ -71,8 +116,11 @@ public struct HTTPBodyCompletion: Equatable, Sendable {
     /// Optional observed trailers, delivered before completion.
     public let trailers: HTTPTrailers?
 
-    /// Builds a completion from validated delays and ordered trailer fields.
-    public init(after: HTTPDelay, trailers: HTTPTrailers? = nil) {
+    let durationMilliseconds: Int64
+
+    /// Builds a completion with a checked trailer-to-completion delay sum.
+    public init(after: HTTPDelay, trailers: HTTPTrailers? = nil) throws {
+        durationMilliseconds = try HTTPDelay.add(trailers?.after.milliseconds.value ?? 0, after.milliseconds.value)
         self.after = after
         self.trailers = trailers
     }

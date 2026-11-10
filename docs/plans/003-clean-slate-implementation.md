@@ -2895,6 +2895,13 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H06 — Weighted body allocation and local timing
 
+- Status: Complete on 2026-11-11 following owner confirmation of scope,
+  GPT-6 Sol / `high` reasoning, and stacked development atop H05. The owner
+  authorizes PR creation on 2026-11-13. Local verification is recorded in the
+  evidence; required PR checks enforce the full platform and coverage matrix
+  before separately authorized merge.
+- Evidence: [Weighted HTTP body allocation](../evidence/003-H06-body-allocation.md).
+
 - Recommended model: GPT-6 Sol; reasoning: `high`. Proportional byte allocation, zero weights, integer rounding, and cumulative delays need checked arithmetic and independent examples.
 - Prerequisites: 003-H05, 003-Fa05; DD14, DD17, 003-F01.
 - Scope: Implement successive nonnegative delays and byte-weight profiles with checked cumulative arithmetic and deterministic proportional allocation.
