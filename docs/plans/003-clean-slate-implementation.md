@@ -2951,14 +2951,23 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H07A — Configurable type-aware body storage policy
 
-- Status: Approved on 2026-11-08; not started. Normal unit scope confirmation is required.
+- Status: Complete. The owner approves review fixup squashing and PR creation
+  against master on 2026-11-14. Focused policy/publication tests and the canonical
+  macOS gate pass; earlier macOS/iOS coverage evidence is recorded separately.
+  Required PR checks enforce the complete platform/coverage matrix before a
+  separately authorized merge. CI monitoring is excluded at the owner's request.
+- Evidence: [Configurable type-aware body storage](../evidence/003-H07A-body-storage-policy.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Deterministic placement and naming must preserve exact bytes across media types, overrides, and publication.
 - Prerequisites: 003-H02–003-H03, 003-H07; DD07, DD09, DD11, DD17's type-aware body storage amendment.
 - Scope: Add immutable configurable recording policy selecting inline content or resources from prepared body bytes and media-type hints. Own typed extension selection and integrate with H07 publication.
+  Owner-approved review extension: `useStandardRules` defaults to true and can
+  disable standard placement rules while retaining consumer overrides, fallback,
+  and media-type extension inference. `.allInline` keeps newly recorded byte
+  content inline without migrating existing baseline resources.
 - Expected files/modules: HTTP body storage policy/configuration, media-type classification and resource extension mapping, persistence-selection integration, fixtures and public documentation.
 - Public behavior: Recognized images default to resources with appropriate extensions, including `.png` and `.jpeg`. Recognized text, including JSON/HTML, defaults to inline up to and including 200 prepared bytes and typed resources above that threshold, including `.json` and `.html`.
-  Unknown content uses the same threshold, with `.txt` for eligible UTF-8 text resources and `.bin` for opaque bytes. Inline encoding uses H02's lossless UTF-8 text/base64 rule; invalid UTF-8 stays exact through base64 or an opaque resource.
-  Consumers override placement, byte thresholds, and extensions by media type. Rule precedence, fallback, supported type mappings, and extension sanitization are explicit and deterministic. Thresholds measure prepared original bytes, not characters or escaped/encoded size.
+  Unknown content uses the same threshold and defaults to `.bin` unless a rule supplies an extension. Resource extensions come from the selected rule, then the media-type standard rule, then `bin`; bytes and Content-Encoding do not affect filenames. Content-Type hints use the lowercased, space/tab-trimmed prefix before the first semicolon without header syntax validation. Inline encoding retains H02's lossless UTF-8 text/base64 rule.
+  Consumers supply literal rule keys, unsigned byte thresholds, and extensions. Configuration is nonthrowing; zero limits keep empty content inline and externalize nonempty content. `Rule.standard(fileExtension:)` supplies the inclusive 200-byte threshold. Rule precedence, fallback, supported type mappings, and extension handling are explicit and deterministic. Explicit extensions strip slash/backslash scalars and otherwise retain the consumer's spelling; final resource-path and filesystem validation still apply. Thresholds measure prepared original bytes, not characters or escaped/encoded size.
   Apply selection only to actual byte content, never absent/unavailable cases. Select only newly recorded prepared content. Preserve existing baseline references; replay honors stored representations without rerunning recording policy. No body transcoding, decompression, pretty printing, or structured JSON parsing/re-encoding for storage.
 - Tests/verification: V-code; 199/200/201-byte boundaries including multibyte text and JSON escaping; PNG/JPEG/JSON/HTML and unknown types; explicit always-inline/always-resource and threshold/extension overrides; deterministic rule precedence/naming; missing/malformed/conflicting/misleading media types; non-UTF-8, partial, and compressed/opaque content; no byte mutation; prepared-only resources; baseline preservation and read-only replay.
 - Exclusions: Embedded structured JSON, semantic JSON matching, content normalization, image decoding, a generalized MIME-sniffing engine, changes to resource atomicity, derived Content-Length, and unapproved parser/codec dependencies.

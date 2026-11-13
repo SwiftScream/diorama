@@ -4,6 +4,24 @@
 - Consolidated design approved by owner: 2026-09-07
 
 On 2026-11-14, the owner approves
+[DD17's inclusive zero thresholds amendment](17-http-lifecycle-composition.md#inclusive-zero-thresholds--owner-approved-2026-11-14).
+A zero limit keeps empty content inline and externalizes nonempty content;
+`.resource` also externalizes empty content. The standard rule becomes a factory
+with an optional suffix.
+
+On 2026-11-14, the owner approves
+[DD17's consumer-owned body storage configuration amendment](17-http-lifecycle-composition.md#consumer-owned-body-storage-configuration--owner-approved-2026-11-14).
+H07A uses literal rule keys, `UInt` limits with zero selecting resources, and
+separator-stripped extensions. Policy and rule construction become nonthrowing;
+the setup error type is removed.
+
+On 2026-11-14, the owner approves
+[DD17's rule-based extensions and best-effort type hints amendment](17-http-lifecycle-composition.md#rule-based-extensions-and-best-effort-type-hints--owner-approved-2026-11-14).
+H07A derives resource extensions from rules and uses normalized Content-Type
+hints without header grammar validation. Body bytes and Content-Encoding do not
+affect resource filenames; unknown content defaults to `.bin`.
+
+On 2026-11-14, the owner approves
 [DD17's owned HTTP resources and explicit resolution amendment](17-http-lifecycle-composition.md#owned-http-resources-and-explicit-resolution--owner-approved-2026-11-14).
 Every runtime HTTP resource owns prepared bytes. Resource-backed decoding requires
 an explicit resolution context; path-only construction and unresolved runtime

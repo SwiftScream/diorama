@@ -342,15 +342,125 @@ capture, and native adapters remain separate work units.
 
 ## Recording placement policy
 
-[DD17's owner-approved storage amendment](design-decisions/17-http-lifecycle-composition.md#type-aware-body-storage--owner-approved-2026-11-08)
-separates this codec from future automatic resource selection. Plan 003 H07 supplies
-resource mechanics; H07A adds configurable type-aware placement, thresholds, and
-extensions. Images default to resources; text and other content default to
-resources above 200 prepared bytes. JSON/HTML resources use `.json`/`.html` where
-appropriate. These are planned recording behaviors, not implemented by this codec.
-Replay honors stored content. H08 owns derived Content-Length and edited-body
-consistency. See the [owning plan](plans/003-clean-slate-implementation.md#003-h07a--configurable-type-aware-body-storage-policy)
-for prerequisites, exclusions, and the required future scope checkpoint.
+`HTTPBodyStoragePolicy` is immutable recording configuration. Its `request`
+method accepts a `PreparedValue<HTTPRequestMessage>`; `response` accepts a
+`PreparedValue<HTTPResponseBody>` and `PreparedValue<HTTPResponseHead>`. Call
+these methods only for newly recorded content after preparation/redaction, then
+admit the resulting value through the system's ordinary validation boundary.
+The methods preserve the head and every logical byte. They do not run capture
+transforms, access storage, or modify body profiles or lifecycle conclusions.
+Native adapter setup will own this configuration when the adapter is introduced.
+
+```swift
+let storage = HTTPBodyStoragePolicy(rules: [
+    "image/png": .inline,
+    "application/json": .automatic(inlineByteLimit: 1_024),
+    "application/custom": .resource(fileExtension: "payload"),
+], fallback: .standard())
+let stored = try storage.request(preparedRequest, resourceStem: "requests/0001")
+```
+
+`Rule.inline` always retains inline bytes. `Rule.resource(fileExtension:)`
+always creates a resource, including for empty byte content.
+`Rule.automatic(inlineByteLimit:fileExtension:)` accepts a `UInt` limit and retains
+inline bytes up to and including the limit. Zero keeps empty content inline and
+creates resources for nonempty content. `Rule.standard(fileExtension:)` provides
+the inclusive 200-byte limit with an optional resource suffix.
+Rule factories and policy construction are nonthrowing.
+Limits count prepared original bytes, before base64 or JSON escaping; they do
+not count characters or the encoded document size. H02's lossless UTF-8/base64
+codec continues to select the inline encoding.
+
+Rules have this deterministic precedence:
+
+1. An exact consumer rule key matched against the normalized header hint.
+2. A built-in recognized media-type rule, when `useStandardRules` is true (the default).
+3. The configurable fallback (default `.standard()`).
+
+Rule keys are stored and used exactly as supplied, without validation,
+normalization, or wildcard interpretation. Header hints are lowercased, trimmed,
+and truncated before lookup, so keys should use that spelling when intended to
+match. Differently cased keys can coexist; an uppercase key does not automatically
+match a lowercased hint. Unusual keys can match unusual hints literally. With
+standard rules enabled, a fallback change applies only to unknown or unusable hints.
+Consumers can override a built-in mapping's threshold with `.automatic`, its
+placement with `.inline` or `.resource`, and its suffix with `fileExtension`.
+
+Disable standard placement rules to apply the fallback to every media type
+without a consumer override. `HTTPBodyStoragePolicy.allInline` is the nonthrowing
+convenience for keeping every newly recorded byte body inline:
+
+```swift
+let inline = HTTPBodyStoragePolicy.allInline
+let configured = HTTPBodyStoragePolicy(fallback: .inline, useStandardRules: false)
+```
+
+Both forms preserve existing baseline resources, absent/unavailable bodies, and
+all prepared bytes. Consumers can still add exact overrides when standard rules
+are disabled. Media-type lookup and standard extension defaults
+remain available whenever a consumer rule or fallback selects resource storage;
+`useStandardRules` controls placement only. These methods do not migrate stored
+fixtures or change replay behavior.
+
+The standard placement rules and resource extensions are:
+
+| Type | Placement | Default resource suffix |
+| --- | --- | --- |
+| `image/png`, `image/jpeg`, `image/gif`, `image/webp` | Always resource | `.png`, `.jpeg`, `.gif`, `.webp` |
+| `application/json`, `application/` subtypes ending in `+json` | Inclusive 200-byte limit | `.json` |
+| `text/html` | Inclusive 200-byte limit | `.html` |
+| `text/css`, `text/csv` | Inclusive 200-byte limit | `.css`, `.csv` |
+| `text/javascript`, `application/javascript` | Inclusive 200-byte limit | `.js` |
+| `text/xml`, `application/xml` | Inclusive 200-byte limit | `.xml` |
+| Other `text/` subtypes | Inclusive 200-byte limit | `.txt` |
+| Missing, repeated, or unmatched hint | Fallback | `.bin`, unless a rule supplies an extension |
+
+Resource extensions come only from rules: use the selected rule's extension,
+then the media-type standard rule's extension if available, then `bin`. The
+standard extension remains available when standard placement rules are disabled.
+Neither body bytes nor Content-Encoding affect extension selection. A JSON or
+image extension does not establish that the bytes are a valid document of that
+type; unknown text does not automatically receive `.txt`. Consumers can supply
+an explicit extension when they want a different filename. Inline text/base64
+encoding remains byte-aware and does not change the bytes.
+
+One Content-Type occurrence supplies a best-effort hint. Take everything before
+the first semicolon, trim ASCII spaces/tabs, and lowercase the result. Header
+type/subtype and parameter syntax are not validated. The normalized value goes
+directly through exact rule lookup and the `text/` prefix or `application/` plus
+`+json` suffix defaults. Consequently, malformed hints can still match a family
+rule. Missing or repeated Content-Type fields (even identical ones) use fallback;
+unmatched hints also use fallback. Configured rule keys are not validated.
+Original fields and body bytes remain unchanged; no
+charset conversion, decompression, or format sniffing occurs.
+
+Explicit suffixes strip `/` and `\` Unicode scalars at construction and otherwise preserve
+the consumer's spelling, case, spaces, Unicode, and dots. There is no suffix
+length limit or lowercasing. Nil selects the media-type standard extension or
+`bin`; an explicit empty
+suffix produces a trailing dot because selection appends the dot literally.
+The final resource path still rejects NULs and escaping components, and
+filesystem-specific naming and length limits fail during publication. Consumers
+are responsible for their chosen suffix. `HTTPBodyStorageError` is removed;
+resource-path and filesystem failures still surface when applying or publishing a rule.
+`resourceStem` is a caller-assigned relative path,
+normally derived from stable recording identity. Selection appends `.` and the
+suffix literally; it does not use time, hashes, random identifiers, or counters.
+The stem and final path both pass H07's structural resource-path validation. The
+caller assigns distinct stems for distinct content. H07 retains responsibility
+for aliases, conflicting names/bytes, publication, and owned-byte lifetime.
+
+Absent/unavailable content and existing resource references pass through
+unchanged, without even validating the unused stem. The policy never resolves
+or rewrites a baseline resource. Decoding, prepared admission, matching, and
+replay do not invoke it; changing recording policy cannot migrate stored
+representations. Replay needs no writes. Unknown inline content remains exact,
+including invalid UTF-8, partial prefixes, BOMs, whitespace, and JSON spelling.
+No transcoding, decompression, normalization, or structured JSON is introduced.
+H08 owns derived Content-Length and body-edit consistency.
+
+See [H07A evidence](evidence/003-H07A-body-storage-policy.md) and
+[the owning plan](plans/003-clean-slate-implementation.md#003-h07a--configurable-type-aware-body-storage-policy).
 
 ## Preparation and credential admission
 

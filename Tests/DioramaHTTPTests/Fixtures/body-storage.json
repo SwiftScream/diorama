@@ -1,0 +1,38 @@
+[
+  {
+    "kind" : "bytes",
+    "text" : ""
+  },
+  {
+    "kind" : "bytes",
+    "text" : "{ \"x\":1.00, \"x\":2, \"s\":\"\\u0061\" }"
+  },
+  {
+    "kind" : "resource",
+    "resource" : "bodies/body-2.png"
+  },
+  {
+    "kind" : "resource",
+    "resource" : "bodies/body-3.jpeg"
+  },
+  {
+    "base64" : "4oI=",
+    "kind" : "bytes"
+  },
+  {
+    "kind" : "resource",
+    "resource" : "bodies/body-5.html"
+  },
+  {
+    "kind" : "resource",
+    "resource" : "bodies/body-6.json"
+  },
+  {
+    "kind" : "resource",
+    "resource" : "bodies/body-7.bin"
+  },
+  {
+    "kind" : "resource",
+    "resource" : "bodies/body-8.bin"
+  }
+]

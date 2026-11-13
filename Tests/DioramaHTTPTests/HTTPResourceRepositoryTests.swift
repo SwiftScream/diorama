@@ -7,6 +7,102 @@ import Synchronization
 import Testing
 
 struct HTTPResourceRepositoryTests {
+    @Test(arguments: [
+        (nil, Array(repeating: UInt8(32), count: 201), nil, "bin"),
+        ("application/json; charset=\"unterminated", Array(repeating: UInt8(255), count: 201), "gzip", "json"),
+        ("image/png", [], "br", "png"),
+        ("text/html", Array(repeating: UInt8(255), count: 201), "gzip", "html"),
+    ])
+    func `rule based resource extensions preserve arbitrary bytes through publication`(
+        _ type: String?, _ bytes: [UInt8], _ encoding: String?, _ suffix: String) throws
+    {
+        let fixture = try ResourceFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        var fields = HTTPFields()
+        if let type {
+            fields.append(HTTPField(name: .contentType, value: type))
+        }
+        if let encoding {
+            fields.append(HTTPField(name: .contentEncoding, value: encoding))
+        }
+        let head = try ValuePreparation().admitPrepared(HTTPResponseHead(
+            head: HTTPResponse(status: .ok, headerFields: fields)))
+        let prepared = try ValuePreparation().admitPrepared(HTTPResponseBody.bytes(bytes))
+        let body = try HTTPBodyStoragePolicy.default.response(prepared, head: head, resourceStem: "bodies/reply")
+        _ = try fixture.repository.publish(ResourceFixture.definition([body]))
+        let loaded = try fixture.resource(in: fixture.loaded())
+        #expect(loaded.path == "bodies/reply." + suffix)
+        #expect(loaded.bytes() == bytes)
+        let file = fixture.root.appendingPathComponent("scenario-resources/bodies/reply." + suffix)
+        #expect(try Data(contentsOf: file) == Data(bytes))
+    }
+
+    @Test(arguments: [
+        ("", ""), (".png", ".png"), ("tar.gz", "tar.gz"), ("JSON", "JSON"), ("é", "é"),
+        ("with space", "with space"), ("%2f", "%2f"), (String(repeating: "a", count: 17), "aaaaaaaaaaaaaaaaa"),
+        ("folder/name", "foldername"), ("a\\b", "ab"), ("/\\", ""),
+    ])
+    func `consumer extensions strip separators and preserve filenames through publication`(
+        _ suffix: String, _ sanitized: String) throws
+    {
+        let fixture = try ResourceFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let bytes: [UInt8] = [0, 255, 42]
+        let prepared = try ValuePreparation().admitPrepared(HTTPResponseBody.bytes(bytes))
+        let head = try ValuePreparation().admitPrepared(HTTPResponseHead(head: HTTPResponse(status: .ok)))
+        let rules: [HTTPBodyStoragePolicy.Rule] = [
+            .resource(fileExtension: suffix), .automatic(inlineByteLimit: 0, fileExtension: suffix),
+        ]
+        for rule in rules {
+            let policy = HTTPBodyStoragePolicy(fallback: rule)
+            let body = try policy.response(prepared, head: head, resourceStem: "bodies/reply")
+            _ = try fixture.repository.publish(ResourceFixture.definition([body]))
+            let loaded = try fixture.resource(in: fixture.loaded())
+            #expect(loaded.path == "bodies/reply." + sanitized)
+            #expect(loaded.bytes() == bytes)
+            let directory = fixture.root.appendingPathComponent("scenario-resources/bodies")
+            #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path) == ["reply." + sanitized])
+            #expect(try Data(contentsOf: directory.appendingPathComponent("reply." + sanitized)) == Data(bytes))
+        }
+    }
+
+    @Test
+    func `recording placement publishes prepared resources and preserves read only baselines`() throws {
+        let fixture = try ResourceFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let reporter = try DiagnosticReporter(
+            scenarioID: ScenarioID(rawValue: "placement"), definition: ScenarioDefinition())
+        let preparation = ValuePreparation<HTTPResponseBody>(redact: { _ in
+            .bytes(Array(repeating: 32, count: 201))
+        })
+        let prepared = try preparation.prepare(capturing: { .bytes(Array("secret".utf8)) },
+                                               purpose: .recording, reporter: reporter)
+        let head = try ValuePreparation().admitPrepared(HTTPResponseHead(head: HTTPResponse(
+            status: .ok, headerFields: [.contentType: "application/json"])))
+        let stored = try HTTPBodyStoragePolicy.default.response(prepared, head: head, resourceStem: "bodies/reply")
+        let inline = HTTPResponseBody.bytes([255, 0])
+        let definition = try ResourceFixture.definition([stored, inline])
+        _ = try fixture.repository.publish(definition)
+        let documentURL = fixture.root.appendingPathComponent("scenario.json")
+        let resourceURL = fixture.root.appendingPathComponent("scenario-resources/bodies/reply.json")
+        #expect(try Data(contentsOf: resourceURL) == Data(repeating: 32, count: 201))
+        let document = try Data(contentsOf: documentURL)
+        #expect(try !#require(String(data: document, encoding: .utf8)).contains("secret"))
+        try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: documentURL.path)
+        try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: resourceURL.path)
+        let loaded = try fixture.loaded()
+        let track = try #require(try loaded.attachments[0].track(ResourceFixture.trackID, as: HTTPResponseBody.self))
+        #expect(track.records.map(\.value) == [stored, inline])
+        #expect(try fixture.codec.encode(loaded).data == document)
+        // Changing recording policy cannot rewrite a decoded baseline reference.
+        let changed = HTTPBodyStoragePolicy(rules: ["application/json": .inline])
+        #expect(try changed.response(ValuePreparation().admitPrepared(track.records[0].value),
+                                     head: head, resourceStem: "unused") == stored)
+        #expect(try Data(contentsOf: documentURL) == document)
+        try FileManager.default.removeItem(at: fixture.root)
+        #expect(try fixture.resource(in: loaded).bytes() == Array(repeating: 32, count: 201))
+    }
+
     @Test
     func `HTTP resources publish exact bytes and load into independently owned values`() throws {
         let fixture = try ResourceFixture()

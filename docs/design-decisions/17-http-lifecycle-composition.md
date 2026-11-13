@@ -803,3 +803,59 @@ This refines the initial authoring/component-decoding API and preserves eager
 ownership across fixture replacement, removal, and publication failure. It adds
 no lazy loading, filesystem fallback during replay, schema version change, or
 native runtime dependency to stable body values.
+
+## Rule-based extensions and best-effort type hints — owner-approved 2026-11-14
+
+During H07A review, the owner approves selecting resource extensions only from
+rules: the selected rule's extension, then the media-type standard extension when
+available, then `bin`. Body signatures, UTF-8 validity, and Content-Encoding do
+not participate. This supersedes the earlier automatic `.txt` selection for
+unknown text and the implementation's format/coding guards. Extensions describe
+configured or declared types without establishing body validity. Consumers can
+explicitly configure a different suffix. Byte content still determines placement
+thresholds and the inline codec's lossless text/base64 representation.
+
+One Content-Type field provides a best-effort hint by taking the prefix before
+the first semicolon, trimming ASCII spaces/tabs, and lowercasing. Header type,
+subtype, and parameter grammar validation are not required for storage selection.
+The value is matched directly against exact and family rules, so a malformed hint
+can still match a prefix/suffix default. Missing or repeated fields use fallback;
+unmatched hints also use fallback. Configured rule keys retain bare media-type
+validation and case-alias rejection. Original headers and bytes remain unchanged.
+
+Disabling standard placement rules leaves their extension defaults available.
+The change applies to newly recorded byte content only; existing baseline paths
+are preserved. No body transcoding, decompression, schema version change, or
+resource migration is introduced.
+
+## Consumer-owned body storage configuration — owner-approved 2026-11-14
+
+During H07A review, the owner approves using supplied rule dictionaries without
+key validation or normalization. Header hints retain their lowercase prefix
+normalization, and dictionary lookup is exact. Unusual keys may match unusual
+hints literally; keys containing parameters or extra whitespace generally remain
+unused. Differently cased keys can coexist, without implicit wildcard behavior
+or dictionary-order-dependent alias resolution. This supersedes earlier bare
+media-type key validation and case-alias rejection.
+
+The byte-limit API uses `UInt`. Positive limits retain inclusive inline storage;
+zero selects resource storage even for empty content, matching `.resource`.
+Extension overrides strip `/` and `\` Unicode scalars rather than rejecting them;
+all other spelling is retained, including empty content after stripping. The
+final resource path still validates containment and NUL rejection, and storage
+still reports filesystem failures. Policy initialization and rule factories are
+nonthrowing; the setup-only `HTTPBodyStorageError` type is removed.
+
+This supersedes prior configuration-time separator errors and the earlier
+empty-body behavior of a zero threshold. Placement defaults, standard extension
+lookup, exact prepared bytes, and existing baseline resource references remain
+unchanged. No schema version change or automatic fixture migration is introduced.
+
+## Inclusive zero thresholds — owner-approved 2026-11-14
+
+During H07A review, the owner approves applying the inclusive byte threshold
+uniformly at zero: `.automatic(inlineByteLimit: 0)` keeps empty content inline
+and externalizes every nonempty body. `.resource` continues to externalize empty
+content too. This supersedes the preceding amendment's zero/resource equivalence.
+`Rule.standard(fileExtension:)` provides the inclusive 200-byte rule as a factory
+with an optional suffix. No persistence schema or default placement changes.

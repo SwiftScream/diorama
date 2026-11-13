@@ -377,6 +377,8 @@ test-integration design. They do not authorize those APIs.
   records stable publication paths, owned resource bytes, rollback, and failure evidence.
 - [Atomic persistence resources](evidence/003-H07-persistence-resources.md) records
   system-independent resource collection, resolution, and atomic storage evidence.
+- [HTTP body storage policy](evidence/003-H07A-body-storage-policy.md) records
+  configurable placement, typed suffixes, exact bytes, and publication integration.
 
 ## Historical boundary
 
