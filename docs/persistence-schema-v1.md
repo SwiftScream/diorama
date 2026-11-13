@@ -11,9 +11,14 @@ identity, destination paths, runtime modes, consumption state, package
 versions, timestamps, and host metadata are not part of the document.
 
 The envelope, header, and system entries are a format-neutral `Codable` object
-model. `JSONScenarioCodec` is the canonical JSON byte transport for that model;
+model. `JSONScenarioCodec` is the canonical JSON transport for that model;
 it does not own the schema structures or their validation rules. Its public
-boundary accepts and returns the core's immutable `ScenarioDefinition` directly.
+encoder accepts the core's immutable `ScenarioDefinition` and returns a complete
+`ScenarioDocument` containing canonical JSON in `.data` and all referenced resource
+bytes in `.resources`. Missing bytes or conflicting resource references fail
+encoding. Resource-free scenarios return an empty resource dictionary. There is
+no JSON-only scenario encoding method. The public decoder accepts JSON bytes and
+returns `ScenarioDefinition`; resource resolution occurs through repository loading.
 The `Codable` envelope is internal to persistence; the core model does not
 require `Codable`. `JSONScenarioCodec.schemaVersion` identifies
 the envelope version. Runtime `ScenarioConfiguration` is supplied separately at
@@ -170,3 +175,74 @@ versioned payload. It still owns error capture, metadata filtering/redaction,
 omission reporting, typed supplements, and schema compatibility. A change to
 the shared representation must account for every adopting system's version
 contract; sharing the codec does not silently change those schemas.
+
+## Document and resource files
+
+`ScenarioDocumentStorage` exposes `load()` returning an optional
+`ScenarioDocumentSnapshot` and `publish(_:)` accepting `ScenarioDocument`.
+A missing document returns nil; an empty document is a present snapshot.
+Document-only backends explicitly return snapshots without resource resolution
+and reject resource publication before writing. Deliberate system codecs use
+`ScenarioResourceCoding` to collect prepared referenced bytes before publication
+and resolve them before repository loading returns. Direct codec encoding collects
+the same complete resource set as repository publication. Repeated equal references
+share one resource; conflicting content and namespace aliases fail before storage.
+
+The file layout uses stable ordinary paths suitable for Git:
+
+```text
+checkout.json
+checkout-resources/
+  bodies/reply.bin
+```
+
+The resource directory is the document's final-extension-free name plus
+`-resources`, alongside the JSON file. Literal resource references remain relative
+to this directory. Locations must have disjoint document and companion paths.
+No symlink or random generation name enters the published layout. Schema versions,
+canonical JSON, and exact prepared resource bytes are unchanged.
+
+Resource paths are literal slash-separated relative names. Empty components,
+leading/trailing slashes, `.` and `..` components, and embedded NULs are rejected.
+Spaces, Unicode, and other filename characters are preserved without sanitizing
+or percent decoding; filesystem-specific naming and length limits fail at I/O.
+There is no ASCII whitelist, Windows device-name exclusion, or trailing-period
+restriction. Case aliases and file/directory namespace conflicts remain rejected
+before publication. Filesystem Unicode equivalence still applies. Reads and writes
+remain within the scenario's resource directory; external references are deferred.
+
+[DD07's amendment](design-decisions/07-persistence-boundary.md#stable-file-layout-and-publication-exclusivity--owner-approved-2026-11-14)
+requires callers to exclude publication from loading, resource resolution, another
+publication, and manual edits of the same scenario. `JSONScenarioRepository.load()`
+includes decoding and all resource resolution in that loading window. Stored
+snapshots must finish resolving before publication resumes; they do not preserve
+old resource files across replacement. Returned semantic values own resolved
+bytes and survive later replacement, failure, or fixture removal. Read-only loads
+may overlap one another; independent scenarios with disjoint paths may publish
+concurrently. No automatic locks or cross-process coordination enforce exclusivity.
+
+Publication stages complete content in a private temporary directory. Existing
+resources move to a backup, new resources move to the stable companion location,
+and JSON is replaced by atomic rename. Supported readers cannot observe the
+intermediate states because publication is exclusive. Resource-free publication
+removes the old resource folder; obsolete files are not retained between versions.
+Document-only scenarios without an existing resource folder retain single-file
+atomic publication. Temporary names are implementation state, never references.
+
+Returning failures before the JSON commit restore the previous resources.
+`FileStorageError.rollbackFailure` reports an additional failed restoration;
+in that case staging retains recovery bytes, and callers must recover the fixture
+before using it again. Stage/commit errors retain cleanup evidence when rollback
+succeeds. Cleanup failure after commit is returned in `DocumentPublication`
+and does not undo publication. Process termination can leave staging or a partial
+transition requiring caller recovery. Neither crash durability nor automatic
+recovery is promised. The two sibling entries are not one filesystem transaction.
+
+Resource reads reject symlinks and nonregular files, including unsafe path
+components; names are never percent-decoded. Root ancestors are trusted. Replay
+performs no writes, directory creation, locks, or cleanup and supports read-only
+fixtures on local Apple/Linux filesystems. Remote filesystem behavior is outside
+the contract.
+
+See [persistence evidence](evidence/003-H07-persistence-resources.md) for the
+layout, ownership, rollback, and failure tests.

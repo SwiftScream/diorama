@@ -6,7 +6,7 @@ public enum FileStorageOperation: Equatable, Sendable {
     case read
     /// Create or write unpublished staging.
     case stage
-    /// Atomically replace the destination.
+    /// Install resources or replace the JSON destination.
     case commit
     /// Remove this publication's private staging directory.
     case cleanup
@@ -33,9 +33,9 @@ public enum FileStorageFailureCode: Equatable, Sendable {
 
 /// File failure evidence preserving both the primary and any cleanup failure.
 ///
-/// A thrown stage or commit failure leaves the destination untouched by this
-/// writer. Another concurrent writer can still replace it. Cleanup failures
-/// after successful commit are returned in ``DocumentPublication`` instead.
+/// A thrown stage or commit failure preserves the previous publication unless
+/// resource rollback also fails. In that case staging retains recovery bytes.
+/// Cleanup failures after commit are returned in ``DocumentPublication`` instead.
 public struct FileStorageError: Error, Equatable, Sendable {
     /// The failed operation.
     public let operation: FileStorageOperation
@@ -44,11 +44,15 @@ public struct FileStorageError: Error, Equatable, Sendable {
     /// Additional failure while removing unpublished staging, if any.
     public let cleanupFailure: FileStorageFailureCode?
 
+    /// Failure restoring the prior resources; retained staging requires caller recovery.
+    public let rollbackFailure: FileStorageFailureCode?
+
     init(operation: FileStorageOperation, cause: FileStorageFailureCode,
-         cleanupFailure: FileStorageFailureCode? = nil)
+         cleanupFailure: FileStorageFailureCode? = nil, rollbackFailure: FileStorageFailureCode? = nil)
     {
         self.operation = operation
         self.cause = cause
         self.cleanupFailure = cleanupFailure
+        self.rollbackFailure = rollbackFailure
     }
 }

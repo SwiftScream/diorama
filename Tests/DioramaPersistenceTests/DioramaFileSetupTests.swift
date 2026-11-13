@@ -117,7 +117,7 @@ struct DioramaFileSetupTests {
         ]))
         let randomBaseline = try codec.decode(persistedFixture("random-boundaries"))
         let baseline = try ScenarioDefinition(attachments: randomBaseline.attachments + [inactive])
-        let bytes = try codec.encode(baseline)
+        let bytes = try codec.encode(baseline).data
         try bytes.write(to: location.fileURL)
         let unknown = try Diorama(file: location.fileURL, scenarioID: "file-setup", mode: .replay,
                                   systems: random)

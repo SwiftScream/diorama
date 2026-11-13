@@ -46,7 +46,7 @@ struct DatePersistenceConformanceTests {
         let bytes = try DateConformanceSupport.fixture()
         let codec = try DateConformanceSupport.codec()
         let definition = try codec.decode(bytes)
-        #expect(try codec.encode(definition) == bytes)
+        #expect(try codec.encode(definition).data == bytes)
         let capture = try DateConformanceSupport.offline("capture")
         let replay = try DateConformanceSupport.offline("replay")
         let pass = try DateConformanceSupport.offline("pass")
@@ -70,7 +70,7 @@ struct DatePersistenceConformanceTests {
         #expect(result.report.finalization.report.diagnostics.isEmpty)
         #expect(result.report.evaluated(.allRecordsClaimed).isSatisfied)
         #expect(result.report.evaluated(.allClaimedRecordsConsumed).isSatisfied)
-        #expect(try codec.encode(#require(result.definition)) == bytes)
+        #expect(try codec.encode(#require(result.definition)).data == bytes)
     }
 
     @Test

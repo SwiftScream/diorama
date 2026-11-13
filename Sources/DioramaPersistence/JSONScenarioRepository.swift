@@ -37,8 +37,10 @@ public enum ScenarioPublicationError: Error, Sendable {
 
 /// Composes the deterministic JSON codec with storage for one scenario.
 ///
-/// Each load reads once and retains its precise outcome. Each publication encodes
-/// the complete supplied candidate before asking storage to write. Execution
+/// Each load reads one document and resolves its registered resources before returning.
+/// Exclude publication and manual edits of that scenario throughout this operation.
+/// Each publication encodes the complete supplied candidate and collects its
+/// prepared resources before asking storage to write. Execution
 /// startup, candidate health, and finalization policy belong to the caller.
 /// Operations are synchronous and may block the caller.
 public struct JSONScenarioRepository: Sendable {
@@ -63,15 +65,15 @@ public struct JSONScenarioRepository: Sendable {
     }
 
     package func load(unknownSystems: UnknownSystemPolicy) -> ScenarioLoadResult {
-        let data: Data
+        let snapshot: ScenarioDocumentSnapshot
         do {
             guard let loaded = try storage.load() else { return .missing }
-            data = loaded
+            snapshot = loaded
         } catch {
             return .unreadable(error)
         }
         do {
-            let decoded = try codec.decode(data, unknownSystems: unknownSystems)
+            let decoded = try codec.decode(snapshot.data, unknownSystems: unknownSystems, snapshot: snapshot)
             return .loaded(decoded.scenario, skippedSystems: decoded.skippedSystems)
         } catch let error as PersistenceDispatchError {
             return .incompatibleSystem(error)
@@ -102,7 +104,7 @@ public struct JSONScenarioRepository: Sendable {
         try codec.validatePersistability(of: definition)
     }
 
-    /// Encodes and publishes a complete candidate as one document.
+    /// Encodes and publishes a complete candidate and its resources under storage exclusivity.
     ///
     /// - Parameter candidate: Complete prepared content selected by the caller.
     /// - Returns: A commit receipt, retaining any subsequent cleanup failure.
@@ -110,14 +112,14 @@ public struct JSONScenarioRepository: Sendable {
     public func publish(_ candidate: ScenarioDefinition)
         throws(ScenarioPublicationError) -> DocumentPublication
     {
-        let data: Data
+        let document: ScenarioDocument
         do {
-            data = try codec.encode(candidate)
+            document = try codec.encode(candidate)
         } catch {
             throw .encoding(error)
         }
         do {
-            return try storage.publish(data)
+            return try storage.publish(document)
         } catch {
             throw .storage(error)
         }

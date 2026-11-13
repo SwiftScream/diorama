@@ -146,15 +146,16 @@ final class StartupStorage: ScenarioDocumentStorage, Sendable {
         state.withLock { $0.writes }
     }
 
-    func load() throws -> Data? {
+    func load() throws -> ScenarioDocumentSnapshot? {
         state.withLock { $0.reads += 1 }
         if readError {
             throw StartupFault()
         }
-        return document
+        return document.map { ScenarioDocumentSnapshot(data: $0) }
     }
 
-    func publish(_: Data) throws -> DocumentPublication {
+    func publish(_ document: ScenarioDocument) throws -> DocumentPublication {
+        guard document.resources.isEmpty else { throw ScenarioResourceError.unsupportedStorage }
         state.withLock { $0.writes += 1 }
         return DocumentPublication()
     }

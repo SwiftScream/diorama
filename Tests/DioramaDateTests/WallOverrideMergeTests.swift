@@ -104,7 +104,7 @@ struct WallOverrideMergeTests {
     func `rerecord returns fresh normalized dates before applying canonical overrides`() async throws {
         let codec = try WallMergeFixtures.codec()
         let baseline = try codec.decode(WallMergeFixtures.fixture("date-edited"))
-        let baselineBytes = try codec.encode(baseline)
+        let baselineBytes = try codec.encode(baseline).data
         let native = [0.00049, 0.00098, 0.0004].map { Date(timeIntervalSince1970: 2_000_000_000 + $0) }
         let rounded = try native.map { try #require(StableTimeCodec.roundedToMillisecond($0)) }
         let source = WallMergeFixtures.Source(native)
@@ -119,9 +119,9 @@ struct WallOverrideMergeTests {
         #expect(recording.origin == old.origin)
         #expect(recording.observations == [.observed(0), .override(5000), .observed(-1)])
         let expected = try WallMergeFixtures.fixture("date-rerecorded-overrides")
-        #expect(try codec.encode(candidate) == expected)
-        #expect(try codec.encode(codec.decode(expected)) == expected)
-        #expect(try codec.encode(baseline) == baselineBytes)
+        #expect(try codec.encode(candidate).data == expected)
+        #expect(try codec.encode(codec.decode(expected)).data == expected)
+        #expect(try codec.encode(baseline).data == baselineBytes)
         #expect(result.report.finalization.report.diagnostics.isEmpty)
         #expect(!result.report.rendered().contains("2033-"))
         let replay = try await Diorama(definition: candidate, scenarioID: "replay", mode: .replay, systems: system)
@@ -205,7 +205,7 @@ struct WallOverrideMergeTests {
         #expect(result.report.publication.disposition == .published)
         #expect(result.report.publication.issues.isEmpty)
         #expect(result.report.finalization.report.diagnostics.isEmpty)
-        #expect(try Data(contentsOf: file) == codec.encode(candidate))
+        #expect(try Data(contentsOf: file) == codec.encode(candidate).data)
         let replay = try await Diorama(file: file, scenarioID: "file-replay", mode: .replay, systems: system)
             .execute { _, wall in native.map { _ in wall.now } }
         #expect(replay.body == merged.effectiveDates)
@@ -224,7 +224,7 @@ struct WallOverrideMergeTests {
         let codec = try WallMergeFixtures.codec()
         let attachment = try DioramaDateSystem.attachment(named: "clock", recording: original)
         let baseline = try ScenarioDefinition(attachments: [attachment])
-        let bytes = try codec.encode(baseline)
+        let bytes = try codec.encode(baseline).data
         let file = try WallMergeFixtures.file(containing: bytes)
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let native = [

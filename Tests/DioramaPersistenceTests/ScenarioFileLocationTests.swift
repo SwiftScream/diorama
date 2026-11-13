@@ -29,9 +29,9 @@ struct ScenarioFileLocationTests {
         #expect(location.relativePath == path)
         #expect(location.fileURL.lastPathComponent == path)
         #expect(location.fileURL.deletingLastPathComponent().standardizedFileURL == fixture.root.standardizedFileURL)
-        _ = try FileScenarioStorage(location: location).publish(Data([7]))
+        _ = try FileScenarioStorage(location: location).publish(ScenarioDocument(data: Data([7])))
         #expect(try fixture.entries() == [path])
-        #expect(try FileScenarioStorage(location: location).load() == Data([7]))
+        #expect(try FileScenarioStorage(location: location).load()?.data == Data([7]))
     }
 
     @Test

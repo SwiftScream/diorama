@@ -28,7 +28,7 @@ struct FileScenarioStorageTests {
         #expect(try fixture.entries().isEmpty)
         #expect(try fixture.storage.load() == nil)
         try Data().write(to: fixture.location.fileURL)
-        #expect(try fixture.storage.load() == Data())
+        #expect(try fixture.storage.load()?.data == Data())
     }
 
     @Test
@@ -37,10 +37,10 @@ struct FileScenarioStorageTests {
         defer { try? fixture.remove() }
         let old = try persistedFixture("random-boundaries")
         let new = try persistedFixture("random-empty")
-        #expect(try fixture.storage.publish(old).cleanupFailure == nil)
-        #expect(try fixture.storage.load() == old)
-        #expect(try fixture.storage.publish(new).cleanupFailure == nil)
-        #expect(try fixture.storage.load() == new)
+        #expect(try fixture.storage.publish(ScenarioDocument(data: old)).cleanupFailure == nil)
+        #expect(try fixture.storage.load()?.data == old)
+        #expect(try fixture.storage.publish(ScenarioDocument(data: new)).cleanupFailure == nil)
+        #expect(try fixture.storage.load()?.data == new)
         #expect(try fixture.entries() == ["scenario.json"])
     }
 
@@ -59,7 +59,7 @@ struct FileScenarioStorageTests {
         operations.commit = { _, _ in Issue.record("Load tried to commit"); throw storageFault() }
         operations.remove = { _ in Issue.record("Load tried to clean staging"); throw storageFault() }
         let storage = FileScenarioStorage(location: fixture.location, operations: operations)
-        #expect(try storage.load() == original)
+        #expect(try storage.load()?.data == original)
         #expect(try fixture.entries() == ["scenario.json"])
     }
 
@@ -103,9 +103,9 @@ struct FileScenarioStorageTests {
         operations.remove = { _ in Issue.record("Removed unowned staging") }
         let storage = FileScenarioStorage(location: fixture.location, operations: operations)
         #expect(throws: FileStorageError(operation: .stage, cause: .posix(13))) {
-            _ = try storage.publish(Data([3]))
+            _ = try storage.publish(ScenarioDocument(data: Data([3])))
         }
-        #expect(try storage.load() == old)
+        #expect(try storage.load()?.data == old)
         #expect(try fixture.entries() == [".diorama-stage-another-writer", "scenario.json"])
     }
 
@@ -128,9 +128,9 @@ struct FileScenarioStorageTests {
         }
         let storage = FileScenarioStorage(location: fixture.location, operations: operations)
         #expect(throws: FileStorageError(operation: failCommit ? .commit : .stage, cause: .posix(5))) {
-            _ = try storage.publish(Data([3, 4, 5]))
+            _ = try storage.publish(ScenarioDocument(data: Data([3, 4, 5])))
         }
-        #expect(try storage.load() == old)
+        #expect(try storage.load()?.data == old)
         #expect(try fixture.entries() == ["scenario.json"])
     }
 
@@ -142,7 +142,7 @@ struct FileScenarioStorageTests {
         let sentinel = fixture.location.fileURL.appendingPathComponent("sentinel")
         try Data([9]).write(to: sentinel)
         do {
-            _ = try fixture.storage.publish(Data([3]))
+            _ = try fixture.storage.publish(ScenarioDocument(data: Data([3])))
             Issue.record("Commit unexpectedly succeeded")
         } catch let error as FileStorageError {
             #expect(error.operation == .commit)
@@ -158,7 +158,7 @@ struct FileScenarioStorageTests {
         defer { try? fixture.remove() }
         let location = try ScenarioFileLocation(rootDirectory: fixture.root, relativePath: "missing/file.json")
         do {
-            _ = try FileScenarioStorage(location: location).publish(Data([1]))
+            _ = try FileScenarioStorage(location: location).publish(ScenarioDocument(data: Data([1])))
             Issue.record("Stage unexpectedly succeeded")
         } catch let error as FileStorageError {
             #expect(error.operation == .stage)
@@ -179,81 +179,33 @@ struct FileScenarioStorageTests {
         let storage = FileScenarioStorage(location: fixture.location, operations: operations)
         if failCommit {
             #expect(throws: FileStorageError(operation: .commit, cause: .posix(5), cleanupFailure: .posix(13))) {
-                _ = try storage.publish(Data([2]))
+                _ = try storage.publish(ScenarioDocument(data: Data([2])))
             }
-            #expect(try storage.load() == Data([1]))
+            #expect(try storage.load()?.data == Data([1]))
         } else {
-            let receipt = try storage.publish(Data([2]))
+            let receipt = try storage.publish(ScenarioDocument(data: Data([2])))
             #expect(receipt.cleanupFailure as? FileStorageError ==
                 FileStorageError(operation: .cleanup, cause: .posix(13)))
-            #expect(try storage.load() == Data([2]))
+            #expect(try storage.load()?.data == Data([2]))
         }
         #expect(try fixture.entries().filter { $0.hasPrefix(".diorama-stage-") }.count == 1)
     }
 
     @Test
-    func `racing independent writers and readers observe only complete documents`() throws {
+    func `read only loads can run concurrently without publication`() throws {
         let fixture = try FileStorageFixture()
         defer { try? fixture.remove() }
-        let documents = [Data(repeating: 0x61, count: 262_144), Data(repeating: 0x62, count: 393_216)]
-        _ = try fixture.storage.publish(documents[0])
-        let failures = Mutex<[String]>([])
-        DispatchQueue.concurrentPerform(iterations: 4) { worker in
-            let storage = FileScenarioStorage(location: fixture.location)
-            do {
-                for _ in 0..<40 {
-                    if worker < 2 {
-                        let receipt = try storage.publish(documents[worker])
-                        if receipt.cleanupFailure != nil {
-                            failures.withLock { $0.append("cleanup") }
-                        }
-                    } else if let data = try storage.load(), documents.contains(data) {
-                        continue
-                    } else {
-                        failures.withLock { $0.append("torn or missing read") }
-                    }
-                }
-            } catch {
-                failures.withLock { $0.append("storage failure") }
-            }
-        }
-        #expect(failures.withLock { $0 }.isEmpty)
-        #expect(try fixture.entries() == ["scenario.json"])
-    }
-
-    @Test
-    func `later commit wins even when its publication starts first`() throws {
-        let fixture = try FileStorageFixture()
-        defer { try? fixture.remove() }
-        _ = try fixture.storage.publish(Data([0]))
-        let staged = DispatchSemaphore(value: 0)
-        let allowCommit = DispatchSemaphore(value: 0)
-        var operations = FileStorageOperations()
-        let commit = operations.commit
-        operations.commit = { source, destination in
-            staged.signal()
-            guard allowCommit.wait(timeout: .now() + 10) == .success else { throw storageFault() }
-            try commit(source, destination)
-        }
-        let delayed = FileScenarioStorage(location: fixture.location, operations: operations)
+        let document = Data(repeating: 0x61, count: 262_144)
+        _ = try fixture.storage.publish(ScenarioDocument(data: document))
         let failures = Mutex(0)
-        let finished = DispatchSemaphore(value: 0)
-        DispatchQueue(label: "FileScenarioStorageTests.delayedCommit").async {
-            defer { finished.signal() }
+        DispatchQueue.concurrentPerform(iterations: 4) { _ in
             do {
-                _ = try delayed.publish(Data([1]))
+                for _ in 0..<40 where try fixture.storage.load()?.data != document {
+                    failures.withLock { $0 += 1 }
+                }
             } catch { failures.withLock { $0 += 1 } }
         }
-        do {
-            guard staged.wait(timeout: .now() + 10) == .success else { throw storageFault() }
-            #expect(try fixture.storage.load() == Data([0]))
-            _ = try fixture.storage.publish(Data([2]))
-            #expect(try fixture.storage.load() == Data([2]))
-        } catch { failures.withLock { $0 += 1 } }
-        allowCommit.signal()
-        #expect(finished.wait(timeout: .now() + 10) == .success)
         #expect(failures.withLock { $0 } == 0)
-        #expect(try fixture.storage.load() == Data([1]))
         #expect(try fixture.entries() == ["scenario.json"])
     }
 }

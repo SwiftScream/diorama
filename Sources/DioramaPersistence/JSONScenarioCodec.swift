@@ -4,7 +4,7 @@ import Foundation
 /// Deterministic UTF-8 JSON transport for persisted scenario documents.
 ///
 /// The versioned `Codable` object model is format-neutral. This wrapper only
-/// selects JSON, configures its canonical formatting, and manages bytes.
+/// selects JSON, configures its canonical formatting, and collects resource bytes.
 public struct JSONScenarioCodec: Sendable {
     /// The only envelope schema version currently written and read.
     public static let schemaVersion: UInt32 = 1
@@ -24,22 +24,25 @@ public struct JSONScenarioCodec: Sendable {
         try registry.validatePersistability(of: definition)
     }
 
-    /// Encodes one complete semantic document as canonical version-one JSON.
+    /// Encodes one complete document with canonical version-one JSON and resource bytes.
     ///
-    /// Output is pretty-printed UTF-8 with sorted object keys, semantic array
+    /// JSON is pretty-printed UTF-8 with sorted object keys, semantic array
     /// order, unescaped slashes, and exactly one trailing newline.
+    /// Missing resource bytes and conflicting references fail before a document is returned.
     ///
     /// - Parameter scenario: Prepared scenario content to encode.
-    /// - Returns: Canonical JSON bytes.
-    public func encode(_ scenario: ScenarioDefinition) throws -> Data {
+    /// - Returns: Canonical JSON and the exact prepared resources it references.
+    public func encode(_ scenario: ScenarioDefinition) throws -> ScenarioDocument {
+        let resources = ResourceCollector()
         let encoder = JSONEncoder()
+        encoder.userInfo[resourceCodingKey] = resources
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         encoder.userInfo[persistentSystemRegistryUserInfoKey] = registry
         var data = try encoder.encode(PersistedScenarioEnvelope(scenario))
         if data.last != Self.newline {
             data.append(Self.newline)
         }
-        return data
+        return try resources.document(data)
     }
 
     /// Decodes and validates one versioned JSON document.
@@ -52,8 +55,11 @@ public struct JSONScenarioCodec: Sendable {
         try decode(data, unknownSystems: .reject).scenario
     }
 
-    func decode(_ data: Data, unknownSystems: UnknownSystemPolicy) throws -> PersistedScenarioEnvelope {
+    func decode(_ data: Data, unknownSystems: UnknownSystemPolicy,
+                snapshot: ScenarioDocumentSnapshot? = nil) throws -> PersistedScenarioEnvelope
+    {
         let decoder = JSONDecoder()
+        decoder.userInfo[resourceCodingKey] = snapshot
         decoder.userInfo[persistentSystemRegistryUserInfoKey] = registry
         decoder.userInfo[unknownSystemPolicyUserInfoKey] = unknownSystems
         do {

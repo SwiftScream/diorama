@@ -4,18 +4,21 @@ import Foundation
 ///
 /// Operations are synchronous and may block the caller. Loading must not write,
 /// create directories, or require publication access. Publication must make the
-/// complete document visible atomically and accept last-committer-wins writes.
-/// A thrown publication error means no commit occurred; cleanup failures after
-/// commit belong in the returned receipt. Backends must document their limits.
+/// complete document/resource set visible before returning success. Callers must
+/// exclude publication from loading (including resource resolution), publication,
+/// and manual edits of the same scenario unless a backend promises more.
+/// Backends document rollback and crash limits. Cleanup failures after commit
+/// belong in the returned receipt.
 public protocol ScenarioDocumentStorage: Sendable {
-    /// Reads complete document bytes, or returns `nil` when content is absent.
-    func load() throws -> Data?
+    /// Reads one document and its resource resolver. Resolve before publication resumes.
+    /// Returns `nil` when the document is absent.
+    func load() throws -> ScenarioDocumentSnapshot?
 
-    /// Publishes complete bytes and reports any subsequent cleanup failure.
+    /// Publishes a complete logical document/resource set under caller-established exclusivity.
     ///
-    /// - Parameter document: Fully encoded candidate bytes.
+    /// Backends without resource support must reject nonempty resources before writing.
     /// - Returns: Evidence that the commit succeeded, including cleanup status.
-    func publish(_ document: Data) throws -> DocumentPublication
+    func publish(_ document: ScenarioDocument) throws -> DocumentPublication
 }
 
 /// Evidence of a completed storage commit, independent of cleanup success.

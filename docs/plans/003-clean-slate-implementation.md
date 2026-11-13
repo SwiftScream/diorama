@@ -225,7 +225,7 @@ Older proposal examples and explicit deferrals must be read with their later acc
 | [DD04: Selection](../design-decisions/04-replay-selection.md)                                | Stable inputs, deterministic system selectors, FIFO among equivalent candidates, explicit ambiguity and no live replay fallback. 003-B04, 003-E05, 003-H04, 003-H14, 003-I01–003-I09.                                                                                                                        |
 | [DD05: Consumption and verification](../design-decisions/05-consumption-and-verification.md) | Whole groups claimed once at selection; usage differs from completion; immediate retention with final-report-only observation under the 2026-10-12 amendment; immutable reports have no test outcome; later diagnostics remain separately inspectable; unmatched loaded attachments are diagnosed then discarded. 003-B02, 003-B04, 003-B08, 003-C04, revised 003-E05, 003-G04–003-G05, 003-H12B, 003-J01–003-J03. DD15 supersedes the old example of persisted clock sleeps. |
 | [DD06: Stable conversion](../design-decisions/06-runtime-to-snapshot-conversion.md)          | Reserve order and needed time at observation; detach native values in their valid isolation; preserve live results on late conversion failure and refuse unhealthy publication. 003-B02–003-B04, 003-C06, 003-G08, 003-I01–003-I08.                                                                          |
-| [DD07: Persistence](../design-decisions/07-persistence-boundary.md)                          | Optional at the core; load once; replace whole healthy candidates; preserve configured untouched baseline tracks while discarding diagnosed unmatched attachments; logical atomicity and last writer wins. 003-C01–003-C07 including 003-C04A–003-C04B, 003-H07.                                                                                                              |
+| [DD07: Persistence](../design-decisions/07-persistence-boundary.md)                          | Optional at the core; load once; replace whole healthy candidates; preserve configured untouched baseline tracks while discarding diagnosed unmatched attachments; logical publication under caller-established exclusivity (DD07's stable-layout amendment). 003-C01–003-C07 including 003-C04A–003-C04B, 003-H07.                                                                                                              |
 | [DD08: Schema compatibility](../design-decisions/08-schema-compatibility.md)                 | Independent non-negative `UInt32` envelope/system versions, explicit registration, strict first-party fields, deterministic JSON, no POC importer. 003-C01–003-C04A–003-C04B, 003-F02, 003-G03, 003-H02–003-H13.                                                                                                       |
 | [DD09: Preparation](../design-decisions/09-normalization-and-redaction.md)                   | Live captured values undergo structural canonicalization, redaction, normalization, and validation before admission. Already-prepared decoded input is preserved and validated without rerunning capture transformations. Immutable setup policy; match projection is separate. 003-B02, 003-C02, 003-G06, 003-H03–003-H04, 003-H07–003-H08.                  |
 | [DD10: Lifecycle](../design-decisions/10-lifecycle-and-ownership.md)                         | Immutable definitions, fresh executions, ordered activation and reverse rollback, explicit idempotent finish, body outcome plus final report, quiescence, lightweight post-finish reporter independent of execution resources. 003-B02–003-B03, 003-B07A–003-B09, 003-C04–003-C06 including 003-C04A–003-C04B, 003-E03, 003-G09, 003-I08. |
@@ -902,7 +902,9 @@ Use `Spikes/<topic>/` and `docs/evidence/<topic>.md` for isolated experiments; n
 - Expected files/modules: `DioramaPersistence` file repository and storage boundary; temporary-directory integration tests and evidence.
 - Public behavior: Missing, empty-valid, unreadable, invalid, and incompatible remain distinct.
   Readers see a complete old/new document; failed publication preserves the old file.
-  Concurrent successful writers are last writer wins.
+  Concurrent successful writers are last writer wins in this original slice;
+  DD07's 2026-11-14 amendment supersedes that file-backend concurrency contract
+  during H07.
 - Tests/verification: V-code; read-only replay access, failed encode/stage/commit, replacement/read races, abandoned staging cleanup, deterministic path rules on macOS/Linux and applicable iOS sandbox storage.
 - Exclusions: Public flush, per-event durable append, locking for the duration of recording, optimistic revisions, multi-file publication before 003-H07.
 - Checkpoint: R; review atomicity evidence and documented backend limitations.
@@ -2915,7 +2917,7 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H07 — Atomic resources with the first resource-backed consumer
 
-- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Atomic document/resource generations must survive concurrent readers, replacement failures, and cleanup on every platform.
+- Recommended model: GPT-6 Astra; reasoning: `xhigh`. Stable document/resource files must preserve prepared byte ownership, exclusive publication, and rollback evidence on every platform.
 - Prerequisites: 003-H02–003-H03, 003-H05–003-H06, 003-C03–003-C06; DD07–DD09, DD17.
 - Scope: Extend repository publication to one logical document/resource set, using the first real HTTP body references; fix portable resource naming/layout.
 - DD18 prerequisite: Define ownership that keeps a returned healthy definition's
@@ -2923,11 +2925,16 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
   execution machinery or deleting its only backing bytes during staging cleanup.
   Review this lifetime alongside the existing logical publication guarantees.
 - Expected files/modules: Persistence resource resolver/staging/publication, HTTP resource integration, fixtures and failure-injection evidence.
-- Public behavior: Prepared bytes publish with their referencing document; readers see one complete generation.
+- Public behavior: Publish ordinary `{name}.json` and sibling `{name}-resources/`
+  with stable names. The owner-approved DD07 amendment requires publication
+  exclusivity with loads (including resource resolution), other publication,
+  and manual edits of the same scenario. Loaded values retain owned bytes.
   References are normally scenario-relative; inline/resource storage has identical byte meaning.
   Replay needs no writes.
-- Tests/verification: V-code; missing/unreadable/invalid references, safe path validation, old-reader resources during replacement, failed staging/commit, cleanup without breaking published readers, concurrent last-writer publication, prepared-only bytes and read-only replay on all applicable platforms.
-- Exclusions: Automatic media-type placement/extension policy until H07A, raw adapter spool generalized into repository staging, digests required solely to forbid edits, optimistic locks, multi-file partial success.
+- Tests/verification: V-code; missing/unreadable/invalid references, safe path validation, loaded-value ownership after replacement/removal, failed staging/commit and rollback, post-commit cleanup, independent-scenario publication and concurrent read-only loads, prepared-only bytes and read-only replay on all applicable platforms.
+- Exclusions: Concurrent load/publication or writers for one scenario, retained
+  generation directories, symlink publication, crash recovery automation, and
+  automatic locks. Automatic media-type placement/extension policy until H07A, raw adapter spool generalized into repository staging, digests required solely to forbid edits, optimistic locks, multi-file partial success.
 - Checkpoint: R; review exact layout and logical atomicity before resource output.
 
 ### 003-H07A — Configurable type-aware body storage policy

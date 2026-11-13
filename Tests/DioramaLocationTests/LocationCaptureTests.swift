@@ -137,7 +137,7 @@ struct LocationCaptureTests {
         #expect(session.timestampOrigin == .observed(origin))
         #expect(session.events == [.batch(delayMilliseconds: 125, locations: locations)])
         let codec = try JSONScenarioCodec(registry: PersistentSystemRegistry([LocationTracks.type]))
-        let persisted = try codec.decode(codec.encode(#require(result.definition)))
+        let persisted = try codec.decode(codec.encode(#require(result.definition)).data)
         let replay = try LocationTracks.recording(in: #require(persisted.attachments.first))
         #expect(replay == recording)
         for (location, timestamp) in zip(locations, timestamps) {

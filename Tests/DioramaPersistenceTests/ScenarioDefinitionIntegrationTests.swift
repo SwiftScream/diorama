@@ -32,7 +32,7 @@ struct ScenarioDefinitionIntegrationTests {
         #expect(replayResult.usage[0].allowsUnclaimedReplayRecords)
         #expect(replayResult.usage[0].tracks[0].unclaimedRecords.count == 1)
         #expect(recordResult.usage[0].tracks[0].activity == .record(recordedCount: 1, incompleteCount: 0))
-        #expect(try codec.encode(definition) == bytes)
+        #expect(try codec.encode(definition).data == bytes)
         let second = try await ScenarioExecution.start(
             definition: definition, scenarioID: ScenarioID(rawValue: "replay"), defaultMode: .record,
             systems: [AnyScenarioSystem(replaySystem)])

@@ -285,6 +285,11 @@ For a repository-managed multi-file publication, the manifest and resources
 must still satisfy decision 7's logical atomicity. The exact directory and
 resource naming layout is deferred.
 
+Later refinement: [DD07's stable file layout amendment](07-persistence-boundary.md#stable-file-layout-and-publication-exclusivity--owner-approved-2026-11-14)
+defines the initial file layout and caller-established publication exclusivity.
+It governs this section's logical publication requirement without changing
+system-owned resource payload schemas.
+
 ## Diagnostics
 
 Schema diagnostics must distinguish at least:

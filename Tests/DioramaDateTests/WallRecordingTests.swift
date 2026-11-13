@@ -24,7 +24,7 @@ struct WallRecordingTests {
     @Test
     func `empty wall payload is distinct from an absent clock attachment`() throws {
         let empty = try DioramaDateSystem.attachment(named: "clock")
-        let data = try codec.encode(ScenarioDefinition(attachments: [empty]))
+        let data = try codec.encode(ScenarioDefinition(attachments: [empty])).data
         let expected = try fixture("date-empty")
         #expect(data == expected)
         #expect(try DioramaDateSystem.recording(in: empty) == .empty)
@@ -34,7 +34,7 @@ struct WallRecordingTests {
         #expect(track.header == nil)
         #expect(track.records.isEmpty)
         #expect(try codec.decode(data).attachments.count == 1)
-        #expect(try codec.decode(codec.encode(ScenarioDefinition())).attachments.isEmpty)
+        #expect(try codec.decode(codec.encode(ScenarioDefinition()).data).attachments.isEmpty)
     }
 
     @Test
@@ -60,7 +60,7 @@ struct WallRecordingTests {
             trackID, as: OverridableValue<Date>.self, header: Int?.self))
         #expect(track.header == 660)
         #expect(track.records.map(\.value) == recording.effectiveValues)
-        let data = try codec.encode(ScenarioDefinition(attachments: [attachment]))
+        let data = try codec.encode(ScenarioDefinition(attachments: [attachment])).data
         let expected = try fixture("date-nonempty")
         #expect(data == expected)
         let decoded = try codec.decode(data)
@@ -80,7 +80,7 @@ struct WallRecordingTests {
             .observed(Date(timeIntervalSince1970: 1_893_448_806)),
         ])
 
-        let canonical = try codec.encode(decoded)
+        let canonical = try codec.encode(decoded).data
         let expected = try fixture("date-edited-canonical")
         #expect(canonical == expected)
     }
@@ -99,7 +99,7 @@ struct WallRecordingTests {
         #expect(recording.observations == [.observed(0), .override(1), .observed(-2)])
 
         let attachment = try DioramaDateSystem.attachment(named: "clock", recording: recording)
-        let encoded = try codec.encode(ScenarioDefinition(attachments: [attachment]))
+        let encoded = try codec.encode(ScenarioDefinition(attachments: [attachment])).data
         let decoded = try codec.decode(encoded)
         #expect(try DioramaDateSystem.recording(in: decoded.attachments[0]) == recording)
     }

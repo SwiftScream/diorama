@@ -41,7 +41,7 @@ struct JSONScenarioRepositoryTests {
             DioramaRandomSystem.trackID(for: attachment.id.key), as: UInt64.self))
         #expect(track.records.map(\.value) == [0, .max])
         _ = try repository.publish(scenario)
-        #expect(try fixture.storage.load() == bytes)
+        #expect(try fixture.storage.load()?.data == bytes)
     }
 
     @Test(arguments: ["unversioned-poc", "unsupported-envelope-version"])
@@ -55,7 +55,7 @@ struct JSONScenarioRepositoryTests {
         }
         #expect(error == (name == "unversioned-poc" ? .unversionedEnvelope :
                 .unsupportedEnvelopeVersion(declared: 2, supported: [1])))
-        #expect(try fixture.storage.load() == bytes)
+        #expect(try fixture.storage.load()?.data == bytes)
         #expect(try fixture.entries() == ["scenario.json"])
     }
 
@@ -70,7 +70,7 @@ struct JSONScenarioRepositoryTests {
         guard case .invalidDocument = try repository(storage: fixture.storage).load() else {
             Issue.record("Expected invalid document"); return
         }
-        #expect(try fixture.storage.load() == bytes)
+        #expect(try fixture.storage.load()?.data == bytes)
     }
 
     @Test
@@ -156,7 +156,7 @@ struct JSONScenarioRepositoryTests {
             guard case let .encoding(cause) = error else { Issue.record("Wrong failure stage"); return }
             #expect(cause as? PersistentSystemEncodingError == .invalidTrackLayout(invalid.id))
         }
-        #expect(try fixture.storage.load() == bytes)
+        #expect(try fixture.storage.load()?.data == bytes)
         #expect(try fixture.entries() == ["scenario.json"])
     }
 
@@ -190,11 +190,12 @@ private struct StubDocumentStorage: ScenarioDocumentStorage {
     var read: @Sendable () throws -> Data? = { nil }
     var write: @Sendable (Data) throws -> DocumentPublication = { _ in DocumentPublication() }
 
-    func load() throws -> Data? {
-        try read()
+    func load() throws -> ScenarioDocumentSnapshot? {
+        try read().map { ScenarioDocumentSnapshot(data: $0) }
     }
 
-    func publish(_ document: Data) throws -> DocumentPublication {
-        try write(document)
+    func publish(_ document: ScenarioDocument) throws -> DocumentPublication {
+        guard document.resources.isEmpty else { throw ScenarioResourceError.unsupportedStorage }
+        return try write(document.data)
     }
 }

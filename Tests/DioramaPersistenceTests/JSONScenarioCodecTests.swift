@@ -10,8 +10,12 @@ struct JSONScenarioCodecTests {
         let empty = try document(key: "empty", values: [])
         let boundaries = try document(key: "boundaries", values: [0, .max])
 
-        #expect(try codec().encode(empty) == fixture("random-empty"))
-        #expect(try codec().encode(boundaries) == fixture("random-boundaries"))
+        let emptyDocument = try codec().encode(empty)
+        let boundaryDocument = try codec().encode(boundaries)
+        #expect(try emptyDocument.data == fixture("random-empty"))
+        #expect(try boundaryDocument.data == fixture("random-boundaries"))
+        #expect(emptyDocument.resources.isEmpty)
+        #expect(boundaryDocument.resources.isEmpty)
     }
 
     @Test
@@ -20,7 +24,7 @@ struct JSONScenarioCodecTests {
 
         #expect(decoded.attachments.map(\.id.key.rawValue) == ["boundaries"])
         #expect(try randomValues(in: decoded.attachments[0]) == [0, UInt64.max])
-        #expect(try codec().encode(decoded) == fixture("random-boundaries"))
+        #expect(try codec().encode(decoded).data == fixture("random-boundaries"))
     }
 
     @Test
@@ -43,15 +47,15 @@ struct JSONScenarioCodecTests {
             randomAttachment(key: "first", values: [1]),
         ])
 
-        #expect(try codec.decode(codec.encode(empty)).attachments.isEmpty)
-        let decoded = try codec.decode(codec.encode(ordered))
+        #expect(try codec.decode(codec.encode(empty).data).attachments.isEmpty)
+        let decoded = try codec.decode(codec.encode(ordered).data)
         #expect(decoded.attachments.map(\.id.key.rawValue) == ["second", "first"])
         #expect(try decoded.attachments.map(randomValues(in:)) == [[2], [1]])
     }
 
     @Test
     func `canonical bytes are pretty sorted UTF8 with one trailing newline`() throws {
-        let data = try codec().encode(document(key: "path/segment", values: [7]))
+        let data = try codec().encode(document(key: "path/segment", values: [7])).data
         let text = try #require(String(data: data, encoding: .utf8))
 
         #expect(text.contains("\"attachmentKey\" : \"path/segment\""))

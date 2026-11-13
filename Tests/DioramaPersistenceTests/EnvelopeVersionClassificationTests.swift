@@ -66,11 +66,11 @@ struct EnvelopeVersionClassificationTests {
 private struct ReadOnlyDocument: ScenarioDocumentStorage {
     let data: Data
 
-    func load() -> Data? {
-        data
+    func load() -> ScenarioDocumentSnapshot? {
+        ScenarioDocumentSnapshot(data: data)
     }
 
-    func publish(_: Data) -> DocumentPublication {
+    func publish(_: ScenarioDocument) -> DocumentPublication {
         Issue.record("Version classification must not publish a document")
         return DocumentPublication()
     }

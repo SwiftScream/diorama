@@ -3,7 +3,7 @@
 - Status: Accepted
 - Created: 2026-09-05
 - Approved by owner: 2026-09-07
-- Last reviewed: 2026-11-07
+- Last reviewed: 2026-11-14
 - Scope: Decisions 1 through 21
 - Derived from: [Accepted design decisions](design-decisions/README.md)
 
@@ -138,8 +138,10 @@ The decisions combine into this design:
 10. In-memory recording and replay are first-class workflows over the same
     strict `ScenarioDefinition`. File-backed setup loads once per execution,
     before activation. Finalization produces a new healthy definition and may
-    atomically publish it; publication failure does not discard valid semantic
-    output or mutate the starting definition.
+    publish it; publication failure does not discard valid semantic output or
+    mutate the starting definition. The initial file repository uses stable JSON
+    and companion resource paths under caller-established publication exclusivity,
+    as specified by [DD07's amendment](design-decisions/07-persistence-boundary.md#stable-file-layout-and-publication-exclusivity--owner-approved-2026-11-14).
 11. Persisted scenarios have independently versioned Diorama envelopes and
     system payloads, deliberate `Codable` schemas, and deterministic UTF-8 JSON
     in the initial file repository.

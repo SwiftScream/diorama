@@ -13,7 +13,7 @@ struct DioramaPublicationTests {
             ("ignored", [7, 8]), ("omitted", [9]),
         ])
         let codec = try PublicationFixtures.codec()
-        let bytes = try codec.encode(baseline)
+        let bytes = try codec.encode(baseline).data
         let storage = PublicationStorage(document: bytes)
         let probe = StartupProbe()
         let record = try probe.system(key: "record")
@@ -41,10 +41,10 @@ struct DioramaPublicationTests {
             .baseline(.loadedAttachmentNotConfigured),
         ])
         #expect(result.report.finalization.usage.last?.allowsUnclaimedReplayRecords == true)
-        #expect(try codec.encode(baseline) == bytes)
+        #expect(try codec.encode(baseline).data == bytes)
         #expect(storage.readCount == 1)
         #expect(storage.writeCount == 1)
-        #expect(try codec.encode(definition) == storage.document)
+        #expect(try codec.encode(definition).data == storage.document)
         guard case .published = result.publication else { Issue.record("Expected a committed candidate"); return }
         #expect(result.report.publication.disposition == .published)
         #expect(result.report.publication.preservation == .committedByThisRun)
@@ -64,7 +64,7 @@ struct DioramaPublicationTests {
                 }
             }
         let definition = try #require(result.definition)
-        #expect(try PublicationFixtures.codec().encode(definition) == bytes)
+        #expect(try PublicationFixtures.codec().encode(definition).data == bytes)
         #expect(storage.document == bytes)
         #expect(storage.writeCount == 0)
         guard case .notRequested = result.publication else { Issue.record("Unexpected write request"); return }

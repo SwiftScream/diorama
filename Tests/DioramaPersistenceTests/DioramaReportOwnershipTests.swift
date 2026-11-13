@@ -121,11 +121,11 @@ private struct ErrorStorage: ScenarioDocumentStorage {
     let cleanup: Bool
     let onRelease: @Sendable () -> Void
     let onDescription: @Sendable () -> Void
-    func load() -> Data? {
+    func load() -> ScenarioDocumentSnapshot? {
         nil
     }
 
-    func publish(_: Data) throws -> DocumentPublication {
+    func publish(_: ScenarioDocument) throws -> DocumentPublication {
         let error = RetainedError(payload: LifetimePayload(onRelease: onRelease), onDescription: onDescription)
         if cleanup {
             return DocumentPublication(cleanupFailure: error)

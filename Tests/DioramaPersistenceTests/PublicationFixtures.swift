@@ -32,17 +32,18 @@ final class PublicationStorage: ScenarioDocumentStorage {
         state.withLock { $0.writes }
     }
 
-    func load() -> Data? {
+    func load() -> ScenarioDocumentSnapshot? {
         state.withLock { state in
             state.reads += 1
-            return state.document
+            return state.document.map { ScenarioDocumentSnapshot(data: $0) }
         }
     }
 
-    func publish(_ document: Data) throws -> DocumentPublication {
+    func publish(_ document: ScenarioDocument) throws -> DocumentPublication {
+        guard document.resources.isEmpty else { throw ScenarioResourceError.unsupportedStorage }
         state.withLock { $0.writes += 1 }
         try beforeCommit()
-        state.withLock { $0.document = document }
+        state.withLock { $0.document = document.data }
         return DocumentPublication()
     }
 }

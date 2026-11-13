@@ -115,7 +115,7 @@ struct WholeTrackAdmissionTests {
         let registration = ScenarioSystemType(id: DioramaDateSystem.type.id, persistence: PersistentSystemRegistration(
             currentSchemaVersion: 1, payloadType: Int.self, encode: { _ in 1 }, decode: { _, _ in malformed }))
         let codec = try JSONScenarioCodec(registry: PersistentSystemRegistry([registration]))
-        let bytes = try codec.encode(ScenarioDefinition(attachments: [malformed]))
+        let bytes = try codec.encode(ScenarioDefinition(attachments: [malformed])).data
         let storage = AdmissionStorage(bytes: bytes)
         let repository = JSONScenarioRepository(codec: codec, storage: storage)
         do {
@@ -243,11 +243,12 @@ private final class AdmissionStorage: ScenarioDocumentStorage, Sendable {
         self.bytes = bytes
     }
 
-    func load() -> Data? {
-        reads.withLock { $0 += 1 }; return bytes
+    func load() -> ScenarioDocumentSnapshot? {
+        reads.withLock { $0 += 1 }; return ScenarioDocumentSnapshot(data: bytes)
     }
 
-    func publish(_: Data) -> DocumentPublication {
+    func publish(_ document: ScenarioDocument) throws -> DocumentPublication {
+        guard document.resources.isEmpty else { throw ScenarioResourceError.unsupportedStorage }
         writes.withLock { $0 += 1 }; return DocumentPublication()
     }
 }

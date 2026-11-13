@@ -338,6 +338,9 @@ diagnostics do not bypass redaction.
 
 ## Atomic publication and concurrent writers
 
+The [stable file layout amendment](#stable-file-layout-and-publication-exclusivity--owner-approved-2026-11-14)
+supersedes this section's concurrent-publication guarantee for the initial file repository.
+
 The storage backend should stage complete encoded output and replace the
 destination atomically to the extent supported by that backend. A multi-file
 format may require a manifest or generation directory so readers observe one
@@ -550,3 +553,46 @@ loaded attachment is diagnosed and discarded from the resolved definition and
 next candidate. If a healthy recording publishes, the Git-backed file no longer
 contains it; normal version-control review and recovery make this deliberate
 cleanup acceptable.
+
+## Stable file layout and publication exclusivity — owner-approved 2026-11-14
+
+During H07 review, the owner selects stable Git-managed fixture paths and
+explicitly approves exclusive publication for the same scenario. This amendment
+supersedes the initial file repository's concurrent-reader/last-writer guarantees
+above and governs DD08's referenced-resource publication requirements.
+
+A published `name.json` is an ordinary file with a sibling `name-resources/`
+directory containing literal resource paths. The companion name removes only the
+final document extension, if present, then appends `-resources`. Callers choose
+locations whose document and resource paths do not overlap other scenarios.
+Published paths contain no random transaction identifiers or symlinks. Private
+staging may use unique temporary names; it is not part of the published fixture.
+
+Callers must exclude publication from loading, resource resolution, another
+publication, and manual edits of the same scenario. The loading window extends
+through decoding and resolving all referenced content, not just reading JSON.
+Concurrent read-only loads and independent scenarios with disjoint paths remain
+supported. This is a caller-established restriction, without locks or automatic
+cross-process coordination. Already-loaded semantic values own their bytes and
+remain usable while later publication or fixture removal occurs. Storage
+snapshots must finish resolution before publication resumes; they do not retain
+old on-disk generations across replacement.
+
+The writer stages complete JSON and resources, moves existing resources to a
+private backup, installs the new resource directory, and atomically replaces the
+JSON document. Publication with no resources removes the old companion directory.
+Exclusive access makes the temporary multi-entry transition unobservable to
+supported readers. It is not a filesystem transaction over both published paths.
+
+A returning failure before the JSON commit restores prior resources and cleans
+unpublished staging. If rollback itself fails, the error explicitly retains that
+additional failure and staging retains recovery bytes; callers must recover the
+fixture before further use. Post-commit cleanup failure is a successful
+publication with separate cleanup evidence. Process termination during the
+transition may also require caller recovery. No crash durability, automatic
+recovery, or all-or-nothing guarantee under a second rollback failure is claimed.
+
+Replay remains read-only and needs no write permission. No persistence or system
+payload schema version changes: resource names and exact logical bytes retain
+their meaning, while their filesystem root becomes the stable companion folder.
+The H07 implementation and evidence must reflect this amended contract.

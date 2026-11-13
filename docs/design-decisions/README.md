@@ -3,6 +3,19 @@
 - Status: Accepted
 - Consolidated design approved by owner: 2026-09-07
 
+On 2026-11-14, the owner approves
+[DD18's complete scenario encoding amendment](18-diorama-setup-and-scenario-data.md#complete-scenario-encoding--owner-approved-2026-11-14).
+The public scenario encoder returns JSON and all referenced resource bytes as one
+`ScenarioDocument`; byte-only scenario encoding is removed.
+
+On 2026-11-14, the owner approves
+[DD07's stable file layout amendment](07-persistence-boundary.md#stable-file-layout-and-publication-exclusivity--owner-approved-2026-11-14).
+Published fixtures use ordinary `name.json` and sibling `name-resources/` paths.
+Callers exclude publication from loading, resource resolution, other publication,
+and manual edits of the same scenario. Loaded values retain owned bytes;
+storage snapshots need no retained generation directories. This reconciles
+DD08's resource publication requirement with the amended file concurrency contract.
+
 On 2026-11-08, the owner approves
 [DD17's type-aware body storage amendment](17-http-lifecycle-composition.md#type-aware-body-storage--owner-approved-2026-11-08).
 Inline content uses lossless UTF-8 text or base64. Configurable recording policy

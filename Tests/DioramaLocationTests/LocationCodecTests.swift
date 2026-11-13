@@ -14,7 +14,7 @@ struct LocationCodecTests {
     private func encoded(_ recording: LocationRecording) throws -> Data {
         try codec().encode(ScenarioDefinition(attachments: [
             LocationTracks.attachment(named: "gps", recording: recording),
-        ]))
+        ])).data
     }
 
     private func decoded(_ bytes: Data) throws -> LocationRecording {
@@ -84,7 +84,7 @@ struct LocationCodecTests {
         #expect(read.access.requests[0].request == .always)
         let attachment = try LocationTracks.attachment(named: "gps", recording: read)
         #expect(attachment.trackIDs.map(\.key.rawValue) == ["sessions", "access"])
-        #expect(try codec().encode(ScenarioDefinition(attachments: [attachment])) == bytes)
+        #expect(try codec().encode(ScenarioDefinition(attachments: [attachment])).data == bytes)
     }
 
     @Test

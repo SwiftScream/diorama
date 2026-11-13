@@ -37,7 +37,7 @@ struct LocationOriginPublicationTests {
     func `file rerecord publishes only effective overrides and leaves fresh output isolated`() async throws {
         let codec = try Fixtures.codec()
         let baseline = try Fixtures.definition(Fixtures.authored())
-        let baselineBytes = try codec.encode(baseline)
+        let baselineBytes = try codec.encode(baseline).data
         let file = try file(containing: baselineBytes)
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let system = try ScenarioSystem(named: "gps", definition: LocationMergeDefinition())
@@ -68,11 +68,11 @@ struct LocationOriginPublicationTests {
         #expect(replayed.timestamp != output.timestamp)
         #expect(result.report.publication.disposition == .published)
         #expect(result.report.finalization.report.diagnostics.isEmpty)
-        #expect(try codec.encode(baseline) == baselineBytes)
+        #expect(try codec.encode(baseline).data == baselineBytes)
         let bytes = try Data(contentsOf: file)
-        #expect(try bytes == (codec.encode(candidate)))
+        #expect(try bytes == (codec.encode(candidate).data))
         try expectSafeFixture(bytes, renderedReport: result.report.rendered())
-        #expect(try codec.encode(codec.decode(bytes)) == bytes)
+        #expect(try codec.encode(codec.decode(bytes)).data == bytes)
         #expect(try FileManager.default.contentsOfDirectory(atPath: file.deletingLastPathComponent().path)
             == ["scenario.json"])
         // Loading has no setup policy to reapply, and replay does not invoke record merge.
@@ -91,7 +91,7 @@ struct LocationOriginPublicationTests {
     func `initial only and access only replacements drop session origins`(accessOnly: Bool) async throws {
         let codec = try Fixtures.codec()
         let baseline = try Fixtures.definition(Fixtures.authored(sessionCount: 3))
-        let file = try file(containing: codec.encode(baseline))
+        let file = try file(containing: codec.encode(baseline).data)
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let observed = try Fixtures.observed()
         let fresh = try LocationRecording(
@@ -133,7 +133,7 @@ struct LocationOriginPublicationTests {
         let fresh = try LocationRecording(
             coordinateSpace: observed.coordinateSpace, sessions: [freshSession], access: Fixtures.access())
         let codec = try Fixtures.codec()
-        let bytes = try codec.encode(Fixtures.definition(original))
+        let bytes = try codec.encode(Fixtures.definition(original)).data
         let file = try file(containing: bytes)
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let system = try ScenarioSystem(named: "gps", definition: LocationMergeDefinition())
@@ -179,7 +179,7 @@ struct LocationOriginPublicationTests {
     func `first capture and later default changes publish ordinary origins`() async throws {
         let codec = try Fixtures.codec()
         let empty = try LocationRecording(coordinateSpace: nil, sessions: [], access: Fixtures.access())
-        let file = try file(containing: codec.encode(Fixtures.definition(empty)))
+        let file = try file(containing: codec.encode(Fixtures.definition(empty)).data)
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let system = try ScenarioSystem(named: "gps", definition: LocationMergeDefinition())
         let observed = try Fixtures.observed()

@@ -93,7 +93,7 @@ struct LocationNativeBridgeTests {
         ] : [])
         let codec = try LocationOriginFixtures.codec()
         if fileBacked, hasPassthroughBaseline {
-            try codec.encode(baseline).write(to: file)
+            try codec.encode(baseline).data.write(to: file)
         }
         let setup = try fileBacked
             ? Diorama(file: file, scenarioID: "mixed", mode: .passthrough, systems: live, record)
@@ -121,8 +121,8 @@ struct LocationNativeBridgeTests {
         #expect(result.report.publication.disposition == (fileBacked ? .published : .notRequested))
         #expect(liveDriver.bridge == nil)
         #expect(recordingDriver.bridge == nil)
-        let bytes = try codec.encode(definition)
-        #expect(try codec.encode(codec.decode(bytes)) == bytes)
+        let bytes = try codec.encode(definition).data
+        #expect(try codec.encode(codec.decode(bytes)).data == bytes)
         if fileBacked {
             #expect(try Data(contentsOf: file) == bytes)
             try await replayMixedRecording(in: file, live: live, record: record)
@@ -446,7 +446,7 @@ struct LocationNativeBridgeTests {
         let definition = try #require(result.definition)
         let recording = try LocationOriginFixtures.content(definition)
         #expect(recording.coordinateSpace?.origin.value == LocationOriginFixtures.authoredCoordinate)
-        let encoded = try LocationOriginFixtures.codec().encode(definition)
+        let encoded = try LocationOriginFixtures.codec().encode(definition).data
         let text = try #require(String(data: encoded, encoding: .utf8))
         #expect(!text.contains("12.12345678"))
     }
@@ -786,7 +786,7 @@ extension LocationNativeBridgeTests {
         let bytes = try Data(contentsOf: url)
         let codec = try LocationOriginFixtures.codec()
         let definition = try codec.decode(bytes)
-        #expect(try codec.encode(definition) == bytes)
+        #expect(try codec.encode(definition).data == bytes)
         let driver = ControlledLocationDriver()
         let (execution, manager) = try await start(driver, mode: .replay, baseline: definition,
                                                    fidelity: .init(preserveFloor: floor,

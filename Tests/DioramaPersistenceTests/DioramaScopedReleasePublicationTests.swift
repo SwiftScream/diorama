@@ -13,7 +13,7 @@ struct DioramaScopedReleasePublicationTests {
         defer { try? fixture.remove() }
         let system = try ScenarioSystem(named: "release", definition: PersistableReleaseDefinition())
         let codec = try JSONScenarioCodec(registry: PersistentSystemRegistry([system.type]))
-        let original = try codec.encode(ScenarioDefinition(attachments: [system.attachment]))
+        let original = try codec.encode(ScenarioDefinition(attachments: [system.attachment])).data
         try original.write(to: fixture.location.fileURL)
         let setup = try Diorama(file: fixture.location.fileURL, scenarioID: "release-publication",
                                 mode: .record, systems: system)
@@ -39,7 +39,7 @@ struct DioramaScopedReleasePublicationTests {
         #expect(report.finalization.report.diagnostics.map(\.diagnostic.issue) == [
             .system(DiagnosticLabel("dependency-release")),
         ])
-        #expect(try fixture.storage.load() == original)
+        #expect(try fixture.storage.load()?.data == original)
         #expect(try fixture.entries() == ["scenario.json"])
     }
 }

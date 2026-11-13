@@ -60,7 +60,7 @@ struct PersistedConsumerConformanceTests {
             ConsumerPersistedSystem.trackID(for: consumerKey), as: ConsumerStableValue.self)
         let consumerTrack = try #require(maybeConsumerTrack)
         #expect(consumerTrack.records.map(\.value) == [ConsumerStableValue(7)])
-        #expect(try codec.encode(decoded) == bytes)
+        #expect(try codec.encode(decoded).data == bytes)
     }
 
     @Test

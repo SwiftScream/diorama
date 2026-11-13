@@ -39,7 +39,7 @@ struct UnknownSystemDecodingTests {
         #expect(result.report.finalization.report.diagnostics.map(\.diagnostic.issue) == [
             .baseline(.loadedAttachmentNotConfigured),
         ])
-        #expect(try codec.decode(codec.encode(definition)).attachments.count == 1)
+        #expect(try codec.decode(codec.encode(definition).data).attachments.count == 1)
         #expect(storage.readCount == 2)
         #expect(storage.writeCount == 0)
         #expect(probe.activationCount == 1)

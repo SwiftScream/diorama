@@ -15,7 +15,7 @@ struct DioramaPassthroughPublicationTests {
         let mode: ScenarioMode = defaultPassthrough ? .passthrough : .record
         let codec = try PublicationFixtures.codec()
         let baseline = try PublicationFixtures.definition([("record", [1])])
-        let storage = try PublicationStorage(document: source == "partial" ? codec.encode(baseline)
+        let storage = try PublicationStorage(document: source == "partial" ? codec.encode(baseline).data
             : source == "invalid" ? Data() : nil)
         let setup: Diorama<StartupDependency, StartupDependency> = switch source {
         case "memory": try Diorama(scenarioID: "mixed", mode: mode, systems: live, record)
@@ -46,7 +46,7 @@ struct DioramaPassthroughPublicationTests {
             #expect(storage.writeCount == 1)
             let decoded = try codec.decode(#require(storage.document))
             #expect(decoded.attachments.map(\.id) == [record.attachment.id])
-            #expect(try codec.encode(decoded) == codec.encode(definition))
+            #expect(try codec.encode(decoded).data == codec.encode(definition).data)
         }
         let replay = try Diorama(definition: definition, scenarioID: "replay", mode: .replay,
                                  systems: record.withMode(.replay), live.withMode(.replay))
@@ -60,7 +60,7 @@ struct DioramaPassthroughPublicationTests {
     func `empty baseline passthrough survives alongside a newly omitted keyed instance`() async throws {
         let codec = try PublicationFixtures.codec()
         let baseline = try PublicationFixtures.definition([("kept", []), ("record", [1])])
-        let bytes = try codec.encode(baseline)
+        let bytes = try codec.encode(baseline).data
         let storage = PublicationStorage(document: bytes)
         let probe = StartupProbe()
         let kept = try probe.system(key: "kept").withMode(.passthrough)
@@ -75,8 +75,8 @@ struct DioramaPassthroughPublicationTests {
         #expect(definition.attachments.map(\.id) == [kept.attachment.id, record.attachment.id])
         #expect(try PublicationFixtures.values("kept", in: definition).isEmpty)
         #expect(try PublicationFixtures.values("record", in: definition) == [42])
-        #expect(try codec.encode(baseline) == bytes)
-        #expect(try codec.encode(definition) == storage.document)
+        #expect(try codec.encode(baseline).data == bytes)
+        #expect(try codec.encode(definition).data == storage.document)
         #expect(result.report.publication.disposition == .published)
         #expect(result.report.publication.candidate.attachmentCount == 2)
         #expect(result.report.finalization.usage.count == 3)

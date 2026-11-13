@@ -210,6 +210,9 @@ let bytes = try codec.encode(definition)
 let restored = try codec.decode(bytes)
 ```
 
+The [complete scenario encoding amendment](#complete-scenario-encoding--owner-approved-2026-11-14)
+supersedes this example's byte-only encoding result with `ScenarioDocument`.
+
 This does not require `ScenarioDefinition: Codable`. The core remains usable
 with nonpersistable consumer systems. Persistence owns explicit registered
 codecs, private deliberate `Codable` schema representations, version dispatch,
@@ -634,3 +637,20 @@ This amends DD18's execution/result membership equality and absent-passthrough
 layout rule. DD07/DD20's preservation of configured baseline content, whole-
 candidate health, persistence registration and strict decoding, and native
 passthrough behavior remain unchanged. No persistence schema change is required.
+
+## Complete scenario encoding — owner-approved 2026-11-14
+
+During H07 review, the owner approves a single public scenario encoder:
+`JSONScenarioCodec.encode(_:) throws -> ScenarioDocument`. It returns canonical
+JSON together with the prepared bytes for every referenced resource. Missing
+resource bytes, conflicting references, and invalid resource namespaces fail
+encoding before any storage publication. Resource-free scenarios have an empty
+resource dictionary. There is no byte-only scenario encoding path or separate
+`encodeDocument` method.
+
+This supersedes the byte-only result in DD18's earlier codec example. The semantic
+input remains `ScenarioDefinition`; the core still has no `Codable` requirement.
+Encoding remains separate from storage, and callers can inspect the returned
+document's `.data` and `.resources` without filesystem access. Public byte decoding
+and repository resource resolution retain their existing boundaries. This changes
+the Swift encoding API without changing the envelope or system payload schemas.
