@@ -781,3 +781,25 @@ Plan 003 H02 provides only the inline codec. H07 provides resource mechanics;
 new H07A owns automatic placement, configuration, and extension selection. H08
 retains derived Content-Length and body-edit integration. Each future unit still
 requires its own scope confirmation before implementation.
+
+## Owned HTTP resources and explicit resolution — owner-approved 2026-11-14
+
+During H07 review, the owner approves requiring every runtime `HTTPBodyResource`
+to own exact prepared bytes, including empty content. Remove path-only construction
+and the unresolved runtime case; byte access is nonthrowing and performs no I/O.
+Only the persisted body representation may contain a path without bytes.
+
+HTTP body decoding validates the persisted fields, then resolves resource content
+before constructing the strict runtime value. Resource-backed decoding without
+a resolution context, or with unavailable bytes, fails rather than constructing
+an incomplete body. The Codable boundary extracts the existing persistence
+snapshot context and passes it explicitly into conversion; conversion does not
+receive or retain a decoder. Each resource is resolved once per body conversion.
+Repository loading supplies the context, while standalone decoding remains usable
+for bodies without resource references. Component encoding retains path syntax;
+the complete scenario encoder collects owned bytes under DD18's encoding contract.
+
+This refines the initial authoring/component-decoding API and preserves eager
+ownership across fixture replacement, removal, and publication failure. It adds
+no lazy loading, filesystem fallback during replay, schema version change, or
+native runtime dependency to stable body values.

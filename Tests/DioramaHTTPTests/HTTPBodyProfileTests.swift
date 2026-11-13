@@ -17,7 +17,7 @@ struct HTTPBodyProfileTests {
 
     @Test
     func `independent allocation goldens cover rounding zero weights and large products`() throws {
-        let examples = try JSONDecoder().decode(
+        let examples = try decoder().decode(
             [AllocationExample].self, from: fixture("body-allocations"))
         for example in examples {
             let profile = try profile(example.weights)
@@ -73,7 +73,7 @@ struct HTTPBodyProfileTests {
     @Test
     func `timed profile golden normalizes effective overrides and omits derived values`() throws {
         let data = try fixture("body-profile")
-        let value = try JSONDecoder().decode(Delivery.self, from: data)
+        let value = try decoder().decode(Delivery.self, from: data)
         let profile = try #require(value.profile)
         #expect(value.content == .bytes(Array("€!".utf8)))
         #expect(profile.totalByteWeight == 4)
@@ -86,7 +86,7 @@ struct HTTPBodyProfileTests {
         let text = try #require(String(data: data, encoding: .utf8))
         let edited = text.replacingOccurrences(of: "\"override\" : \"25ms\"",
                                                with: "\"observed\" : \"-100ms\", \"override\" : \"0.025s\"")
-        let normalized = try JSONDecoder().decode(Delivery.self, from: Data(edited.utf8))
+        let normalized = try decoder().decode(Delivery.self, from: Data(edited.utf8))
         #expect(normalized == value)
         #expect(try canonical(normalized) == data)
     }
@@ -94,13 +94,13 @@ struct HTTPBodyProfileTests {
     @Test
     func `resource length edits allocate the same logical bytes as inline storage`() throws {
         let shape = try profile([2, 8])
-        let resource = try HTTPBodyResource(path: "bodies/edited.bin")
+        let resource = try HTTPResourceCodingFixtures.resource(path: "bodies/edited.bin", bytes: [1, 2, 3])
         let inline = try Delivery(content: .bytes([1, 2, 3]), profile: shape, conclusion: .openAtRecordingHorizon)
         let external = try Delivery(content: .resource(resource), profile: shape, conclusion: .openAtRecordingHorizon)
         #expect(try inline.profile?.allocate(byteCount: 3) == external.profile?.allocate(byteCount: 3))
         #expect(try external.profile?.allocate(byteCount: 100).map(\.byteRange.count) == [20, 80])
         #expect(try external.profile?.allocate(byteCount: 0).map(\.byteRange.count) == [0, 0])
-        #expect(try JSONDecoder().decode(Delivery.self, from: canonical(external)) == external)
+        #expect(try decoder().decode(Delivery.self, from: canonical(external)) == external)
     }
 
     @Test
@@ -114,12 +114,12 @@ struct HTTPBodyProfileTests {
         for conclusion in conclusions {
             let value = try Delivery(content: .bytes([]), profile: shape, conclusion: conclusion)
             #expect(value.conclusion == conclusion)
-            #expect(try JSONDecoder().decode(Delivery.self, from: canonical(value)) == value)
+            #expect(try decoder().decode(Delivery.self, from: canonical(value)) == value)
             #expect(try value.profile?.allocate(byteCount: 5).map(\.byteRange.count) == [0, 5])
         }
         let unprofiled = Delivery(content: .bytes([]), conclusion: .openAtRecordingHorizon)
         #expect(unprofiled.profile == nil)
-        #expect(try JSONDecoder().decode(Delivery.self, from: canonical(unprofiled)) == unprofiled)
+        #expect(try decoder().decode(Delivery.self, from: canonical(unprofiled)) == unprofiled)
     }
 
     @Test
@@ -202,16 +202,16 @@ struct HTTPBodyProfileTests {
         #"[{"byteWeight":0,"after":"9223372036854775807ms"},{"byteWeight":0,"after":"1ms"}]"#,
     ])
     func `malformed profiles never construct runtime values`(_ json: String) {
-        #expect(throws: (any Error).self) { try JSONDecoder().decode(HTTPBodyProfile.self, from: Data(json.utf8)) }
+        #expect(throws: (any Error).self) { try decoder().decode(HTTPBodyProfile.self, from: Data(json.utf8)) }
     }
 
     @Test
     func `nested decoding failures preserve paths without exposing body or failure content`() throws {
-        let value = try JSONDecoder().decode(Delivery.self, from: fixture("body-profile"))
+        let value = try decoder().decode(Delivery.self, from: fixture("body-profile"))
         var body = try object(value)
         body["segments"] = NSNull()
         #expect(throws: (any Error).self) {
-            try JSONDecoder().decode(Delivery.self, from: JSONSerialization.data(withJSONObject: body))
+            try decoder().decode(Delivery.self, from: JSONSerialization.data(withJSONObject: body))
         }
         body["segments"] = [["byteWeight": -1, "after": "0ms"]]
         try expectCorrupt(Delivery.self, body, path: ["segments", "Index 0", "byteWeight"])
@@ -269,11 +269,15 @@ struct HTTPBodyProfileTests {
     {
         let data = try JSONSerialization.data(withJSONObject: object)
         do {
-            _ = try JSONDecoder().decode(type, from: data)
+            _ = try decoder().decode(type, from: data)
             Issue.record("Invalid lifecycle was accepted", sourceLocation: sourceLocation)
         } catch let DecodingError.dataCorrupted(context) {
             #expect(context.codingPath.map(\.stringValue) == path, sourceLocation: sourceLocation)
             #expect(!context.debugDescription.contains("timeout"), sourceLocation: sourceLocation)
         }
+    }
+
+    private func decoder() -> JSONDecoder {
+        HTTPResourceCodingFixtures.decoder(resources: ["bodies/edited.bin": [1, 2, 3]])
     }
 }

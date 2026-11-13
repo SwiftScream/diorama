@@ -221,6 +221,13 @@ bytes and survive later replacement, failure, or fixture removal. Read-only load
 may overlap one another; independent scenarios with disjoint paths may publish
 concurrently. No automatic locks or cross-process coordination enforce exclusivity.
 
+Registered codecs can extract the `ScenarioDocumentSnapshot` resource-resolution
+context with `ScenarioResourceCoding.resolutionContext(from:)` at their Codable
+boundary and pass it explicitly into conversion. HTTP requires this context for
+resource-backed bodies and constructs only values owning resolved bytes; missing
+context or unavailable content fails decoding. The generic optional
+`ScenarioResourceCoding.decode(at:from:)` helper remains available to other codecs.
+
 Publication stages complete content in a private temporary directory. Existing
 resources move to a backup, new resources move to the stable companion location,
 and JSON is replaced by atomic rename. Supported readers cannot observe the

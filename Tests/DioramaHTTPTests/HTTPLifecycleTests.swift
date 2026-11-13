@@ -15,7 +15,7 @@ struct HTTPLifecycleTests {
     func `tagged lifecycle golden preserves each strict leaf and exact content`() throws {
         let expected = try examples()
         let data = try fixture()
-        let decoded = try JSONDecoder().decode([Interaction].self, from: data)
+        let decoded = try decoder().decode([Interaction].self, from: data)
         #expect(decoded == expected)
         #expect(try canonical(decoded) == data)
         #expect(try canonical(expected) == data)
@@ -48,7 +48,7 @@ struct HTTPLifecycleTests {
             Issue.record("HTTP 503 must be constructible as successful message delivery")
             return
         }
-        #expect(try JSONDecoder().decode(Interaction.self, from: canonical(serverError)) == serverError)
+        #expect(try decoder().decode(Interaction.self, from: canonical(serverError)) == serverError)
     }
 
     @Test
@@ -74,7 +74,7 @@ struct HTTPLifecycleTests {
     func `all body meanings survive failed open and returned leaves without copies`() throws {
         let contents: [HTTPResponseBody] = try [
             .absent, .bytes([]), .bytes([255]),
-            .resource(HTTPBodyResource(path: "bodies/prefix.bin")), .unavailable,
+            .resource(HTTPResourceCodingFixtures.resource(path: "bodies/prefix.bin")), .unavailable,
         ]
         let conclusions: [HTTPBodyConclusion<Failure>] = try [
             .returned(completed()), .failed(timed(.connectionLost)), .openAtRecordingHorizon,
@@ -83,7 +83,7 @@ struct HTTPLifecycleTests {
             for conclusion in conclusions {
                 let value = try received(status: .ok, content: content, conclusion: conclusion)
                 let data = try canonical(value)
-                #expect(try JSONDecoder().decode(Interaction.self, from: data) == value)
+                #expect(try decoder().decode(Interaction.self, from: data) == value)
                 let root = try object(value)
                 #expect(root.keys.sorted() == ["initialRequest", "result"])
                 let result = try #require(root["result"] as? [String: Any])
@@ -100,7 +100,7 @@ struct HTTPLifecycleTests {
 
     @Test
     func `trailers preserve ordered repeated fields and original byte spelling`() throws {
-        let values = try JSONDecoder().decode([Interaction].self, from: fixture())
+        let values = try decoder().decode([Interaction].self, from: fixture())
         guard case let .received(response) = values[0].result,
               case let .returned(completion) = response.body.conclusion
         else {
@@ -119,7 +119,7 @@ struct HTTPLifecycleTests {
         #expect(try completed().trailers == nil)
         let empty = try HTTPBodyCompletion(
             after: delay(0), trailers: HTTPTrailers(after: delay(0), fields: HTTPFields()))
-        #expect(try JSONDecoder().decode(HTTPBodyCompletion.self, from: canonical(empty)) == empty)
+        #expect(try decoder().decode(HTTPBodyCompletion.self, from: canonical(empty)) == empty)
     }
 
     @Test
@@ -131,7 +131,7 @@ struct HTTPLifecycleTests {
                 let delay = try HTTPDelay(milliseconds: authored ? .override(value) : .observed(value))
                 #expect(delay.milliseconds.value == value)
                 #expect(delay.milliseconds.isOverride == authored)
-                #expect(try JSONDecoder().decode(HTTPDelay.self, from: canonical(delay)) == delay)
+                #expect(try decoder().decode(HTTPDelay.self, from: canonical(delay)) == delay)
             }
         }
     }
@@ -147,7 +147,7 @@ struct HTTPLifecycleTests {
         let response = try received(
             status: .ok, content: .bytes([]),
             conclusion: .failed(HTTPTimed(after: delay, value: Failure.timeout)))
-        #expect(try JSONDecoder().decode(Interaction.self, from: canonical(response)) == response)
+        #expect(try decoder().decode(Interaction.self, from: canonical(response)) == response)
     }
 
     @Test(arguments: [
@@ -258,7 +258,7 @@ struct HTTPLifecycleTests {
             received(status: .noContent, content: .absent, conclusion: .returned(completed())),
             received(status: .ok, content: .bytes([]), conclusion: .returned(completed())),
             received(status: .found, content: .unavailable, conclusion: .openAtRecordingHorizon),
-            received(status: .ok, content: .resource(HTTPBodyResource(path: "bodies/reply.bin")),
+            received(status: .ok, content: .resource(HTTPResourceCodingFixtures.resource(path: "bodies/reply.bin")),
                      conclusion: .returned(completed())),
         ]
     }
@@ -305,7 +305,7 @@ struct HTTPLifecycleTests {
     }
 
     private func decode<Value: Decodable>(_ type: Value.Type, _ json: String) throws -> Value {
-        try JSONDecoder().decode(type, from: Data(json.utf8))
+        try decoder().decode(type, from: Data(json.utf8))
     }
 
     private func rejectFieldEdits(
@@ -316,18 +316,22 @@ struct HTTPLifecycleTests {
             missing.removeValue(forKey: key)
             let data = try JSONSerialization.data(withJSONObject: missing)
             if optional.contains(key) {
-                _ = try JSONDecoder().decode(type, from: data)
+                _ = try decoder().decode(type, from: data)
             } else {
-                #expect(throws: (any Error).self) { try JSONDecoder().decode(type, from: data) }
+                #expect(throws: (any Error).self) { try decoder().decode(type, from: data) }
             }
             var nulled = object
             nulled[key] = NSNull()
             let nullData = try JSONSerialization.data(withJSONObject: nulled)
-            #expect(throws: (any Error).self) { try JSONDecoder().decode(type, from: nullData) }
+            #expect(throws: (any Error).self) { try decoder().decode(type, from: nullData) }
         }
         var extra = object
         extra["unknown"] = true
         let extraData = try JSONSerialization.data(withJSONObject: extra)
-        #expect(throws: (any Error).self) { try JSONDecoder().decode(type, from: extraData) }
+        #expect(throws: (any Error).self) { try decoder().decode(type, from: extraData) }
+    }
+
+    private func decoder() -> JSONDecoder {
+        HTTPResourceCodingFixtures.decoder(resources: ["bodies/reply.bin": [0, 255], "bodies/prefix.bin": [0, 255]])
     }
 }

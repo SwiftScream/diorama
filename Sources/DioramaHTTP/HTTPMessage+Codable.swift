@@ -1,3 +1,4 @@
+import DioramaCore
 import DioramaPersistence
 import Foundation
 import HTTPTypes
@@ -51,7 +52,8 @@ extension HTTPRequestMessage: Codable {
         }
         let head = try HTTPRequest(
             method: method, scheme: target(.scheme), authority: target(.authority), path: target(.path),
-            headerFields: HTTPFields(container.decode([FieldPayload].self, forKey: .fields).map { try $0.field() }))
+            headerFields: HTTPFields(container.decode([FieldPayload].self, forKey: .fields)
+                .map { try $0.field() }))
         try self.init(head: head, body: container.decode(HTTPRequestBody.self, forKey: .body))
     }
 
@@ -80,7 +82,8 @@ extension HTTPResponseHead: Codable {
         guard status.reasonPhrase == reason else { throw HTTPMessageError.invalidHead }
         head = try HTTPResponse(
             status: status,
-            headerFields: HTTPFields(container.decode([FieldPayload].self, forKey: .fields).map { try $0.field() }))
+            headerFields: HTTPFields(container.decode([FieldPayload].self, forKey: .fields)
+                .map { try $0.field() }))
     }
 
     /// Writes Diorama's status, reason phrase, and literal field representation.
@@ -95,7 +98,7 @@ extension HTTPResponseHead: Codable {
 extension HTTPRequestBody: Codable {
     /// Reads only complete request body cases; unavailable is rejected.
     public init(from decoder: any Decoder) throws {
-        switch try BodyPayload(from: decoder).body() {
+        switch try BodyPayload(from: decoder).body(resources: ScenarioResourceCoding.resolutionContext(from: decoder)) {
         case .absent: self = .absent
         case let .bytes(bytes): self = .bytes(bytes)
         case let .resource(resource): self = .resource(resource)
@@ -110,18 +113,22 @@ extension HTTPRequestBody: Codable {
         case let .bytes(bytes): .bytes(bytes)
         case let .resource(resource): .resource(resource)
         }
-        try BodyPayload(body).encode(to: encoder)
+        try body.encode(to: encoder)
     }
 }
 
 extension HTTPResponseBody: Codable {
     /// Reads a single validated response content interpretation.
     public init(from decoder: any Decoder) throws {
-        self = try BodyPayload(from: decoder).body()
+        self = try BodyPayload(from: decoder).body(resources: ScenarioResourceCoding.resolutionContext(from: decoder))
     }
 
     /// Writes one explicit response content case.
     public func encode(to encoder: any Encoder) throws {
+        if case let .resource(resource) = self {
+            try ScenarioResourceCoding.encode(ValuePreparation<[UInt8]>().admitPrepared(resource.bytes()),
+                                              at: ScenarioResourcePath(resource.path), to: encoder)
+        }
         try BodyPayload(self).encode(to: encoder)
     }
 }
@@ -154,21 +161,26 @@ private struct BodyPayload: Codable {
         text = try container.contains(.text) ? container.decode(String.self, forKey: .text) : nil
         base64 = try container.contains(.base64) ? container.decode(String.self, forKey: .base64) : nil
         resource = try container.contains(.resource) ? container.decode(String.self, forKey: .resource) : nil
-        _ = try body()
     }
 
-    func body() throws -> HTTPResponseBody {
+    func body(resources: ScenarioDocumentSnapshot?) throws -> HTTPResponseBody {
         switch (kind, text, base64, resource) {
-        case ("absent", nil, nil, nil): .absent
-        case let ("bytes", text?, nil, nil): .bytes(Array(text.utf8))
+        case ("absent", nil, nil, nil): return .absent
+        case let ("bytes", text?, nil, nil): return .bytes(Array(text.utf8))
         case let ("bytes", nil, encoded?, nil):
             if let data = Data(base64Encoded: encoded), data.base64EncodedString() == encoded {
-                .bytes(Array(data))
+                return .bytes(Array(data))
             } else {
                 throw HTTPMessageError.invalidBody
             }
-        case let ("resource", nil, nil, path?): try .resource(HTTPBodyResource(path: path))
-        case ("unavailable", nil, nil, nil): .unavailable
+        case let ("resource", nil, nil, path?):
+            let validated: ScenarioResourcePath
+            do { validated = try ScenarioResourcePath(path) } catch { throw HTTPMessageError.invalidResource }
+            guard let resources else { throw ScenarioResourceError.unavailable }
+            let data = try resources.resource(at: validated)
+            return try .resource(HTTPBodyResource(
+                path: validated, bytes: ValuePreparation<[UInt8]>().admitPrepared(Array(data))))
+        case ("unavailable", nil, nil, nil): return .unavailable
         default: throw HTTPMessageError.invalidBody
         }
     }

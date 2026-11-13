@@ -26,9 +26,44 @@ Types equality semantics (including case-insensitive field names and status-code
 Codecs additionally preserve original field-name spelling and reason phrases.
 Bodies belong to `HTTPResponseNode`'s body lifecycle, rather than `HTTPResponseHead`.
 `HTTPRequestBody` cannot express unavailable content; `HTTPResponseBody` can.
-Resource construction never accesses the filesystem. Resolution, publication,
-containment checks against symlinks, and byte comparison belong to later resource
-consumers. Inline versus resource storage does not change logical byte semantics.
+Resource construction never accesses the filesystem. Repository loading resolves
+resources into owned bytes; file publication and containment are described in
+[resource storage](persistence-schema-v1.md#document-and-resource-files). Inline versus resource storage does not change logical byte semantics.
+
+## Resource ownership
+
+`HTTPBodyResource(path:bytes:)` requires `PreparedValue<[UInt8]>` and retains the
+exact prepared bytes. Use the system's selected preparation policy before this
+initializer. Every `HTTPBodyResource` owns bytes, including valid empty content;
+there is no path-only initializer or unresolved runtime case. `bytes()` returns
+those immutable owned bytes without throwing or performing I/O.
+
+Repository decoding eagerly resolves resources and retains bytes in the returned
+HTTP values. Callers exclude publication and manual edits of the same
+scenario until decoding and resource resolution finish. File fixtures use ordinary
+`name.json` and sibling `name-resources/` paths; no published symlinks or random
+generation directories are required. It does not rerun normalization, redaction, or placement policy.
+A loaded definition remains usable after replacement or removal of its source.
+A newly recorded definition owns its bytes before publication starts, so failed
+encoding, staging, commit, or staging cleanup cannot delete its only backing
+content. No filesystem handles, resolver closures, adapters, or execution state
+are retained by an HTTP resource. This initial implementation uses memory
+proportional to referenced content; lazy or spooled ownership remains deferred.
+
+Component encoders persist resource paths; `JSONScenarioCodec.encode` returns
+complete JSON and resource bytes. Resource-backed HTTP decoding requires a
+resource-resolution context and fails with `ScenarioResourceError.unavailable`
+when none is supplied or referenced bytes cannot be read. Plain `JSONDecoder`
+and byte-only `JSONScenarioCodec.decode` therefore cannot decode resource-backed
+HTTP values without a context. Inline and absent/unavailable bodies retain
+standalone decoding. `JSONScenarioRepository` supplies the context to registered
+system codecs. HTTP's `Codable` boundary extracts the existing
+`ScenarioDocumentSnapshot` with `ScenarioResourceCoding.resolutionContext(from:)`
+and passes that explicit context into persisted-to-runtime body conversion.
+The persisted shape is validated before resolving a reference, and each resource
+is resolved once per body conversion. A test-only registered consumer proves this
+path with actual HTTP body values; production URLSession registration remains
+its own unit.
 
 ## Owned Codable shapes
 
@@ -83,10 +118,13 @@ text/base64, explicit null, non-string content, and content on another body kind
 
 The in-memory `.bytes([UInt8])` API retains exact bytes; text and base64 are only
 persisted representations. Numeric byte arrays are not accepted in this unreleased
-schema. A resource path is a nonempty slash-separated relative path;
-empty, dot, dot-dot, backslash, colon, and control-character components are
-rejected. Percent escapes are literal path text. These are semantic references,
-not filesystem handles or proof of resource existence.
+schema. A resource path is a nonempty slash-separated relative path. Empty,
+dot, dot-dot, and NUL-containing components are rejected. Spaces, Unicode, and
+other literal filename characters are accepted; filesystem-specific naming and
+length limits fail during I/O. Percent escapes are never decoded or normalized.
+Publication rejects case aliases (including directory aliases) and file/directory
+prefix collisions. These follow the shared
+[resource path contract](persistence-schema-v1.md#document-and-resource-files).
 
 All objects reject unknown keys, missing required fields, explicit nulls,
 unknown body tags, and fields incompatible with the selected body case. The
@@ -96,7 +134,7 @@ trailing newline. The component Codable conformances do not configure encoders.
 Canonical request and response fixtures live in `Tests/DioramaHTTPTests/Fixtures`.
 
 Preparation/redaction and matching have their own policies described below.
-Derived Content-Length, resource loading, stream delivery, and native conversion
+Derived Content-Length, stream delivery, and native conversion
 remain separate plan units. Message builders do not perform those operations or
 authorize persisting unprepared secrets.
 
@@ -305,7 +343,7 @@ capture, and native adapters remain separate work units.
 ## Recording placement policy
 
 [DD17's owner-approved storage amendment](design-decisions/17-http-lifecycle-composition.md#type-aware-body-storage--owner-approved-2026-11-08)
-separates this codec from future automatic resource selection. Plan 003 H07 adds
+separates this codec from future automatic resource selection. Plan 003 H07 supplies
 resource mechanics; H07A adds configurable type-aware placement, thresholds, and
 extensions. Images default to resources; text and other content default to
 resources above 200 prepared bytes. JSON/HTML resources use `.json`/`.html` where
@@ -414,9 +452,10 @@ field exclusion is not a privacy boundary.
 The standard comparison includes the literal prepared method, scheme, authority,
 path/query, logical body, and participating fields. Absent and present-empty
 bodies differ. Inline and resource-backed bodies with identical bytes match,
-regardless of resource path. Supply a controlled resolver for prepared scenario
-resources during projection; missing content fails with `resourceUnavailable`,
-without exposing the resolver error. Selection performs no resource I/O.
+regardless of resource path. Projection defaults to a resource's owned bytes;
+callers may supply a controlled projection resolver. Resolver failures surface as
+`resourceUnavailable` without exposing the underlying error. Selection performs
+no resource I/O.
 
 Default field exclusions are Host, Content-Length, Connection, Keep-Alive,
 Proxy-Connection, Transfer-Encoding, and User-Agent. `HTTPMatchFields` is an enum:

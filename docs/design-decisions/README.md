@@ -4,6 +4,12 @@
 - Consolidated design approved by owner: 2026-09-07
 
 On 2026-11-14, the owner approves
+[DD17's owned HTTP resources and explicit resolution amendment](17-http-lifecycle-composition.md#owned-http-resources-and-explicit-resolution--owner-approved-2026-11-14).
+Every runtime HTTP resource owns prepared bytes. Resource-backed decoding requires
+an explicit resolution context; path-only construction and unresolved runtime
+resources are removed.
+
+On 2026-11-14, the owner approves
 [DD18's complete scenario encoding amendment](18-diorama-setup-and-scenario-data.md#complete-scenario-encoding--owner-approved-2026-11-14).
 The public scenario encoder returns JSON and all referenced resource bytes as one
 `ScenarioDocument`; byte-only scenario encoding is removed.

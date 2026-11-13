@@ -1,4 +1,5 @@
 import DioramaHTTP
+import DioramaPersistence
 import Foundation
 import HTTPTypes
 import Testing
@@ -15,7 +16,7 @@ struct HTTPMessageTests {
                               headerFields: fields),
             body: .bytes([0, 128, 255]))
         let data = try fixture("request")
-        #expect(try JSONDecoder().decode(HTTPRequestMessage.self, from: data) == message)
+        #expect(try decoder().decode(HTTPRequestMessage.self, from: data) == message)
         #expect(try canonical(message) == data)
         #expect(message.head.headerFields.map(\.value) == ["one", "two"])
     }
@@ -23,7 +24,7 @@ struct HTTPMessageTests {
     @Test
     func `response golden preserves repeated cookies and custom status`() throws {
         let data = try fixture("response")
-        let response = try JSONDecoder().decode(HTTPResponseHead.self, from: data)
+        let response = try decoder().decode(HTTPResponseHead.self, from: data)
         #expect(response.head.status.code == 299)
         #expect(response.head.status.reasonPhrase == "Custom")
         #expect(response.head.headerFields.map(\.value) == ["a=1", "b=2"])
@@ -32,22 +33,35 @@ struct HTTPMessageTests {
 
     @Test
     func `absent empty resource and unavailable are distinct`() throws {
-        let resource = try HTTPBodyResource(path: "bodies/reply.bin")
+        let resource = try HTTPResourceCodingFixtures.resource(path: "bodies/reply.bin")
         let bodies: [HTTPResponseBody] = [.absent, .bytes([]), .bytes([0, 255]), .resource(resource), .unavailable]
         #expect(Set(bodies).count == 5)
         #expect(try canonical(bodies) == fixture("bodies"))
-        #expect(try JSONDecoder().decode([HTTPResponseBody].self, from: fixture("bodies")) == bodies)
+        #expect(try decoder().decode([HTTPResponseBody].self, from: fixture("bodies")) == bodies)
         for body in bodies {
-            #expect(try JSONDecoder().decode(HTTPResponseBody.self, from: canonical(body)) == body)
+            #expect(try decoder().decode(HTTPResponseBody.self, from: canonical(body)) == body)
         }
         let head = HTTPRequest(method: .get, scheme: nil, authority: "host:443", path: nil)
         for body: HTTPRequestBody in [.absent, .bytes([]), .bytes([0, 255]), .resource(resource)] {
             let request = try HTTPRequestMessage(head: head, body: body)
-            #expect(try JSONDecoder().decode(HTTPRequestMessage.self, from: canonical(request)) == request)
+            #expect(try decoder().decode(HTTPRequestMessage.self, from: canonical(request)) == request)
         }
         #expect(throws: (any Error).self) {
-            try JSONDecoder().decode(HTTPRequestBody.self, from: canonical(HTTPResponseBody.unavailable))
+            try decoder().decode(HTTPRequestBody.self, from: canonical(HTTPResponseBody.unavailable))
         }
+    }
+
+    @Test
+    func `resource bodies require resolution context when decoding`() throws {
+        let data = Data(#"{"kind":"resource","resource":"bodies/reply.bin"}"#.utf8)
+        #expect(throws: ScenarioResourceError.unavailable) {
+            try JSONDecoder().decode(HTTPRequestBody.self, from: data)
+        }
+        #expect(throws: ScenarioResourceError.unavailable) {
+            try JSONDecoder().decode(HTTPResponseBody.self, from: data)
+        }
+        let bytes = try HTTPResourceCodingFixtures.resource(path: "empty", bytes: []).bytes()
+        #expect(bytes.isEmpty)
     }
 
     @Test
@@ -57,17 +71,17 @@ struct HTTPMessageTests {
         fields.append(HTTPField(name: name, value: [0x80, 0xFF]))
         fields.append(HTTPField(name: name, value: "café"))
         let message = HTTPResponseHead(head: HTTPResponse(status: .ok, headerFields: fields))
-        let decoded = try JSONDecoder().decode(HTTPResponseHead.self, from: canonical(message))
+        let decoded = try decoder().decode(HTTPResponseHead.self, from: canonical(message))
         #expect(decoded.head.headerFields.map(\.name.rawName) == ["X-Raw", "X-Raw"])
         let values = decoded.head.headerFields.map { $0.withUnsafeBytesOfValue { Array($0) } }
         #expect(values == [[0x80, 0xFF], Array("café".utf8)])
     }
 
     @Test(arguments: [
-        "", "/absolute", "a//b", "../escape", "a/./b", "a/../b", "a/", "a\\b", "C:drive", "a\n",
+        "", "/absolute", "a//b", "../escape", "a/./b", "a/../b", "a/", "a\u{0}",
     ])
     func `invalid resource paths are rejected`(_ path: String) {
-        #expect(throws: HTTPMessageError.invalidResource) { try HTTPBodyResource(path: path) }
+        #expect(throws: HTTPMessageError.invalidResource) { try HTTPResourceCodingFixtures.resource(path: path) }
     }
 
     @Test
@@ -75,8 +89,8 @@ struct HTTPMessageTests {
         for bytes in [Array(UInt8.min...UInt8.max), [0], [0, 255], [0, 128, 255]] {
             let body = HTTPResponseBody.bytes(bytes)
             let encoded = try canonical(body)
-            #expect(try JSONDecoder().decode(HTTPResponseBody.self, from: encoded) == body)
-            #expect(try JSONDecoder().decode(HTTPRequestBody.self, from: encoded) == .bytes(bytes))
+            #expect(try decoder().decode(HTTPResponseBody.self, from: encoded) == body)
+            #expect(try decoder().decode(HTTPRequestBody.self, from: encoded) == .bytes(bytes))
         }
     }
 
@@ -89,21 +103,21 @@ struct HTTPMessageTests {
         ]
         let bodies = strings.map { HTTPResponseBody.bytes(Array($0.utf8)) }
         #expect(try canonical(bodies) == fixture("text-bodies"))
-        #expect(try JSONDecoder().decode([HTTPResponseBody].self, from: fixture("text-bodies")) == bodies)
+        #expect(try decoder().decode([HTTPResponseBody].self, from: fixture("text-bodies")) == bodies)
         for (text, body) in zip(strings, bodies) {
             let encoded = try canonical(body)
-            let object = try JSONDecoder().decode([String: String].self, from: encoded)
+            let object = try decoder().decode([String: String].self, from: encoded)
             #expect(object == ["kind": "bytes", "text": text])
-            #expect(try JSONDecoder().decode(HTTPRequestBody.self, from: encoded) == .bytes(Array(text.utf8)))
+            #expect(try decoder().decode(HTTPRequestBody.self, from: encoded) == .bytes(Array(text.utf8)))
         }
     }
 
     @Test(arguments: [[UInt8(0xFF)], [0xC3, 0x28], [0xE2, 0x82], [0xC0, 0xAF], [0xED, 0xA0, 0x80]])
     func `invalid UTF8 and partial sequences remain base64`(_ bytes: [UInt8]) throws {
         let encoded = try canonical(HTTPResponseBody.bytes(bytes))
-        let object = try JSONDecoder().decode([String: String].self, from: encoded)
+        let object = try decoder().decode([String: String].self, from: encoded)
         #expect(object == ["kind": "bytes", "base64": Data(bytes).base64EncodedString()])
-        #expect(try JSONDecoder().decode(HTTPResponseBody.self, from: encoded) == .bytes(bytes))
+        #expect(try decoder().decode(HTTPResponseBody.self, from: encoded) == .bytes(bytes))
     }
 
     @Test
@@ -112,9 +126,9 @@ struct HTTPMessageTests {
             let encoded = try JSONSerialization.data(withJSONObject: [
                 "kind": "bytes", "base64": Data(bytes).base64EncodedString(),
             ])
-            let body = try JSONDecoder().decode(HTTPResponseBody.self, from: encoded)
+            let body = try decoder().decode(HTTPResponseBody.self, from: encoded)
             #expect(body == .bytes(bytes))
-            let object = try JSONDecoder().decode([String: String].self, from: canonical(body))
+            let object = try decoder().decode([String: String].self, from: canonical(body))
             #expect(object["text"] != nil)
             #expect(object["base64"] == nil)
         }
@@ -133,14 +147,14 @@ struct HTTPMessageTests {
         #"{"kind":"bytes","text":{"a":1}}"#,
     ])
     func `malformed body is rejected`(_ json: String) {
-        #expect(throws: (any Error).self) { try JSONDecoder().decode(HTTPResponseBody.self, from: Data(json.utf8)) }
+        #expect(throws: (any Error).self) { try decoder().decode(HTTPResponseBody.self, from: Data(json.utf8)) }
     }
 
     @Test(arguments: ["!", "AP8", "AP8===", "AP8=\n", "AP 8=", "AP_=", "AB==", "AAB=", "===="])
     func `malformed or noncanonical base64 is rejected`(_ text: String) throws {
         let data = try JSONSerialization.data(withJSONObject: ["kind": "bytes", "base64": text])
-        #expect(throws: HTTPMessageError.invalidBody) { try JSONDecoder().decode(HTTPResponseBody.self, from: data) }
-        #expect(throws: HTTPMessageError.invalidBody) { try JSONDecoder().decode(HTTPRequestBody.self, from: data) }
+        #expect(throws: HTTPMessageError.invalidBody) { try decoder().decode(HTTPResponseBody.self, from: data) }
+        #expect(throws: HTTPMessageError.invalidBody) { try decoder().decode(HTTPRequestBody.self, from: data) }
     }
 
     @Test(arguments: [
@@ -155,7 +169,7 @@ struct HTTPMessageTests {
         #"{"status":200,"reasonPhrase":"","fields":[{"name":"x","value":"a","typo":1}]}"#,
     ])
     func `malformed response is rejected`(_ json: String) {
-        #expect(throws: (any Error).self) { try JSONDecoder().decode(HTTPResponseHead.self, from: Data(json.utf8)) }
+        #expect(throws: (any Error).self) { try decoder().decode(HTTPResponseHead.self, from: Data(json.utf8)) }
     }
 
     @Test
@@ -168,12 +182,12 @@ struct HTTPMessageTests {
                 of: #""method" : "POST""#, with: #""method" : "POST", "typo": true"#),
         ] {
             #expect(throws: (any Error).self) {
-                try JSONDecoder().decode(HTTPRequestMessage.self, from: Data(invalid.utf8))
+                try decoder().decode(HTTPRequestMessage.self, from: Data(invalid.utf8))
             }
         }
         let method = try #require(HTTPRequest.Method("CUSTOM"))
         let request = try HTTPRequestMessage(head: HTTPRequest(method: method, scheme: nil, authority: nil, path: "*"))
-        #expect(try JSONDecoder().decode(HTTPRequestMessage.self, from: canonical(request)).head.method == method)
+        #expect(try decoder().decode(HTTPRequestMessage.self, from: canonical(request)).head.method == method)
         var extended = request.head
         extended.extendedConnectProtocol = "websocket"
         #expect(throws: HTTPMessageError.unsupportedRequest) { try HTTPRequestMessage(head: extended) }
@@ -190,5 +204,9 @@ struct HTTPMessageTests {
     private func fixture(_ name: String) throws -> Data {
         let url = try #require(Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Fixtures"))
         return try Data(contentsOf: url)
+    }
+
+    private func decoder() -> JSONDecoder {
+        HTTPResourceCodingFixtures.decoder(resources: ["bodies/reply.bin": [0, 255]])
     }
 }

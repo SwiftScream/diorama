@@ -373,6 +373,8 @@ test-integration design. They do not authorize those APIs.
 - [HTTP body allocation evidence](evidence/003-H06-body-allocation.md) records
   weighted byte ranges, edited lengths, successive timing, and checked scalar bounds.
 
+- [Atomic document and HTTP body resources](evidence/003-H07-atomic-resources.md)
+  records stable publication paths, owned resource bytes, rollback, and failure evidence.
 - [Atomic persistence resources](evidence/003-H07-persistence-resources.md) records
   system-independent resource collection, resolution, and atomic storage evidence.
 

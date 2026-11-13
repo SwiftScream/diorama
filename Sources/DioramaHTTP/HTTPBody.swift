@@ -1,18 +1,29 @@
+import DioramaCore
+import DioramaPersistence
 import Foundation
 
-/// A portable scenario-relative reference to logical body bytes, without I/O.
+/// A scenario-relative resource owning exact prepared body bytes, without I/O.
 public struct HTTPBodyResource: Hashable, Sendable {
     /// Literal slash-separated path, relative to the scenario's resource root.
     public let path: String
 
-    /// Creates a reference, rejecting empty, absolute, dot, and unsafe components.
-    public init(path: String) throws {
-        let components = path.split(separator: "/", omittingEmptySubsequences: false)
-        guard components.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." }),
-              !path.contains("\\"), !path.contains(":"),
-              !path.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
-        else { throw HTTPMessageError.invalidResource }
-        self.path = path
+    private let content: [UInt8]
+
+    /// Creates a resource owning prepared bytes independently of execution and storage lifetime.
+    public init(path: String, bytes: PreparedValue<[UInt8]>) throws {
+        let validated: ScenarioResourcePath
+        do { validated = try ScenarioResourcePath(path) } catch { throw HTTPMessageError.invalidResource }
+        self.init(path: validated, bytes: bytes)
+    }
+
+    /// Returns owned bytes without filesystem access.
+    public func bytes() -> [UInt8] {
+        content
+    }
+
+    init(path: ScenarioResourcePath, bytes: PreparedValue<[UInt8]>) {
+        self.path = path.value
+        content = bytes.value
     }
 }
 

@@ -123,7 +123,7 @@ public struct HTTPRequestMatcher: Sendable {
     /// The resolver must read only prepared scenario content, never a live dependency.
     public func project(
         _ request: PreparedValue<HTTPRequestMessage>,
-        resolve: (HTTPBodyResource) throws -> [UInt8] = { _ in throw HTTPMatchProjectionError.resourceUnavailable })
+        resolve: (HTTPBodyResource) throws -> [UInt8] = { $0.bytes() })
         throws(HTTPMatchProjectionError) -> HTTPRequestMatchProjection
     {
         let body: [UInt8]?

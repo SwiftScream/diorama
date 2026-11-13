@@ -85,10 +85,11 @@ struct HTTPRequestMatcherTests {
         #expect(matcher.differences(absent, empty) == [.body])
         let inline = try matcher.project(request(body: .bytes([0, 255, 42])))
         for path in ["body/a", "body/b"] {
-            let resource = try request(body: .resource(HTTPBodyResource(path: path)))
+            let owned = try HTTPResourceCodingFixtures.resource(path: path, bytes: [0, 255, 42])
+            let resource = try request(body: .resource(owned))
             let resolved = try matcher.project(resource) { _ in [0, 255, 42] }
             #expect(matcher.matches(inline, resolved))
-            #expect(throws: HTTPMatchProjectionError.resourceUnavailable) { try matcher.project(resource) }
+            #expect(try matcher.matches(inline, matcher.project(resource)))
             #expect(throws: HTTPMatchProjectionError.resourceUnavailable) {
                 try matcher.project(resource) { _ in throw HTTPMessageError.invalidBody }
             }

@@ -103,7 +103,13 @@ public enum ScenarioResourceCoding {
 
     /// Resolves a reference during repository decoding; standalone decoding returns nil.
     public static func decode(at path: ScenarioResourcePath, from decoder: any Decoder) throws -> Data? {
-        try (decoder.userInfo[resourceCodingKey] as? ScenarioDocumentSnapshot)?.resource(at: path)
+        try resolutionContext(from: decoder)?.resource(at: path)
+    }
+
+    /// Extracts the resource-resolution context for conversion outside a Codable initializer.
+    /// Standalone decoders without a resource context return nil.
+    public static func resolutionContext(from decoder: any Decoder) -> ScenarioDocumentSnapshot? {
+        decoder.userInfo[resourceCodingKey] as? ScenarioDocumentSnapshot
     }
 
     private static func collector(_ encoder: any Encoder) -> ResourceCollector? {
