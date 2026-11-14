@@ -133,55 +133,77 @@ extension HTTPResponseBody: Codable {
     }
 }
 
-private struct BodyPayload: Codable {
-    let kind: String
-    let text: String?
-    let base64: String?
-    let resource: String?
+private enum BodyPayload: Codable {
+    case absent
+    case bytes([UInt8])
+    case resource(ScenarioResourcePath)
+    case unavailable
 
     enum CodingKeys: String, CodingKey, CaseIterable { case kind, text, base64, resource }
+    private enum Kind: String, Codable { case absent, bytes, resource, unavailable }
 
-    init(_ body: HTTPResponseBody) {
+    init(_ body: HTTPResponseBody) throws {
         switch body {
-        case .absent: (kind, text, base64, resource) = ("absent", nil, nil, nil)
-        case let .bytes(value):
-            if let string = String(validating: value, as: UTF8.self), Array(string.utf8) == value {
-                (kind, text, base64, resource) = ("bytes", string, nil, nil)
-            } else {
-                (kind, text, base64, resource) = ("bytes", nil, Data(value).base64EncodedString(), nil)
-            }
-        case let .resource(value): (kind, text, base64, resource) = ("resource", nil, nil, value.path)
-        case .unavailable: (kind, text, base64, resource) = ("unavailable", nil, nil, nil)
+        case .absent: self = .absent
+        case let .bytes(value): self = .bytes(value)
+        case let .resource(value): self = try .resource(ScenarioResourcePath(value.path))
+        case .unavailable: self = .unavailable
         }
     }
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.strictContainer(keyedBy: CodingKeys.self)
-        kind = try container.decode(String.self, forKey: .kind)
-        text = try container.contains(.text) ? container.decode(String.self, forKey: .text) : nil
-        base64 = try container.contains(.base64) ? container.decode(String.self, forKey: .base64) : nil
-        resource = try container.contains(.resource) ? container.decode(String.self, forKey: .resource) : nil
-    }
-
-    func body(resources: ScenarioDocumentSnapshot?) throws -> HTTPResponseBody {
+        let tag = try container.decode(String.self, forKey: .kind)
+        let text = try container.contains(.text) ? container.decode(String.self, forKey: .text) : nil
+        let base64 = try container.contains(.base64) ? container.decode(String.self, forKey: .base64) : nil
+        let resource = try container.contains(.resource) ? container.decode(String.self, forKey: .resource) : nil
+        guard let kind = Kind(rawValue: tag) else { throw HTTPMessageError.invalidBody }
         switch (kind, text, base64, resource) {
-        case ("absent", nil, nil, nil): return .absent
-        case let ("bytes", text?, nil, nil): return .bytes(Array(text.utf8))
-        case let ("bytes", nil, encoded?, nil):
+        case (.absent, nil, nil, nil): self = .absent
+        case let (.bytes, text?, nil, nil): self = .bytes(Array(text.utf8))
+        case let (.bytes, nil, encoded?, nil):
             if let data = Data(base64Encoded: encoded), data.base64EncodedString() == encoded {
-                return .bytes(Array(data))
+                self = .bytes(Array(data))
             } else {
                 throw HTTPMessageError.invalidBody
             }
-        case let ("resource", nil, nil, path?):
-            let validated: ScenarioResourcePath
-            do { validated = try ScenarioResourcePath(path) } catch { throw HTTPMessageError.invalidResource }
-            guard let resources else { throw ScenarioResourceError.unavailable }
-            let data = try resources.resource(at: validated)
-            return try .resource(HTTPBodyResource(
-                path: validated, bytes: ValuePreparation<[UInt8]>().admitPrepared(Array(data))))
-        case ("unavailable", nil, nil, nil): return .unavailable
+        case let (.resource, nil, nil, path?):
+            do { self = try .resource(ScenarioResourcePath(path)) } catch { throw HTTPMessageError.invalidResource }
+        case (.unavailable, nil, nil, nil): self = .unavailable
         default: throw HTTPMessageError.invalidBody
+        }
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .absent:
+            try container.encode(Kind.absent, forKey: .kind)
+        case let .bytes(value):
+            try container.encode(Kind.bytes, forKey: .kind)
+            if let string = String(validating: value, as: UTF8.self), Array(string.utf8) == value {
+                try container.encode(string, forKey: .text)
+            } else {
+                try container.encode(Data(value).base64EncodedString(), forKey: .base64)
+            }
+        case let .resource(path):
+            try container.encode(Kind.resource, forKey: .kind)
+            try container.encode(path.value, forKey: .resource)
+        case .unavailable:
+            try container.encode(Kind.unavailable, forKey: .kind)
+        }
+    }
+
+    func body(resources: ScenarioDocumentSnapshot?) throws -> HTTPResponseBody {
+        switch self {
+        case .absent: return .absent
+        case let .bytes(value): return .bytes(value)
+        case let .resource(path):
+            guard let resources else { throw ScenarioResourceError.unavailable }
+            let data = try resources.resource(at: path)
+            return try .resource(HTTPBodyResource(
+                path: path, bytes: ValuePreparation<[UInt8]>().admitPrepared(Array(data))))
+        case .unavailable: return .unavailable
         }
     }
 }

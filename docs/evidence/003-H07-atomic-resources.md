@@ -208,6 +208,27 @@ and the nonthrowing byte accessor are intentional. No iOS, Linux, or new coverag
 collection runs. The owner approves squashing this fixup into the HTTP integration
 commit; the dependent H07A branch is restacked.
 
+## Body payload enum refactor — 2026-11-14
+
+The owner requests a separate refactor commit replacing `BodyPayload`'s string
+discriminator and independent optional fields with an associated-value enum.
+Its cases are absent, exact bytes, a validated relative resource path, and
+unavailable. A private typed wire tag and explicit Codable implementation retain
+the existing JSON shape. Text/base64 decoding and field-combination validation
+produce one valid enum case before resource resolution; encoding retains the
+lossless UTF-8/base64 selection and exact resource path syntax. Body conversion
+switches over valid cases and cannot receive contradictory stored fields.
+
+No public API, JSON fixture, schema version, resource ownership, or matching
+behavior changes. Existing golden, canonicalization, malformed-input, lifecycle,
+body-profile, matching, and resource-resolution tests provide regression coverage.
+
+Validation on macOS passes all 61 focused tests across six HTTP/persistence
+suites and `scripts/check`, including strict formatting/lint, all 702 host tests,
+compiler probes, coverage-export fixtures, release builds, and usage examples.
+`git diff --check` passes. No iOS, Linux, or new coverage collection runs. The
+source refactor and this evidence form one separate `ref(http)` commit as requested.
+
 ## Review boundary
 
 Two implementation commits deliver one H07 review unit:
