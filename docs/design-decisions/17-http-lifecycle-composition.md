@@ -129,6 +129,9 @@ being flattened into a dictionary.
 Most persisted field values are literal. `Content-Length` additionally permits
 an explicit body-length-derived value, conceptually:
 
+The original conceptual spelling below is superseded by the
+[owner-approved derived field spelling](#derived-field-spelling--owner-approved-2026-11-15).
+
 ```json
 {
   "name": "content-length",
@@ -859,3 +862,16 @@ and externalizes every nonempty body. `.resource` continues to externalize empty
 content too. This supersedes the preceding amendment's zero/resource equivalence.
 `Rule.standard(fileExtension:)` provides the inclusive 200-byte rule as a factory
 with an optional suffix. No persistence schema or default placement changes.
+
+## Derived field spelling — owner-approved 2026-11-15
+
+During H08 review, the owner approves spelling a derived field value as
+`{ "derivedFrom": "bodyByteCount" }`, replacing the conceptual boolean marker
+above. The value remains inside its ordered field entry, preserving field
+position and keeping all literal strings unambiguous, including invalid
+Content-Length values such as `"auto"`.
+
+Only `"bodyByteCount"` is supported, and only for Content-Length. Unknown sources,
+non-string sources, extra keys, and the earlier boolean marker are rejected.
+This spelling introduces no general expression or variable resolver. Existing
+proof, complete-body resolution, and semantic exclusion rules remain unchanged.

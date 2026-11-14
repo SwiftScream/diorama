@@ -380,6 +380,9 @@ test-integration design. They do not authorize those APIs.
 - [HTTP body storage policy](evidence/003-H07A-body-storage-policy.md) records
   configurable placement, typed suffixes, exact bytes, and publication integration.
 
+- [Derived HTTP content lengths](evidence/003-H08-derived-content-length.md) records
+  conservative selection, exact body edits, and contextual field resolution.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

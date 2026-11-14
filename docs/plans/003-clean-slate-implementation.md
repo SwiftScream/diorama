@@ -2975,6 +2975,14 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H08 — Derived Content-Length and body-edit consistency
 
+- Status: Complete. Owner confirms scope and the GPT-6 Sol, `medium`
+  recommendation before implementation. Focused HTTP tests and the canonical
+  macOS gate pass on 2026-11-15. Owner review is the next checkpoint;
+  PR creation, merge, and H09 require separate authorization.
+- Evidence: [Derived Content-Length and body edits](../evidence/003-H08-derived-content-length.md).
+- Owner-approved review update: Persist derived fields as
+  `{ "derivedFrom": "bodyByteCount" }`, retaining their ordered field position.
+
 - Recommended model: GPT-6 Sol; reasoning: `medium`. Provable Content-Length derivation and edited-body integration require careful HTTP exception handling without mutation.
 - Prerequisites: 003-H07A, 003-H06; DD11, DD17.
 - Scope: Implement the explicit body-byte-count field form when provable and verify body-edit integration across inline text, inline base64, and typed resources. H07A owns automatic placement and extensions.

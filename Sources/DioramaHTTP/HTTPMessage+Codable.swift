@@ -6,30 +6,91 @@ import HTTPTypes
 /// These representations belong to Diorama, independently of HTTPTypes.Codable.
 struct FieldPayload: Codable {
     let name: String
-    let value: String
+    let value: Value
+
+    enum Value: Codable {
+        case literal(String)
+        case bodyByteCount
+
+        private enum Keys: String, CodingKey, CaseIterable { case derivedFrom }
+
+        init(from decoder: any Decoder) throws {
+            if let literal = try? decoder.singleValueContainer().decode(String.self) {
+                self = .literal(literal)
+            } else {
+                let fields = try decoder.strictContainer(keyedBy: Keys.self)
+                guard try fields.decode(String.self, forKey: .derivedFrom) == "bodyByteCount" else {
+                    throw HTTPMessageError.invalidField
+                }
+                self = .bodyByteCount
+            }
+        }
+
+        func encode(to encoder: any Encoder) throws {
+            switch self {
+            case let .literal(value):
+                var field = encoder.singleValueContainer()
+                try field.encode(value)
+            case .bodyByteCount:
+                var fields = encoder.container(keyedBy: Keys.self)
+                try fields.encode("bodyByteCount", forKey: .derivedFrom)
+            }
+        }
+    }
 
     enum CodingKeys: String, CodingKey, CaseIterable { case name, value }
 
-    init(_ field: HTTPField) {
+    init(_ field: HTTPField, derived: Bool = false) {
         name = field.name.rawName
-        value = field.withUnsafeBytesOfValue { bytes in
-            String(String.UnicodeScalarView(bytes.map { UnicodeScalar($0) }))
+        if derived, field.name == .contentLength {
+            value = .bodyByteCount
+        } else {
+            value = .literal(field.withUnsafeBytesOfValue { bytes in
+                String(String.UnicodeScalarView(bytes.map { UnicodeScalar($0) }))
+            })
         }
     }
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.strictContainer(keyedBy: CodingKeys.self)
         name = try container.decode(String.self, forKey: .name)
-        value = try container.decode(String.self, forKey: .value)
+        value = try container.decode(Value.self, forKey: .value)
     }
 
-    func field() throws -> HTTPField {
+    func field(byteCount: Int? = nil) throws -> HTTPField {
+        let value: String
+        switch self.value {
+        case let .literal(text): value = text
+        case .bodyByteCount:
+            guard HTTPField.Name(name) == .contentLength, let byteCount else {
+                throw HTTPMessageError.invalidField
+            }
+            value = String(byteCount)
+        }
         guard let name = HTTPField.Name(name), value.unicodeScalars.allSatisfy({ $0.value <= 255 }) else {
             throw HTTPMessageError.invalidField
         }
         let bytes = value.unicodeScalars.map { UInt8($0.value) }
         guard HTTPField.isValidValue(bytes) else { throw HTTPMessageError.invalidField }
         return HTTPField(name: name, value: bytes)
+    }
+}
+
+extension FieldPayload {
+    static func hasDerived(_ fields: [Self]) throws -> Bool {
+        let derived = fields.contains {
+            if case .bodyByteCount = $0.value {
+                true
+            } else {
+                false
+            }
+        }
+        if derived {
+            guard fields.filter({ HTTPField.Name($0.name) == .contentLength }).count == 1 else {
+                throw HTTPMessageError.invalidField
+            }
+        }
+        return derived
     }
 }
 
@@ -50,11 +111,20 @@ extension HTTPRequestMessage: Codable {
             guard HTTPField.isValidValue(value) else { throw HTTPMessageError.invalidField }
             return value
         }
+        let body = try container.decode(HTTPRequestBody.self, forKey: .body)
+        let payloads = try container.decode([FieldPayload].self, forKey: .fields)
         let head = try HTTPRequest(
             method: method, scheme: target(.scheme), authority: target(.authority), path: target(.path),
-            headerFields: HTTPFields(container.decode([FieldPayload].self, forKey: .fields)
-                .map { try $0.field() }))
-        try self.init(head: head, body: container.decode(HTTPRequestBody.self, forKey: .body))
+            headerFields: HTTPFields(payloads.map { try $0.field(byteCount: body.byteCount) }))
+        let derivesContentLength = try FieldPayload.hasDerived(payloads)
+        if derivesContentLength {
+            guard HTTPContentLength.unambiguous(method: head.method),
+                  HTTPContentLength.unambiguous(fields: head.headerFields)
+            else {
+                throw HTTPMessageError.invalidField
+            }
+        }
+        try self.init(head: head, body: body, derivesContentLength: derivesContentLength)
     }
 
     /// Writes explicit method/target/field/body keys, never dependency Codable.
@@ -64,7 +134,7 @@ extension HTTPRequestMessage: Codable {
         try container.encodeIfPresent(head.scheme, forKey: .scheme)
         try container.encodeIfPresent(head.authority, forKey: .authority)
         try container.encodeIfPresent(head.path, forKey: .path)
-        try container.encode(head.headerFields.map(FieldPayload.init), forKey: .fields)
+        try container.encode(head.headerFields.map { FieldPayload($0, derived: derivesContentLength) }, forKey: .fields)
         try container.encode(body, forKey: .body)
     }
 }
@@ -74,16 +144,21 @@ extension HTTPResponseHead: Codable {
 
     /// Reads a strict status and ordered fields, validating before native creation.
     public init(from decoder: any Decoder) throws {
+        try self.init(from: decoder, byteCount: nil)
+    }
+
+    init(from decoder: any Decoder, byteCount: Int?) throws {
         let container = try decoder.strictContainer(keyedBy: CodingKeys.self)
         let code = try container.decode(Int.self, forKey: .status)
         let reason = try container.decode(String.self, forKey: .reasonPhrase)
         guard (0...999).contains(code), HTTPField.isValidValue(reason) else { throw HTTPMessageError.invalidHead }
         let status = HTTPResponse.Status(code: code, reasonPhrase: reason)
         guard status.reasonPhrase == reason else { throw HTTPMessageError.invalidHead }
-        head = try HTTPResponse(
+        let payloads = try container.decode([FieldPayload].self, forKey: .fields)
+        let head = try HTTPResponse(
             status: status,
-            headerFields: HTTPFields(container.decode([FieldPayload].self, forKey: .fields)
-                .map { try $0.field() }))
+            headerFields: HTTPFields(payloads.map { try $0.field(byteCount: byteCount) }))
+        try self.init(head: head, derivesContentLength: FieldPayload.hasDerived(payloads))
     }
 
     /// Writes Diorama's status, reason phrase, and literal field representation.
@@ -91,7 +166,7 @@ extension HTTPResponseHead: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(head.status.code, forKey: .status)
         try container.encode(head.status.reasonPhrase, forKey: .reasonPhrase)
-        try container.encode(head.headerFields.map(FieldPayload.init), forKey: .fields)
+        try container.encode(head.headerFields.map { FieldPayload($0, derived: derivesContentLength) }, forKey: .fields)
     }
 }
 

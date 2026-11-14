@@ -9,10 +9,20 @@ extension HTTPInteraction: Codable where Failure: Codable {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
         try self.init(initialRequest: fields.decode(HTTPRequestMessage.self, forKey: .initialRequest),
                       result: fields.decode(HTTPAttemptResult<Failure>.self, forKey: .result))
+        if case let .received(response) = result, response.head.value.derivesContentLength {
+            guard HTTPContentLength.unambiguous(method: initialRequest.head.method) else {
+                throw HTTPMessageError.invalidField
+            }
+        }
     }
 
     /// Writes the root without an independent, potentially contradictory conclusion.
     public func encode(to encoder: any Encoder) throws {
+        if case let .received(response) = result, response.head.value.derivesContentLength {
+            guard HTTPContentLength.unambiguous(method: initialRequest.head.method) else {
+                throw HTTPMessageError.invalidField
+            }
+        }
         var fields = encoder.container(keyedBy: CodingKeys.self)
         try fields.encode(initialRequest, forKey: .initialRequest)
         try fields.encode(result, forKey: .result)
@@ -63,16 +73,25 @@ extension HTTPAttemptResult: Codable where Failure: Codable {
 extension HTTPResponseNode: Codable where Failure: Codable {
     private enum CodingKeys: String, CodingKey, CaseIterable { case head, body }
 
+    private enum HeadKeys: String, CodingKey, CaseIterable { case after, value }
+
     /// Reads a response with one head and its body lifecycle.
     public init(from decoder: any Decoder) throws {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
-        let head = try fields.decode(HTTPTimed<HTTPResponseHead>.self, forKey: .head)
         let body = try fields.decode(HTTPBodyDelivery<Failure>.self, forKey: .body)
+        let timed = try fields.superDecoder(forKey: .head).strictContainer(keyedBy: HeadKeys.self)
+        let count: Int? = if case .returned = body.conclusion {
+            body.content.byteCount
+        } else {
+            nil
+        }
+        let value = try HTTPResponseHead(from: timed.superDecoder(forKey: .value), byteCount: count)
+        let head = try HTTPTimed(after: timed.decode(HTTPDelay.self, forKey: .after), value: value)
         do {
             try self.init(head: head, body: body)
         } catch {
             throw DecodingError.dataCorruptedError(
-                forKey: .body, in: fields, debugDescription: "HTTP response cumulative delay exceeds its scalar range")
+                forKey: .body, in: fields, debugDescription: "Invalid HTTP response timing or derived content length")
         }
     }
 
@@ -194,7 +213,7 @@ extension HTTPTrailers: Codable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(after, forKey: .after)
-        try container.encode(fields.map(FieldPayload.init), forKey: .fields)
+        try container.encode(fields.map { FieldPayload($0) }, forKey: .fields)
     }
 }
 

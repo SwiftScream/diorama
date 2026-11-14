@@ -35,6 +35,14 @@ public enum HTTPRequestBody: Hashable, Sendable {
     case bytes([UInt8])
     /// Logical bytes stored outside the message document.
     case resource(HTTPBodyResource)
+
+    var byteCount: Int? {
+        switch self {
+        case .absent: nil
+        case let .bytes(bytes): bytes.count
+        case let .resource(resource): resource.bytes().count
+        }
+    }
 }
 
 /// Response content, independent of its later lifecycle conclusion.
@@ -47,6 +55,14 @@ public enum HTTPResponseBody: Hashable, Sendable {
     case resource(HTTPBodyResource)
     /// The adapter could not expose the body for this response branch.
     case unavailable
+
+    var byteCount: Int? {
+        switch self {
+        case .absent, .unavailable: nil
+        case let .bytes(bytes): bytes.count
+        case let .resource(resource): resource.bytes().count
+        }
+    }
 }
 
 /// Safe validation categories that do not echo message content.

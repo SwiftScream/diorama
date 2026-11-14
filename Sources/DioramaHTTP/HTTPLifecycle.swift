@@ -36,7 +36,20 @@ public struct HTTPResponseNode<Failure: Sendable>: Sendable {
     /// Builds a response with bounded invocation-relative timing, regardless of status.
     public init(head: HTTPTimed<HTTPResponseHead>, body: HTTPBodyDelivery<Failure>) throws {
         _ = try HTTPDelay.add(head.after.milliseconds.value, body.durationMilliseconds)
-        self.head = head
+        if head.value.derivesContentLength {
+            guard case .returned = body.conclusion, let count = body.content.byteCount,
+                  HTTPContentLength.unambiguous(status: head.value.head.status.code),
+                  HTTPContentLength.unambiguous(fields: head.value.head.headerFields)
+            else {
+                throw HTTPMessageError.invalidField
+            }
+            var resolved = head.value.head
+            resolved.headerFields[.contentLength] = String(count)
+            let value = HTTPResponseHead(head: resolved, derivesContentLength: true)
+            self.head = HTTPTimed(after: head.after, value: value)
+        } else {
+            self.head = head
+        }
         self.body = body
     }
 }

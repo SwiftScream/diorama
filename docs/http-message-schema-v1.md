@@ -80,7 +80,9 @@ Response heads contain required integer `status`, string `reasonPhrase`, and
 `fields`. The currency type's full `0...999` status range is retained without
 classifying unusual codes as transport failures. No HTTP/1.1 default is stored.
 
-`fields` is an ordered array of objects with required `name` and `value` strings.
+`fields` is an ordered array of objects with required `name` and `value`.
+Values are literal strings except for the explicit derived Content-Length form
+described below.
 Names must be valid regular field names; pseudo-fields and invalid tokens are
 rejected. Repeated names, including Set-Cookie, remain separate entries. Field
 values use a byte-preserving ISO Latin-1 scalar mapping: each scalar U+0000 through
@@ -134,8 +136,7 @@ trailing newline. The component Codable conformances do not configure encoders.
 Canonical request and response fixtures live in `Tests/DioramaHTTPTests/Fixtures`.
 
 Preparation/redaction and matching have their own policies described below.
-Derived Content-Length, stream delivery, and native conversion
-remain separate plan units. Message builders do not perform those operations or
+Native conversion remains a separate plan unit. Message builders do not perform those operations or
 authorize persisting unprepared secrets.
 
 ## Strict lifecycle components
@@ -589,3 +590,46 @@ order. Custom Core selectors can report unresolved ambiguity explicitly.
 Selector diagnostics include static policy/component labels and Core identities,
 never request values, captured field names, body bytes, or resource paths.
 Preparation and custom comparison safety remain setup responsibilities.
+
+## Derived Content-Length
+
+A message field may explicitly derive its value from the effective complete body:
+
+```json
+{"name":"Content-Length","value":{"derivedFrom":"bodyByteCount"}}
+```
+
+Only this field permits the marker. It must be the sole Content-Length field;
+`derivedFrom` must be the string `"bodyByteCount"`. Unknown sources, other value
+types, extra keys, absent/unavailable bodies, and incomplete responses are
+rejected. The earlier boolean marker is not accepted. Literal strings, including
+`"auto"` and `"bodyByteCount"`, remain literal. Inline text counts UTF-8 bytes;
+base64 counts decoded bytes; resources count explicitly resolved owned bytes.
+The runtime HTTP Types head contains the
+resolved decimal value, while `derivesContentLength` retains persistence intent.
+Re-encoding preserves that intent. Literal strings always remain literal,
+including deliberate mismatches and values equal to the current body length.
+
+Recording explicitly calls `HTTPContentLength.request` or `.response` with a
+prepared value after redaction and normalization. Response selection also takes
+the effective request method. Selection requires one nonempty decimal field,
+a complete body, and equality with its byte count. Leading zeros are accepted;
+signs, lists, overflow, repeated values, and mismatches remain literal. Absent
+fields remain absent. HEAD and CONNECT methods, informational responses, statuses
+204/205/206/304, and any Content-Encoding, Transfer-Encoding, or Content-Range
+field conservatively prevent derivation. Failed/open responses retain literals.
+The same semantic exclusions reject authored markers during contextual decoding;
+interaction encoding/decoding additionally checks the root request method.
+
+Decode response nodes with their bodies: the node resolves the head after loading
+content and validating successful completion. A standalone `HTTPResponseHead`
+decoder cannot resolve a derived marker and rejects it. Native adapters consume
+the resolved node head. Rebuilding a head/message with its ordinary initializer
+creates literal fields, providing an explicit way to author mismatches. Request
+storage placement preserves an existing marker without changing bytes.
+
+Editing text, base64, or a resource changes the resolved length and weighted
+segment allocation without parsing or re-encoding content. Whitespace, duplicate
+JSON names, numeric spellings, and escapes remain exact bytes. ETag, Digest,
+Content-MD5, signatures, and trailers remain literal and are never recalculated.
+Default request matching continues to exclude Content-Length.

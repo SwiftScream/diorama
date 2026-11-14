@@ -90,7 +90,8 @@ public struct HTTPBodyStoragePolicy: Sendable {
         case let .resource(resource): .resource(resource)
         default: .bytes(bytes)
         }
-        return try HTTPRequestMessage(head: request.head, body: body)
+        return try HTTPRequestMessage(head: request.head, body: body,
+                                      derivesContentLength: request.derivesContentLength)
     }
 
     /// Selects storage for newly recorded prepared response content or an observed prefix.

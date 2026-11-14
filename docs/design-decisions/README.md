@@ -3,6 +3,12 @@
 - Status: Accepted
 - Consolidated design approved by owner: 2026-09-07
 
+On 2026-11-15, the owner approves
+[DD17's derived field spelling amendment](17-http-lifecycle-composition.md#derived-field-spelling--owner-approved-2026-11-15).
+Derived Content-Length values use `{ "derivedFrom": "bodyByteCount" }` inside
+the ordered field entry. Literal strings remain unambiguous; only this source
+and field are supported.
+
 On 2026-11-14, the owner approves
 [DD17's inclusive zero thresholds amendment](17-http-lifecycle-composition.md#inclusive-zero-thresholds--owner-approved-2026-11-14).
 A zero limit keeps empty content inline and externalizes nonempty content;
