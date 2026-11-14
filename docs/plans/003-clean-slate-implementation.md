@@ -2996,20 +2996,44 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H09 — Stable URLSession failure supplements
 
+- Status: Complete on 2026-11-15. The owner confirms scope and the
+  GPT-6 Sol, `high` recommendation, including the separate `DioramaURLSession`
+  target boundary, then approves the snapshot-backed simplification in review.
+  The owner approves the implementation, consolidation into the primary source
+  file, squashing, and PR creation on 2026-11-15. Merge requires passing required
+  checks and a separate owner request.
+- Evidence: [Stable URLSession failure supplements](../evidence/003-H09-urlsession-failures.md).
+- Contract: [URLSession failure component version 1](../urlsession-failure-schema-v1.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Bounded native error extraction and reconstruction must preserve useful identity while omitting unsafe object graphs.
 - Prerequisites: 003-H05, 003-G01, 003-B02, 003-D02/003-D05 evidence; DD12, DD17, Q4.
-- Scope: Define URLSession-owned failure supplements and a deliberate codec,
-  reusing G01's package-visible Core `NSErrorSnapshot` for bounded values,
-  capture, validation, and native reconstruction. Apply URLSession's approved
-  key/metadata policy and preparation before admission; the shared structural
-  allowlist does not replace it.
-- Expected files/modules: URLSession stable failure/conversion files and tests; no interception implementation yet.
-- Public behavior: Preserve NSError domain/code, unknown numeric URLError codes, optional recognized name/prepared failing URL and approved typed metadata.
+- Scope: Keep a thin URLSession-owned failure value around G01's package-visible
+  Core `NSErrorSnapshot`, with capture/preparation, native reconstruction, and
+  deliberate persistence through `NSErrorSnapshotPayload`. Use shared bounded
+  structural metadata rules without interpreting native keys. URLSession-specific
+  filtering and fidelity requirements are deferred to I03 under
+  [DD17's foundation amendment](../design-decisions/17-http-lifecycle-composition.md#snapshot-backed-failure-foundation--owner-approved-2026-11-15).
+- Expected files/modules: `DioramaURLSession/URLSessionFailure.swift` contains the
+  value, capture/preparation, reconstruction, and codec; focused tests prove this
+  boundary. No interception implementation yet.
+- Public behavior: Preserve NSError domain/code, unknown numeric codes, and
+  supported bounded metadata including nested values and native URLs. Default
+  preparation preserves supported strings, including explicit descriptions;
+  consumers own redaction before admission.
   Unsupported entries warn with key/type only and omit without poisoning health.
-  Replay reconstructs fresh NSError/URLError; infrastructure errors stay distinct.
-- Tests/verification: V-code; supported/unknown codes, bounded nested values, unrendered secret/object/underlying-error omission, replay reconstruction, native error forwarding unchanged, strict persisted fields and tags.
-- Exclusions: Universal HTTP failure taxonomy, localized descriptions/security objects/custom subclass identity, treating HTTP status as transport failure.
-- Checkpoint: R; review exact allowlist and limits before adapters capture errors.
+  Native reconstruction returns `any Error`, explicitly wrapping URL-domain
+  NSError values in URLError and retaining NSError for other domains.
+  Infrastructure errors stay distinct. The owner approves squashing this Linux
+  CI correction into H09 on 2026-11-16; the persisted component remains unchanged.
+- Tests/verification: V-code; known/unknown codes, native URL and bounded nested
+  metadata round trips, key/type-only object/underlying-error omission, explicit
+  redaction and original-error preservation, generic HTTP failure composition,
+  strict persisted fields/tags, and deterministic fixture re-encoding.
+- Exclusions: Universal HTTP failure taxonomy, code-name tables, key-specific
+  reason accessors/policies, separate failing-URL or alias handling, native adapter
+  implementation, security objects/custom subclass identity, and treating HTTP
+  status as transport failure.
+- Checkpoint: R; review the thin wrapper and approximate round-trip contract;
+  final native metadata behavior remains an adapter checkpoint.
 
 - Preparatory review update: Complete on 2026-11-15; the owner approves a separate
   PR for this commit. The owner requests shared URL/NSURL snapshot and payload
@@ -3021,6 +3045,8 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
   H09's URLSession wrapper remains a separate review unit; this PR delivers only
   the shared conversion prerequisite. Merge requires passing required checks
   and a separate owner request.
+  The owner subsequently approves the H09 simplification above after discussion;
+  the preparatory commit remains independently reviewable.
 
 ### 003-H10 — Response-owned redirect branches
 
@@ -3192,6 +3218,8 @@ the accepted Linux milestone profile; its upstream repair is not required.
 - Recommended model: GPT-6 Sol; reasoning: `high`. Integrate native failure timing and partial bodies without conflating dependency errors, caller cancellation, and infrastructure facts.
 - Prerequisites: 003-I02, 003-H09; DD06, DD12, DD17.
 - Scope: Connect native error observation/reconstruction to attempt and partial body failures with timing and safe warning/health rules.
+  Establish URLSession-specific metadata filtering or fidelity requirements with
+  native conformance evidence, reusing H09's snapshot-backed failure foundation.
 - Expected files/modules: URLSession failure paths and controlled error fixtures.
 - Public behavior: Return native live errors in record/passthrough; replay the stable domain/code/approved metadata as a fresh native error.
   Dependency cancellation before caller cancellation differs from caller runtime control.

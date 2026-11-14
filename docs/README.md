@@ -386,6 +386,11 @@ test-integration design. They do not authorize those APIs.
 - [Shared error snapshot URLs](evidence/003-H09-error-snapshot-urls.md) records
   native URL retention, tagged persistence, bounds, and native reconstruction.
 
+- [URLSession failure component schema](urlsession-failure-schema-v1.md) documents
+  snapshot-backed error identity and metadata, preparation, and strict coding.
+- [URLSession failure evidence](evidence/003-H09-urlsession-failures.md) records
+  the thin wrapper, shared conversion, safe omissions, and HTTP composition.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

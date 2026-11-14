@@ -385,6 +385,10 @@ supplements, and deliberate independently versioned persistence schemas. A
 shared structural allowlist is not permission to persist every supported value;
 URLSession's more restrictive metadata policy remains in force.
 
+Later refinement: [DD17's snapshot-backed foundation amendment](17-http-lifecycle-composition.md#snapshot-backed-failure-foundation--owner-approved-2026-11-15)
+supersedes that narrower-policy requirement for H09. Its wrapper uses the shared
+structural rules; URLSession-specific filtering is deferred to native adapter work.
+
 The helper is an implementation detail shared across package modules, not a
 consumer-facing error type. Systems continue delivering native errors in their
 public dependency APIs.

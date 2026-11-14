@@ -4,6 +4,12 @@
 - Consolidated design approved by owner: 2026-09-07
 
 On 2026-11-15, the owner approves
+[DD17's snapshot-backed failure foundation](17-http-lifecycle-composition.md#snapshot-backed-failure-foundation--owner-approved-2026-11-15).
+H09 retains the shared snapshot wrapper, preparation, codec, and native error
+reconstruction. URLSession-specific accessors, code names, URL alias handling,
+and key filtering are removed; adapter metadata policy is deferred to I03.
+
+On 2026-11-15, the owner approves
 [DD06's shared URL snapshot values](06-runtime-to-snapshot-conversion.md#shared-url-snapshot-values--owner-approved-2026-11-15)
 and [DD08's unreleased version-one extension](08-schema-compatibility.md#unreleased-url-value-extension--owner-approved-2026-11-15).
 The shared error helper and codec retain native URL metadata, including within

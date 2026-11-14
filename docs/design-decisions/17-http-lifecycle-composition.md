@@ -404,6 +404,11 @@ scope, strict model, and one-schema platform capability rules are unchanged.
 
 ## URLSession failure representation
 
+Later refinement: the owner-approved
+[snapshot-backed foundation amendment](#snapshot-backed-failure-foundation--owner-approved-2026-11-15)
+supersedes the specialized H09 failure shape and defers URLSession-specific
+metadata policy to concrete adapter work. The following records the original decision.
+
 Failures are URLSession adapter semantics rather than a premature universal
 HTTP failure taxonomy. The stable failure contains:
 
@@ -428,6 +433,39 @@ A canceled error caused by observed caller task cancellation is runtime
 control and is not persisted. An independently observed dependency cancellation
 failure may be recorded. Diorama misses, ambiguity, capability failures, and
 expired executions use a separate infrastructure error domain.
+
+### Snapshot-backed failure foundation — owner-approved 2026-11-15
+
+During H09 review, the owner approves a thin `URLSessionFailure` containing only
+Core's shared `NSErrorSnapshot`. Capture uses the shared bounded structural rules,
+preparation remains explicit, persistence delegates to `NSErrorSnapshotPayload`,
+and reconstruction creates a fresh native error. This remains the concrete
+failure parameter for generic HTTP lifecycle values.
+
+During Linux CI review, the owner approves explicit URL-domain materialization
+at this boundary: `makeError()` returns `any Error`, wrapping the reconstructed
+NSError in `URLError(_nsError:)` when its domain is `NSURLErrorDomain` and returning
+NSError for other domains. This preserves the native URL error type without
+depending on Darwin's automatic NSError bridging. Core's shared snapshot helper
+continues reconstructing NSError; the persisted component is unchanged.
+
+H09 no longer defines a recognized-name table, typed reason accessors, separate
+failing-URL storage, URL alias precedence/synthesis, or a URLSession-specific key
+allowlist. URLs stay in snapshot user information as native URL values; ordinary
+strings stay strings. Every error domain uses the same structural rules. Supported
+strings, including explicit localized descriptions, survive unless preparation
+removes them. This supersedes the earlier prohibition on capturing such strings
+in this foundational component; structural acceptance does not establish safe
+disclosure or choose the production adapter's final metadata policy.
+
+I03 must establish any URLSession-specific filtering or fidelity requirements
+with native record/replay conformance evidence. Live error forwarding, omission
+diagnostics, native reconstruction limits, caller-cancellation classification,
+and separation from infrastructure errors remain required. The unreleased H09
+component keeps version one with the smaller `version`/`error` shape; its earlier
+unmerged review prototype has no retained reader. This amendment also reconciles
+DD06's earlier statement that a narrower URLSession metadata policy is already
+in force. It does not begin adapter work or change other systems' policies.
 
 ## Timing semantics
 

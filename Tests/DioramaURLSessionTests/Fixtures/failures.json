@@ -1,0 +1,46 @@
+[
+  {
+    "error" : {
+      "code" : -1009,
+      "domain" : "NSURLErrorDomain",
+      "userInfo" : {
+        "nested" : {
+          "type" : "dictionary",
+          "value" : {
+            "items" : {
+              "type" : "array",
+              "value" : [
+                {
+                  "type" : "integer",
+                  "value" : 9223372036854775807
+                },
+                {
+                  "type" : "boolean",
+                  "value" : true
+                }
+              ]
+            }
+          }
+        },
+        "url" : {
+          "type" : "url",
+          "value" : "https://example.invalid/exact?x=%2f&x=%2F"
+        }
+      }
+    },
+    "version" : 1
+  },
+  {
+    "error" : {
+      "code" : 987654,
+      "domain" : "ExampleError",
+      "userInfo" : {
+        "custom" : {
+          "type" : "string",
+          "value" : "retained"
+        }
+      }
+    },
+    "version" : 1
+  }
+]

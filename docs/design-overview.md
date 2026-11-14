@@ -644,6 +644,15 @@ response dispositions, and failures are embedded typed supplements. Required
 platform capabilities derive from this structure without fragmenting the
 shared HTTP schema or URLSession identity.
 
+`DioramaHTTP` keeps its failure parameter generic. `DioramaURLSession` owns
+the [stable URLSession failure component](urlsession-failure-schema-v1.md),
+as a thin wrapper around Core's bounded NSError snapshot and Persistence's
+opt-in payload codec. Capture, explicit preparation, and fresh native reconstruction
+preserve supported metadata, including URLs and ordinary strings. There are no
+key-specific accessors or separate failing-URL fields. Under
+[DD17's foundation amendment](design-decisions/17-http-lifecycle-composition.md#snapshot-backed-failure-foundation--owner-approved-2026-11-15),
+URLSession-specific metadata policy is deferred to concrete adapter work.
+
 ### Unmatched loaded attachments and persistence registration
 
 The repository decodes and validates every payload for persisted-value
