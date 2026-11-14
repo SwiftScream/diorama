@@ -393,6 +393,9 @@ test-integration design. They do not authorize those APIs.
 - [URLSession failure evidence](evidence/003-H09-urlsession-failures.md) records
   the thin wrapper, shared conversion, safe omissions, and HTTP composition.
 
+- [HTTP redirect evidence](evidence/003-H10-redirect-branches.md) records response-owned
+  branches, request derivation, current-decision selection, and recursive validation.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

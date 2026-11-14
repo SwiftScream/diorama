@@ -47,7 +47,7 @@ struct URLSessionFailureCodingTests {
         }
         // A received status remains a response; only the explicit failure leaf fails transport.
         #expect(response.head.value.head.status == .serviceUnavailable)
-        #expect(response.body.content == .bytes([0, 255]))
+        #expect(response.body?.content == .bytes([0, 255]))
     }
 
     @Test

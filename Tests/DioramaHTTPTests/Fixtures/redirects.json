@@ -1,0 +1,498 @@
+[
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "bytes",
+        "text" : "\u0001\u0002"
+      },
+      "fields" : [
+
+      ],
+      "method" : "POST",
+      "path" : "/start",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "7ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Found",
+            "status" : 302
+          }
+        },
+        "next" : {
+          "kind" : "redirect",
+          "redirect" : {
+            "after" : "2ms",
+            "outcome" : {
+              "kind" : "followProposed",
+              "result" : {
+                "kind" : "received",
+                "response" : {
+                  "head" : {
+                    "after" : "11ms",
+                    "value" : {
+                      "fields" : [
+
+                      ],
+                      "reasonPhrase" : "Temporary Redirect",
+                      "status" : 307
+                    }
+                  },
+                  "next" : {
+                    "kind" : "redirect",
+                    "redirect" : {
+                      "after" : {
+                        "override" : "4ms"
+                      },
+                      "outcome" : {
+                        "kind" : "followModified",
+                        "request" : {
+                          "authority" : "example.invalid",
+                          "body" : {
+                            "kind" : "bytes",
+                            "text" : "edited"
+                          },
+                          "fields" : [
+
+                          ],
+                          "method" : "POST",
+                          "path" : "/modified",
+                          "scheme" : "https"
+                        },
+                        "result" : {
+                          "kind" : "received",
+                          "response" : {
+                            "head" : {
+                              "after" : "17ms",
+                              "value" : {
+                                "fields" : [
+
+                                ],
+                                "reasonPhrase" : "OK",
+                                "status" : 200
+                              }
+                            },
+                            "next" : {
+                              "body" : {
+                                "conclusion" : {
+                                  "completion" : {
+                                    "after" : "5ms"
+                                  },
+                                  "kind" : "returned"
+                                },
+                                "content" : {
+                                  "kind" : "bytes",
+                                  "text" : "done"
+                                }
+                              },
+                              "kind" : "deliverBody"
+                            }
+                          }
+                        }
+                      },
+                      "proposedRequest" : {
+                        "authority" : "example.invalid",
+                        "body" : {
+                          "kind" : "bytes",
+                          "text" : "\u0003"
+                        },
+                        "fields" : [
+
+                        ],
+                        "method" : "POST",
+                        "path" : "/last",
+                        "scheme" : "https"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "proposedRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/next",
+              "scheme" : "https"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/start",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "0ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Found",
+            "status" : 302
+          }
+        },
+        "next" : {
+          "kind" : "redirect",
+          "redirect" : {
+            "after" : "0ms",
+            "outcome" : {
+              "body" : {
+                "conclusion" : {
+                  "completion" : {
+                    "after" : "5ms",
+                    "trailers" : {
+                      "after" : "3ms",
+                      "fields" : [
+                        {
+                          "name" : "X-End",
+                          "value" : "done"
+                        }
+                      ]
+                    }
+                  },
+                  "kind" : "returned"
+                },
+                "content" : {
+                  "kind" : "bytes",
+                  "text" : "redirect"
+                },
+                "segments" : [
+                  {
+                    "after" : "1ms",
+                    "byteWeight" : 2
+                  },
+                  {
+                    "after" : "2ms",
+                    "byteWeight" : 6
+                  }
+                ]
+              },
+              "kind" : "refuse"
+            },
+            "proposedRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/next",
+              "scheme" : "https"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/start",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "0ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Found",
+            "status" : 302
+          }
+        },
+        "next" : {
+          "kind" : "redirect",
+          "redirect" : {
+            "after" : "0ms",
+            "outcome" : {
+              "kind" : "open"
+            },
+            "proposedRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/next",
+              "scheme" : "https"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/start",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "0ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Found",
+            "status" : 302
+          }
+        },
+        "next" : {
+          "kind" : "redirect",
+          "redirect" : {
+            "after" : "0ms",
+            "outcome" : {
+              "kind" : "followProposed",
+              "result" : {
+                "kind" : "open"
+              }
+            },
+            "proposedRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/next",
+              "scheme" : "https"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/start",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "0ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Found",
+            "status" : 302
+          }
+        },
+        "next" : {
+          "kind" : "redirect",
+          "redirect" : {
+            "after" : "0ms",
+            "outcome" : {
+              "kind" : "followProposed",
+              "result" : {
+                "failure" : {
+                  "after" : "19ms",
+                  "value" : "timeout"
+                },
+                "kind" : "failed"
+              }
+            },
+            "proposedRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/next",
+              "scheme" : "https"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/start",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "0ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Found",
+            "status" : 302
+          }
+        },
+        "next" : {
+          "kind" : "redirect",
+          "redirect" : {
+            "after" : "0ms",
+            "outcome" : {
+              "body" : {
+                "conclusion" : {
+                  "failure" : {
+                    "after" : "9ms",
+                    "value" : "lost"
+                  },
+                  "kind" : "failed"
+                },
+                "content" : {
+                  "base64" : "AP8=",
+                  "kind" : "bytes"
+                }
+              },
+              "kind" : "refuse"
+            },
+            "proposedRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/next",
+              "scheme" : "https"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/start",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "0ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Found",
+            "status" : 302
+          }
+        },
+        "next" : {
+          "kind" : "redirect",
+          "redirect" : {
+            "after" : "0ms",
+            "outcome" : {
+              "body" : {
+                "conclusion" : {
+                  "kind" : "open"
+                },
+                "content" : {
+                  "base64" : "4oI=",
+                  "kind" : "bytes"
+                }
+              },
+              "kind" : "refuse"
+            },
+            "proposedRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/next",
+              "scheme" : "https"
+            }
+          }
+        }
+      }
+    }
+  }
+]

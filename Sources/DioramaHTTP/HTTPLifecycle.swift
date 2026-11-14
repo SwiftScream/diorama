@@ -11,18 +11,14 @@ public struct HTTPInteraction<Failure: Sendable>: Sendable {
     ///
     /// System admission separately validates preparation policy and capabilities.
     public init(initialRequest: HTTPRequestMessage, result: HTTPAttemptResult<Failure>) throws {
-        if case let .received(response) = result, response.head.value.derivesContentLength {
-            guard HTTPContentLength.unambiguous(method: initialRequest.head.method) else {
-                throw HTTPMessageError.invalidField
-            }
-        }
+        try result.validateRequestMethod(initialRequest.head.method)
         self.initialRequest = initialRequest
         self.result = result
     }
 }
 
 /// Mutually exclusive progress before a response head is received.
-public enum HTTPAttemptResult<Failure: Sendable>: Sendable {
+public indirect enum HTTPAttemptResult<Failure: Sendable>: Sendable {
     /// A response owns all subsequent body progress and its conclusion.
     case received(HTTPResponseNode<Failure>)
     /// A typed adapter failure before any response head.
@@ -31,18 +27,28 @@ public enum HTTPAttemptResult<Failure: Sendable>: Sendable {
     case openAtRecordingHorizon
 }
 
-/// A single received response with its own head and body lifecycle.
+/// A single received response owning either body delivery or a redirect decision.
 public struct HTTPResponseNode<Failure: Sendable>: Sendable {
-    /// The response head and invocation-relative delay to its receipt.
+    /// The response head, delayed from invocation or the current preceding decision.
     public let head: HTTPTimed<HTTPResponseHead>
-    /// Complete content or an observed prefix, with exactly one conclusion.
-    public let body: HTTPBodyDelivery<Failure>
+    /// Exactly one response-owned continuation.
+    public let next: HTTPAfterResponseHead<Failure>
 
-    /// Builds a response with bounded invocation-relative timing, regardless of status.
+    /// Delivered content, including a refused redirect; nil when no body is exposed.
+    public var body: HTTPBodyDelivery<Failure>? {
+        next.body
+    }
+
+    /// Builds ordinary body delivery, regardless of response status.
     public init(head: HTTPTimed<HTTPResponseHead>, body: HTTPBodyDelivery<Failure>) throws {
-        _ = try HTTPDelay.add(head.after.milliseconds.value, body.durationMilliseconds)
+        try self.init(head: head, next: .deliverBody(body))
+    }
+
+    /// Validates local timing and derived length without crossing a decision anchor.
+    public init(head: HTTPTimed<HTTPResponseHead>, next: HTTPAfterResponseHead<Failure>) throws {
+        _ = try HTTPDelay.add(head.after.milliseconds.value, next.durationMilliseconds)
         if head.value.derivesContentLength {
-            guard case .returned = body.conclusion, let count = body.content.byteCount,
+            guard let body = next.body, case .returned = body.conclusion, let count = body.content.byteCount,
                   HTTPContentLength.unambiguous(status: head.value.head.status.code),
                   HTTPContentLength.unambiguous(fields: head.value.head.headerFields)
             else {
@@ -55,7 +61,34 @@ public struct HTTPResponseNode<Failure: Sendable>: Sendable {
         } else {
             self.head = head
         }
-        self.body = body
+        self.next = next
+    }
+}
+
+/// Mutually exclusive progress after a received response head.
+public enum HTTPAfterResponseHead<Failure: Sendable>: Sendable {
+    /// Ordinary delivery owns this response's content and conclusion.
+    case deliverBody(HTTPBodyDelivery<Failure>)
+    /// A decision owns the proposed request and its single recorded continuation.
+    case redirect(HTTPRedirectPhase<Failure>)
+
+    var body: HTTPBodyDelivery<Failure>? {
+        switch self {
+        case let .deliverBody(body): body
+        case let .redirect(phase):
+            if case let .refuse(body) = phase.outcome {
+                body
+            } else {
+                nil
+            }
+        }
+    }
+
+    var durationMilliseconds: Int64 {
+        switch self {
+        case let .deliverBody(body): body.durationMilliseconds
+        case let .redirect(phase): phase.after.milliseconds.value
+        }
     }
 }
 
@@ -163,3 +196,5 @@ extension HTTPAttemptResult: Equatable where Failure: Equatable {}
 extension HTTPResponseNode: Equatable where Failure: Equatable {}
 extension HTTPBodyDelivery: Equatable where Failure: Equatable {}
 extension HTTPBodyConclusion: Equatable where Failure: Equatable {}
+
+extension HTTPAfterResponseHead: Equatable where Failure: Equatable {}

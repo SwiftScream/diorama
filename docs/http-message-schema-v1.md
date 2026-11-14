@@ -150,8 +150,8 @@ callbacks or deciding whether a test passes.
 
 The attempt result is exactly one case:
 
-- `.received(HTTPResponseNode)` introduces one timed response head and one body
-  lifecycle.
+- `.received(HTTPResponseNode)` introduces one timed response head and one
+  response-owned body or redirect continuation.
 - `.failed(HTTPTimed<Failure>)` represents failure before any head.
 - `.openAtRecordingHorizon` explicitly preserves work still awaiting a head or
   failure when observation ends.
@@ -180,9 +180,10 @@ differ from present empty trailer fields. Explicit null is rejected.
 
 `HTTPDelay(milliseconds:)` accepts Core's `OverridableValue<Int64>` and rejects a
 negative effective delay. `HTTPTimed(after:value:)` takes an already validated
-delay. A response head's delay starts at invocation; failure before a head also
-starts at invocation. A body conclusion's delay starts at the head or preceding
-body event, or at trailers when completion has them. Each delay uses the shared
+delay. A response head's delay starts at invocation or completion of the preceding
+redirect decision; failure before a head uses the same attempt-local anchor.
+A body conclusion's delay starts at its delivery anchor (head or current
+redirect decision), preceding body event, or trailers when completion has them. Each delay uses the shared
 millisecond/seconds scalar grammar and canonical spelling. An observed scalar
 such as `"10ms"` is ordinary timing; `{"override":"1s"}` is authored timing.
 The shared editing form accepts observed plus override and selects one effective
@@ -211,7 +212,9 @@ let interaction = try HTTPInteraction<ExampleFailure>(
 ```
 
 The generic failure value's validation and persisted contract belong to its
-adapter. Public lifecycle builders compose validated components; the enums make
+adapter. Public lifecycle builders compose validated components; the throwing
+`HTTPInteraction` initializer checks derived response lengths against each effective
+request method, including recursive redirect edges; the enums make
 contradictory results, multiple conclusions, and failure/open trailers impossible
 to construct. Decoding follows the same component construction boundary.
 
@@ -221,14 +224,25 @@ The root has only required `initialRequest` and `result` fields. There is no
 separate root conclusion. The attempt result shapes are:
 
 ```json
-{"kind":"received","response":{"head":{"after":"10ms","value":{"status":503,"reasonPhrase":"Service Unavailable","fields":[]}},"body":{"content":{"kind":"bytes","text":""},"conclusion":{"kind":"returned","completion":{"after":"0ms"}}}}}
+{"kind":"received","response":{"head":{"after":"10ms","value":{"status":503,"reasonPhrase":"Service Unavailable","fields":[]}},"next":{"kind":"deliverBody","body":{"content":{"kind":"bytes","text":""},"conclusion":{"kind":"returned","completion":{"after":"0ms"}}}}}}
 {"kind":"failed","failure":{"after":"25ms","value":"timeout"}}
 {"kind":"open"}
 ```
 
 The illustrative `"timeout"` is a test adapter failure, not a production HTTP
-failure schema. Received responses require `head` and `body`. Timed heads and
-failures require `after` and `value`. Bodies require `content` and `conclusion`.
+failure schema. Received responses require `head` and `next`. The continuation
+uses an explicit `kind` and exactly its matching payload:
+
+```json
+{"kind":"deliverBody","body":{"content":{"kind":"absent"},"conclusion":{"kind":"open"}}}
+{"kind":"redirect","redirect":{"after":"0ms","proposedRequest":{"method":"GET","fields":[],"body":{"kind":"absent"}},"outcome":{"kind":"open"}}}
+```
+
+`HTTPAfterResponseHead` owns this tagged encoding. Missing/null `next`, unknown
+or missing tags, mismatched or competing payloads, and top-level `body`/`redirect`
+fields are rejected. The unreleased earlier response spelling has no retained
+reader. Timed heads and failures require `after` and `value`. Bodies require
+`content` and `conclusion`.
 The body conclusion shapes are:
 
 ```json
@@ -246,11 +260,98 @@ prefixes, pre-head failure/open, trailers, and all body representations. The
 fixture's request and each response's content appear once at their owning node.
 
 This establishes the response/body foundation of DD17's recursive lifecycle.
-Redirect, authentication, and disposition nodes remain assigned to H10–H12;
-weighted segmentation and timing allocation are described below. No future
+Redirect nodes extend it below. Authentication and disposition remain assigned
+to H11–H12; weighted segmentation and timing allocation are described below. No future
 node placeholders, scheduler, capture accumulator, native failure mapping, system
 registration, or runtime delivery engine is introduced here. Full system schema
 version dispatch remains assigned to H13.
+
+### Response-owned redirect branches
+
+`HTTPResponseNode.next` is exactly one of `.deliverBody(HTTPBodyDelivery)` or
+`.redirect(HTTPRedirectPhase)`. The existing `init(head:body:)` builds ordinary
+body delivery; `init(head:next:)` selects the strict continuation. The `body`
+accessor is optional: it returns ordinary or refused delivery, and nil for a
+followed or unanswered redirect. A followed redirect's content is unavailable;
+there is no second body slot or synthetic completion to contradict its branch.
+Every response persists `head` and one tagged `next` continuation; the runtime
+and persisted branch ownership agree.
+
+`HTTPRedirectPhase<Failure>` owns `after`, `proposedRequest`, and `outcome`.
+The proposal is a complete prepared `HTTPRequestMessage`, including its exact
+method, target, fields, and body. It is not reconstructed from Location or from
+a generic redirect status policy. The adapter observes the native proposal,
+including resolved relative targets, method/body rewrites, and credential
+handling, then applies setup preparation. This component adds no native URL
+conversion, interception, forwarding, or redirect policy implementation.
+
+The outcome is exactly one of:
+
+- `.followProposed(result)`: `effectiveRequest` derives from the proposal.
+- `.followModified(request, result)`: the edge stores the modified effective
+  request once; `effectiveRequest` returns it.
+- `.refuse(body)`: the existing response owns the delivered content or partial
+  prefix and its returned, failed, or open conclusion. A refusal does not create
+  another response head or request.
+- `.openAtRecordingHorizon`: no answer was observed. There is no next request,
+  body, completion, or decision duration.
+
+Followed results are recursive `HTTPAttemptResult` values, with no repeated
+request root. They can receive another response/redirect, fail before the next
+head, or remain open while awaiting it. Multi-hop chains therefore preserve
+one response per hop and one effective request per nonderivable edge. Redirect
+structure is shared in `DioramaHTTP`, parameterized by the adapter's failure
+value; H10 requires no additional native-only URLSession supplement fields.
+The shared component does not broaden URLSession's advertised capabilities or
+infer support for arbitrary status codes; system capability admission remains H13.
+
+A redirect response encodes with required `head` and
+`next: { "kind": "redirect", "redirect": ... }`. The redirect payload has required
+`after`, `proposedRequest`, and `outcome`. Its outcome shapes are:
+
+```json
+{"kind":"followProposed","result":{"kind":"open"}}
+{"kind":"followModified","request":{"method":"GET","fields":[],"body":{"kind":"absent"}},"result":{"kind":"failed","failure":{"after":"19ms","value":"timeout"}}}
+{"kind":"refuse","body":{"content":{"kind":"bytes","text":"redirect"},"conclusion":{"kind":"returned","completion":{"after":"5ms"}}}}
+{"kind":"open"}
+```
+
+The illustrative failure string belongs to a test adapter. All request/body and
+result codecs retain their existing strict fields, resource resolution, timing
+editing forms, and adapter failure contracts. Missing/null/unknown fields,
+competing continuation payloads, unknown continuation/outcome tags, and continuations
+under incompatible branches fail decoding. `Fixtures/redirects.json` is a
+canonical seven-interaction example including two hops and a modified request.
+These remain components of the unreleased version-one system schema; H13 owns
+system registration/version dispatch.
+
+`after` starts at the owning head and ends at redirect presentation. The head
+delay plus presentation delay must fit the millisecond scalar range. Every
+followed attempt's first head/failure delay and every refused body's local
+segment/trailer/conclusion delay starts from completion of the **current**
+application decision. Validation does not sum through that decision boundary.
+There is no persisted application decision latency. Each uninterrupted segment
+retains the existing checked cumulative timing and override semantics.
+
+`continuation(for:requestsMatch:)` is a pure selection operation. Supply a current
+prepared `.follow(request)` or `.refuse` decision and the setup's pure equivalence
+rule over prepared requests, using the same `HTTPRequestMatcher` projections as
+initial selection. It compares the current effective request with the recorded
+edge's effective request; storage placement need not match. A compatible follow
+returns `.attempt(request:result:)`; refusal returns `.deliverBody` under the
+existing head. It never searches alternative recorded branches. An incompatible
+choice/request throws `HTTPRedirectSelectionError.incompatibleDecision`; answering
+an open decision throws `.decisionBeyondRecordingHorizon`. These are safe
+infrastructure facts, distinct from the generic recorded failure. The caller
+reports them through its diagnostic boundary; selection performs no live access.
+Until an answer, an open decision remains pending. Scheduling, diagnostic delivery,
+and native decision callbacks remain assigned to H12B/I05.
+
+Derived Content-Length uses only ordinary or refused complete body bytes.
+Followed and unanswered redirect heads cannot derive length from unavailable
+content. A refused body's edited inline/resource bytes resolve the owning head's
+marker. Root construction and coding validate response markers against the
+request method derived at **each** follow edge, including modified methods.
 
 ### Weighted delivery and local timing
 

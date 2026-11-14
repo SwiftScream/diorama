@@ -653,6 +653,13 @@ key-specific accessors or separate failing-URL fields. Under
 [DD17's foundation amendment](design-decisions/17-http-lifecycle-composition.md#snapshot-backed-failure-foundation--owner-approved-2026-11-15),
 URLSession-specific metadata policy is deferred to concrete adapter work.
 
+`DioramaHTTP`'s [redirect components](http-message-schema-v1.md#response-owned-redirect-branches)
+attach one proposal and one followed, modified, refused, or open branch to the
+owning response head. Effective requests derive at their edges, and continuation
+timing starts from the current decision. Native policy and callback delivery
+remain adapter responsibilities. Responses persist one explicit tagged `next`
+continuation, matching the runtime body's or redirect's single ownership.
+
 ### Unmatched loaded attachments and persistence registration
 
 The repository decodes and validates every payload for persisted-value
