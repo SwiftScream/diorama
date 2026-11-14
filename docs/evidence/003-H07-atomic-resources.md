@@ -231,15 +231,21 @@ source refactor and this evidence form one separate `ref(http)` commit as reques
 
 ## Review boundary
 
-Two implementation commits deliver one H07 review unit:
+The owner approves H07 review and authorizes PR creation on 2026-11-14. Four
+atomic commits deliver the unit in its final reviewed form:
 
 1. `003-H07: feat(persistence): publish atomic document resources` contains
    persistence mechanics, storage and system-independent codec/repository tests,
    the persistence schema, and [foundation evidence](003-H07-persistence-resources.md).
 2. `003-H07: feat(http): integrate atomic body resources` contains HTTP byte
    ownership, resource coding, matching, HTTP integration tests and schema,
-   owning-plan completion status, and this combined evidence.
+   the owned-resource and explicit-resolution contract, and combined evidence.
+3. `003-H07: ref(http): model body payloads as an enum` preserves JSON and public
+   behavior while making invalid stored payload combinations unrepresentable.
+4. `003-H07: docs(evidence): finalize review and plan status` records owner review
+   approval and the owning plan's completed status for publication.
 
 The complete review diff is against H06 at `17004ca`; it excludes the earlier
-HTTP units. Owner review is the next checkpoint. Push, PR creation, merge, and
-the next implementation unit require their respective owner instructions.
+HTTP units and H07A. Required PR checks verify quality, macOS, iOS, Linux, and
+coverage on the published revision. Merge and subsequent implementation work
+still require separate owner instructions.

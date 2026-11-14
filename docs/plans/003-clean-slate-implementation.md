@@ -2917,16 +2917,16 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H07 — Atomic resources with the first resource-backed consumer
 
-- Status: Complete locally on 2026-11-11 following owner confirmation of scope,
-  GPT-6 Astra / `xhigh` reasoning, and stacked development atop H06. Focused
-  resource/persistence tests, the canonical macOS gate, and fresh macOS/iOS
-  coverage gates pass. Local Linux is unavailable; required PR checks enforce
-  the complete platform/coverage matrix before separately authorized merge.
-  The review unit contains a persistence foundation commit followed by HTTP
-  integration. The owner approves stable file paths and exclusive publication
-  on 2026-11-14; the latest macOS review checks are recorded in the evidence.
-  Earlier iOS results describe the original implementation. Owner review is
-  the next checkpoint.
+- Status: Complete on 2026-11-14; the owner approves review and authorizes PR
+  creation. Implementation follows the confirmed GPT-6 Astra / `xhigh` scope
+  and development atop H06. The unit contains persistence foundation, HTTP
+  integration, a separate body-payload enum refactor, and final review/status
+  documentation. The approved stable-path, exclusive-publication, complete
+  encoding, and owned-resource contracts are recorded in the evidence. Latest
+  local review validation passes 61 focused tests and the 702-test macOS gate;
+  earlier iOS results describe the original implementation. Required PR checks
+  enforce quality, macOS, iOS, Linux, and coverage before separately authorized
+  merge. H07A remains a separate review unit.
 - Evidence: [Atomic document and HTTP body resources](../evidence/003-H07-atomic-resources.md).
 
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Stable document/resource files must preserve prepared byte ownership, exclusive publication, and rollback evidence on every platform.
