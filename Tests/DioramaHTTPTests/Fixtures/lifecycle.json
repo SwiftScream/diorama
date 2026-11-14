@@ -15,35 +15,6 @@
     "result" : {
       "kind" : "received",
       "response" : {
-        "body" : {
-          "conclusion" : {
-            "completion" : {
-              "after" : "3ms",
-              "trailers" : {
-                "after" : "2ms",
-                "fields" : [
-                  {
-                    "name" : "X-End",
-                    "value" : "first"
-                  },
-                  {
-                    "name" : "X-End",
-                    "value" : "second"
-                  },
-                  {
-                    "name" : "X-Raw",
-                    "value" : "ÿ"
-                  }
-                ]
-              }
-            },
-            "kind" : "returned"
-          },
-          "content" : {
-            "kind" : "bytes",
-            "text" : "ok"
-          }
-        },
         "head" : {
           "after" : "10ms",
           "value" : {
@@ -53,6 +24,38 @@
             "reasonPhrase" : "Not Found",
             "status" : 404
           }
+        },
+        "next" : {
+          "body" : {
+            "conclusion" : {
+              "completion" : {
+                "after" : "3ms",
+                "trailers" : {
+                  "after" : "2ms",
+                  "fields" : [
+                    {
+                      "name" : "X-End",
+                      "value" : "first"
+                    },
+                    {
+                      "name" : "X-End",
+                      "value" : "second"
+                    },
+                    {
+                      "name" : "X-Raw",
+                      "value" : "ÿ"
+                    }
+                  ]
+                }
+              },
+              "kind" : "returned"
+            },
+            "content" : {
+              "kind" : "bytes",
+              "text" : "ok"
+            }
+          },
+          "kind" : "deliverBody"
         }
       }
     }
@@ -111,19 +114,6 @@
     "result" : {
       "kind" : "received",
       "response" : {
-        "body" : {
-          "conclusion" : {
-            "failure" : {
-              "after" : "20ms",
-              "value" : "connectionLost"
-            },
-            "kind" : "failed"
-          },
-          "content" : {
-            "base64" : "AP8=",
-            "kind" : "bytes"
-          }
-        },
         "head" : {
           "after" : "10ms",
           "value" : {
@@ -133,6 +123,22 @@
             "reasonPhrase" : "Service Unavailable",
             "status" : 503
           }
+        },
+        "next" : {
+          "body" : {
+            "conclusion" : {
+              "failure" : {
+                "after" : "20ms",
+                "value" : "connectionLost"
+              },
+              "kind" : "failed"
+            },
+            "content" : {
+              "base64" : "AP8=",
+              "kind" : "bytes"
+            }
+          },
+          "kind" : "deliverBody"
         }
       }
     }
@@ -153,15 +159,6 @@
     "result" : {
       "kind" : "received",
       "response" : {
-        "body" : {
-          "conclusion" : {
-            "kind" : "open"
-          },
-          "content" : {
-            "base64" : "4oI=",
-            "kind" : "bytes"
-          }
-        },
         "head" : {
           "after" : "10ms",
           "value" : {
@@ -171,6 +168,18 @@
             "reasonPhrase" : "OK",
             "status" : 200
           }
+        },
+        "next" : {
+          "body" : {
+            "conclusion" : {
+              "kind" : "open"
+            },
+            "content" : {
+              "base64" : "4oI=",
+              "kind" : "bytes"
+            }
+          },
+          "kind" : "deliverBody"
         }
       }
     }
@@ -191,17 +200,6 @@
     "result" : {
       "kind" : "received",
       "response" : {
-        "body" : {
-          "conclusion" : {
-            "completion" : {
-              "after" : "0ms"
-            },
-            "kind" : "returned"
-          },
-          "content" : {
-            "kind" : "absent"
-          }
-        },
         "head" : {
           "after" : "10ms",
           "value" : {
@@ -211,6 +209,20 @@
             "reasonPhrase" : "No Content",
             "status" : 204
           }
+        },
+        "next" : {
+          "body" : {
+            "conclusion" : {
+              "completion" : {
+                "after" : "0ms"
+              },
+              "kind" : "returned"
+            },
+            "content" : {
+              "kind" : "absent"
+            }
+          },
+          "kind" : "deliverBody"
         }
       }
     }
@@ -231,18 +243,6 @@
     "result" : {
       "kind" : "received",
       "response" : {
-        "body" : {
-          "conclusion" : {
-            "completion" : {
-              "after" : "0ms"
-            },
-            "kind" : "returned"
-          },
-          "content" : {
-            "kind" : "bytes",
-            "text" : ""
-          }
-        },
         "head" : {
           "after" : "10ms",
           "value" : {
@@ -252,6 +252,21 @@
             "reasonPhrase" : "OK",
             "status" : 200
           }
+        },
+        "next" : {
+          "body" : {
+            "conclusion" : {
+              "completion" : {
+                "after" : "0ms"
+              },
+              "kind" : "returned"
+            },
+            "content" : {
+              "kind" : "bytes",
+              "text" : ""
+            }
+          },
+          "kind" : "deliverBody"
         }
       }
     }
@@ -272,14 +287,6 @@
     "result" : {
       "kind" : "received",
       "response" : {
-        "body" : {
-          "conclusion" : {
-            "kind" : "open"
-          },
-          "content" : {
-            "kind" : "unavailable"
-          }
-        },
         "head" : {
           "after" : "10ms",
           "value" : {
@@ -289,6 +296,17 @@
             "reasonPhrase" : "Found",
             "status" : 302
           }
+        },
+        "next" : {
+          "body" : {
+            "conclusion" : {
+              "kind" : "open"
+            },
+            "content" : {
+              "kind" : "unavailable"
+            }
+          },
+          "kind" : "deliverBody"
         }
       }
     }
@@ -309,18 +327,6 @@
     "result" : {
       "kind" : "received",
       "response" : {
-        "body" : {
-          "conclusion" : {
-            "completion" : {
-              "after" : "0ms"
-            },
-            "kind" : "returned"
-          },
-          "content" : {
-            "kind" : "resource",
-            "resource" : "bodies/reply.bin"
-          }
-        },
         "head" : {
           "after" : "10ms",
           "value" : {
@@ -330,6 +336,21 @@
             "reasonPhrase" : "OK",
             "status" : 200
           }
+        },
+        "next" : {
+          "body" : {
+            "conclusion" : {
+              "completion" : {
+                "after" : "0ms"
+              },
+              "kind" : "returned"
+            },
+            "content" : {
+              "kind" : "resource",
+              "resource" : "bodies/reply.bin"
+            }
+          },
+          "kind" : "deliverBody"
         }
       }
     }

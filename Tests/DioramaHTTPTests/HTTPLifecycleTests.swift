@@ -25,21 +25,23 @@ struct HTTPLifecycleTests {
     func `HTTP error statuses return while partial transport failure stays distinct`() throws {
         let values = try examples()
         guard case let .received(returned) = values[0].result,
-              case let .returned(completion) = returned.body.conclusion,
+              let returnedBody = returned.body,
+              case let .returned(completion) = returnedBody.conclusion,
               case let .failed(beforeHead) = values[1].result,
               case let .received(failed) = values[3].result,
-              case let .failed(afterHead) = failed.body.conclusion
+              let failedBody = failed.body,
+              case let .failed(afterHead) = failedBody.conclusion
         else {
             Issue.record("Expected distinct returned, pre-head failure, and body failure branches")
             return
         }
         #expect(returned.head.value.head.status.code == 404)
-        #expect(returned.body.content == .bytes(Array("ok".utf8)))
+        #expect(returnedBody.content == .bytes(Array("ok".utf8)))
         #expect(completion.after.milliseconds == .observed(3))
         #expect(beforeHead.value == .timeout)
         #expect(beforeHead.after.milliseconds == .observed(25))
         #expect(failed.head.value.head.status.code == 503)
-        #expect(failed.body.content == .bytes([0, 255]))
+        #expect(failedBody.content == .bytes([0, 255]))
         #expect(afterHead.value == .connectionLost)
 
         let serverError = try received(
@@ -59,12 +61,12 @@ struct HTTPLifecycleTests {
             Issue.record("Expected response with an open prefix")
             return
         }
-        #expect(response.body.conclusion == .openAtRecordingHorizon)
-        #expect(response.body.content == .bytes([0xE2, 0x82]))
+        #expect(response.body?.conclusion == .openAtRecordingHorizon)
+        #expect(response.body?.content == .bytes([0xE2, 0x82]))
         let openRoot = try object(values[2])
         let rootResult = try #require(openRoot["result"] as? [String: Any])
         #expect(rootResult.keys.sorted() == ["kind"])
-        let openBody = try object(response.body)
+        let openBody = try object(#require(response.body))
         let conclusion = try #require(openBody["conclusion"] as? [String: Any])
         #expect(conclusion.keys.sorted() == ["kind"])
         #expect(openBody.keys.sorted() == ["conclusion", "content"])
@@ -88,8 +90,11 @@ struct HTTPLifecycleTests {
                 #expect(root.keys.sorted() == ["initialRequest", "result"])
                 let result = try #require(root["result"] as? [String: Any])
                 let response = try #require(result["response"] as? [String: Any])
-                #expect(response.keys.sorted() == ["body", "head"])
-                let body = try #require(response["body"] as? [String: Any])
+                #expect(response.keys.sorted() == ["head", "next"])
+                let next = try #require(response["next"] as? [String: Any])
+                #expect(next["kind"] as? String == "deliverBody")
+                #expect(next.keys.sorted() == ["body", "kind"])
+                let body = try #require(next["body"] as? [String: Any])
                 #expect(body.keys.sorted() == ["conclusion", "content"])
             }
         }
@@ -102,7 +107,8 @@ struct HTTPLifecycleTests {
     func `trailers preserve ordered repeated fields and original byte spelling`() throws {
         let values = try decoder().decode([Interaction].self, from: fixture())
         guard case let .received(response) = values[0].result,
-              case let .returned(completion) = response.body.conclusion
+              let body = response.body,
+              case let .returned(completion) = body.conclusion
         else {
             Issue.record("Expected completed response")
             return
@@ -193,7 +199,9 @@ struct HTTPLifecycleTests {
         try rejectFieldEdits(HTTPResponseNode<Failure>.self, response)
         let head = try #require(response["head"] as? [String: Any])
         try rejectFieldEdits(HTTPTimed<HTTPResponseHead>.self, head)
-        let body = try #require(response["body"] as? [String: Any])
+        let next = try #require(response["next"] as? [String: Any])
+        try rejectFieldEdits(HTTPAfterResponseHead<Failure>.self, next)
+        let body = try #require(next["body"] as? [String: Any])
         try rejectFieldEdits(HTTPBodyDelivery<Failure>.self, body)
         let conclusion = try #require(body["conclusion"] as? [String: Any])
         try rejectFieldEdits(HTTPBodyConclusion<Failure>.self, conclusion)
@@ -225,7 +233,9 @@ struct HTTPLifecycleTests {
             _ = try decode(Interaction.self, badTag)
             Issue.record("Expected incompatible nested tag")
         } catch let DecodingError.dataCorrupted(context) {
-            #expect(context.codingPath.map(\.stringValue) == ["result", "response", "body", "conclusion", "kind"])
+            #expect(context.codingPath.map(\.stringValue) == [
+                "result", "response", "next", "body", "conclusion", "kind",
+            ])
             #expect(!context.debugDescription.contains("secret-tag"))
         }
     }

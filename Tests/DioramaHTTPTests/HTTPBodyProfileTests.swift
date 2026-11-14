@@ -222,7 +222,7 @@ struct HTTPBodyProfileTests {
         var head = try #require(received["head"] as? [String: Any])
         head["after"] = "1ms"
         received["head"] = head
-        try expectCorrupt(Response.self, received, path: ["body"])
+        try expectCorrupt(Response.self, received, path: ["next"])
         let completion: [String: Any] = [
             "after": "9223372036854775807ms", "trailers": ["after": "1ms", "fields": []],
         ]

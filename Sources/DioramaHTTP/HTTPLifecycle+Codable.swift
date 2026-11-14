@@ -7,8 +7,10 @@ extension HTTPInteraction: Codable where Failure: Codable {
     /// Reads one complete root request and exactly one validated result.
     public init(from decoder: any Decoder) throws {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
-        try self.init(initialRequest: fields.decode(HTTPRequestMessage.self, forKey: .initialRequest),
-                      result: fields.decode(HTTPAttemptResult<Failure>.self, forKey: .result))
+        let request = try fields.decode(HTTPRequestMessage.self, forKey: .initialRequest)
+        let result = try fields.decode(HTTPAttemptResult<Failure>.self, forKey: .result)
+        try result.validateRequestMethod(request.head.method, codingPath: decoder.codingPath + [CodingKeys.result])
+        try self.init(initialRequest: request, result: result)
     }
 
     /// Writes the root without an independent, potentially contradictory conclusion.
@@ -61,16 +63,15 @@ extension HTTPAttemptResult: Codable where Failure: Codable {
 }
 
 extension HTTPResponseNode: Codable where Failure: Codable {
-    private enum CodingKeys: String, CodingKey, CaseIterable { case head, body }
-
+    private enum CodingKeys: String, CodingKey, CaseIterable { case head, next }
     private enum HeadKeys: String, CodingKey, CaseIterable { case after, value }
 
-    /// Reads a response with one head and its body lifecycle.
+    /// Reads one head and exactly one response-owned body or redirect branch.
     public init(from decoder: any Decoder) throws {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
-        let body = try fields.decode(HTTPBodyDelivery<Failure>.self, forKey: .body)
+        let next = try fields.decode(HTTPAfterResponseHead<Failure>.self, forKey: .next)
         let timed = try fields.superDecoder(forKey: .head).strictContainer(keyedBy: HeadKeys.self)
-        let count: Int? = if case .returned = body.conclusion {
+        let count: Int? = if let body = next.body, case .returned = body.conclusion {
             body.content.byteCount
         } else {
             nil
@@ -78,18 +79,54 @@ extension HTTPResponseNode: Codable where Failure: Codable {
         let value = try HTTPResponseHead(from: timed.superDecoder(forKey: .value), byteCount: count)
         let head = try HTTPTimed(after: timed.decode(HTTPDelay.self, forKey: .after), value: value)
         do {
-            try self.init(head: head, body: body)
+            try self.init(head: head, next: next)
         } catch {
             throw DecodingError.dataCorruptedError(
-                forKey: .body, in: fields, debugDescription: "Invalid HTTP response timing or derived content length")
+                forKey: .next, in: fields,
+                debugDescription: "Invalid HTTP response timing or derived content length")
         }
     }
 
-    /// Writes response-owned content once.
+    /// Writes the head and one explicitly tagged response continuation.
     public func encode(to encoder: any Encoder) throws {
         var fields = encoder.container(keyedBy: CodingKeys.self)
         try fields.encode(head, forKey: .head)
-        try fields.encode(body, forKey: .body)
+        try fields.encode(next, forKey: .next)
+    }
+}
+
+extension HTTPAfterResponseHead: Codable where Failure: Codable {
+    private enum BodyKeys: String, CodingKey, CaseIterable { case kind, body }
+    private enum RedirectKeys: String, CodingKey, CaseIterable { case kind, redirect }
+
+    /// Reads exactly one tagged continuation with only its own required payload.
+    public init(from decoder: any Decoder) throws {
+        let tag = try decoder.container(keyedBy: HTTPLifecycleTag.self)
+        switch try tag.decode(String.self, forKey: .kind) {
+        case "deliverBody":
+            let fields = try decoder.strictContainer(keyedBy: BodyKeys.self)
+            self = try .deliverBody(fields.decode(HTTPBodyDelivery<Failure>.self, forKey: .body))
+        case "redirect":
+            let fields = try decoder.strictContainer(keyedBy: RedirectKeys.self)
+            self = try .redirect(fields.decode(HTTPRedirectPhase<Failure>.self, forKey: .redirect))
+        default:
+            throw DecodingError.dataCorruptedError(
+                forKey: .kind, in: tag, debugDescription: "Unknown HTTP response continuation tag")
+        }
+    }
+
+    /// Writes a deliberate tag and the matching case-specific payload.
+    public func encode(to encoder: any Encoder) throws {
+        switch self {
+        case let .deliverBody(body):
+            var fields = encoder.container(keyedBy: BodyKeys.self)
+            try fields.encode("deliverBody", forKey: .kind)
+            try fields.encode(body, forKey: .body)
+        case let .redirect(phase):
+            var fields = encoder.container(keyedBy: RedirectKeys.self)
+            try fields.encode("redirect", forKey: .kind)
+            try fields.encode(phase, forKey: .redirect)
+        }
     }
 }
 

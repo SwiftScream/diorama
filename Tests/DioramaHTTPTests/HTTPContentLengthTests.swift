@@ -131,7 +131,7 @@ struct HTTPContentLengthTests {
         request["method"] = method.rawValue
         object["initialRequest"] = request
         let edited = try JSONSerialization.data(withJSONObject: object)
-        #expect(throws: HTTPMessageError.invalidField) {
+        #expect(throws: DecodingError.self) {
             try JSONDecoder().decode(HTTPInteraction<String>.self, from: edited)
         }
     }
@@ -149,9 +149,9 @@ struct HTTPContentLengthTests {
         ] {
             #expect(decoded.head.value.head.headerFields[name] == "literal")
         }
-        #expect(try decoded.body.profile?.allocate(byteCount: 7).map(\.byteRange.count) == [2, 5])
+        #expect(try decoded.body?.profile?.allocate(byteCount: 7).map(\.byteRange.count) == [2, 5])
         let literal = HTTPResponseHead(head: selected.head.value.head)
-        let authored = try Response(head: .init(after: .zero, value: literal), body: decoded.body)
+        let authored = try Response(head: .init(after: .zero, value: literal), body: #require(decoded.body))
         #expect(authored.head.value.head.headerFields[.contentLength] == "3")
         #expect(!authored.head.value.derivesContentLength)
     }
@@ -208,16 +208,18 @@ struct HTTPContentLengthTests {
             let decoded = try HTTPResourceCodingFixtures.decoder(resources: ["reply.json": bytes])
                 .decode(Response.self, from: edited)
             #expect(decoded.head.value.head.headerFields[.contentLength] == String(bytes.count))
-            let allocation = try decoded.body.profile?.allocate(byteCount: bytes.count)
+            let allocation = try decoded.body?.profile?.allocate(byteCount: bytes.count)
             #expect(allocation?.last?.byteRange.upperBound == bytes.count)
-            if case let .resource(resource) = decoded.body.content {
+            if case let .resource(resource) = decoded.body?.content {
                 #expect(resource.bytes() == bytes)
             }
         }
         var object = try #require(JSONSerialization.jsonObject(with: encoder.encode(selected)) as? [String: Any])
-        var body = try #require(object["body"] as? [String: Any])
+        var next = try #require(object["next"] as? [String: Any])
+        var body = try #require(next["body"] as? [String: Any])
         body["conclusion"] = ["kind": "open"]
-        object["body"] = body
+        next["body"] = body
+        object["next"] = next
         let partial = try JSONSerialization.data(withJSONObject: object)
         #expect(throws: (any Error).self) { try JSONDecoder().decode(Response.self, from: partial) }
         let headData = try encoder.encode(selected.head.value)

@@ -3057,6 +3057,16 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H10 — Response-owned redirect branches
 
+- Status: Complete. Implementation finishes locally on 2026-11-15. The owner approves scope and the stated
+  GPT-6 Sol / `high` recommendation, then authorizes stacked implementation
+  while H09 is reviewed concurrently. Focused tests and the canonical macOS gate
+  pass. The owner approves stacked PR creation on 2026-11-20, targeting the
+  preparatory H08 construction fix. Merge requires passing required checks and
+  a separate explicit owner request.
+- Evidence: [Response-owned redirect branches](../evidence/003-H10-redirect-branches.md).
+- Owner-approved review update: Persist every response as `head` and a tagged
+  `next` continuation, replacing the earlier top-level body/redirect alternatives
+  in the unreleased schema. Squash directly into H10 as requested on 2026-11-20.
 - Recommended model: GPT-6 Sol; reasoning: `high`. Typed redirect branches and inherited requests must retain single ownership through recursive schema validation.
 - Prerequisites: 003-H05–003-H06, 003-H09, 003-D03 reviewed; DD17.
 - Scope: Add typed proposed/followed/modified/refused/open redirect structure, request derivation, and codec/validation.

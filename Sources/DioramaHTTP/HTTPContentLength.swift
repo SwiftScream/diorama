@@ -18,13 +18,13 @@ public enum HTTPContentLength {
         requestMethod: HTTPRequest.Method) throws -> HTTPResponseNode<Failure>
     {
         let response = prepared.value
-        guard case .returned = response.body.conclusion,
+        guard let body = response.body, case .returned = body.conclusion,
               unambiguous(method: requestMethod),
               unambiguous(status: response.head.value.head.status.code),
-              proves(response.head.value.head.headerFields, byteCount: response.body.content.byteCount)
+              proves(response.head.value.head.headerFields, byteCount: body.content.byteCount)
         else { return response }
         let head = HTTPResponseHead(head: response.head.value.head, derivesContentLength: true)
-        return try HTTPResponseNode(head: HTTPTimed(after: response.head.after, value: head), body: response.body)
+        return try HTTPResponseNode(head: HTTPTimed(after: response.head.after, value: head), next: response.next)
     }
 
     static func unambiguous(method: HTTPRequest.Method) -> Bool {
