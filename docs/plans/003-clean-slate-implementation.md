@@ -3050,12 +3050,31 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 - Status: Approved in the DD19 plan revision; not started. Normal unit scope confirmation is required.
 - Recommended model: GPT-6 Astra; reasoning: `high`.
-- Prerequisites: 003-H05–003-H06, 003-H09–003-H12, 003-E04R, 003-E01; DD03, DD09, DD17, DD19.
+- Prerequisites: 003-H05–003-H06, 003-H07A, 003-H08, 003-H09–003-H12, 003-E04R, 003-E01; DD03, DD09, DD17, DD19.
 - Scope: Construct the strict observed HTTP tree from prepared domain observations using Core's record reservation/freeze service. Keep correlation, transition validation, partial body ownership, and current-decision capture anchors in the domain.
+  Integrate H07A body storage selection and H08 Content-Length derivation into
+  the shared DioramaHTTP recording path after redaction and normalization.
 - Public behavior: One operation reserves one record; mutually exclusive active states admit only compatible observations. Freeze preserves pending decisions and partial prefixes as explicit open leaves; incomplete or failed conversion blocks publication. Duplicate/late events diagnose safely and resources detach once.
+  DioramaHTTP automatically applies configured body storage selection to newly
+  recorded prepared content and selects proven derived Content-Length fields.
+  Concrete systems configure storage and supply prepared observations, stable
+  resource stems, and effective request-method context; they do not have to
+  invoke the individual selection helpers. Application consumers need no
+  additional opt-in for eligible recorded lengths. Core remains HTTP-agnostic.
+  Derivation uses the effective request at each recursive continuation and the
+  final body conclusion; failed/open or unavailable content never acquires a
+  derived marker. Preserve exact bytes, absent fields, and ambiguous literals.
+  Ordinary builders, codecs, validation-only admission, preserved baselines,
+  and replay do not rerun recording selection or promote authored literals.
 - Expected files/modules: HTTP domain accumulator and controlled lifecycle/capture tests.
 - Tests/verification: V-code; success, repeated auth/redirect, refusal, canceled challenge, disposition allow/cancel/open, failure before head and after prefix, freeze at each phase, overlapping operation order, capture/finalization races, secret preparation failure, and local 50 ms continuation timing excluding application wait.
-- Exclusions: Native callback wiring, alternative histories, new generic interaction records, schema relaxation or new dependencies.
+  Shared capture entry points automatically produce derived markers for eligible
+  requests and completed responses without separate helper calls, including
+  recursive effective-method changes and refused bodies. Cover ambiguous,
+  absent, partial, and unavailable cases; configured inline/resource placement
+  after preparation; exact-byte and marker preservation across placement; and
+  unchanged authored literals/baseline representations during loading and replay.
+- Exclusions: Native callback wiring, alternative histories, new generic interaction records, a general middleware framework, schema relaxation or new dependencies.
 - Checkpoint: R; capture and freeze reviewed independently of replay traversal.
 
 ### 003-H12B — HTTP-owned lifecycle replay
