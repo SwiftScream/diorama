@@ -396,6 +396,10 @@ test-integration design. They do not authorize those APIs.
 - [HTTP redirect evidence](evidence/003-H10-redirect-branches.md) records response-owned
   branches, request derivation, current-decision selection, and recursive validation.
 
+- [HTTP authentication evidence](evidence/003-H11-authentication-branches.md) records
+  response-owned Basic/Digest branches, configurable default username redaction,
+  inherited retries, and strict continuation validation.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

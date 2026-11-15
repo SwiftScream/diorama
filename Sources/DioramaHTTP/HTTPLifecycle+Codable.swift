@@ -66,7 +66,7 @@ extension HTTPResponseNode: Codable where Failure: Codable {
     private enum CodingKeys: String, CodingKey, CaseIterable { case head, next }
     private enum HeadKeys: String, CodingKey, CaseIterable { case after, value }
 
-    /// Reads one head and exactly one response-owned body or redirect branch.
+    /// Reads one head and exactly one response-owned body, redirect, or authentication branch.
     public init(from decoder: any Decoder) throws {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
         let next = try fields.decode(HTTPAfterResponseHead<Failure>.self, forKey: .next)
@@ -83,7 +83,7 @@ extension HTTPResponseNode: Codable where Failure: Codable {
         } catch {
             throw DecodingError.dataCorruptedError(
                 forKey: .next, in: fields,
-                debugDescription: "Invalid HTTP response timing or derived content length")
+                debugDescription: "Invalid HTTP response timing, authentication head, or derived content length")
         }
     }
 
@@ -98,6 +98,7 @@ extension HTTPResponseNode: Codable where Failure: Codable {
 extension HTTPAfterResponseHead: Codable where Failure: Codable {
     private enum BodyKeys: String, CodingKey, CaseIterable { case kind, body }
     private enum RedirectKeys: String, CodingKey, CaseIterable { case kind, redirect }
+    private enum AuthenticationKeys: String, CodingKey, CaseIterable { case kind, authenticate }
 
     /// Reads exactly one tagged continuation with only its own required payload.
     public init(from decoder: any Decoder) throws {
@@ -109,6 +110,9 @@ extension HTTPAfterResponseHead: Codable where Failure: Codable {
         case "redirect":
             let fields = try decoder.strictContainer(keyedBy: RedirectKeys.self)
             self = try .redirect(fields.decode(HTTPRedirectPhase<Failure>.self, forKey: .redirect))
+        case "authenticate":
+            let fields = try decoder.strictContainer(keyedBy: AuthenticationKeys.self)
+            self = try .authenticate(fields.decode(HTTPAuthenticationPhase<Failure>.self, forKey: .authenticate))
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .kind, in: tag, debugDescription: "Unknown HTTP response continuation tag")
@@ -126,6 +130,10 @@ extension HTTPAfterResponseHead: Codable where Failure: Codable {
             var fields = encoder.container(keyedBy: RedirectKeys.self)
             try fields.encode("redirect", forKey: .kind)
             try fields.encode(phase, forKey: .redirect)
+        case let .authenticate(phase):
+            var fields = encoder.container(keyedBy: AuthenticationKeys.self)
+            try fields.encode("authenticate", forKey: .kind)
+            try fields.encode(phase, forKey: .authenticate)
         }
     }
 }

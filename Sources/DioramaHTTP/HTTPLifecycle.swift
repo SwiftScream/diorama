@@ -27,14 +27,14 @@ public indirect enum HTTPAttemptResult<Failure: Sendable>: Sendable {
     case openAtRecordingHorizon
 }
 
-/// A single received response owning either body delivery or a redirect decision.
+/// A single received response owning body delivery, a redirect, or an authentication decision.
 public struct HTTPResponseNode<Failure: Sendable>: Sendable {
     /// The response head, delayed from invocation or the current preceding decision.
     public let head: HTTPTimed<HTTPResponseHead>
     /// Exactly one response-owned continuation.
     public let next: HTTPAfterResponseHead<Failure>
 
-    /// Delivered content, including a refused redirect; nil when no body is exposed.
+    /// Delivered content, including refused redirects/challenges; nil when no body is exposed.
     public var body: HTTPBodyDelivery<Failure>? {
         next.body
     }
@@ -46,6 +46,11 @@ public struct HTTPResponseNode<Failure: Sendable>: Sendable {
 
     /// Validates local timing and derived length without crossing a decision anchor.
     public init(head: HTTPTimed<HTTPResponseHead>, next: HTTPAfterResponseHead<Failure>) throws {
+        if case let .authenticate(phase) = next {
+            guard head.value.head.status.code == (phase.challenge.isProxy ? 407 : 401) else {
+                throw HTTPAuthenticationError.invalidResponse
+            }
+        }
         _ = try HTTPDelay.add(head.after.milliseconds.value, next.durationMilliseconds)
         if head.value.derivesContentLength {
             guard let body = next.body, case .returned = body.conclusion, let count = body.content.byteCount,
@@ -71,10 +76,13 @@ public enum HTTPAfterResponseHead<Failure: Sendable>: Sendable {
     case deliverBody(HTTPBodyDelivery<Failure>)
     /// A decision owns the proposed request and its single recorded continuation.
     case redirect(HTTPRedirectPhase<Failure>)
+    /// A challenge owns its safe metadata, current decision, and sole continuation.
+    case authenticate(HTTPAuthenticationPhase<Failure>)
 
     var body: HTTPBodyDelivery<Failure>? {
         switch self {
         case let .deliverBody(body): body
+        case let .authenticate(phase): phase.outcome.body
         case let .redirect(phase):
             if case let .refuse(body) = phase.outcome {
                 body
@@ -88,6 +96,7 @@ public enum HTTPAfterResponseHead<Failure: Sendable>: Sendable {
         switch self {
         case let .deliverBody(body): body.durationMilliseconds
         case let .redirect(phase): phase.after.milliseconds.value
+        case let .authenticate(phase): phase.after.milliseconds.value
         }
     }
 }

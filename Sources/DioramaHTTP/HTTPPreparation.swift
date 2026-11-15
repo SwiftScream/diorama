@@ -10,9 +10,15 @@ public struct HTTPPreparation: Sendable {
     /// Field redaction rules, including credential defaults and consumer overrides.
     public let fieldRedaction: HTTPFieldRedactionPolicy
 
+    /// Username rule shared by proposed credentials and recorded/current answers.
+    public let authenticationUsername: HTTPAuthenticationUsernameRule
+
     /// Creates a preparation configuration.
-    public init(fieldRedaction: HTTPFieldRedactionPolicy = .default) {
+    public init(fieldRedaction: HTTPFieldRedactionPolicy = .default,
+                authenticationUsername: HTTPAuthenticationUsernameRule = .default)
+    {
         self.fieldRedaction = fieldRedaction
+        self.authenticationUsername = authenticationUsername
     }
 
     /// Creates request preparation, including typed body and target transforms.

@@ -3078,13 +3078,22 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H11 — Response-owned authentication branches
 
+- Status: Complete on 2026-11-20 following owner review and authorization to
+  create the PR. Initial local implementation completes on 2026-11-16 under the
+  owner-confirmed scope and GPT-6 Sol / `high` recommendation above H10.
+  Focused tests and the canonical macOS gate pass, including the approved
+  username-default review update. Merge and H12 require separate authorization.
+- Evidence: [Response-owned authentication branches](../evidence/003-H11-authentication-branches.md).
 - Recommended model: GPT-6 Sol; reasoning: `high`. Authentication continuations combine safe credential shape, response ownership, and strict recursive branch validation.
 - Prerequisites: 003-H10, 003-D04 reviewed; DD09, DD12, DD17.
 - Scope: Add typed Basic/Digest challenge metadata and recursive continuations attached to the owning 401/407 head, with prepared credential shape.
 - Expected files/modules: Shared authentication node composition, URLSession challenge supplements/codecs, redaction and tree fixtures.
 - Public behavior: Preserve host/port/protocol/realm/proxy, previous failures, safe proposed-credential metadata, disposition, prepared username/persistence but no password.
   Retry inherits the request unless an observed material change requires an explicit edge value; cancel records the resulting failure once.
+  Password correctness remains the consumer's testing responsibility; different passwords with identical prepared credential metadata select the same continuation.
+  Native metadata helpers default to `redacted` for nonempty usernames; setup can select a nonempty constant or custom mapping shared by proposed and selected credentials, with validation-only prepared admission.
 - Tests/verification: V-code; use/default/reject/cancel/open, repeated challenges, response-body/failure/retry continuation shapes, no duplicate failure response, secret exclusion, invalid method/head/branch rejection and canonical encoding.
+  Review coverage includes default/configured/custom username rules, shared proposed/selected preparation, validation-only admission, and independent setup policies.
 - Exclusions: Trust/certificate or response-less challenges, authentication algorithm implementation, raw credentials as shared retry fields.
 - Checkpoint: R; review stable challenge semantics before native replay.
 

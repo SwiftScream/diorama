@@ -151,7 +151,7 @@ callbacks or deciding whether a test passes.
 The attempt result is exactly one case:
 
 - `.received(HTTPResponseNode)` introduces one timed response head and one
-  response-owned body or redirect continuation.
+  response-owned body, redirect, or authentication continuation.
 - `.failed(HTTPTimed<Failure>)` represents failure before any head.
 - `.openAtRecordingHorizon` explicitly preserves work still awaiting a head or
   failure when observation ends.
@@ -214,7 +214,7 @@ let interaction = try HTTPInteraction<ExampleFailure>(
 The generic failure value's validation and persisted contract belong to its
 adapter. Public lifecycle builders compose validated components; the throwing
 `HTTPInteraction` initializer checks derived response lengths against each effective
-request method, including recursive redirect edges; the enums make
+request method, including recursive redirect and authentication edges; the enums make
 contradictory results, multiple conclusions, and failure/open trailers impossible
 to construct. Decoding follows the same component construction boundary.
 
@@ -238,9 +238,12 @@ uses an explicit `kind` and exactly its matching payload:
 {"kind":"redirect","redirect":{"after":"0ms","proposedRequest":{"method":"GET","fields":[],"body":{"kind":"absent"}},"outcome":{"kind":"open"}}}
 ```
 
+Authentication adds `next: { "kind": "authenticate", "authenticate": ... }` with
+the response-owned challenge phase as its payload.
+
 `HTTPAfterResponseHead` owns this tagged encoding. Missing/null `next`, unknown
-or missing tags, mismatched or competing payloads, and top-level `body`/`redirect`
-fields are rejected. The unreleased earlier response spelling has no retained
+or missing tags, mismatched or competing payloads, and top-level
+`body`/`redirect`/`authenticate` fields are rejected. The unreleased earlier response spelling has no retained
 reader. Timed heads and failures require `after` and `value`. Bodies require
 `content` and `conclusion`.
 The body conclusion shapes are:
@@ -352,6 +355,156 @@ Followed and unanswered redirect heads cannot derive length from unavailable
 content. A refused body's edited inline/resource bytes resolve the owning head's
 marker. Root construction and coding validate response markers against the
 request method derived at **each** follow edge, including modified methods.
+
+### Response-owned authentication branches
+
+`HTTPAfterResponseHead.authenticate(HTTPAuthenticationPhase)` is the third
+mutually exclusive response continuation. A challenge owns no response copy:
+its origin head must have status 401, or status 407 when `isProxy` is true.
+Ordinary 401/407 responses without an observed challenge remain ordinary body
+delivery. Native capability checks and callback delivery remain adapter work.
+
+The phase contains one `after` delay, one prepared `challenge`, and one `outcome`.
+Challenge metadata contains:
+
+- `method`: `basic` or `digest`; security-object methods are unsupported;
+- `host`: a nonempty prepared host, and `port`: an integer in `0...65535`;
+- optional `protocol` and prepared `realm` strings, preserving absence and empty
+  strings distinctly;
+- `isProxy` and nonnegative `previousFailureCount`;
+- optional `proposedCredential` with safe credential shape.
+
+`HTTPAuthenticationCredential` contains optional prepared `user`, required
+`hasPassword`, and `persistence` (`none`, `forSession`, `permanent`, or
+`synchronizable`). Password contents, certificate objects, credential stores,
+and native descriptions have no field or constructor argument. Construction
+and decoding validate structure, not confidentiality: adapters must prepare
+identities, including proposed credentials, before admission or comparison.
+
+The recorded outcome is exactly one of:
+
+```json
+{"kind":"useCredential","credential":{"user":"fixture-user","hasPassword":true,"persistence":"none"},"retry":{"result":{"kind":"open"}}}
+{"kind":"performDefaultHandling","continuation":{"kind":"deliverBody","body":{"content":{"kind":"bytes","text":"denied"},"conclusion":{"kind":"returned","completion":{"after":"5ms"}}}}}
+{"kind":"rejectProtectionSpace","continuation":{"kind":"failed","failure":{"after":"9ms","value":"adapter-owned-failure"}}}
+{"kind":"cancel","failure":{"after":"11ms","value":"adapter-owned-failure"}}
+{"kind":"open"}
+```
+
+Use-credential owns a safe credential and a retry. Cancel owns one timed failure,
+without a second failure response or terminal conclusion. Default and reject
+own one continuation: `retry` with a `retry` object, `deliverBody` with a `body`,
+`failed` with a timed `failure`, or `open` with no extra fields. These cases
+preserve the native result rather than assuming that refusal always returns a
+body or always fails. A body may return or retain its observed failed/open
+prefix with the existing body/profile/trailer semantics.
+
+A retry stores required `result` and optional `request`. Omission inherits the
+current effective request; a material observed change stores the full prepared
+request once on this edge. `effectiveRequest(inheriting:)` resolves that value.
+Generated authentication secrets are never shared retry fields. The next result
+may introduce another challenged response, a redirect, an ordinary response,
+a pre-head failure, or an explicit open horizon. Repeated challenges preserve
+their own previous-failure counts and response ownership.
+
+`continuation(for:)` compares the current prepared disposition and, for
+use-credential, exact username presence/value, password presence, and persistence.
+It returns only the single recorded compatible continuation. It does not verify
+password contents, run a Basic/Digest algorithm, invoke a live dependency, or
+substitute a recorded answer for the application's current answer. Incompatible
+answers throw `HTTPAuthenticationSelectionError.incompatibleDecision`. Answering
+an unanswered recorded phase throws `decisionBeyondRecordingHorizon`. The later
+delivery owner reports those infrastructure facts separately from dependency
+failures. An answered decision followed by `open` is distinct from an unanswered
+phase.
+
+Password correctness is outside the replay contract. A different password selects
+the same recorded continuation when the prepared username, password presence,
+and persistence match, including a recorded successful continuation. Credential
+preparation receives only that metadata and cannot inspect password contents.
+Consumers are responsible for separately testing correct password entry,
+acquisition, and selection; replay exercises handling of recorded authentication
+outcomes without establishing that the supplied password would reproduce them
+against a server.
+
+Timing follows the redirect decision boundary: `after` runs from owning head to
+challenge presentation, and head plus presentation delay must fit the scalar
+range. The next attempt, exposed body's first event, or failure starts from
+completion of the current answer. Post-decision timing is validated independently;
+application decision latency is neither persisted nor added to these delays.
+Scheduler delivery remains separate from this pure composition and selection.
+
+A response encodes required `head` and exactly one of `body`, `redirect`, or
+`authenticate`. Authentication uses the phase fields above, with no duplicate
+response, initial request, or top-level conclusion. Missing required fields,
+explicit nulls, unknown tags or fields, invalid challenge/head combinations,
+password fields, and branch-incompatible data fail decoding. Unknown method,
+persistence, outcome, and continuation tags produce fixed structural descriptions
+without rendering their values. Optional metadata is omitted rather than null.
+The independent `Fixtures/authentication.json` records a repeated Basic/Digest
+chain, proxy rejection, cancellation, and both unanswered and answered-open cases.
+
+Derived Content-Length may use complete body content exposed by default/reject,
+including edited resource bytes. It cannot derive from an unexposed challenged
+body. Root interaction validation follows inherited and explicit retry methods,
+as well as redirect edges, to reject derived response lengths incompatible with
+an effective HEAD or CONNECT request. Decoding uses the same validation and
+retains the nested coding path.
+
+`DioramaURLSession.URLSessionAuthentication` provides the native metadata boundary.
+`capture` accepts only native response-backed Basic/Digest challenges, extracts
+safe shape without reading passwords, and prepares proposed credentials.
+`decision` maps native answers and prepares selected credentials, with
+recording/replay purpose controlling diagnostic health impact. Both use
+`HTTPPreparation`'s authentication factories by default: every nonempty username
+becomes `redacted`, while absent and empty usernames remain distinct. Password
+presence, persistence, and protection-space metadata remain exact. Different
+nonempty usernames therefore select the same continuation under the default.
+
+Setup can configure a nonempty constant or a custom username mapping through one
+`HTTPAuthenticationUsernameRule`, shared by `authenticationChallenge()` and
+`authenticationCredential()`:
+
+```swift
+let preparation = HTTPPreparation(authenticationUsername: try .constant("user-a"))
+let challengePolicy = preparation.authenticationChallenge()
+let credentialPolicy = preparation.authenticationCredential()
+```
+
+Supply those policies to `capture` and `decision` respectively. A constant rule
+accepts only its exact replacement for prepared nonempty usernames. The default
+uses the same rule with `redacted`. An empty constant is rejected so it cannot
+collapse nonempty usernames into the empty case. Independent setup configurations
+can use `user-a` and `user-b` for separately keyed system instances.
+
+Custom rules supply separate `redact` and `validate` closures for nonempty
+usernames. They replace the default rule, receive original captured usernames,
+and can preserve distinct synthetic identities within one system instance. They
+must produce nonempty safe substitutes, be deterministic and idempotent, and
+avoid logging inputs. Absent and empty usernames bypass the rule. Consumer rules
+own the confidentiality of values they explicitly permit.
+
+Username rules run before factory-level custom redaction and normalization.
+Final validation enforces the selected rule after those transforms and during
+validation-only `admitPrepared`; it does not transform loaded or authored values.
+Changing the configured constant rejects incompatible fixtures until deliberately
+updated. Constructors and Codable remain structural; generic `ValuePreparation()`
+still preserves values, and supplying a custom preparation explicitly replaces
+the native helper's default. Setup must use compatible policies for proposed,
+recorded, and current credentials.
+
+Host, port, protocol, and realm remain exact by default because consumers may use
+them to select credentials. The challenge factory supports explicit redaction
+and validation of protection-space values. Consumers replacing a realm or host
+must account for related request URLs and response fields: `WWW-Authenticate`
+and `Proxy-Authenticate` retain their existing exact-by-default behavior. Username
+redaction is targeted credential protection, not complete challenge sanitization.
+
+A preparation failure preserves native objects, reports safe facts, and
+invalidates recording candidates without publishing raw values. These helpers
+do not install delegates or send native answers; Basic/Digest native replay
+conformance remains a later adapter gate. The approved Linux Digest exception
+remains in effect.
 
 ### Weighted delivery and local timing
 

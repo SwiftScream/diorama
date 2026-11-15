@@ -1,0 +1,329 @@
+[
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/private",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "7ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Unauthorized",
+            "status" : 401
+          }
+        },
+        "next" : {
+          "authenticate" : {
+            "after" : "2ms",
+            "challenge" : {
+              "host" : "example.invalid",
+              "isProxy" : false,
+              "method" : "basic",
+              "port" : 443,
+              "previousFailureCount" : 0,
+              "proposedCredential" : {
+                "hasPassword" : true,
+                "persistence" : "none",
+                "user" : "fixture-user"
+              },
+              "protocol" : "https",
+              "realm" : "fixture"
+            },
+            "outcome" : {
+              "credential" : {
+                "hasPassword" : true,
+                "persistence" : "none",
+                "user" : "fixture-user"
+              },
+              "kind" : "useCredential",
+              "retry" : {
+                "result" : {
+                  "kind" : "received",
+                  "response" : {
+                    "head" : {
+                      "after" : "13ms",
+                      "value" : {
+                        "fields" : [
+
+                        ],
+                        "reasonPhrase" : "Unauthorized",
+                        "status" : 401
+                      }
+                    },
+                    "next" : {
+                      "authenticate" : {
+                        "after" : "2ms",
+                        "challenge" : {
+                          "host" : "example.invalid",
+                          "isProxy" : false,
+                          "method" : "digest",
+                          "port" : 443,
+                          "previousFailureCount" : 1,
+                          "protocol" : "https",
+                          "realm" : "fixture"
+                        },
+                        "outcome" : {
+                          "continuation" : {
+                            "body" : {
+                              "conclusion" : {
+                                "completion" : {
+                                  "after" : "5ms"
+                                },
+                                "kind" : "returned"
+                              },
+                              "content" : {
+                                "kind" : "bytes",
+                                "text" : "denied"
+                              }
+                            },
+                            "kind" : "deliverBody"
+                          },
+                          "kind" : "performDefaultHandling"
+                        }
+                      },
+                      "kind" : "authenticate"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "kind" : "authenticate"
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/private",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "0ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Proxy Authentication Required",
+            "status" : 407
+          }
+        },
+        "next" : {
+          "authenticate" : {
+            "after" : "2ms",
+            "challenge" : {
+              "host" : "example.invalid",
+              "isProxy" : true,
+              "method" : "basic",
+              "port" : 443,
+              "previousFailureCount" : 0,
+              "proposedCredential" : {
+                "hasPassword" : false,
+                "persistence" : "forSession"
+              },
+              "realm" : ""
+            },
+            "outcome" : {
+              "continuation" : {
+                "failure" : {
+                  "after" : "9ms",
+                  "value" : "rejected"
+                },
+                "kind" : "failed"
+              },
+              "kind" : "rejectProtectionSpace"
+            }
+          },
+          "kind" : "authenticate"
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/private",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "0ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Unauthorized",
+            "status" : 401
+          }
+        },
+        "next" : {
+          "authenticate" : {
+            "after" : "2ms",
+            "challenge" : {
+              "host" : "example.invalid",
+              "isProxy" : false,
+              "method" : "basic",
+              "port" : 443,
+              "previousFailureCount" : 0,
+              "proposedCredential" : {
+                "hasPassword" : true,
+                "persistence" : "none",
+                "user" : "fixture-user"
+              },
+              "protocol" : "https",
+              "realm" : "fixture"
+            },
+            "outcome" : {
+              "failure" : {
+                "after" : "11ms",
+                "value" : "canceled"
+              },
+              "kind" : "cancel"
+            }
+          },
+          "kind" : "authenticate"
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/private",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "0ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Unauthorized",
+            "status" : 401
+          }
+        },
+        "next" : {
+          "authenticate" : {
+            "after" : "2ms",
+            "challenge" : {
+              "host" : "example.invalid",
+              "isProxy" : false,
+              "method" : "basic",
+              "port" : 443,
+              "previousFailureCount" : 0,
+              "proposedCredential" : {
+                "hasPassword" : true,
+                "persistence" : "none",
+                "user" : "fixture-user"
+              },
+              "protocol" : "https",
+              "realm" : "fixture"
+            },
+            "outcome" : {
+              "kind" : "open"
+            }
+          },
+          "kind" : "authenticate"
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/private",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "0ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Unauthorized",
+            "status" : 401
+          }
+        },
+        "next" : {
+          "authenticate" : {
+            "after" : "2ms",
+            "challenge" : {
+              "host" : "example.invalid",
+              "isProxy" : false,
+              "method" : "basic",
+              "port" : 443,
+              "previousFailureCount" : 0,
+              "proposedCredential" : {
+                "hasPassword" : true,
+                "persistence" : "none",
+                "user" : "fixture-user"
+              },
+              "protocol" : "https",
+              "realm" : "fixture"
+            },
+            "outcome" : {
+              "continuation" : {
+                "kind" : "open"
+              },
+              "kind" : "rejectProtectionSpace"
+            }
+          },
+          "kind" : "authenticate"
+        }
+      }
+    }
+  }
+]

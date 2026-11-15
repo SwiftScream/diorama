@@ -660,6 +660,16 @@ timing starts from the current decision. Native policy and callback delivery
 remain adapter responsibilities. Responses persist one explicit tagged `next`
 continuation, matching the runtime body's or redirect's single ownership.
 
+`DioramaHTTP`'s [authentication components](http-message-schema-v1.md#response-owned-authentication-branches)
+attach Basic/Digest metadata and one credential/default/reject/cancel/open outcome
+to its owning 401/407 head. Retries inherit the current request unless a material
+change is stored at the edge. URLSession metadata extraction never reads passwords
+and defaults to replacing nonempty proposed and selected usernames with `redacted`.
+Setup can select one shared constant or custom username rule through
+`HTTPPreparation`; prepared admission validates that rule without rerunning
+redaction. Native callback delivery and capability conformance remain adapter
+responsibilities.
+
 ### Unmatched loaded attachments and persistence registration
 
 The repository decodes and validates every payload for persisted-value
