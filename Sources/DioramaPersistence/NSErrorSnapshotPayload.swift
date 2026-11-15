@@ -50,10 +50,12 @@ package struct NSErrorSnapshotPayload: Codable, Sendable {
 private enum NSErrorSnapshotPayloadError: Error, Equatable, Sendable {
     case invalidBounds
     case invalidDate
+    case invalidURL
 }
 
 private indirect enum NSErrorSnapshotValuePayload: Codable, Sendable {
     case string(String)
+    case url(URL)
     case integer(Int64)
     case real(Double)
     case boolean(Bool)
@@ -67,12 +69,13 @@ private indirect enum NSErrorSnapshotValuePayload: Codable, Sendable {
     }
 
     private enum Kind: String, Codable {
-        case string, integer, real, boolean, data, date, array, dictionary
+        case string, url, integer, real, boolean, data, date, array, dictionary
     }
 
     init(_ value: NSErrorSnapshotValue) {
         switch value {
         case let .string(value): self = .string(value)
+        case let .url(value): self = .url(value)
         case let .integer(value): self = .integer(value)
         case let .real(value): self = .real(value)
         case let .boolean(value): self = .boolean(value)
@@ -86,6 +89,7 @@ private indirect enum NSErrorSnapshotValuePayload: Codable, Sendable {
     var snapshot: NSErrorSnapshotValue {
         switch self {
         case let .string(value): .string(value)
+        case let .url(value): .url(value)
         case let .integer(value): .integer(value)
         case let .real(value): .real(value)
         case let .boolean(value): .boolean(value)
@@ -100,6 +104,7 @@ private indirect enum NSErrorSnapshotValuePayload: Codable, Sendable {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
         switch try fields.decode(Kind.self, forKey: .type) {
         case .string: self = try .string(fields.decode(String.self, forKey: .value))
+        case .url: self = try .url(Self.decodeURL(fields))
         case .integer: self = try .integer(fields.decode(Int64.self, forKey: .value))
         case .real: self = try .real(Self.decodeReal(fields))
         case .boolean: self = try .boolean(fields.decode(Bool.self, forKey: .value))
@@ -108,6 +113,14 @@ private indirect enum NSErrorSnapshotValuePayload: Codable, Sendable {
         case .array: self = try .array(fields.decode([Self].self, forKey: .value))
         case .dictionary: self = try .dictionary(fields.decode([String: Self].self, forKey: .value))
         }
+    }
+
+    private static func decodeURL(_ fields: KeyedDecodingContainer<CodingKeys>) throws -> URL {
+        let string = try fields.decode(String.self, forKey: .value)
+        guard let url = URL(string: string, encodingInvalidCharacters: false), url.absoluteString == string else {
+            throw NSErrorSnapshotPayloadError.invalidURL
+        }
+        return url
     }
 
     private static func decodeReal(_ fields: KeyedDecodingContainer<CodingKeys>) throws -> Double {
@@ -132,6 +145,9 @@ private indirect enum NSErrorSnapshotValuePayload: Codable, Sendable {
         case let .string(value):
             try fields.encode(Kind.string, forKey: .type)
             try fields.encode(value, forKey: .value)
+        case let .url(value):
+            try fields.encode(Kind.url, forKey: .type)
+            try fields.encode(value.absoluteString, forKey: .value)
         case let .integer(value):
             try fields.encode(Kind.integer, forKey: .type)
             try fields.encode(value, forKey: .value)

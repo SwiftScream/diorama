@@ -3011,6 +3011,17 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 - Exclusions: Universal HTTP failure taxonomy, localized descriptions/security objects/custom subclass identity, treating HTTP status as transport failure.
 - Checkpoint: R; review exact allowlist and limits before adapters capture errors.
 
+- Preparatory review update: Complete on 2026-11-15; the owner approves a separate
+  PR for this commit. The owner requests shared URL/NSURL snapshot and payload
+  support as a separate commit before H09. The owner approves
+  extending Location's unreleased version-one schema with the shared `url` tag.
+  The approved review revision stores a Foundation `URL` in the semantic value;
+  its JSON payload remains an explicit URL string.
+  See [URL snapshot evidence](../evidence/003-H09-error-snapshot-urls.md).
+  H09's URLSession wrapper remains a separate review unit; this PR delivers only
+  the shared conversion prerequisite. Merge requires passing required checks
+  and a separate owner request.
+
 ### 003-H10 — Response-owned redirect branches
 
 - Recommended model: GPT-6 Sol; reasoning: `high`. Typed redirect branches and inherited requests must retain single ownership through recursive schema validation.

@@ -407,3 +407,22 @@ their enclosing schema version, native observation boundaries, metadata
 allowlist/redaction, omission diagnostics, and any typed supplements. Adoption
 does not broaden a system's allowed metadata. Location's version-one error
 JSON and native error delivery remain unchanged by the extraction.
+
+## Shared URL snapshot values — owner-approved 2026-11-15
+
+The owner approves extending the shared error helper and payload codec to retain
+native `URL`/`NSURL` user-info values. Core stores a distinct URL scalar containing
+a detached Foundation `URL` value. In review, the owner explicitly selects this
+value representation over the initial string-backed scalar. Capture resolves any
+base URL through `absoluteString` and reparses without retaining the original
+object graph. Relative URLs without a base remain relative. Explicit snapshot
+values must have no retained base. Reconstruction returns the stored URL directly.
+URL spellings share the existing string and total-byte limits at every nesting
+level. Persistence uses a deliberate `url` tag, distinct from `string`, with an
+`absoluteString` payload that must parse without repair and reproduce itself.
+
+Location's existing shared-codec adoption includes this value under
+[DD08's unreleased version-one exception](08-schema-compatibility.md#unreleased-url-value-extension--owner-approved-2026-11-15).
+This extension does not choose URLSession-specific metadata keys, failing-URL
+aliases, public failure types, or adapter behavior. Systems retain ownership of
+preparation, metadata policy, diagnostics, and native delivery.

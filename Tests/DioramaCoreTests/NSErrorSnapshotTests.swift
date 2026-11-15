@@ -3,6 +3,83 @@ import Foundation
 import Testing
 
 struct NSErrorSnapshotTests {
+    @Test(arguments: [
+        "https://example.invalid/a?x=%2f&x=%2F#fragment",
+        "file:///tmp/example%20file",
+        "../relative?x=1",
+    ])
+    func `URL and NSURL values retain their spelling and native type`(_ spelling: String) throws {
+        let url = try #require(URL(string: spelling, encodingInvalidCharacters: false))
+        let original = NSError(domain: "example.failure", code: 7, userInfo: [
+            "url": url,
+            "nested": ["url": url as NSURL],
+            "text": spelling,
+        ])
+        let captured = NSErrorSnapshot.capture(original)
+        let snapshot = try #require(captured.snapshot)
+        #expect(captured.omissions.isEmpty)
+        #expect(snapshot.userInfo["url"] == .url(url))
+        #expect(snapshot.userInfo["nested"] == .dictionary(["url": .url(url)]))
+        #expect(snapshot.userInfo["text"] == .string(spelling))
+        let restored = snapshot.makeError()
+        #expect((restored.userInfo["url"] as? URL)?.absoluteString == spelling)
+        let nested = try #require(restored.userInfo["nested"] as? [String: Any])
+        #expect((nested["url"] as? NSURL)?.absoluteString == spelling)
+        #expect(restored.userInfo["text"] as? String == spelling)
+        #expect(NSErrorSnapshot.capture(restored).snapshot == snapshot)
+    }
+
+    @Test
+    func `URL capture resolves a base without retaining its object graph`() throws {
+        let base = try #require(URL(string: "https://example.invalid/root/"))
+        let url = try #require(NSURL(string: "child?x=%2f", relativeTo: base))
+        let captured = NSErrorSnapshot.capture(NSError(domain: NSURLErrorDomain, code: -1001, userInfo: [
+            NSURLErrorFailingURLErrorKey: url,
+        ]))
+        let snapshot = try #require(captured.snapshot)
+        let spelling = "https://example.invalid/root/child?x=%2f"
+        #expect(captured.omissions.isEmpty)
+        guard case let .url(stored) = snapshot.userInfo[NSURLErrorFailingURLErrorKey] else {
+            Issue.record("Expected a URL snapshot value")
+            return
+        }
+        #expect(stored.absoluteString == spelling)
+        #expect(stored.baseURL == nil)
+        let restored = try #require(snapshot.makeError().userInfo[NSURLErrorFailingURLErrorKey] as? URL)
+        #expect(restored.absoluteString == spelling)
+        #expect(restored.baseURL == nil)
+    }
+
+    @Test
+    func `explicit URL values reject retained bases and oversized spellings`() throws {
+        let base = try #require(URL(string: "https://example.invalid/root/"))
+        let relative = try #require(URL(string: "child", relativeTo: base))
+        #expect(NSErrorSnapshot(domain: "example.failure", code: 1, userInfo: ["url": .url(relative)]) == nil)
+        let oversized = try #require(URL(string: String(repeating: "u", count: NSErrorSnapshot.maximumStringBytes + 1)))
+        #expect(NSErrorSnapshot(domain: "example.failure", code: 1, userInfo: ["url": .url(oversized)]) == nil)
+    }
+
+    @Test
+    func `URL values share string and total byte limits without losing healthy siblings`() throws {
+        let prefix = "https://example.invalid/"
+        let spelling = prefix + String(repeating: "a", count: NSErrorSnapshot.maximumStringBytes - prefix.utf8.count)
+        #expect(spelling.utf8.count == NSErrorSnapshot.maximumStringBytes)
+        let url = try #require(URL(string: spelling))
+        #expect(NSErrorSnapshot(domain: "example.failure", code: 1, userInfo: ["url": .url(url)]) != nil)
+        let oversized = try #require(URL(string: spelling + "a"))
+        let captured = NSErrorSnapshot.capture(NSError(domain: "example.failure", code: 1, userInfo: [
+            "a": Array(repeating: url, count: 16),
+            "b": url,
+            "c": oversized,
+        ]))
+        let snapshot = try #require(captured.snapshot)
+        #expect(snapshot.userInfo == ["b": .url(url)])
+        #expect(captured.omissions.map(\.key) == ["a", "c"])
+        #expect(NSErrorSnapshot(domain: "example.failure", code: 1, userInfo: [
+            "urls": .array(Array(repeating: .url(url), count: 16)),
+        ]) == nil)
+    }
+
     @Test
     func `reconstruction preserves supported values with fresh native identity`() throws {
         let snapshot = try #require(NSErrorSnapshot(domain: "example.failure", code: -987_654, userInfo: [

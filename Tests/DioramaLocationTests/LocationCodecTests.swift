@@ -7,6 +7,29 @@ import Testing
 
 @Suite(.timeLimit(.minutes(1)))
 struct LocationCodecTests {
+    @Test
+    func `failure URL metadata survives the shared codec and native reconstruction`() throws {
+        let spelling = "https://example.invalid/failure?x=%2f"
+        let url = try #require(URL(string: spelling))
+        let snapshot = try #require(NSErrorSnapshot.capture(NSError(domain: "kCLErrorDomain", code: 1, userInfo: [
+            "url": url,
+        ])).snapshot)
+        let session = try LocationSession(timestampOrigin: nil, events: [
+            .failure(delayMilliseconds: 5, error: snapshot),
+        ])
+        let recording = try LocationRecording(
+            coordinateSpace: nil, sessions: [session], access: LocationSamples.access())
+        let bytes = try encoded(recording)
+        let read = try decoded(bytes)
+        #expect(read == recording)
+        guard case let .failure(_, restored) = read.sessions[0].events[0] else {
+            Issue.record("Expected the failure event")
+            return
+        }
+        #expect((restored.makeError().userInfo["url"] as? URL)?.absoluteString == spelling)
+        #expect(try encoded(read) == bytes)
+    }
+
     private func codec() throws -> JSONScenarioCodec {
         try JSONScenarioCodec(registry: PersistentSystemRegistry([LocationTracks.type]))
     }

@@ -149,12 +149,19 @@ policy; the extraction changes no version-one JSON bytes.
 
 Failures store `domain`, integral `code`, and `userInfo`. Each supported
 user-info value has an explicit `type` (`string`, `integer`, `real`, `boolean`,
-`data`, `date`, `array`, or `dictionary`) and a corresponding `value`. Binary
+`data`, `date`, `url`, `array`, or `dictionary`) and a corresponding `value`. Binary
 data is Base64; error user-info dates use exact finite Unix-second numbers so
 submillisecond data from the shared error snapshot does not silently change.
 Timestamp origins still use the shared ISO 8601 codec. The shared
 `NSErrorSnapshot` limits nesting, counts, and byte sizes before a decoded
 failure enters a strict session. No Foundation archive is stored.
+
+URL metadata retains its resolved native spelling in a `url` tag and reconstructs
+as a native URL rather than a string. On 2026-11-15, the owner approves adding
+this tag to the unreleased version-one schema under
+[DD08's explicit exception](design-decisions/08-schema-compatibility.md#unreleased-url-value-extension--owner-approved-2026-11-15).
+Existing fixtures retain their exact bytes; older development readers cannot
+read the added tag. URL strings follow the shared string and total-byte bounds.
 
 The version-one reader rejects unsupported schema versions, unknown keys,
 unknown cases, missing required fields, invalid numbers and durations, excess

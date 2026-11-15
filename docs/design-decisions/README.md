@@ -4,6 +4,12 @@
 - Consolidated design approved by owner: 2026-09-07
 
 On 2026-11-15, the owner approves
+[DD06's shared URL snapshot values](06-runtime-to-snapshot-conversion.md#shared-url-snapshot-values--owner-approved-2026-11-15)
+and [DD08's unreleased version-one extension](08-schema-compatibility.md#unreleased-url-value-extension--owner-approved-2026-11-15).
+The shared error helper and codec retain native URL metadata, including within
+Location's unreleased schema, without selecting URLSession-specific policy.
+
+On 2026-11-15, the owner approves
 [DD17's derived field spelling amendment](17-http-lifecycle-composition.md#derived-field-spelling--owner-approved-2026-11-15).
 Derived Content-Length values use `{ "derivedFrom": "bodyByteCount" }` inside
 the ordered field entry. Literal strings remain unambiguous; only this source

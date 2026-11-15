@@ -173,6 +173,17 @@ semantics it does not understand. The registration should advertise which
 versions that system can decode so diagnostics can distinguish an unknown type
 from an unsupported version.
 
+## Unreleased URL value extension — owner-approved 2026-11-15
+
+The owner explicitly approves extending the shared `NSErrorSnapshotPayload`
+vocabulary with a `url` scalar and allowing Location's unreleased version-one
+schema to use it without a version increment. Existing tagged values and
+canonical fixtures retain their representations; older development readers
+reject `url`. This narrow exception applies before the first public schema
+release and does not relax the versioning or reader-retention policy for later
+changes. See [DD06's shared URL values](06-runtime-to-snapshot-conversion.md#shared-url-snapshot-values--owner-approved-2026-11-15)
+and the [shared payload contract](../persistence-schema-v1.md#shared-bounded-nserror-payload).
+
 ## Migration model
 
 Migration occurs while decoding into the current stable semantic model. It need

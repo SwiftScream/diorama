@@ -608,6 +608,12 @@ DioramaPersistence. Systems may opt into its shared tagged representation
 while owning their metadata policies and enclosing schema versions. Core's
 snapshot remains independent of Codable.
 
+The shared helper also retains native URL metadata as bounded Foundation URL
+values, with a distinct `url` payload tag storing their spelling. Base URLs resolve
+at capture. [DD06's URL amendment](design-decisions/06-runtime-to-snapshot-conversion.md#shared-url-snapshot-values--owner-approved-2026-11-15)
+and [DD08's unreleased schema exception](design-decisions/08-schema-compatibility.md#unreleased-url-value-extension--owner-approved-2026-11-15)
+govern this extension, including Location's version-one adoption.
+
 ### Consumer-system extension milestone
 
 Status: Resolved by

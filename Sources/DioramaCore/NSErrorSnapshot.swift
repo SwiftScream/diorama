@@ -1,10 +1,12 @@
 import CoreFoundation
 import Foundation
 
-/// Bounded property-list-like information shared by NSError-based adapters.
+/// Bounded property-list-like information and URL values shared by NSError-based adapters.
 package indirect enum NSErrorSnapshotValue: Equatable, Sendable {
     /// A bounded UTF-8 string.
     case string(String)
+    /// A bounded URL value, detached from any native base URL or object.
+    case url(URL)
     /// A signed 64-bit integer.
     case integer(Int64)
     /// A finite floating-point number.
@@ -23,6 +25,7 @@ package indirect enum NSErrorSnapshotValue: Equatable, Sendable {
     fileprivate var foundationValue: Any {
         switch self {
         case let .string(value): value
+        case let .url(value): value
         case let .integer(value): NSNumber(value: value)
         case let .real(value): NSNumber(value: value)
         case let .boolean(value): NSNumber(value: value)
@@ -47,11 +50,11 @@ package struct NSErrorSnapshot: Equatable, Sendable {
     package static let maximumCollectionEntries = 32
     /// Maximum UTF-8 bytes in one domain or user-information key.
     package static let maximumKeyBytes = 256
-    /// Maximum UTF-8 bytes in one string value.
+    /// Maximum UTF-8 bytes in one string value or URL spelling.
     package static let maximumStringBytes = 4096
     /// Maximum bytes in one data value.
     package static let maximumDataBytes = 16384
-    /// Maximum combined string, key, and data bytes in user information.
+    /// Maximum combined string, URL spelling, key, and data bytes in user information.
     package static let maximumTotalBytes = 65536
 
     /// Native error domain.
@@ -123,6 +126,9 @@ package struct NSErrorSnapshot: Equatable, Sendable {
         switch value {
         case let .string(string):
             return string.utf8.count <= maximumStringBytes && budget.addBytes(string.utf8.count)
+        case let .url(url):
+            let string = url.absoluteString
+            return url.baseURL == nil && string.utf8.count <= maximumStringBytes && budget.addBytes(string.utf8.count)
         case .integer, .boolean:
             return true
         case let .real(number):
@@ -187,6 +193,9 @@ package struct NSErrorSnapshot: Equatable, Sendable {
             guard string.utf8.count <= maximumStringBytes, budget.addBytes(string.utf8.count) else { return nil }
             return .string(string)
         }
+        if let url = object as? URL {
+            return convertURL(url, budget: &budget)
+        }
         if let data = object as? Data {
             guard data.count <= maximumDataBytes, budget.addBytes(data.count) else { return nil }
             return .data(data)
@@ -206,6 +215,16 @@ package struct NSErrorSnapshot: Equatable, Sendable {
             return Int64(number.stringValue).map(NSErrorSnapshotValue.integer)
         }
         return nil
+    }
+
+    private static func convertURL(_ url: URL, budget: inout ValueBudget) -> NSErrorSnapshotValue? {
+        let string = url.absoluteString
+        guard string.utf8.count <= maximumStringBytes,
+              let detached = URL(string: string, encodingInvalidCharacters: false),
+              detached.absoluteString == string,
+              budget.addBytes(string.utf8.count)
+        else { return nil }
+        return .url(detached)
     }
 
     private static func convertArray(

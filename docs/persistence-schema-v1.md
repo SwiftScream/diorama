@@ -162,13 +162,31 @@ It wraps Core's validated `NSErrorSnapshot`, without making Core's type
 
 The object contains `domain`, integral `code`, and a string-keyed `userInfo`
 object. Every user-info value contains `type` and `value`. The type is one of
-`string`, `integer`, `real`, `boolean`, `data`, `date`, `array`, or `dictionary`.
+`string`, `url`, `integer`, `real`, `boolean`, `data`, `date`, `array`, or `dictionary`.
 Integers retain Int64 precision, data uses Base64 in JSON, and dates use finite
 Unix-second numbers preserving available submillisecond precision. Reals and
 dates are not rounded by system-specific measurement precision rules.
 Arrays contain tagged values; dictionaries contain string-keyed tagged values.
 Unknown keys/cases and invalid scalar values are rejected. The complete decoded
 snapshot must satisfy Core's nesting, count, byte, domain, and date bounds.
+
+URL values use `{"type":"url","value":"https://example.invalid/path"}`.
+The in-memory snapshot holds a Foundation `URL`; only the codec writes its
+`absoluteString`. Capture resolves any base URL and detaches the native value.
+A relative URL without a base remains relative. Explicit snapshot URL values
+must have no retained base. Reconstruction returns the stored URL directly,
+preserving its distinction from an ordinary string; base objects and URL
+subclasses are not retained. Decoding parses the spelling without character
+repair and requires the same `absoluteString`. URLs share the 4,096-byte string
+limit and the combined key/string/data byte budget, including inside collections.
+Capture omits unsupported or oversized URL entries with the existing key/type
+facts; explicit snapshots and decoded payloads reject invalid URL values.
+
+The owner approves this URL tag as an extension of the unreleased version-one
+Location schema on 2026-11-15; see
+[DD08's narrow exception](design-decisions/08-schema-compatibility.md#unreleased-url-value-extension--owner-approved-2026-11-15).
+Existing value encodings and fixtures remain unchanged. Older development
+readers reject the new tag; no compatibility with those readers is promised.
 
 A system deliberately selects this representation as part of its independently
 versioned payload. It still owns error capture, metadata filtering/redaction,
