@@ -273,14 +273,16 @@ random, or date products from building and testing there. Location behavior and
 coverage are verified on macOS and iOS, while the Linux job still checks the
 applicable package graph and conditional target boundaries.
 
-### FoundationNetworking known failures — owner-approved, 2026-09-26
+### Experimental FoundationNetworking and known failures
 
-The owner authorizes Linux implementation and preparing completed evidence
-units for merge while required FoundationNetworking repairs proceed upstream. Affected Linux
-URLSession behavior is expected to remain broken on unpatched runtimes.
-The [Plan 003 continuation policy](plans/003-clean-slate-implementation.md#q1--urlprotocol-evidence-versus-production-task-division-resolved-by-owner-2026-09-06)
-and [FoundationNetworking handoff](evidence/003-D02-foundationnetworking-handoff.md#owner-decisions-and-fix-priorities--2026-09-26)
-identify the accepted limitations and required repairs.
+The owner approved continued Linux implementation with narrowly scoped known
+issues on 2026-09-26. Under the
+[2026-11-20 experimental FoundationNetworking amendment](design-decisions/12-urlsession-scope.md#experimental-foundationnetworking-support--owner-approved-2026-11-20),
+Apple URLSession conformance and delivery can proceed while upstream repairs
+and Linux URLSession conformance are pending. The required Linux job still
+checks the portable package and unaffected assertions. The
+[FoundationNetworking handoff](evidence/003-D02-foundationnetworking-handoff.md#owner-decisions-and-fix-priorities--2026-09-26)
+records the evidence and repairs needed for the affected Linux capabilities.
 
 Use Linux-only Swift Testing `withKnownIssue` scopes around the exact assertions
 affected by a documented defect. Retain the intended assertions and identify

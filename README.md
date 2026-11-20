@@ -21,8 +21,8 @@ The accepted design covers:
 - a small random-number proving system;
 - wall-clock observation and monotonic sleeping;
 - Apple-only Core Location recording and replay with native location delivery;
-- shared HTTP semantics and a URLSession adapter for Apple Foundation and
-  FoundationNetworking.
+- shared HTTP semantics and a URLSession adapter for Apple Foundation on macOS
+  and iOS, with experimental FoundationNetworking support on Linux.
 
 Replay never contacts a live dependency when a recording is missing,
 ambiguous, incompatible, or exhausted.

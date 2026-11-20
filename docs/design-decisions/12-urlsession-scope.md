@@ -605,6 +605,25 @@ watchOS remains excluded because Apple documents custom `URLProtocol`
 limitations on watchOS. Other non-Darwin platforms remain unadvertised until
 their FoundationNetworking bridge passes an equivalent suite.
 
+### Experimental FoundationNetworking support — owner-approved 2026-11-20
+
+macOS and iOS must pass conformance for the full accepted Apple URLSession
+surface to complete the initial milestone. FoundationNetworking URLSession
+support is experimental. Apple implementation, acceptance, and initial
+delivery can proceed independently of Linux URLSession conformance, upstream
+repairs, and the availability of a released runtime containing those repairs.
+This supersedes the Linux milestone requirement and the production slice
+ordering described above and in
+[DD17](17-http-lifecycle-composition.md#implementation-progression).
+
+Experimental support still uses the common system identity and fixture format.
+Replay setup checks the full fixture against the local bridge's proved
+capabilities and rejects unsupported behavior before claiming a record. A
+bridge may advertise a capability once its own conformance tests pass. Replay
+remains offline. Keep known gaps visible in tests and support documentation,
+and reassess them against repaired runtimes as they become available. The
+portable package's Linux build and test requirements continue to apply.
+
 ## Required interception spike
 
 A narrow spike must test the proposed `URLProtocol` boundary on current macOS
