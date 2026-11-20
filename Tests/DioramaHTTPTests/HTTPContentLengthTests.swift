@@ -100,6 +100,42 @@ struct HTTPContentLengthTests {
         }
     }
 
+    @Test(arguments: [HTTPRequest.Method.get, .post, .head, .connect])
+    func `construction validates derived response length before encoding`(_ method: HTTPRequest.Method) throws {
+        let request = try request(method: method)
+        let literal = try response()
+        let derived = try select(literal)
+        if method == .head || method == .connect {
+            #expect(throws: HTTPMessageError.invalidField) {
+                try HTTPInteraction(initialRequest: request, result: .received(derived))
+            }
+        } else {
+            let interaction = try HTTPInteraction(initialRequest: request, result: .received(derived))
+            #expect(interaction.result == .received(derived))
+        }
+        let interaction = try HTTPInteraction(initialRequest: request, result: .received(literal))
+        #expect(interaction.result == .received(literal))
+        _ = try HTTPInteraction<String>(initialRequest: request, result: .openAtRecordingHorizon)
+        _ = try HTTPInteraction(initialRequest: request, result: .failed(HTTPTimed(after: .zero, value: "failed")))
+    }
+
+    @Test(arguments: [HTTPRequest.Method.head, .connect])
+    func `decoding rejects derived response length for edited methods`(
+        _ method: HTTPRequest.Method) throws
+    {
+        let interaction = try HTTPInteraction(
+            initialRequest: request(method: .get), result: .received(select(response())))
+        let data = try JSONEncoder().encode(interaction)
+        var object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        var request = try #require(object["initialRequest"] as? [String: Any])
+        request["method"] = method.rawValue
+        object["initialRequest"] = request
+        let edited = try JSONSerialization.data(withJSONObject: object)
+        #expect(throws: HTTPMessageError.invalidField) {
+            try JSONDecoder().decode(HTTPInteraction<String>.self, from: edited)
+        }
+    }
+
     @Test
     func `edited response scales profile and length while validators remain literal`() throws {
         let selected = try select(response())

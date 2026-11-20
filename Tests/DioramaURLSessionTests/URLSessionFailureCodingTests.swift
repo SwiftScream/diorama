@@ -35,12 +35,12 @@ struct URLSessionFailureCodingTests {
         let request = try HTTPRequestMessage(head: HTTPRequest(
             method: .get, scheme: "https", authority: "example.invalid", path: "/"))
         let timed = try HTTPTimed(after: HTTPDelay(milliseconds: .observed(5)), value: failure)
-        let before = HTTPInteraction(initialRequest: request, result: .failed(timed))
+        let before = try HTTPInteraction(initialRequest: request, result: .failed(timed))
         let response = try HTTPResponseNode(
             head: HTTPTimed(after: HTTPDelay(milliseconds: .observed(2)),
                             value: HTTPResponseHead(head: HTTPResponse(status: .serviceUnavailable))),
             body: HTTPBodyDelivery(content: .bytes([0, 255]), conclusion: .failed(timed)))
-        let after = HTTPInteraction(initialRequest: request, result: .received(response))
+        let after = try HTTPInteraction(initialRequest: request, result: .received(response))
         for value in [before, after] {
             let data = try canonical(value)
             #expect(try JSONDecoder().decode(HTTPInteraction<URLSessionFailure>.self, from: data) == value)

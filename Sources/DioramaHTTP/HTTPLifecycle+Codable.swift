@@ -9,20 +9,10 @@ extension HTTPInteraction: Codable where Failure: Codable {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
         try self.init(initialRequest: fields.decode(HTTPRequestMessage.self, forKey: .initialRequest),
                       result: fields.decode(HTTPAttemptResult<Failure>.self, forKey: .result))
-        if case let .received(response) = result, response.head.value.derivesContentLength {
-            guard HTTPContentLength.unambiguous(method: initialRequest.head.method) else {
-                throw HTTPMessageError.invalidField
-            }
-        }
     }
 
     /// Writes the root without an independent, potentially contradictory conclusion.
     public func encode(to encoder: any Encoder) throws {
-        if case let .received(response) = result, response.head.value.derivesContentLength {
-            guard HTTPContentLength.unambiguous(method: initialRequest.head.method) else {
-                throw HTTPMessageError.invalidField
-            }
-        }
         var fields = encoder.container(keyedBy: CodingKeys.self)
         try fields.encode(initialRequest, forKey: .initialRequest)
         try fields.encode(result, forKey: .result)
