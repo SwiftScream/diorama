@@ -99,13 +99,13 @@ public enum HTTPMatchProjectionError: Error, Equatable, Sendable {
 public struct HTTPRequestMatcher: Sendable {
     private let fields: HTTPMatchFields
     private let rule: DiagnosticLabel
-    private let compare: @Sendable (HTTPRequestMatchProjection, HTTPRequestMatchProjection) -> Bool
+    let customComparison: (@Sendable (HTTPRequestMatchProjection, HTTPRequestMatchProjection) -> Bool)?
 
     /// Creates the standard exact projection matcher with configurable field participation.
     public init(fields: HTTPMatchFields = .standard) {
         self.fields = fields
         rule = DiagnosticLabel("http.standard")
-        compare = { $0 == $1 }
+        customComparison = nil
     }
 
     /// Creates a typed comparison over prepared, resolved projections.
@@ -116,7 +116,7 @@ public struct HTTPRequestMatcher: Sendable {
     {
         self.fields = fields
         self.rule = rule
-        compare = matches
+        customComparison = matches
     }
 
     /// Projects an admitted request, resolving resource content through controlled setup.
@@ -147,7 +147,7 @@ public struct HTTPRequestMatcher: Sendable {
 
     /// Compares projections created with this setup's field policy.
     public func matches(_ lhs: HTTPRequestMatchProjection, _ rhs: HTTPRequestMatchProjection) -> Bool {
-        compare(lhs, rhs)
+        customComparison?(lhs, rhs) ?? (lhs == rhs)
     }
 
     /// Reports differing components in fixed order; custom equivalence suppresses differences.
