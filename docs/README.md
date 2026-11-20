@@ -404,6 +404,9 @@ test-integration design. They do not authorize those APIs.
   optional consumer decisions, single-conclusion ownership, capability checks,
   and timing anchors.
 
+- [Incremental HTTP recording evidence](evidence/003-H12A-http-recording-capture.md)
+  covers observation ordering, decision timing, partial bodies, and finalization.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

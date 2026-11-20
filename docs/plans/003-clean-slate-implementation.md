@@ -3130,7 +3130,14 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H12A — HTTP-owned incremental lifecycle capture
 
-- Status: Approved in the DD19 plan revision; not started. Normal unit scope confirmation is required.
+- Status: Complete. Initial local implementation completes on 2026-11-20
+  following owner scope confirmation. The owner approves the review updates,
+  squashing, and stacked PR creation on 2026-11-22. The focused recording tests
+  and canonical macOS gate pass.
+- Evidence: [HTTP-owned incremental lifecycle capture](../evidence/003-H12A-http-recording-capture.md).
+- Owner-approved review updates: Report record-scoped reasons for incompatible
+  or incomplete capture and verify nearest-millisecond timestamp rounding,
+  including zero-delay deliveries.
 - Recommended model: GPT-6 Astra; reasoning: `high`.
 - Prerequisites: 003-H05–003-H06, 003-H07A, 003-H08, 003-H09–003-H12, 003-E04R, 003-E01; DD03, DD09, DD17, DD19.
 - Scope: Construct the strict observed HTTP tree from prepared domain observations using Core's record reservation/freeze service. Keep correlation, transition validation, partial body ownership, and current-decision capture anchors in the domain.

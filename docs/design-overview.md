@@ -686,6 +686,12 @@ preserves presentation independence. Present phases require
 compatible delegate capabilities, and post-decision delays exclude application
 latency. Native callback wiring remains adapter work.
 
+[Incremental HTTP recording](http-message-schema-v1.md#incremental-recording)
+reserves one Core record at invocation and orders prepared observations by
+their reservation time and sequence. The HTTP accumulator owns the current
+attempt, each decision's continuation, partial body bytes, storage selection,
+and final length derivation. Core freezes and validates the resulting interaction.
+
 ### Unmatched loaded attachments and persistence registration
 
 The repository decodes and validates every payload for persisted-value

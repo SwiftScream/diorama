@@ -634,8 +634,57 @@ length does not change the profile or require weights to be rewritten.
 
 `body-allocations.json` contains independent allocation examples, including
 rounding and integer bounds. `body-profile.json` proves canonical profile encoding
-with empty trailers and authored timing. Resource publication, scheduler delivery,
-capture, and native adapters remain separate work units.
+with empty trailers and authored timing. Incremental recording constructs this
+profile from each prepared segment and its observation time.
+
+## Incremental recording
+
+Embed `HTTPRecordingCapture<Failure>` in the adapter's record-mode state.
+Configure its body storage policy and, when needed, an interaction policy for
+Core's final validation. At invocation, call `HTTPRecordingCapture.begin` under
+Core state protection with the capture property's key path, the interaction
+track lease, and a stable resource stem based on record identity. Begin reserves
+both the record position and the initial request's observation time.
+
+Complete the handle's `initial` reservation with the prepared request event.
+For subsequent observations, call `reserve` on the same capture before slow
+conversion. Supply the originating attempt number (zero for the root, incremented
+for each followed redirect or authentication retry). Prepare the event using
+the adapter's selected payload policies outside the lock, then call `complete`
+under state protection. Conversion can finish out of order. The accumulator
+applies ready events in observation order and checks each against the active
+attempt and phase. An adapter that cannot prepare an observation calls
+`invalidate` on its operation. Pass the `PreparationFailure` from recording
+preparation to preserve the reported stage. Capture diagnostics identify the
+record and distinguish invalid reservations, wrong attempts, incompatible
+observations, pending preparation, and missing required completions.
+
+Record a decision's answer at the instant the application returns it. The next
+head, failure, or body segment uses that instant as its timing anchor. For
+default/reject authentication, a subsequent `retry` identifies the observed
+branch and any changed request while preserving the answer's anchor. A
+`segment` includes its byte weight and delay, including a zero-byte delivery.
+Use `content` for whole, unprofiled content, including unavailable content.
+Its conclusion uses the preceding timed event as the anchor.
+
+As in [Location capture](evidence/003-G03A-location-incremental-capture.md),
+HTTP rounds each monotonic observation timestamp to the nearest millisecond,
+with half milliseconds rounding up, before subtracting the previous anchor.
+This avoids accumulating rounding error across a sequence of deliveries.
+Events that fall on the same rounded timestamp retain a zero delay.
+
+Freeze preserves pending heads, decisions, retries, and partial body prefixes
+at their observed horizons. An observed cancel requires its resulting failure,
+and observed trailers require successful completion. If capture ends in either
+intermediate state, the current schema cannot express the observation and Core
+refuses publication. An incompatible event such as successful delivery after a
+cancel also invalidates the candidate.
+
+Capture applies body placement to prepared bytes automatically. Each generated
+resource stem includes the operation stem, zero-based attempt number, and
+content role (request, proposal, modified request, retry, or response).
+Length selection uses the effective method at that response and its final body
+conclusion. See the [capture evidence](evidence/003-H12A-http-recording-capture.md).
 
 ## Recording placement policy
 
@@ -906,8 +955,8 @@ resolved decimal value, while `derivesContentLength` retains persistence intent.
 Re-encoding preserves that intent. Literal strings always remain literal,
 including deliberate mismatches and values equal to the current body length.
 
-Recording explicitly calls `HTTPContentLength.request` or `.response` with a
-prepared value after redaction and normalization. Response selection also takes
+Incremental recording automatically applies `HTTPContentLength.request` or
+`.response` to prepared values after redaction and normalization. Response selection also takes
 the effective request method. Selection requires one nonempty decimal field,
 a complete body, and equality with its byte count. Leading zeros are accepted;
 signs, lists, overflow, repeated values, and mismatches remain literal. Absent
