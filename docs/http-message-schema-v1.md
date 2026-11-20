@@ -1089,3 +1089,30 @@ segment allocation without parsing or re-encoding content. Whitespace, duplicate
 JSON names, numeric spellings, and escapes remain exact bytes. ETag, Digest,
 Content-MD5, signatures, and trailers remain literal and are never recalculated.
 Default request matching continues to exclude Content-Length.
+
+## Re-recording HTTP timing overrides
+
+Record-mode finalization pairs interactions by their prepared initial requests
+using the current attachment's replay matcher. Both sides use the current field
+policy and resolved request body bytes. Equivalent requests pair by occurrence
+within their group, even when requests from other groups move. Candidate
+records follow fresh invocation order. A custom comparison that produces
+overlapping groups or asymmetric matches requires manual resolution. The
+final report identifies the affected record and publication preserves the
+previous fixture.
+
+Within a pair, each delay retains baseline authorship only at its matching
+lifecycle path. For example, a redirect presentation can retain its override
+when a followed redirect becomes a refusal. A refusal's direct body and its
+disposition have distinct timing paths. A segment matches by its zero-based
+position within the same body branch. The fresh recording supplies segment
+weights, content and resource placement, request and response fields, failure
+values, and decision outcomes.
+An override replaces the fresh observation in canonical output. Checked
+cumulative timing must still fit the domain's millisecond range.
+
+HTTP systems can call `HTTPRecordingMerge` with their typed interaction
+tracks. Transient retention and removal facts identify the baseline record
+and timing path using schema labels and segment indices. Both are
+informational. Unresolved correspondence and invalid merged timing prevent
+publication.
