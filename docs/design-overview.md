@@ -692,6 +692,11 @@ their reservation time and sequence. The HTTP accumulator owns the current
 attempt, each decision's continuation, partial body bytes, storage selection,
 and final length derivation. Core freezes and validates the resulting interaction.
 
+[HTTP interaction replay](http-message-schema-v1.md#replaying-an-http-interaction)
+claims one prepared interaction and hands its reached events to an adapter.
+Each compatible current decision establishes a new timing anchor. Claims track
+actual delivery through the recorded conclusion or open horizon.
+
 ### Unmatched loaded attachments and persistence registration
 
 The repository decodes and validates every payload for persisted-value

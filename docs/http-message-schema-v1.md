@@ -348,8 +348,8 @@ choice/request throws `HTTPRedirectSelectionError.incompatibleDecision`; answeri
 an open decision throws `.decisionBeyondRecordingHorizon`. These are safe
 infrastructure facts, distinct from the generic recorded failure. The caller
 reports them through its diagnostic boundary; selection performs no live access.
-Until an answer, an open decision remains pending. Scheduling, diagnostic delivery,
-and native decision callbacks remain assigned to H12B/I05.
+An unanswered decision remains pending. HTTP interaction replay owns scheduling
+and reports decision failures. The URLSession adapter owns native callbacks.
 
 Derived Content-Length uses only ordinary or refused complete body bytes.
 Followed and unanswered redirect heads cannot derive length from unavailable
@@ -685,6 +685,62 @@ resource stem includes the operation stem, zero-based attempt number, and
 content role (request, proposal, modified request, retry, or response).
 Length selection uses the effective method at that response and its final body
 conclusion. See the [capture evidence](evidence/003-H12A-http-recording-capture.md).
+
+## Replaying an HTTP interaction
+
+A replay-mode system creates one `HTTPInteractionReplay<Failure>` per attachment
+from its `SystemExecution`, the key path to its interaction lease, and its
+configured `HTTPRequestMatcher`. Its `requestStop` hook awaits `replay.close()`.
+Whole-record admission and native capability checks belong to system setup.
+The controller accepts a prepared request through `start(matching:deliver:)`,
+claims the earliest matching interaction, and returns a cancellable operation
+with that record's identity. The replay actor captures the initial timing
+anchor immediately before matching. URLSession task ownership lookup, route
+revalidation, and synchronous request preparation precede this anchor.
+
+The delivery closure receives each reached response head together with its
+effective recorded request. An authentication retry can inherit or replace the
+request, and a followed redirect supplies the request on its selected edge.
+The closure also receives allocated byte slices, trailers, and the recorded
+return or failure. A body with a profile delivers each segment at its effective
+delay, including empty allocations. Unprofiled bytes produce one immediate
+delivery, and absent or unavailable content produces no byte delivery.
+An open body exposes its recorded prefix and stays pending.
+
+A redirect, challenge, or response disposition presents a typed, single-use
+answer callback. Hand the decision to the consumer and return from the delivery
+closure after presentation. The answer can arrive during that handoff or much
+later. Prepare the choice synchronously and submit it directly from the
+adapter's answer path. The callback captures time before entering the replay
+actor. For a compatible answer, that instant anchors the next local delay. A
+redirect answer submitted at 2 seconds with a 50 ms continuation makes its next
+head due at 2.05 seconds. Other delays accumulate from the same anchor, including
+when a consumer's handoff runs late.
+The controller schedules one reachable event at a time. A zero-delay continuation
+waits for the current handoff to return and a subsequent scheduler drain.
+
+An incompatible choice throws `HTTPReplayError.incompatibleDecision` and records
+`http.decision.mismatch` against the claim. Answering an unanswered recording
+throws `decisionBeyondRecordingHorizon` and records `http.decision.beyondHorizon`.
+Either outcome stops that traversal. Request selection and redirect comparison
+use the same matcher. Another request can still claim the next equivalent record.
+
+If scheduling the next event fails after a recorded handoff, the controller
+delivers the terminal `infrastructureFailure(.schedulingFailed)` event in the
+same awaited scope while replay is active. The adapter completes the operation
+with that error. Core retains the scheduling diagnostic. Progress stays at the
+last recorded handoff and the claim stays unconsumed. If `start(matching:deliver:)`
+or an answer submission encounters a scheduling error directly, that call throws.
+
+The delivery closure must await its actual adapter handoff. Core joins that work
+at finish. Each completed handoff of a recorded event advances claim progress
+once. Reaching the recorded conclusion or full open horizon acknowledges
+consumption.
+An unanswered decision reaches its recorded horizon after presentation. The
+pending operation remains attached until cancellation or shutdown. Calling
+`cancel()` stops future handoffs and preserves the claim and completed progress.
+The [replay evidence](evidence/003-H12B-http-lifecycle-replay.md) describes
+the controlled-adapter tests for this contract.
 
 ## Recording placement policy
 

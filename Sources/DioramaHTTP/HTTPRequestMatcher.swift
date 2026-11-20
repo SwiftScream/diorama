@@ -126,14 +126,23 @@ public struct HTTPRequestMatcher: Sendable {
         resolve: (HTTPBodyResource) throws -> [UInt8] = { $0.bytes() })
         throws(HTTPMatchProjectionError) -> HTTPRequestMatchProjection
     {
-        let body: [UInt8]?
-        switch request.value.body {
-        case .absent: body = nil
-        case let .bytes(bytes): body = bytes
-        case let .resource(resource):
-            do { body = try resolve(resource) } catch { throw .resourceUnavailable }
+        do { return try project(request.value, resolve: resolve) } catch { throw .resourceUnavailable }
+    }
+
+    /// Projects an already admitted interaction or decision using its owned resource bytes.
+    func projectOwned(_ request: HTTPRequestMessage) -> HTTPRequestMatchProjection {
+        project(request) { $0.bytes() }
+    }
+
+    private func project(_ request: HTTPRequestMessage, resolve: (HTTPBodyResource) throws -> [UInt8])
+        rethrows -> HTTPRequestMatchProjection
+    {
+        let body: [UInt8]? = switch request.body {
+        case .absent: nil
+        case let .bytes(bytes): bytes
+        case let .resource(resource): try resolve(resource)
         }
-        return HTTPRequestMatchProjection(request.value, fields: fields, body: body)
+        return HTTPRequestMatchProjection(request, fields: fields, body: body)
     }
 
     /// Compares projections created with this setup's field policy.

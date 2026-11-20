@@ -3168,7 +3168,11 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H12B — HTTP-owned lifecycle replay
 
-- Status: Approved replacement for generic E07 under DD19; not started. Normal unit scope confirmation is required.
+- Status: Complete. Initial local implementation follows owner scope confirmation
+  on 2026-11-20. The owner approves the timing and scheduling-failure review
+  updates, squashing, and stacked PR creation. Focused replay tests and the
+  canonical macOS gate pass.
+- Evidence: [HTTP-owned lifecycle replay](../evidence/003-H12B-http-lifecycle-replay.md).
 - Recommended model: GPT-6 Astra; reasoning: `high`.
 - Prerequisites: 003-H04–003-H06, 003-H12A, revised 003-E05, 003-E03; DD14, DD17, DD19.
 - Scope: Traverse one strictly constructed recursive HTTP record through domain delivery hooks using Core claims, logical time, scheduling, and progress reporting.

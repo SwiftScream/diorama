@@ -407,6 +407,9 @@ test-integration design. They do not authorize those APIs.
 - [Incremental HTTP recording evidence](evidence/003-H12A-http-recording-capture.md)
   covers observation ordering, decision timing, partial bodies, and finalization.
 
+- [HTTP lifecycle replay evidence](evidence/003-H12B-http-lifecycle-replay.md)
+  covers current decision timing, ordered body delivery, and claim progress.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its
