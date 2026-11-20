@@ -325,5 +325,98 @@
         }
       }
     }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/private",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "7ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Unauthorized",
+            "status" : 401
+          }
+        },
+        "next" : {
+          "authenticate" : {
+            "after" : "2ms",
+            "challenge" : {
+              "host" : "example.invalid",
+              "isProxy" : false,
+              "method" : "basic",
+              "port" : 443,
+              "previousFailureCount" : 0,
+              "proposedCredential" : {
+                "hasPassword" : true,
+                "persistence" : "none",
+                "user" : "fixture-user"
+              },
+              "protocol" : "https",
+              "realm" : "fixture"
+            },
+            "outcome" : {
+              "continuation" : {
+                "kind" : "retry",
+                "retry" : {
+                  "result" : {
+                    "kind" : "received",
+                    "response" : {
+                      "head" : {
+                        "after" : "13ms",
+                        "value" : {
+                          "fields" : [
+
+                          ],
+                          "reasonPhrase" : "Unauthorized",
+                          "status" : 401
+                        }
+                      },
+                      "next" : {
+                        "disposition" : {
+                          "after" : "3ms",
+                          "outcome" : {
+                            "body" : {
+                              "conclusion" : {
+                                "completion" : {
+                                  "after" : "5ms"
+                                },
+                                "kind" : "returned"
+                              },
+                              "content" : {
+                                "kind" : "bytes",
+                                "text" : "denied"
+                              }
+                            },
+                            "kind" : "allow"
+                          }
+                        },
+                        "kind" : "disposition"
+                      }
+                    }
+                  }
+                }
+              },
+              "kind" : "performDefaultHandling"
+            }
+          },
+          "kind" : "authenticate"
+        }
+      }
+    }
   }
 ]

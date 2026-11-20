@@ -66,7 +66,7 @@ extension HTTPResponseNode: Codable where Failure: Codable {
     private enum CodingKeys: String, CodingKey, CaseIterable { case head, next }
     private enum HeadKeys: String, CodingKey, CaseIterable { case after, value }
 
-    /// Reads one head and exactly one response-owned body, redirect, or authentication branch.
+    /// Reads one head and exactly one response-owned body or decision branch.
     public init(from decoder: any Decoder) throws {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
         let next = try fields.decode(HTTPAfterResponseHead<Failure>.self, forKey: .next)
@@ -98,6 +98,7 @@ extension HTTPResponseNode: Codable where Failure: Codable {
 extension HTTPAfterResponseHead: Codable where Failure: Codable {
     private enum BodyKeys: String, CodingKey, CaseIterable { case kind, body }
     private enum RedirectKeys: String, CodingKey, CaseIterable { case kind, redirect }
+    private enum DispositionKeys: String, CodingKey, CaseIterable { case kind, disposition }
     private enum AuthenticationKeys: String, CodingKey, CaseIterable { case kind, authenticate }
 
     /// Reads exactly one tagged continuation with only its own required payload.
@@ -110,6 +111,9 @@ extension HTTPAfterResponseHead: Codable where Failure: Codable {
         case "redirect":
             let fields = try decoder.strictContainer(keyedBy: RedirectKeys.self)
             self = try .redirect(fields.decode(HTTPRedirectPhase<Failure>.self, forKey: .redirect))
+        case "disposition":
+            let fields = try decoder.strictContainer(keyedBy: DispositionKeys.self)
+            self = try .disposition(fields.decode(HTTPResponseDispositionPhase<Failure>.self, forKey: .disposition))
         case "authenticate":
             let fields = try decoder.strictContainer(keyedBy: AuthenticationKeys.self)
             self = try .authenticate(fields.decode(HTTPAuthenticationPhase<Failure>.self, forKey: .authenticate))
@@ -130,6 +134,10 @@ extension HTTPAfterResponseHead: Codable where Failure: Codable {
             var fields = encoder.container(keyedBy: RedirectKeys.self)
             try fields.encode("redirect", forKey: .kind)
             try fields.encode(phase, forKey: .redirect)
+        case let .disposition(phase):
+            var fields = encoder.container(keyedBy: DispositionKeys.self)
+            try fields.encode("disposition", forKey: .kind)
+            try fields.encode(phase, forKey: .disposition)
         case let .authenticate(phase):
             var fields = encoder.container(keyedBy: AuthenticationKeys.self)
             try fields.encode("authenticate", forKey: .kind)

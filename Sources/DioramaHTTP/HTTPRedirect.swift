@@ -43,8 +43,10 @@ public struct HTTPRedirectPhase<Failure: Sendable>: Sendable {
         case let (.followModified(expected, result), .follow(request)):
             guard requestsMatch(expected, request) else { throw .incompatibleDecision }
             return .attempt(request: expected, result: result)
-        case let (.refuse(body), .refuse):
+        case let (.refuse(.deliverBody(body)), .refuse):
             return .deliverBody(body)
+        case let (.refuse(.disposition(phase)), .refuse):
+            return .disposition(phase)
         case (.openAtRecordingHorizon, _):
             throw .decisionBeyondRecordingHorizon
         default:
@@ -59,10 +61,25 @@ public enum HTTPRedirectOutcome<Failure: Sendable>: Sendable {
     case followProposed(HTTPAttemptResult<Failure>)
     /// A material modification owns its complete effective request once.
     case followModified(HTTPRequestMessage, HTTPAttemptResult<Failure>)
-    /// The owning redirect response delivers its content, prefix, and conclusion.
-    case refuse(HTTPBodyDelivery<Failure>)
+    /// The owning redirect response continues through body delivery or an observed disposition.
+    case refuse(HTTPRedirectRefusal<Failure>)
     /// No decision is observed before the horizon; there is no body or next attempt.
     case openAtRecordingHorizon
+}
+
+/// Progress under the existing response head after the current redirect refusal.
+public enum HTTPRedirectRefusal<Failure: Sendable>: Sendable {
+    /// Deliver the response body directly.
+    case deliverBody(HTTPBodyDelivery<Failure>)
+    /// Present an observed response decision after a delay anchored to the refusal.
+    case disposition(HTTPResponseDispositionPhase<Failure>)
+
+    var body: HTTPBodyDelivery<Failure>? {
+        switch self {
+        case let .deliverBody(body): body
+        case let .disposition(phase): phase.body
+        }
+    }
 }
 
 /// A current application choice after native conversion and setup preparation.
@@ -79,6 +96,8 @@ public enum HTTPRedirectContinuation<Failure: Sendable>: Sendable {
     case attempt(request: HTTPRequestMessage, result: HTTPAttemptResult<Failure>)
     /// Deliver content under the existing response head, without duplicating it.
     case deliverBody(HTTPBodyDelivery<Failure>)
+    /// Present a response disposition under the existing head.
+    case disposition(HTTPResponseDispositionPhase<Failure>)
 }
 
 /// Safe branch-selection facts, distinct from any recorded adapter failure.
@@ -91,4 +110,5 @@ public enum HTTPRedirectSelectionError: Error, Equatable, Sendable {
 
 extension HTTPRedirectPhase: Equatable where Failure: Equatable {}
 extension HTTPRedirectOutcome: Equatable where Failure: Equatable {}
+extension HTTPRedirectRefusal: Equatable where Failure: Equatable {}
 extension HTTPRedirectContinuation: Equatable where Failure: Equatable {}

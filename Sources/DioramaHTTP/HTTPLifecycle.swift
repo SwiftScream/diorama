@@ -27,7 +27,7 @@ public indirect enum HTTPAttemptResult<Failure: Sendable>: Sendable {
     case openAtRecordingHorizon
 }
 
-/// A single received response owning body delivery, a redirect, or an authentication decision.
+/// A single received response owning body delivery or one observed decision.
 public struct HTTPResponseNode<Failure: Sendable>: Sendable {
     /// The response head, delayed from invocation or the current preceding decision.
     public let head: HTTPTimed<HTTPResponseHead>
@@ -78,14 +78,17 @@ public enum HTTPAfterResponseHead<Failure: Sendable>: Sendable {
     case redirect(HTTPRedirectPhase<Failure>)
     /// A challenge owns its safe metadata, current decision, and sole continuation.
     case authenticate(HTTPAuthenticationPhase<Failure>)
+    /// An observed consumer response decision owns its only body/failure/open outcome.
+    case disposition(HTTPResponseDispositionPhase<Failure>)
 
     var body: HTTPBodyDelivery<Failure>? {
         switch self {
         case let .deliverBody(body): body
         case let .authenticate(phase): phase.outcome.body
+        case let .disposition(phase): phase.body
         case let .redirect(phase):
-            if case let .refuse(body) = phase.outcome {
-                body
+            if case let .refuse(refusal) = phase.outcome {
+                refusal.body
             } else {
                 nil
             }
@@ -97,6 +100,7 @@ public enum HTTPAfterResponseHead<Failure: Sendable>: Sendable {
         case let .deliverBody(body): body.durationMilliseconds
         case let .redirect(phase): phase.after.milliseconds.value
         case let .authenticate(phase): phase.after.milliseconds.value
+        case let .disposition(phase): phase.after.milliseconds.value
         }
     }
 }

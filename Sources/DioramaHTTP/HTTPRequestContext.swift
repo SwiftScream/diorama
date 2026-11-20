@@ -21,7 +21,7 @@ extension HTTPAttemptResult {
         switch response.next {
         case let .redirect(phase): try phase.validateRequestMethod(codingPath: codingPath)
         case let .authenticate(phase): try phase.validateRequestMethod(method, codingPath: codingPath)
-        case .deliverBody: break
+        case .deliverBody, .disposition: break
         }
     }
 }

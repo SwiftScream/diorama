@@ -163,38 +163,41 @@
           "redirect" : {
             "after" : "0ms",
             "outcome" : {
-              "body" : {
-                "conclusion" : {
-                  "completion" : {
-                    "after" : "5ms",
-                    "trailers" : {
-                      "after" : "3ms",
-                      "fields" : [
-                        {
-                          "name" : "X-End",
-                          "value" : "done"
-                        }
-                      ]
+              "kind" : "refuse",
+              "next" : {
+                "body" : {
+                  "conclusion" : {
+                    "completion" : {
+                      "after" : "5ms",
+                      "trailers" : {
+                        "after" : "3ms",
+                        "fields" : [
+                          {
+                            "name" : "X-End",
+                            "value" : "done"
+                          }
+                        ]
+                      }
+                    },
+                    "kind" : "returned"
+                  },
+                  "content" : {
+                    "kind" : "bytes",
+                    "text" : "redirect"
+                  },
+                  "segments" : [
+                    {
+                      "after" : "1ms",
+                      "byteWeight" : 2
+                    },
+                    {
+                      "after" : "2ms",
+                      "byteWeight" : 6
                     }
-                  },
-                  "kind" : "returned"
+                  ]
                 },
-                "content" : {
-                  "kind" : "bytes",
-                  "text" : "redirect"
-                },
-                "segments" : [
-                  {
-                    "after" : "1ms",
-                    "byteWeight" : 2
-                  },
-                  {
-                    "after" : "2ms",
-                    "byteWeight" : 6
-                  }
-                ]
-              },
-              "kind" : "refuse"
+                "kind" : "deliverBody"
+              }
             },
             "proposedRequest" : {
               "authority" : "example.invalid",
@@ -404,20 +407,23 @@
           "redirect" : {
             "after" : "0ms",
             "outcome" : {
-              "body" : {
-                "conclusion" : {
-                  "failure" : {
-                    "after" : "9ms",
-                    "value" : "lost"
+              "kind" : "refuse",
+              "next" : {
+                "body" : {
+                  "conclusion" : {
+                    "failure" : {
+                      "after" : "9ms",
+                      "value" : "lost"
+                    },
+                    "kind" : "failed"
                   },
-                  "kind" : "failed"
+                  "content" : {
+                    "base64" : "AP8=",
+                    "kind" : "bytes"
+                  }
                 },
-                "content" : {
-                  "base64" : "AP8=",
-                  "kind" : "bytes"
-                }
-              },
-              "kind" : "refuse"
+                "kind" : "deliverBody"
+              }
             },
             "proposedRequest" : {
               "authority" : "example.invalid",
@@ -467,16 +473,109 @@
           "redirect" : {
             "after" : "0ms",
             "outcome" : {
-              "body" : {
-                "conclusion" : {
-                  "kind" : "open"
+              "kind" : "refuse",
+              "next" : {
+                "body" : {
+                  "conclusion" : {
+                    "kind" : "open"
+                  },
+                  "content" : {
+                    "base64" : "4oI=",
+                    "kind" : "bytes"
+                  }
                 },
-                "content" : {
-                  "base64" : "4oI=",
-                  "kind" : "bytes"
-                }
+                "kind" : "deliverBody"
+              }
+            },
+            "proposedRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
               },
-              "kind" : "refuse"
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/next",
+              "scheme" : "https"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "initialRequest" : {
+      "authority" : "example.invalid",
+      "body" : {
+        "kind" : "absent"
+      },
+      "fields" : [
+
+      ],
+      "method" : "GET",
+      "path" : "/start",
+      "scheme" : "https"
+    },
+    "result" : {
+      "kind" : "received",
+      "response" : {
+        "head" : {
+          "after" : "7ms",
+          "value" : {
+            "fields" : [
+
+            ],
+            "reasonPhrase" : "Found",
+            "status" : 302
+          }
+        },
+        "next" : {
+          "kind" : "redirect",
+          "redirect" : {
+            "after" : "2ms",
+            "outcome" : {
+              "kind" : "refuse",
+              "next" : {
+                "disposition" : {
+                  "after" : "3ms",
+                  "outcome" : {
+                    "body" : {
+                      "conclusion" : {
+                        "completion" : {
+                          "after" : "5ms",
+                          "trailers" : {
+                            "after" : "3ms",
+                            "fields" : [
+                              {
+                                "name" : "X-End",
+                                "value" : "done"
+                              }
+                            ]
+                          }
+                        },
+                        "kind" : "returned"
+                      },
+                      "content" : {
+                        "kind" : "bytes",
+                        "text" : "redirect"
+                      },
+                      "segments" : [
+                        {
+                          "after" : "1ms",
+                          "byteWeight" : 2
+                        },
+                        {
+                          "after" : "2ms",
+                          "byteWeight" : 6
+                        }
+                      ]
+                    },
+                    "kind" : "allow"
+                  }
+                },
+                "kind" : "disposition"
+              }
             },
             "proposedRequest" : {
               "authority" : "example.invalid",

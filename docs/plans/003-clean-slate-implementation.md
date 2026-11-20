@@ -3108,6 +3108,16 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H12 — Optional response-disposition supplement
 
+- Status: Complete. Initial local implementation completes on 2026-11-20
+  after owner scope confirmation and selection of GPT-6 Sol / `medium`.
+  The owner approves squashing and PR creation on 2026-11-22. Focused tests
+  and the canonical macOS gate pass on the revision based on `master`.
+- Evidence: [Optional response disposition](../evidence/003-H12-response-disposition.md).
+- Owner-approved review update: Allow an observed disposition beneath redirect
+  refusal and cover a disposition on a separate authentication retry response.
+- Owner-approved review update: Check native bridge capabilities at H13 replay
+  admission and expose native conversion through a URLSession adapter initializer.
+
 - Recommended model: GPT-6 Sol; reasoning: `medium`. Optional disposition nodes have bounded scope but must preserve one conclusion and decision-relative timing.
 - Prerequisites: 003-H05, 003-H09, 003-D02 reviewed; DD12, DD17.
 - Scope: Add response-head allow/cancel/open decision supplements and validation.

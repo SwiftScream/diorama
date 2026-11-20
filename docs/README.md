@@ -400,6 +400,10 @@ test-integration design. They do not authorize those APIs.
   response-owned Basic/Digest branches, configurable default username redaction,
   inherited retries, and strict continuation validation.
 
+- [Response-disposition evidence](evidence/003-H12-response-disposition.md) records
+  optional consumer decisions, single-conclusion ownership, capability checks,
+  and timing anchors.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

@@ -93,7 +93,7 @@ struct HTTPRedirectTests {
             }
             #expect(body == response.body)
             #expect(response.head.value.head.status == .found)
-            #expect(try object(phase.outcome).keys.sorted() == ["body", "kind"])
+            #expect(try object(phase.outcome).keys.sorted() == ["kind", "next"])
         }
         let returned = try #require(values[1].result.responseBody)
         #expect(returned.content == .bytes(Array("redirect".utf8)))
@@ -105,6 +105,29 @@ struct HTTPRedirectTests {
         #expect(try completion.trailers?.fields[#require(HTTPField.Name("X-End"))] == "done")
         #expect(try values[5].result.responseBody?.conclusion == .failed(.init(after: delay(9), value: "lost")))
         #expect(values[6].result.responseBody?.conclusion == .openAtRecordingHorizon)
+    }
+
+    @Test
+    func `refusal selects the recorded disposition under the same response head`() throws {
+        let values = try JSONDecoder().decode([Interaction].self, from: fixture())
+        let value = try #require(values.last)
+        let phase = try redirect(value.result)
+        let selected = try phase.continuation(for: .refuse, requestsMatch: ==)
+        guard case let .disposition(disposition) = selected, case let .received(response) = value.result else {
+            Issue.record("Expected refusal followed by a response disposition")
+            return
+        }
+        #expect(phase.effectiveRequest == nil)
+        #expect(response.head.value.head.status == .found)
+        #expect(response.head.after.milliseconds == .observed(7))
+        #expect(phase.after.milliseconds == .observed(2))
+        #expect(disposition.after.milliseconds == .observed(3))
+        let body = try #require(response.body)
+        #expect(body.content == .bytes(Array("redirect".utf8)))
+        #expect(try disposition.continuation(for: .allow) == .deliverBody(body))
+        #expect(throws: HTTPResponseDispositionError.incompatibleDecision) {
+            try disposition.continuation(for: .cancel)
+        }
     }
 
     @Test
@@ -134,7 +157,7 @@ struct HTTPRedirectTests {
         let modified = try request("/modified")
         let branches: [Outcome] = [
             .followProposed(.openAtRecordingHorizon), .followModified(modified, .openAtRecordingHorizon),
-            .refuse(.init(content: .bytes([]), conclusion: .openAtRecordingHorizon)),
+            .refuse(.deliverBody(.init(content: .bytes([]), conclusion: .openAtRecordingHorizon))),
         ]
         for (index, outcome) in branches.enumerated() {
             let phase = try Phase(after: delay(0), proposedRequest: proposal, outcome: outcome)
@@ -178,8 +201,9 @@ struct HTTPRedirectTests {
             try Response(head: timed(.found, after: 1), next: .redirect(phase))
         }
         let body = try Delivery(content: .bytes([]), conclusion: .returned(.init(after: delay(Int64.max))))
-        let refusal = Phase(after: phase.after, proposedRequest: phase.proposedRequest, outcome: .refuse(body))
-        _ = try Response(head: timed(.found), next: .redirect(refusal))
+        let refused = Phase(after: phase.after, proposedRequest: phase.proposedRequest,
+                            outcome: .refuse(.deliverBody(body)))
+        _ = try Response(head: timed(.found), next: .redirect(refused))
         for _ in 0..<2 {
             // Selection carries no invocation timestamp or time spent answering.
             let selected = try phase.continuation(for: .follow(phase.proposedRequest), requestsMatch: ==)
@@ -188,6 +212,35 @@ struct HTTPRedirectTests {
         var object = try object(Response(head: timed(.found), next: .redirect(phase)))
         object["head"] = try self.object(timed(.found, after: 1))
         try expectCorrupt(Response.self, object, path: ["next"])
+    }
+
+    @Test
+    func `refusal and disposition each start an independent timing anchor`() throws {
+        let maximum = try delay(Int64.max)
+        let failure = HTTPTimed(after: maximum, value: "canceled")
+        let body = try Delivery(content: .absent, conclusion: .returned(.init(after: maximum)))
+        let outcomes: [HTTPResponseDispositionOutcome<String>] = [
+            .allow(body), .cancel(failure), .openAtRecordingHorizon,
+        ]
+        for outcome in outcomes {
+            let disposition = HTTPResponseDispositionPhase(after: maximum, outcome: outcome)
+            let phase = try Phase(after: maximum, proposedRequest: request("/next"),
+                                  outcome: .refuse(.disposition(disposition)))
+            let response = try Response(head: timed(.found), next: .redirect(phase))
+            #expect(try JSONDecoder().decode(Response.self, from: canonical(response)) == response)
+            #expect(response.body == disposition.body)
+            #expect(try phase.continuation(for: .refuse, requestsMatch: ==) == .disposition(disposition))
+            switch outcome {
+            case .allow:
+                #expect(try disposition.continuation(for: .allow) == .deliverBody(body))
+            case .cancel:
+                #expect(try disposition.continuation(for: .cancel) == .failed(failure))
+            case .openAtRecordingHorizon:
+                #expect(throws: HTTPResponseDispositionError.decisionBeyondRecordingHorizon) {
+                    try disposition.continuation(for: .allow)
+                }
+            }
+        }
     }
 
     @Test
@@ -226,22 +279,28 @@ struct HTTPRedirectTests {
     func `refused bodies retain resources and derived length without competing content`() throws {
         let resource = try HTTPResourceCodingFixtures.resource(path: "refused.bin", bytes: [1, 2, 3])
         let body = try Delivery(content: .resource(resource), conclusion: .returned(.init(after: delay(8))))
-        let phase = try Phase(after: delay(3), proposedRequest: request("/next"), outcome: .refuse(body))
+        let proposal = try request("/next")
         let fields = HTTPFields([.init(name: .contentLength, value: "3")])
-        let response = try Response(head: .init(after: delay(2), value: HTTPResponseHead(
-            head: HTTPResponse(status: .found, headerFields: fields))), next: .redirect(phase))
-        let derived = try HTTPContentLength.response(ValuePreparation().admitPrepared(response), requestMethod: .get)
-        #expect(derived.head.value.derivesContentLength)
-        let data = try canonical(derived)
-        let decoded = try HTTPResourceCodingFixtures.decoder(resources: ["refused.bin": [9, 8, 7, 6]])
-            .decode(Response.self, from: data)
-        #expect(decoded.head.value.head.headerFields[.contentLength] == "4")
-        #expect(try decoded.body?.content == .resource(HTTPResourceCodingFixtures.resource(
-            path: "refused.bin", bytes: [9, 8, 7, 6])))
-        let followed = Phase(after: phase.after, proposedRequest: phase.proposedRequest,
-                             outcome: .followProposed(.openAtRecordingHorizon))
-        #expect(throws: HTTPMessageError.invalidField) {
-            try Response(head: derived.head, next: .redirect(followed))
+        let head = try HTTPTimed(after: delay(2), value: HTTPResponseHead(
+            head: HTTPResponse(status: .found, headerFields: fields)))
+        let gated = try HTTPResponseDispositionPhase(after: delay(4), outcome: .allow(body))
+        for refusal: HTTPRedirectRefusal<String> in [.deliverBody(body), .disposition(gated)] {
+            let phase = try Phase(after: delay(3), proposedRequest: proposal, outcome: .refuse(refusal))
+            let response = try Response(head: head, next: .redirect(phase))
+            let prepared = try ValuePreparation().admitPrepared(response)
+            let derived = try HTTPContentLength.response(prepared, requestMethod: .get)
+            #expect(derived.head.value.derivesContentLength)
+            let data = try canonical(derived)
+            let decoded = try HTTPResourceCodingFixtures.decoder(resources: ["refused.bin": [9, 8, 7, 6]])
+                .decode(Response.self, from: data)
+            #expect(decoded.head.value.head.headerFields[.contentLength] == "4")
+            #expect(try decoded.body?.content == .resource(HTTPResourceCodingFixtures.resource(
+                path: "refused.bin", bytes: [9, 8, 7, 6])))
+            let followed = Phase(after: phase.after, proposedRequest: proposal,
+                                 outcome: .followProposed(.openAtRecordingHorizon))
+            #expect(throws: HTTPMessageError.invalidField) {
+                try Response(head: derived.head, next: .redirect(followed))
+            }
         }
     }
 
@@ -318,6 +377,9 @@ struct HTTPRedirectTests {
             let phase = try redirect(value.result)
             try rejectEdits(Phase.self, object(phase))
             try rejectEdits(Outcome.self, object(phase.outcome))
+            if case let .refuse(refusal) = phase.outcome {
+                try rejectEdits(HTTPRedirectRefusal<String>.self, object(refusal))
+            }
             guard case let .received(response) = value.result else { continue }
             var competing = try object(response)
             competing["body"] = try object(Delivery(content: .absent, conclusion: .openAtRecordingHorizon))
@@ -331,20 +393,23 @@ struct HTTPRedirectTests {
         let modified = try redirect(next)
         try rejectEdits(Phase.self, object(modified))
         try rejectEdits(Outcome.self, object(modified.outcome))
-        for key in ["request", "body", "failure", "decisionLatency", "version"] {
+        for key in ["request", "body", "next", "failure", "decisionLatency", "version"] {
             var bad = try object(phase.outcome)
             bad[key] = true
             #expect(throws: (any Error).self) { try decode(Outcome.self, bad) }
         }
-        let invalid: [[String: Any]] = [
+        let invalid: [[String: Any]] = try [
             ["kind": "followProposed", "result": ["kind": "returned"]],
-            ["kind": "refuse", "body": ["kind": "received"]],
+            ["kind": "refuse", "body": ["content": ["kind": "absent"], "conclusion": ["kind": "open"]]],
+            ["kind": "refuse", "next": ["kind": "redirect", "redirect": object(phase)]],
+            ["kind": "refuse", "next": ["kind": "authenticate"]],
             ["kind": "open", "result": ["kind": "open"]],
             ["kind": "followModified", "result": ["kind": "open"]],
         ]
         for value in invalid {
             #expect(throws: (any Error).self) { try decode(Outcome.self, value) }
         }
+        try expectCorrupt(Outcome.self, ["kind": "refuse", "next": ["kind": "secret-marker"]], path: ["next", "kind"])
         try expectCorrupt(Outcome.self, ["kind": "secret-marker"], path: ["kind"])
         var negative = try object(phase)
         negative["after"] = "-1ms"

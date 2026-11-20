@@ -678,6 +678,14 @@ Setup can select one shared constant or custom username rule through
 redaction. Native callback delivery and capability conformance remain adapter
 responsibilities.
 
+The optional [response-disposition phase](http-message-schema-v1.md#optional-response-disposition)
+represents an observed consumer delegate allow/cancel/unanswered decision after
+a response head or after the current refusal of that response's redirect. It
+owns body delivery, one cancellation failure, or an open horizon. Absence
+preserves presentation independence. Present phases require
+compatible delegate capabilities, and post-decision delays exclude application
+latency. Native callback wiring remains adapter work.
+
 ### Unmatched loaded attachments and persistence registration
 
 The repository decodes and validates every payload for persisted-value

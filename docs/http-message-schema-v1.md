@@ -151,7 +151,7 @@ callbacks or deciding whether a test passes.
 The attempt result is exactly one case:
 
 - `.received(HTTPResponseNode)` introduces one timed response head and one
-  response-owned body, redirect, or authentication continuation.
+  response-owned body, redirect, authentication, or disposition continuation.
 - `.failed(HTTPTimed<Failure>)` represents failure before any head.
 - `.openAtRecordingHorizon` explicitly preserves work still awaiting a head or
   failure when observation ends.
@@ -263,8 +263,8 @@ prefixes, pre-head failure/open, trailers, and all body representations. The
 fixture's request and each response's content appear once at their owning node.
 
 This establishes the response/body foundation of DD17's recursive lifecycle.
-Redirect nodes extend it below. Authentication and disposition remain assigned
-to H11–H12; weighted segmentation and timing allocation are described below. No future
+Redirect, authentication, and optional disposition nodes extend it below;
+weighted segmentation and timing allocation are described below. No future
 node placeholders, scheduler, capture accumulator, native failure mapping, system
 registration, or runtime delivery engine is introduced here. Full system schema
 version dispatch remains assigned to H13.
@@ -293,9 +293,9 @@ The outcome is exactly one of:
 - `.followProposed(result)`: `effectiveRequest` derives from the proposal.
 - `.followModified(request, result)`: the edge stores the modified effective
   request once; `effectiveRequest` returns it.
-- `.refuse(body)`: the existing response owns the delivered content or partial
-  prefix and its returned, failed, or open conclusion. A refusal does not create
-  another response head or request.
+- `.refuse(next)`: the existing response proceeds through
+  `HTTPRedirectRefusal.deliverBody` or `HTTPRedirectRefusal.disposition`. An
+  observed response-delegate callback gates delivery under the original head.
 - `.openAtRecordingHorizon`: no answer was observed. There is no next request,
   body, completion, or decision duration.
 
@@ -315,7 +315,8 @@ A redirect response encodes with required `head` and
 ```json
 {"kind":"followProposed","result":{"kind":"open"}}
 {"kind":"followModified","request":{"method":"GET","fields":[],"body":{"kind":"absent"}},"result":{"kind":"failed","failure":{"after":"19ms","value":"timeout"}}}
-{"kind":"refuse","body":{"content":{"kind":"bytes","text":"redirect"},"conclusion":{"kind":"returned","completion":{"after":"5ms"}}}}
+{"kind":"refuse","next":{"kind":"deliverBody","body":{"content":{"kind":"bytes","text":"redirect"},"conclusion":{"kind":"returned","completion":{"after":"5ms"}}}}}
+{"kind":"refuse","next":{"kind":"disposition","disposition":{"after":"3ms","outcome":{"kind":"open"}}}}
 {"kind":"open"}
 ```
 
@@ -323,26 +324,26 @@ The illustrative failure string belongs to a test adapter. All request/body and
 result codecs retain their existing strict fields, resource resolution, timing
 editing forms, and adapter failure contracts. Missing/null/unknown fields,
 competing continuation payloads, unknown continuation/outcome tags, and continuations
-under incompatible branches fail decoding. `Fixtures/redirects.json` is a
-canonical seven-interaction example including two hops and a modified request.
+under incompatible branches fail decoding. `Fixtures/redirects.json` includes two
+hops, a modified request, and refusal with direct body delivery or a disposition.
 These remain components of the unreleased version-one system schema; H13 owns
 system registration/version dispatch.
 
 `after` starts at the owning head and ends at redirect presentation. The head
-delay plus presentation delay must fit the millisecond scalar range. Every
-followed attempt's first head/failure delay and every refused body's local
-segment/trailer/conclusion delay starts from completion of the **current**
-application decision. Validation does not sum through that decision boundary.
-There is no persisted application decision latency. Each uninterrupted segment
-retains the existing checked cumulative timing and override semantics.
+delay plus presentation delay must fit the millisecond scalar range. After the
+**current** redirect answer returns, its continuation starts a new timing anchor.
+For refusal, this anchors direct body delivery or the delay to presenting the
+response disposition. The current disposition answer starts another anchor for
+its body or failure. Each uninterrupted segment retains checked cumulative
+timing and override semantics, and excludes application decision latency.
 
 `continuation(for:requestsMatch:)` is a pure selection operation. Supply a current
 prepared `.follow(request)` or `.refuse` decision and the setup's pure equivalence
 rule over prepared requests, using the same `HTTPRequestMatcher` projections as
 initial selection. It compares the current effective request with the recorded
 edge's effective request; storage placement need not match. A compatible follow
-returns `.attempt(request:result:)`; refusal returns `.deliverBody` under the
-existing head. It never searches alternative recorded branches. An incompatible
+returns `.attempt(request:result:)`. Refusal selects `.deliverBody` or
+`.disposition` under the existing head. An incompatible
 choice/request throws `HTTPRedirectSelectionError.incompatibleDecision`; answering
 an open decision throws `.decisionBeyondRecordingHorizon`. These are safe
 infrastructure facts, distinct from the generic recorded failure. The caller
@@ -434,8 +435,8 @@ completion of the current answer. Post-decision timing is validated independentl
 application decision latency is neither persisted nor added to these delays.
 Scheduler delivery remains separate from this pure composition and selection.
 
-A response encodes required `head` and exactly one of `body`, `redirect`, or
-`authenticate`. Authentication uses the phase fields above, with no duplicate
+A response encodes required `head` and one tagged `next`: body, redirect,
+authentication, or disposition. Authentication uses the phase fields above, with no duplicate
 response, initial request, or top-level conclusion. Missing required fields,
 explicit nulls, unknown tags or fields, invalid challenge/head combinations,
 password fields, and branch-incompatible data fail decoding. Unknown method,
@@ -505,6 +506,47 @@ invalidates recording candidates without publishing raw values. These helpers
 do not install delegates or send native answers; Basic/Digest native replay
 conformance remains a later adapter gate. The approved Linux Digest exception
 remains in effect.
+
+### Optional response disposition
+
+An observed consumer response-delegate callback is encoded as a tagged
+`next` with `kind: disposition` and a matching `disposition` payload. This can
+be the response's immediate continuation or the `next` inside a redirect
+refusal. When an authentication decision results in a new attempt, that
+attempt's own response can carry a disposition. The payload contains
+`after` (delay to disposition presentation) and one tagged `outcome`:
+
+- `allow` owns `body`, using the existing complete/partial body and conclusion model.
+- `cancel` owns one timed `failure`, with no body or competing conclusion.
+- `open` has no payload: the consumer has not answered by the recording horizon.
+
+`HTTPResponseDispositionPhase<Failure>` and its outcome are portable stable
+components. `DioramaURLSession` adds
+`HTTPResponseDispositionDecision.init(urlSessionDisposition:)` for observed
+native answers. It converts allow and cancel and rejects unsupported transitions.
+Pure selection rejects mismatches and answers beyond an open horizon
+as infrastructure facts; the later delivery owner reports them without live
+fallback. Caller task cancellation remains separate runtime control.
+
+Ordinary body delivery has no supplement and retains its existing encoding.
+Completion/async operations and private forwarding callbacks never manufacture a
+consumer decision phase. Absence imposes no delegate-presentation requirement.
+A recorded disposition requires proven delegate decision
+gating; cancel additionally requires effective cancellation. Full recursive
+capability derivation/admission remains H13 and native conformance remains I04.
+The accepted Linux exception does not permit encoding cancel followed by success
+or erasing an observed decision: capture must diagnose an unrepresentable native
+outcome and refuse publication while preserving live behavior.
+
+For a direct disposition, the head and presentation delays share one timing
+anchor. Under refusal, presentation is anchored to the current refusal answer.
+Body delivery or cancellation failure delays start at completion of the current
+disposition answer, excluding application decision latency. Allow can lead to a returned,
+failed, or open body; an unanswered decision is distinct from an allowed open
+body. Complete exposed bodies retain resource and derived-length semantics.
+Strict codecs reject null/missing/unknown/conflicting fields and unsupported
+transitions. This extends unreleased version-one components without a version
+bump; no native callback wiring or scheduling is introduced.
 
 ### Weighted delivery and local timing
 

@@ -24,7 +24,7 @@ extension HTTPRedirectOutcome: Codable where Failure: Codable {
     private enum Tag: String, CodingKey, CaseIterable { case kind }
     private enum FollowKeys: String, CodingKey, CaseIterable { case kind, result }
     private enum ModifiedKeys: String, CodingKey, CaseIterable { case kind, request, result }
-    private enum RefusedKeys: String, CodingKey, CaseIterable { case kind, body }
+    private enum RefusedKeys: String, CodingKey, CaseIterable { case kind, next }
 
     /// Validates branch-local fields before composing the recursive runtime value.
     public init(from decoder: any Decoder) throws {
@@ -39,7 +39,7 @@ extension HTTPRedirectOutcome: Codable where Failure: Codable {
                                        fields.decode(HTTPAttemptResult<Failure>.self, forKey: .result))
         case "refuse":
             let fields = try decoder.strictContainer(keyedBy: RefusedKeys.self)
-            self = try .refuse(fields.decode(HTTPBodyDelivery<Failure>.self, forKey: .body))
+            self = try .refuse(fields.decode(HTTPRedirectRefusal<Failure>.self, forKey: .next))
         case "open":
             _ = try decoder.strictContainer(keyedBy: Tag.self)
             self = .openAtRecordingHorizon
@@ -61,13 +61,49 @@ extension HTTPRedirectOutcome: Codable where Failure: Codable {
             try fields.encode("followModified", forKey: .kind)
             try fields.encode(request, forKey: .request)
             try fields.encode(result, forKey: .result)
-        case let .refuse(body):
+        case let .refuse(next):
             var fields = encoder.container(keyedBy: RefusedKeys.self)
             try fields.encode("refuse", forKey: .kind)
-            try fields.encode(body, forKey: .body)
+            try fields.encode(next, forKey: .next)
         case .openAtRecordingHorizon:
             var fields = encoder.container(keyedBy: Tag.self)
             try fields.encode("open", forKey: .kind)
+        }
+    }
+}
+
+extension HTTPRedirectRefusal: Codable where Failure: Codable {
+    private enum Tag: String, CodingKey { case kind }
+    private enum BodyKeys: String, CodingKey, CaseIterable { case kind, body }
+    private enum DispositionKeys: String, CodingKey, CaseIterable { case kind, disposition }
+
+    /// Reads the single continuation permitted after redirect refusal.
+    public init(from decoder: any Decoder) throws {
+        let tag = try decoder.container(keyedBy: Tag.self)
+        switch try tag.decode(String.self, forKey: .kind) {
+        case "deliverBody":
+            let fields = try decoder.strictContainer(keyedBy: BodyKeys.self)
+            self = try .deliverBody(fields.decode(HTTPBodyDelivery<Failure>.self, forKey: .body))
+        case "disposition":
+            let fields = try decoder.strictContainer(keyedBy: DispositionKeys.self)
+            self = try .disposition(fields.decode(HTTPResponseDispositionPhase<Failure>.self, forKey: .disposition))
+        default:
+            throw DecodingError.dataCorruptedError(
+                forKey: .kind, in: tag, debugDescription: "Unknown HTTP redirect refusal continuation tag")
+        }
+    }
+
+    /// Writes body delivery or a disposition under the existing response.
+    public func encode(to encoder: any Encoder) throws {
+        switch self {
+        case let .deliverBody(body):
+            var fields = encoder.container(keyedBy: BodyKeys.self)
+            try fields.encode("deliverBody", forKey: .kind)
+            try fields.encode(body, forKey: .body)
+        case let .disposition(phase):
+            var fields = encoder.container(keyedBy: DispositionKeys.self)
+            try fields.encode("disposition", forKey: .kind)
+            try fields.encode(phase, forKey: .disposition)
         }
     }
 }

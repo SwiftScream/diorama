@@ -350,6 +350,29 @@ struct HTTPAuthenticationTests {
     }
 
     @Test
+    func `default handling can retry to a separate 401 with a response disposition`() throws {
+        let values = try JSONDecoder().decode([Interaction].self, from: fixture())
+        let root = try #require(values.last)
+        let selected = try phase(root.result).continuation(for: .performDefaultHandling)
+        guard case let .received(challenged) = root.result, case let .retry(retry) = selected,
+              case let .received(response) = retry.result, case let .disposition(disposition) = response.next
+        else {
+            Issue.record("Expected an authentication retry whose response owns its disposition")
+            return
+        }
+        #expect(retry.request == nil)
+        #expect(retry.effectiveRequest(inheriting: root.initialRequest) == root.initialRequest)
+        #expect(challenged.head.value.head.status == .unauthorized)
+        #expect(challenged.head.after.milliseconds == .observed(7))
+        #expect(challenged.body == nil)
+        #expect(response.head.value.head.status == .unauthorized)
+        #expect(response.head.after.milliseconds == .observed(13))
+        let body = try #require(response.body)
+        #expect(body.content == .bytes(Array("denied".utf8)))
+        #expect(try disposition.continuation(for: .allow) == .deliverBody(body))
+    }
+
+    @Test
     func `unknown method and persistence tags fail without rendering their values`() throws {
         var metadata = try object(challenge())
         metadata["method"] = "secret-marker"
