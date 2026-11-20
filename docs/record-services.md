@@ -338,6 +338,12 @@ headers. A fresh recording can be empty. The callback owns correspondence,
 override preservation, deletion, and complete domain validation; Date uses
 positions, but Core imposes no correspondence policy.
 
+Use `TrackDefinition.withRecordingMerge` when the merge needs to report a
+domain fact. Its third argument records a structured diagnostic in the
+execution being finalized. An informational diagnostic can identify a removed
+override. A merge that cannot resolve correspondence can report the affected
+record and throw to refuse the candidate.
+
 Healthy record-mode finish invokes configured merges in attachment and track
 order after scheduling and managed operations drain, every track freezes, and
 Core releases its State/Dependency ownership. Capture health is scenario-wide:

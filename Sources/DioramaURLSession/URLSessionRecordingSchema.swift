@@ -11,7 +11,14 @@ public struct URLSessionRecordingSchema: Sendable {
     public static let standard = Self()
 
     /// The single headerless track declared by a URLSession system definition.
-    public static let interactions = TrackDefinition<HTTPInteraction<URLSessionFailure>, Void>("interactions")
+    public static let interactions = interactions(matching: HTTPRequestMatcher())
+
+    /// Declares the interactions track with the same prepared matcher that setup uses for replay.
+    public static func interactions(matching matcher: HTTPRequestMatcher)
+        -> TrackDefinition<HTTPInteraction<URLSessionFailure>, Void>
+    {
+        TrackDefinition("interactions").withRecordingMerge(HTTPRecordingMerge(matcher: matcher).merge)
+    }
 
     /// System-wide metadata for scenario persistence dispatch.
     public let systemType: ScenarioSystemType

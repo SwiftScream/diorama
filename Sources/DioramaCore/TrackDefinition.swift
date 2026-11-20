@@ -9,7 +9,7 @@ public struct TrackDefinition<Value: Sendable, Header: Sendable>: Sendable {
     private let preparation: ValuePreparation<Value>
     private let headerPreparation: ValuePreparation<Header>
     private let continuation: ReplayContinuationPolicy<Value>
-    private let merge: RecordingMerge<Value, Header>?
+    private var makeMerge: @Sendable (DiagnosticReporter) -> RecordingMerge<Value, Header>?
 
     /// Declares a headered track and its admission and recording policies.
     public init(
@@ -25,7 +25,21 @@ public struct TrackDefinition<Value: Sendable, Header: Sendable>: Sendable {
         self.preparation = preparation
         self.headerPreparation = headerPreparation
         continuation = continuationPolicy
-        merge = mergeRecording
+        makeMerge = { _ in mergeRecording }
+    }
+
+    /// Configures a final recording merge that can report safe domain facts for this run.
+    /// The reporting function is scoped to the merge. Throw to refuse the candidate.
+    public func withRecordingMerge(
+        _ merge: @escaping @Sendable (
+            SequentialTrack<Value, Header>, SequentialTrack<Value, Header>, (Diagnostic) -> Void)
+            throws -> SequentialTrack<Value, Header>) -> Self
+    {
+        var definition = self
+        definition.makeMerge = { reporter in
+            { baseline, fresh in try merge(baseline, fresh, reporter.record) }
+        }
+        return definition
     }
 
     /// Erases this definition only at Core's heterogeneous layout boundary.
@@ -37,7 +51,7 @@ public struct TrackDefinition<Value: Sendable, Header: Sendable>: Sendable {
             let id = TrackID(attachmentID: context.attachmentID, key: key)
             let lease = try context.lease(for: id, preparation: preparation,
                                           headerPreparation: headerPreparation,
-                                          continuationPolicy: continuation, mergeRecording: merge)
+                                          continuationPolicy: continuation, mergeRecording: makeMerge(context.reporter))
             guard let header = lease.baselineHeader() else {
                 throw ScenarioLifecycleIssue.invalidTrackRequest
             }

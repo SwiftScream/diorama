@@ -1,0 +1,140 @@
+{
+  "diorama" : {
+    "schemaVersion" : 1
+  },
+  "systems" : [
+    {
+      "attachmentKey" : "service",
+      "payload" : {
+        "interactions" : [
+          {
+            "initialRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/two",
+              "scheme" : "https"
+            },
+            "result" : {
+              "failure" : {
+                "after" : "5ms",
+                "value" : {
+                  "error" : {
+                    "code" : -2000,
+                    "domain" : "NSURLErrorDomain",
+                    "userInfo" : {
+
+                    }
+                  },
+                  "version" : 1
+                }
+              },
+              "kind" : "failed"
+            }
+          },
+          {
+            "initialRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/one",
+              "scheme" : "https"
+            },
+            "result" : {
+              "failure" : {
+                "after" : {
+                  "override" : "11ms"
+                },
+                "value" : {
+                  "error" : {
+                    "code" : -2001,
+                    "domain" : "NSURLErrorDomain",
+                    "userInfo" : {
+
+                    }
+                  },
+                  "version" : 1
+                }
+              },
+              "kind" : "failed"
+            }
+          },
+          {
+            "initialRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/one",
+              "scheme" : "https"
+            },
+            "result" : {
+              "failure" : {
+                "after" : {
+                  "override" : "22ms"
+                },
+                "value" : {
+                  "error" : {
+                    "code" : -2002,
+                    "domain" : "NSURLErrorDomain",
+                    "userInfo" : {
+
+                    }
+                  },
+                  "version" : 1
+                }
+              },
+              "kind" : "failed"
+            }
+          },
+          {
+            "initialRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/new",
+              "scheme" : "https"
+            },
+            "result" : {
+              "failure" : {
+                "after" : "8ms",
+                "value" : {
+                  "error" : {
+                    "code" : -2003,
+                    "domain" : "NSURLErrorDomain",
+                    "userInfo" : {
+
+                    }
+                  },
+                  "version" : 1
+                }
+              },
+              "kind" : "failed"
+            }
+          }
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.urlsession"
+    }
+  ]
+}

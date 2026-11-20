@@ -414,6 +414,9 @@ test-integration design. They do not authorize those APIs.
 - [URLSession schema and capability admission evidence](evidence/003-H13-urlsession-registration.md)
   covers the shared payload, setup validation, mixed-system fixtures, and replay capability checks.
 
+- [HTTP re-recording evidence](evidence/003-H14-http-timing-overrides.md)
+  compares the baseline, fresh recording, and canonical candidate for timing override correspondence.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

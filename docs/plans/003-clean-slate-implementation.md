@@ -3205,6 +3205,10 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H14 — HTTP timing-override correspondence and re-recording
 
+- Status: Complete. The owner confirms scope on 2026-11-21 and approves the
+  stacked PR. The 12 focused merge tests and canonical macOS gate pass.
+- Evidence: [HTTP timing overrides during re-recording](../evidence/003-H14-http-timing-overrides.md).
+
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. Re-record correspondence must preserve overrides only along compatible structures and refuse ambiguous reassignment.
 - Prerequisites: 003-H13, 003-H04, 003-F05, 003-C05; DD03–DD04, DD09, DD17.
 - Scope: Match fresh prepared interactions to baseline groups and preserve delay overrides only at compatible structural paths and decision branches.

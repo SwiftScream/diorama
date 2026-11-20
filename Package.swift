@@ -59,7 +59,9 @@ let package = Package(
             swiftSettings: strictConcurrencySettings),
         .testTarget(
             name: "DioramaURLSessionTests",
-            dependencies: ["DioramaURLSession", "DioramaHTTP", "DioramaCore", "DioramaPersistence", "DioramaRandom"],
+            dependencies: [
+                "Diorama", "DioramaURLSession", "DioramaHTTP", "DioramaCore", "DioramaPersistence", "DioramaRandom",
+            ],
             resources: [.copy("Fixtures")],
             swiftSettings: strictConcurrencySettings),
         .target(
