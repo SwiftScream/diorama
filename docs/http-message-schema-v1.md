@@ -1116,3 +1116,9 @@ tracks. Transient retention and removal facts identify the baseline record
 and timing path using schema labels and segment indices. Both are
 informational. Unresolved correspondence and invalid merged timing prevent
 publication.
+
+The default URLSession interactions track installs the standard HTTP merge.
+For a keyed system with custom matching, declare its track using
+`URLSessionRecordingSchema.interactions(matching:)` and supply the same
+matcher to its replay controller. Core runs the merge after healthy capture
+and includes its diagnostics in the final report.
