@@ -619,7 +619,10 @@ fields remain absent. HEAD and CONNECT methods, informational responses, statuse
 204/205/206/304, and any Content-Encoding, Transfer-Encoding, or Content-Range
 field conservatively prevent derivation. Failed/open responses retain literals.
 The same semantic exclusions reject authored markers during contextual decoding;
-interaction encoding/decoding additionally checks the root request method.
+interaction construction additionally checks the root request method. Its
+initializer throws for derived response lengths paired with HEAD or CONNECT;
+decoding uses that initializer so invalid combinations cannot enter a complete
+runtime interaction. Literal lengths remain permitted, including mismatches.
 
 Decode response nodes with their bodies: the node resolves the head after loading
 content and validating successful completion. A standalone `HTTPResponseHead`

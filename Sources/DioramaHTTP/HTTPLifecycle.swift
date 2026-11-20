@@ -7,10 +7,15 @@ public struct HTTPInteraction<Failure: Sendable>: Sendable {
     /// The only attempt result; the leaf determines whether work ends or stays open.
     public let result: HTTPAttemptResult<Failure>
 
-    /// Builds an interaction from structurally valid components.
+    /// Builds an interaction, validating derived response length against its request method.
     ///
     /// System admission separately validates preparation policy and capabilities.
-    public init(initialRequest: HTTPRequestMessage, result: HTTPAttemptResult<Failure>) {
+    public init(initialRequest: HTTPRequestMessage, result: HTTPAttemptResult<Failure>) throws {
+        if case let .received(response) = result, response.head.value.derivesContentLength {
+            guard HTTPContentLength.unambiguous(method: initialRequest.head.method) else {
+                throw HTTPMessageError.invalidField
+            }
+        }
         self.initialRequest = initialRequest
         self.result = result
     }

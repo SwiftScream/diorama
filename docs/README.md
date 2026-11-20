@@ -382,6 +382,8 @@ test-integration design. They do not authorize those APIs.
 
 - [Derived HTTP content lengths](evidence/003-H08-derived-content-length.md) records
   conservative selection, exact body edits, and contextual field resolution.
+- [HTTP interaction construction validation](evidence/003-H08-interaction-construction.md)
+  records early rejection of method-incompatible derived response lengths.
 
 - [Shared error snapshot URLs](evidence/003-H09-error-snapshot-urls.md) records
   native URL retention, tagged persistence, bounds, and native reconstruction.

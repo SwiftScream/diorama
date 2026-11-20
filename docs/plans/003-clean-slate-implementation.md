@@ -2977,9 +2977,16 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 - Status: Complete. Owner confirms scope and the GPT-6 Sol, `medium`
   recommendation before implementation. Focused HTTP tests and the canonical
-  macOS gate pass on 2026-11-15. Owner review is the next checkpoint;
-  PR creation, merge, and H09 require separate authorization.
+  macOS gate pass on 2026-11-15. The original H08 implementation is merged
+  before H09.
 - Evidence: [Derived Content-Length and body edits](../evidence/003-H08-derived-content-length.md).
+- Preparatory correction: Complete. On 2026-11-20, the owner requests extracting ordinary
+  interaction-construction validation from H10 into a separate fix commit.
+  Construction rejects derived response lengths for HEAD/CONNECT before any
+  serialization; redirect-chain traversal remains H10 work. Focused tests and the
+  canonical macOS gate pass; the owner approves PR creation. Merge requires
+  passing required checks and a separate owner request. See
+  [construction validation evidence](../evidence/003-H08-interaction-construction.md).
 - Owner-approved review update: Persist derived fields as
   `{ "derivedFrom": "bodyByteCount" }`, retaining their ordered field position.
 
