@@ -3,6 +3,12 @@
 - Status: Accepted
 - Consolidated design approved by owner: 2026-09-07
 
+On 2026-11-20, the owner approves
+[DD12's experimental FoundationNetworking amendment](12-urlsession-scope.md#experimental-foundationnetworking-support--owner-approved-2026-11-20).
+The initial URLSession milestone requires macOS and iOS conformance and can
+complete independently of Linux URLSession conformance and upstream releases.
+Both bridges retain the common fixture format and setup-time capability checks.
+
 On 2026-11-15, the owner approves
 [DD17's snapshot-backed failure foundation](17-http-lifecycle-composition.md#snapshot-backed-failure-foundation--owner-approved-2026-11-15).
 H09 retains the shared snapshot wrapper, preparation, codec, and native error

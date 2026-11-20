@@ -147,7 +147,8 @@ The decisions combine into this design:
     in the initial file repository.
 12. `DioramaHTTP` owns shared HTTP messages and policies using Swift HTTP Types
     in memory. URLSession adds native lifecycle semantics through one public
-    system backed by tested Apple Foundation and FoundationNetworking bridges.
+    system with a conforming Apple Foundation bridge and an experimental
+    FoundationNetworking bridge.
 13. A small sequential random system proves the public consumer-system boundary
     before scheduler or platform-adapter complexity is introduced.
 14. One execution-owned scheduler maps logical delays one-to-one to
@@ -474,6 +475,13 @@ profiles describe what each bridge has proved it can reproduce. A scenario is
 portable across Apple platforms and Linux only when it uses their common tested
 profile. Platform-specific implementation code does not create a second
 scenario system identity.
+
+The initial URLSession milestone requires macOS and iOS conformance.
+FoundationNetworking support is experimental and can advance as upstream
+fixes reach testable runtimes. Apple delivery can proceed independently.
+[DD12's platform amendment](design-decisions/12-urlsession-scope.md#experimental-foundationnetworking-support--owner-approved-2026-11-20)
+defines the delivery gate and preserves setup-time rejection of incompatible
+fixtures on each bridge.
 
 The owner-approved [FoundationNetworking response-disposition exception](design-decisions/12-urlsession-scope.md#foundationnetworking-response-disposition-exception--2026-09-24)
 permits record and passthrough to preserve demonstrated native limitations in
