@@ -189,6 +189,22 @@ struct HTTPContentLengthTests {
     }
 
     @Test
+    func `conflicting derived lengths identify the field list`() throws {
+        let json = """
+        {"method":"POST","fields":[
+            {"name":"Content-Length","value":{"derivedFrom":"bodyByteCount"}},
+            {"name":"content-length","value":"3"}
+        ],"body":{"kind":"bytes","text":"abc"}}
+        """
+        do {
+            _ = try JSONDecoder().decode(HTTPRequestMessage.self, from: Data(json.utf8))
+            Issue.record("Expected conflicting Content-Length fields")
+        } catch let DecodingError.dataCorrupted(context) {
+            #expect(context.codingPath.map(\.stringValue) == ["fields"])
+        }
+    }
+
+    @Test
     func `response body edits resolve every storage form and reject incomplete derived content`() throws {
         let selected = try select(response())
         let json = try #require(String(data: JSONEncoder().encode(selected), encoding: .utf8))

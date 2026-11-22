@@ -153,8 +153,32 @@ struct HTTPMessageTests {
     @Test(arguments: ["!", "AP8", "AP8===", "AP8=\n", "AP 8=", "AP_=", "AB==", "AAB=", "===="])
     func `malformed or noncanonical base64 is rejected`(_ text: String) throws {
         let data = try JSONSerialization.data(withJSONObject: ["kind": "bytes", "base64": text])
-        #expect(throws: HTTPMessageError.invalidBody) { try decoder().decode(HTTPResponseBody.self, from: data) }
-        #expect(throws: HTTPMessageError.invalidBody) { try decoder().decode(HTTPRequestBody.self, from: data) }
+        let bodyTypes: [any Decodable.Type] = [HTTPResponseBody.self, HTTPRequestBody.self]
+        for body in bodyTypes {
+            do {
+                _ = try decoder().decode(body, from: data)
+                Issue.record("Expected invalid base64 body")
+            } catch let DecodingError.dataCorrupted(context) {
+                #expect(context.codingPath.map(\.stringValue) == ["base64"])
+            }
+        }
+    }
+
+    @Test(arguments: [
+        (#"{"name":"Bad Name","value":"a"}"#, ["name"]),
+        (#"{"name":"x","value":"a\rb"}"#, ["value"]),
+        (#"{"name":"x","value":{"derivedFrom":"bodyByteCount"}}"#, ["value"]),
+        (#"{"name":"content-length","value":{"derivedFrom":"unknown"}}"#, ["value", "derivedFrom"]),
+    ])
+    func `malformed response fields retain their entry index and field path`(_ field: String, suffix: [String]) throws {
+        let json = #"{"status":200,"reasonPhrase":"","fields":[{"name":"x-valid","value":"a"},\#(field)]}"#
+        do {
+            _ = try decoder().decode(HTTPResponseHead.self, from: Data(json.utf8))
+            Issue.record("Expected invalid HTTP field")
+        } catch let DecodingError.dataCorrupted(context) {
+            let path = context.codingPath.map { $0.intValue.map(String.init) ?? $0.stringValue }
+            #expect(path == ["fields", "1"] + suffix)
+        }
     }
 
     @Test(arguments: [

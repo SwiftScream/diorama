@@ -24,8 +24,20 @@ package struct NSErrorSnapshotPayload: Codable, Sendable {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
         domain = try fields.decode(String.self, forKey: .domain)
         code = try fields.decode(Int.self, forKey: .code)
-        userInfo = try fields.decode([String: NSErrorSnapshotValuePayload].self, forKey: .userInfo)
-        _ = try snapshot()
+        do {
+            userInfo = try fields.decode([String: NSErrorSnapshotValuePayload].self, forKey: .userInfo)
+        } catch let error as NSErrorSnapshotPayloadError {
+            // Report the schema field instead of a captured metadata key.
+            throw DecodingError.dataCorrupted(.init(codingPath: fields.codingPath + [CodingKeys.userInfo],
+                                                    debugDescription: "Invalid error metadata", underlyingError: error))
+        }
+        do {
+            _ = try snapshot()
+        } catch NSErrorSnapshotPayloadError.invalidBounds {
+            let key: CodingKeys = NSErrorSnapshot(domain: domain, code: code) == nil ? .domain : .userInfo
+            throw DecodingError.dataCorruptedError(
+                forKey: key, in: fields, debugDescription: "Error snapshot exceeds its bounds")
+        }
     }
 
     /// Writes the shared representation without rounding error metadata.

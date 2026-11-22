@@ -249,7 +249,7 @@ extension HTTPTrailers: Codable {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.strictContainer(keyedBy: CodingKeys.self)
         try self.init(after: container.decode(HTTPDelay.self, forKey: .after),
-                      fields: HTTPFields(container.decode([FieldPayload].self, forKey: .fields).map { try $0.field() }))
+                      fields: FieldPayload.decode(from: container, key: .fields).0)
     }
 
     /// Writes literal trailer fields in semantic order and one successive delay.

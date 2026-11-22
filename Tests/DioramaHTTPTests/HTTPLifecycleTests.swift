@@ -1,5 +1,6 @@
 import DioramaCore
 import DioramaHTTP
+import DioramaPersistence
 import Foundation
 import HTTPTypes
 import Testing
@@ -238,6 +239,56 @@ struct HTTPLifecycleTests {
             ])
             #expect(!context.debugDescription.contains("secret-tag"))
         }
+    }
+
+    @Test
+    func `malformed nested status and body retain their field paths`() throws {
+        let response = try received(status: .ok, content: .bytes([1]), conclusion: .returned(completed()))
+        let json = try #require(String(data: canonical(response), encoding: .utf8))
+        let edits = [
+            (#""status" : 200"#, #""status" : 1000"#, ["head", "value", "status"]),
+            (#""kind" : "bytes""#, #""kind" : "private-value""#, ["next", "body", "content", "kind"]),
+        ]
+        for (original, edit, path) in edits {
+            do {
+                _ = try decode(Interaction.self, json.replacingOccurrences(of: original, with: edit))
+                Issue.record("Expected invalid nested HTTP value")
+            } catch let DecodingError.dataCorrupted(context) {
+                #expect(context.codingPath.map(\.stringValue) == ["result", "response"] + path)
+                #expect(!context.debugDescription.contains("private-value"))
+            }
+        }
+    }
+
+    @Test
+    func `timed payload decoding preserves the embedded error and path`() throws {
+        let json = #"{"kind":"failed","failure":{"after":"0ms","value":{"kind":"private-value"}}}"#
+        do {
+            _ = try decode(HTTPAttemptResult<HTTPResponseBody>.self, json)
+            Issue.record("Expected invalid timed HTTP value")
+        } catch let DecodingError.dataCorrupted(context) {
+            #expect(context.codingPath.map(\.stringValue) == ["failure", "value", "kind"])
+            #expect(!context.debugDescription.contains("private-value"))
+        }
+        #expect(throws: EmbeddedValueError.rejected) {
+            try decode(HTTPAttemptResult<RejectingValue>.self, json)
+        }
+    }
+
+    private enum EmbeddedValueError: Error { case rejected }
+
+    private struct RejectingValue: Codable, Sendable {
+        init(from _: any Decoder) throws {
+            throw EmbeddedValueError.rejected
+        }
+    }
+
+    @Test
+    func `missing nested body resources keep the resource error category`() throws {
+        let body = try HTTPResourceCodingFixtures.resource(path: "bodies/missing.bin")
+        let response = try received(status: .ok, content: .resource(body), conclusion: .returned(completed()))
+        let data = try canonical(response)
+        #expect(throws: ScenarioResourceError.unavailable) { try decoder().decode(Interaction.self, from: data) }
     }
 
     @Test(arguments: [

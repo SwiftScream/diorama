@@ -144,12 +144,15 @@ struct HTTPResourceRepositoryTests {
             return Data([0, 255])
         }
         let conflicting = Data(#"{"kind":"resource","resource":"body.bin","text":"extra"}"#.utf8)
-        #expect(throws: HTTPMessageError.invalidBody) {
+        #expect(throws: DecodingError.self) {
             try decoder.decode(HTTPResponseBody.self, from: conflicting)
         }
         let escaping = Data(#"{"kind":"resource","resource":"../body.bin"}"#.utf8)
-        #expect(throws: HTTPMessageError.invalidResource) {
-            try decoder.decode(HTTPResponseBody.self, from: escaping)
+        do {
+            _ = try decoder.decode(HTTPResponseBody.self, from: escaping)
+            Issue.record("Expected invalid resource path")
+        } catch let DecodingError.dataCorrupted(context) {
+            #expect(context.codingPath.map(\.stringValue) == ["resource"])
         }
         #expect(reads.withLock { $0.isEmpty })
         let valid = Data(#"{"kind":"resource","resource":"body.bin"}"#.utf8)

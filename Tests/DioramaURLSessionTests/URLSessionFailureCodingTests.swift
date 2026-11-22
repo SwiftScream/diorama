@@ -97,7 +97,31 @@ struct URLSessionFailureCodingTests {
         for version in [0, 2, -1] {
             input = root
             input["version"] = version
-            #expect(throws: URLSessionFailureError.unsupportedVersion) { try decode(input) }
+            do {
+                _ = try decode(input)
+                Issue.record("Expected unsupported failure version")
+            } catch let DecodingError.dataCorrupted(context) {
+                #expect(context.codingPath.map(\.stringValue) == ["version"])
+                #expect(context.underlyingError as? URLSessionFailureError == .unsupportedVersion)
+            }
+        }
+    }
+
+    @Test(arguments: [
+        ("url", "https://example.invalid/bad path"),
+        ("string", String(repeating: "s", count: 4097)),
+    ])
+    func `invalid snapshot values identify the metadata field`(_ type: String, value: String) throws {
+        let input: [String: Any] = [
+            "version": 1, "error": [
+                "domain": "CustomError", "code": 42, "userInfo": ["private-key": ["type": type, "value": value]],
+            ],
+        ]
+        do {
+            _ = try decode(input)
+            Issue.record("Expected invalid error metadata")
+        } catch let DecodingError.dataCorrupted(context) {
+            #expect(context.codingPath.map(\.stringValue) == ["error", "userInfo"])
         }
     }
 
