@@ -1,0 +1,229 @@
+{
+  "diorama" : {
+    "schemaVersion" : 1
+  },
+  "systems" : [
+    {
+      "attachmentKey" : "random",
+      "payload" : {
+        "values" : [
+          42
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.random"
+    },
+    {
+      "attachmentKey" : "service",
+      "payload" : {
+        "interactions" : [
+          {
+            "initialRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/offline",
+              "scheme" : "https"
+            },
+            "result" : {
+              "failure" : {
+                "after" : "5ms",
+                "value" : {
+                  "error" : {
+                    "code" : -1009,
+                    "domain" : "NSURLErrorDomain",
+                    "userInfo" : {
+
+                    }
+                  },
+                  "version" : 1
+                }
+              },
+              "kind" : "failed"
+            }
+          },
+          {
+            "initialRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/start",
+              "scheme" : "https"
+            },
+            "result" : {
+              "kind" : "received",
+              "response" : {
+                "head" : {
+                  "after" : "1ms",
+                  "value" : {
+                    "fields" : [
+
+                    ],
+                    "reasonPhrase" : "Found",
+                    "status" : 302
+                  }
+                },
+                "next" : {
+                  "kind" : "redirect",
+                  "redirect" : {
+                    "after" : "4ms",
+                    "outcome" : {
+                      "kind" : "followProposed",
+                      "result" : {
+                        "kind" : "received",
+                        "response" : {
+                          "head" : {
+                            "after" : "1ms",
+                            "value" : {
+                              "fields" : [
+
+                              ],
+                              "reasonPhrase" : "Unauthorized",
+                              "status" : 401
+                            }
+                          },
+                          "next" : {
+                            "authenticate" : {
+                              "after" : "3ms",
+                              "challenge" : {
+                                "host" : "example.invalid",
+                                "isProxy" : false,
+                                "method" : "digest",
+                                "port" : 443,
+                                "previousFailureCount" : 0
+                              },
+                              "outcome" : {
+                                "credential" : {
+                                  "hasPassword" : true,
+                                  "persistence" : "none",
+                                  "user" : "redacted"
+                                },
+                                "kind" : "useCredential",
+                                "retry" : {
+                                  "result" : {
+                                    "kind" : "received",
+                                    "response" : {
+                                      "head" : {
+                                        "after" : "1ms",
+                                        "value" : {
+                                          "fields" : [
+
+                                          ],
+                                          "reasonPhrase" : "OK",
+                                          "status" : 200
+                                        }
+                                      },
+                                      "next" : {
+                                        "disposition" : {
+                                          "after" : "2ms",
+                                          "outcome" : {
+                                            "body" : {
+                                              "conclusion" : {
+                                                "completion" : {
+                                                  "after" : "3ms",
+                                                  "trailers" : {
+                                                    "after" : "2ms",
+                                                    "fields" : [
+
+                                                    ]
+                                                  }
+                                                },
+                                                "kind" : "returned"
+                                              },
+                                              "content" : {
+                                                "kind" : "bytes",
+                                                "text" : "€!"
+                                              },
+                                              "segments" : [
+                                                {
+                                                  "after" : "10ms",
+                                                  "byteWeight" : 8
+                                                },
+                                                {
+                                                  "after" : "0ms",
+                                                  "byteWeight" : 1
+                                                },
+                                                {
+                                                  "after" : {
+                                                    "override" : "25ms"
+                                                  },
+                                                  "byteWeight" : 2
+                                                }
+                                              ]
+                                            },
+                                            "kind" : "allow"
+                                          }
+                                        },
+                                        "kind" : "disposition"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "kind" : "authenticate"
+                          }
+                        }
+                      }
+                    },
+                    "proposedRequest" : {
+                      "authority" : "example.invalid",
+                      "body" : {
+                        "kind" : "absent"
+                      },
+                      "fields" : [
+
+                      ],
+                      "method" : "GET",
+                      "path" : "/login",
+                      "scheme" : "https"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "initialRequest" : {
+              "authority" : "example.invalid",
+              "body" : {
+                "kind" : "absent"
+              },
+              "fields" : [
+
+              ],
+              "method" : "GET",
+              "path" : "/pending",
+              "scheme" : "https"
+            },
+            "result" : {
+              "kind" : "open"
+            }
+          }
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.urlsession"
+    },
+    {
+      "attachmentKey" : "idle",
+      "payload" : {
+        "interactions" : [
+
+        ]
+      },
+      "schemaVersion" : 1,
+      "type" : "diorama.urlsession"
+    }
+  ]
+}

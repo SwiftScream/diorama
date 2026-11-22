@@ -90,8 +90,8 @@ Native omission leniency does not apply to edited persisted values.
 
 This independently versioned component is unreleased. The owner approves replacing
 H09's earlier unmerged component shape with this smaller version-one contract;
-no reader for that review prototype is retained. The later URLSession system
-owns its enclosing payload version and compatibility policy.
+no reader for that review prototype is retained. The [URLSession registration](http-message-schema-v1.md#urlsession-registration-and-replay-setup)
+owns the enclosing payload version and compatibility policy.
 
 The [canonical fixture](../Tests/DioramaURLSessionTests/Fixtures/failures.json)
 uses sorted keys, pretty printing, unescaped slashes, and a final newline.

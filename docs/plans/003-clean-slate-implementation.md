@@ -3184,6 +3184,11 @@ Add only the shared boundaries actually needed by URLSession; do not build an As
 
 ### 003-H13 — Full lifecycle validation, registration, and capability derivation
 
+- Status: Complete. The owner confirms scope on 2026-11-20 and approves the
+  stacked URLSession integration PR. The 13 focused admission tests and
+  canonical macOS gate pass.
+- Evidence: [URLSession registration and whole-record validation](../evidence/003-H13-urlsession-registration.md).
+
 - Recommended model: GPT-6 Astra; reasoning: `high`. Whole-tree validation and capability derivation integrate all schema families before any playback or claim is allowed.
 - Prerequisites: 003-H08–003-H12B, revised 003-E05, 003-C01; DD08, DD11–DD12, DD17.
 - Scope: Integrate one URLSession persistent system payload using shared HTTP

@@ -78,9 +78,13 @@ struct HTTPFieldRedactionTests {
         }, validate: { value in
             guard value.text == "authored" else { throw HTTPMessageError.invalidField }
         })
-        let policy = HTTPPreparation(fieldRedaction: HTTPFieldRedactionPolicy(rules: [.authorization: rule]))
-            .response(reporter: reporter)
+        let fieldPolicy = HTTPFieldRedactionPolicy(rules: [.authorization: rule])
+        let policy = HTTPPreparation(fieldRedaction: fieldPolicy).response(reporter: reporter)
         let valid = response("authored")
+        try fieldPolicy.validatePrepared(valid.head.headerFields)
+        #expect(throws: HTTPMessageError.invalidField) {
+            try fieldPolicy.validatePrepared(response("secret").head.headerFields)
+        }
         #expect(try policy.admitPrepared(valid).value == valid)
         #expect(throws: PreparationFailure.self) { try policy.admitPrepared(response("secret")) }
         #expect(reporter.freeze().diagnostics.isEmpty)
