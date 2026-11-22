@@ -361,7 +361,8 @@ test-integration design. They do not authorize those APIs.
   conversion constraints.
 
 - [HTTP message values and schema components](http-message-schema-v1.md)
-  documents portable builders, ordered fields, exact bodies, and strict codecs.
+  documents portable builders, ordered fields, exact bodies, and the registered
+  URLSession payload and setup contract.
 - [HTTP message value evidence](evidence/003-H02-http-message-values.md)
   records the H02 implementation and verification boundary.
 - [HTTP preparation evidence](evidence/003-H03-http-preparation.md) records typed
@@ -409,6 +410,9 @@ test-integration design. They do not authorize those APIs.
 
 - [HTTP lifecycle replay evidence](evidence/003-H12B-http-lifecycle-replay.md)
   covers current decision timing, ordered body delivery, and claim progress.
+
+- [URLSession schema and capability admission evidence](evidence/003-H13-urlsession-registration.md)
+  covers the shared payload, setup validation, mixed-system fixtures, and replay capability checks.
 
 ## Historical boundary
 

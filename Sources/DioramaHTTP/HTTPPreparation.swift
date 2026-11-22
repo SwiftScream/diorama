@@ -38,7 +38,7 @@ public struct HTTPPreparation: Sendable {
             head.headerFields = try fieldRedaction.redact(head.headerFields, reporter: reporter, context: context)
             return try redact(HTTPRequestMessage(head: head, body: value.body))
         }, normalize: normalize, validate: { value in
-            try fieldRedaction.validate(value.head.headerFields)
+            try fieldRedaction.validatePrepared(value.head.headerFields)
             try validate(value)
         })
     }
@@ -57,7 +57,7 @@ public struct HTTPPreparation: Sendable {
             head.headerFields = try fieldRedaction.redact(head.headerFields, reporter: reporter, context: context)
             return try redact(HTTPResponseHead(head: head))
         }, normalize: normalize, validate: { value in
-            try fieldRedaction.validate(value.head.headerFields)
+            try fieldRedaction.validatePrepared(value.head.headerFields)
             try validate(value)
         })
     }

@@ -50,7 +50,10 @@ public struct HTTPFieldRedactionPolicy: Sendable {
         return result
     }
 
-    func validate(_ fields: HTTPFields) throws {
+    /// Checks already-prepared fields against the configured rules.
+    ///
+    /// Each occurrence with a matching rule is validated without reapplying redaction.
+    public func validatePrepared(_ fields: HTTPFields) throws {
         for field in fields {
             if let rule = rules[field.name] {
                 try rule.validate(HTTPFieldValue(bytes: field.withUnsafeBytesOfValue { Array($0) }))

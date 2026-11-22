@@ -2,9 +2,60 @@
 
 `DioramaHTTP` is an optional portable product. It uses `HTTPTypes` for in-memory
 heads and owns its message/body Codable shapes. Core has no HTTP dependency.
-These are components of the future version-one HTTP system payload, not a
-standalone scenario envelope or a registered HTTP system. System version dispatch
-and full lifecycle validation arrive in H13. No wire HTTP version is inferred.
+The version-one URLSession payload embeds these components under the registered
+system type `diorama.urlsession`. Both native bridges use the same schema.
+
+## URLSession registration and replay setup
+
+The scenario envelope carries the attachment key and system schema version.
+The version-one payload has one required field, `interactions`, an array of
+`HTTPInteraction<URLSessionFailure>` in invocation order. An empty array is a
+valid empty recording. Each attachment owns one headerless track also named
+`interactions`. Array order supplies its zero-based record identities.
+A [complete scenario fixture](../Tests/DioramaURLSessionTests/Fixtures/scenario.json)
+shows two URLSession attachments alongside a Random attachment.
+
+Use one `URLSessionRecordingSchema` for all keyed URLSession instances in a
+setup. Its `systemType` supplies the versioned registration. The default
+instance is `.standard`. For custom field or username policies, pass a
+dictionary of `HTTPPreparation` values keyed by attachment. Unlisted keys use
+the defaults. Admission checks requests, response heads, trailers, and
+proposed and selected credential metadata without reapplying transformations.
+The registered writer checks the track layout and policy before encoding.
+
+```swift
+import DioramaCore
+import DioramaPersistence
+import DioramaURLSession
+
+let schema = URLSessionRecordingSchema.standard
+let attachment = try schema.attachment(key: AttachmentKey(rawValue: "service"), interactions: [])
+let codec = try JSONScenarioCodec(registry: PersistentSystemRegistry([schema.systemType]))
+let document = try codec.encode(ScenarioDefinition(attachments: [attachment]))
+```
+
+A URLSession system definition declares `URLSessionRecordingSchema.interactions`
+and calls `schema.validate(in:supporting:)` from its validation hook. Core runs
+this hook on the resolved baseline before constructing dependencies. Replay
+checks the method and body of each request, including redirect proposals and
+modified requests, and follows every recorded continuation. Each observed
+decision, failure, open horizon, body delivery, segment profile, and trailer
+requires the corresponding bridge behavior. Redirects require support for
+their status, and authentication distinguishes method and proxy handling.
+A response status alone introduces no delegate decision requirement.
+Requests must form HTTP or HTTPS URLs with nonempty hosts. Admission checks
+initial requests, redirect proposals even when refused, modified redirects, and
+explicit authentication retry requests. Informational responses fall outside
+the initial URLSession lifecycle.
+
+The caller supplies the native bridge's tested capabilities at setup.
+For example, a fixture requiring a Digest challenge on the third attempt
+produces a startup diagnostic identifying the record, attempt `2`, and the
+challenge field when the bridge lacks that capability. The diagnostic's `rule`
+identifies the missing behavior with a fixed label, such as
+`urlsession.requires-authentication`. Record mode validates
+prepared baseline data independently of replay capabilities. Passthrough
+starts without reading the track. Native bridge conformance belongs to Phase I.
 
 ## Building values
 
@@ -17,8 +68,7 @@ let request = try HTTPRequestMessage(
         method: .post, scheme: "https", authority: "example.invalid", path: "/items"),
     body: .bytes([0, 128, 255]))
 let response = HTTPResponseHead(head: HTTPResponse(status: .ok))
-let content = HTTPResponseBody.resource(
-    try HTTPBodyResource(path: "bodies/items.bin"))
+let content = HTTPResponseBody.bytes(Array("ok".utf8))
 ```
 
 Message and body values are immutable, Sendable, and Hashable. Heads retain HTTP
@@ -61,9 +111,8 @@ system codecs. HTTP's `Codable` boundary extracts the existing
 `ScenarioDocumentSnapshot` with `ScenarioResourceCoding.resolutionContext(from:)`
 and passes that explicit context into persisted-to-runtime body conversion.
 The persisted shape is validated before resolving a reference, and each resource
-is resolved once per body conversion. A test-only registered consumer proves this
-path with actual HTTP body values; production URLSession registration remains
-its own unit.
+is resolved once per body conversion. The URLSession registration uses the
+same resource context for requests and responses throughout each interaction.
 
 ## Owned Codable shapes
 
@@ -269,8 +318,7 @@ This establishes the response/body foundation of DD17's recursive lifecycle.
 Redirect, authentication, and optional disposition nodes extend it below;
 weighted segmentation and timing allocation are described below. No future
 node placeholders, scheduler, capture accumulator, native failure mapping, system
-registration, or runtime delivery engine is introduced here. Full system schema
-version dispatch remains assigned to H13.
+registration, or runtime delivery engine is introduced by the component codec.
 
 ### Response-owned redirect branches
 
@@ -308,8 +356,7 @@ head, or remain open while awaiting it. Multi-hop chains therefore preserve
 one response per hop and one effective request per nonderivable edge. Redirect
 structure is shared in `DioramaHTTP`, parameterized by the adapter's failure
 value; H10 requires no additional native-only URLSession supplement fields.
-The shared component does not broaden URLSession's advertised capabilities or
-infer support for arbitrary status codes; system capability admission remains H13.
+URLSession replay setup checks the observed redirect status against the supplied bridge profile.
 
 A redirect response encodes with required `head` and
 `next: { "kind": "redirect", "redirect": ... }`. The redirect payload has required
@@ -329,8 +376,7 @@ editing forms, and adapter failure contracts. Missing/null/unknown fields,
 competing continuation payloads, unknown continuation/outcome tags, and continuations
 under incompatible branches fail decoding. `Fixtures/redirects.json` includes two
 hops, a modified request, and refusal with direct body delivery or a disposition.
-These remain components of the unreleased version-one system schema; H13 owns
-system registration/version dispatch.
+The registered URLSession payload embeds the same redirect component.
 
 `after` starts at the owning head and ends at redirect presentation. The head
 delay plus presentation delay must fit the millisecond scalar range. After the
@@ -534,9 +580,9 @@ fallback. Caller task cancellation remains separate runtime control.
 Ordinary body delivery has no supplement and retains its existing encoding.
 Completion/async operations and private forwarding callbacks never manufacture a
 consumer decision phase. Absence imposes no delegate-presentation requirement.
-A recorded disposition requires proven delegate decision
-gating; cancel additionally requires effective cancellation. Full recursive
-capability derivation/admission remains H13 and native conformance remains I04.
+Replay admission requires the bridge to wait for the delegate's answer to
+every recorded disposition. A recorded cancel also requires the bridge to
+honor that answer. I04 verifies native delivery.
 The accepted Linux exception does not permit encoding cancel followed by success
 or erasing an observed decision: capture must diagnose an unrepresentable native
 outcome and refuse publication while preserving live behavior.
@@ -909,8 +955,8 @@ redaction returns one `HTTPFieldRedactionResult`:
 `text`. Invalid HTTP bytes throw rather than being silently repaired. A retained
 or replaced field preserves its original name and HTTP Types indexing strategy.
 Rules own the replacement decision; no separate fallback configuration exists.
-The policy owns field iteration, warning emission, and removal. Thrown rule
-errors use Core's safe preparation-failure path.
+The policy owns field iteration, warning emission, and removal. The
+`ValuePreparation` pipeline reports thrown rule errors as preparation failures.
 
 `.constant("fixture")` supplies replacement and exact-value validation;
 `.constant(HTTPFieldValue)` supports opaque bytes. `.remove` supplies unconditional
@@ -939,9 +985,12 @@ or programmatic baselines use `admitPrepared`: it validates without rerunning
 redaction or normalization. The default credential invariant accepts only the
 built-in substitute for the recognized shape; constant rules accept only
 the configured value, and removal rules reject retained fields. A changed policy therefore rejects incompatible fixtures.
+For standalone prepared fields such as trailers, call
+`HTTPFieldRedactionPolicy.validatePrepared(_:)` on the configured policy.
+Validation errors propagate to the caller.
 Direct message decoding establishes structural validity only; adapter/system
 admission must apply the selected preparation policy before storage or replay.
-Full lifecycle and persistence registration integration belongs to later units.
+URLSession applies these checks across the interaction during admission and encoding.
 
 Normalization cannot reintroduce a credential that violates the selected policy.
 Failed transforms return Core's safe `PreparationFailure` without retaining the
