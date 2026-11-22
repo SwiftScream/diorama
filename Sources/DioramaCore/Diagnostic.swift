@@ -1,10 +1,16 @@
-/// A setup-authored label that cannot be initialized from a runtime payload.
+/// A safe label for a rule name, schema field path, or system issue code.
 ///
-/// Use labels for safe rule names, semantic field paths, and system issue codes.
-/// Literal text is still consumer-authored: do not place secrets in it.
+/// Use static text and structural positions to keep captured values out of diagnostics.
 public struct DiagnosticLabel: Hashable, Sendable {
     /// The literal label text.
     public let text: String
+
+    /// Creates a label for a numeric position in a schema field path.
+    ///
+    /// - Parameter index: A structural position such as an array index.
+    public init(index: Int) {
+        text = String(index)
+    }
 
     /// Creates a label from static source text.
     ///

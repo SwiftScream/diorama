@@ -17,7 +17,10 @@ fi
 cat > "$probe_root/positive.swift" <<'SWIFT'
 import DioramaCore
 
-enum ProbeError: Error { case unsupported }
+struct ProbeValidationError: Error {
+    let record: RecordIdentity
+    let index: Int
+}
 struct ExternalDefinition: SystemDefinition {
     enum Dependency: Sendable {
         case managed(SystemExecution<HeaderlessSequentialTrackLease<Int>>)
@@ -27,7 +30,16 @@ struct ExternalDefinition: SystemDefinition {
     let values = TrackDefinition<Int, Void>("values", continuationPolicy: .replayLast(defaultValue: 0))
     var tracks: [AnyTrackDefinition] { [values.erased] }
     func validate(in context: borrowing SystemValidationContext) throws {
-        if context.mode != .passthrough { _ = try context.track(values) }
+        guard context.mode != .passthrough else { return }
+        try context.validate(values) { track in
+            if let index = track.records.firstIndex(where: { $0.value < 0 }) {
+                throw ProbeValidationError(record: track.records[index].identity, index: index)
+            }
+        } diagnosticForFailure: { failure in
+            guard let error = failure as? ProbeValidationError else { return nil }
+            return Diagnostic(issue: .system(DiagnosticLabel("compiler.invalid-value")),
+                              context: .record(error.record), fieldPath: [DiagnosticLabel(index: error.index)])
+        }
     }
     var record: SystemModeDefinition<HeaderlessSequentialTrackLease<Int>, Dependency> {
         .init(makeState: { try $0.lease(for: values) }, makeDependency: { .managed($0) })
