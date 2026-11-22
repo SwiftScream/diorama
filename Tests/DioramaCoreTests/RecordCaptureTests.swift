@@ -104,8 +104,28 @@ struct RecordCaptureTests {
         #expect(result.definition == nil)
         #expect(!result.report.recordingHealth.isHealthy)
         #expect(result.usage[0].tracks[0].activity == .record(recordedCount: 0, incompleteCount: 3))
-        #expect(result.report.diagnostics.count == 3)
+        #expect(result.report.diagnostics.map(\.diagnostic.issue) == [
+            .conversionFailed,
+            .verification(.recordingNotAdmitted),
+            .preparationFailed(.validation),
+        ])
         #expect(!result.rendered().contains("secret"))
+    }
+
+    @Test
+    func `freeze reports the supplied rejection once with the reserved record identity`() async throws {
+        let (execution, lease) = try await RecordCaptureFixtures.start()
+        let issue = DiagnosticIssue.system(DiagnosticLabel("capture.test-rejection"))
+        let policy = ValuePreparation<String>(validate: { _ in
+            Issue.record("A rejected record must not reach validation")
+        })
+        let identity = try lease.beginRecord(preparation: policy, capturing: { $0 }, finalizing: { _ in
+            .rejected(issue)
+        })
+        let result = await execution.finish()
+        let expected = Diagnostic(issue: issue, context: .record(identity), recordingImpact: .invalidatesCandidate)
+        #expect(result.definition == nil)
+        #expect(result.report.diagnostics.map(\.diagnostic) == [expected])
     }
 
     @Test

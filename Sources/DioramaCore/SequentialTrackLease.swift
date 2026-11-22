@@ -38,7 +38,7 @@ public final class SequentialTrackLease<Value: Sendable, Header: Sendable>: Send
     }
 
     private struct AccumulationSlot: Sendable {
-        let freeze: @Sendable () -> Value?
+        let freeze: @Sendable () -> RecordFreeze<Value>
         let preparation: ValuePreparation<Value>
     }
 
@@ -432,6 +432,17 @@ extension SequentialTrackLease {
         freeze: @escaping @Sendable (Accumulator) -> Value?)
         throws(SequentialOperationFailure) -> Accumulator
     {
+        try beginRecord(preparation: preparation, capturing: make, finalizing: { accumulator in
+            freeze(accumulator).map(RecordFreeze.captured) ?? .notAdmitted
+        })
+    }
+
+    func beginRecord<Accumulator: Sendable>(
+        preparation: ValuePreparation<Value>,
+        capturing make: (RecordIdentity) throws -> Accumulator,
+        finalizing freeze: @escaping @Sendable (Accumulator) -> RecordFreeze<Value>)
+        throws(SequentialOperationFailure) -> Accumulator
+    {
         let reservation: Result<(Int, RecordIdentity), SequentialOperationFailure> = state.withLock { state in
             if let failure = closedFailure(state) {
                 return .failure(failure)
@@ -518,12 +529,13 @@ extension SequentialTrackLease: AnySequentialLease {
         for (index, accumulator) in accumulators {
             let identity = RecordIdentity(trackID: id, sequence: UInt64(index))
             let prepared: PreparedValue<Value>?
-            if let value = accumulator.freeze() {
+            switch accumulator.freeze() {
+            case let .captured(value):
                 prepared = try? accumulator.preparation.validateRecording(
                     value, reporter: reporter, context: .record(identity))
-            } else {
-                reporter.record(Diagnostic(issue: .verification(.recordingNotAdmitted),
-                                           context: .record(identity), recordingImpact: .invalidatesCandidate))
+            case let .rejected(issue):
+                reporter.record(Diagnostic(issue: issue, context: .record(identity),
+                                           recordingImpact: .invalidatesCandidate))
                 prepared = nil
             }
             state.withLock { state in

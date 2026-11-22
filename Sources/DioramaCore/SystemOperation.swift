@@ -1,3 +1,13 @@
+/// The result of freezing a first-party accumulator.
+package enum RecordFreeze<Value: Sendable>: Sendable {
+    case captured(Value)
+    case rejected(DiagnosticIssue)
+
+    package static var notAdmitted: Self {
+        .rejected(.verification(.recordingNotAdmitted))
+    }
+}
+
 /// A noncopyable, nonescaping token for effects inside one state operation.
 /// Diagnostic reporting retains facts synchronously without consumer callbacks.
 /// Do not store or capture this token.
@@ -82,8 +92,19 @@ public struct SystemOperation<State: Sendable>: ~Copyable {
         freeze: @escaping @Sendable (inout State, Accumulator) -> Value?) throws -> Accumulator
     {
         let execution = execution
-        return try lease.beginRecord(preparation: preparation, capturing: capture) { accumulator in
+        return try lease.beginRecord(preparation: preparation, capturing: capture, freeze: { accumulator in
             execution.freeze { freeze(&$0, accumulator) } ?? nil
-        }
+        })
+    }
+
+    package func beginRecord<Value: Sendable, Accumulator: Sendable>(
+        on lease: SequentialTrackLease<Value, some Sendable>, preparation: ValuePreparation<Value>,
+        capturing capture: (RecordIdentity) throws -> Accumulator,
+        finalizing freeze: @escaping @Sendable (inout State, Accumulator) -> RecordFreeze<Value>) throws -> Accumulator
+    {
+        let execution = execution
+        return try lease.beginRecord(preparation: preparation, capturing: capture, finalizing: { accumulator in
+            execution.freeze { freeze(&$0, accumulator) } ?? .notAdmitted
+        })
     }
 }
