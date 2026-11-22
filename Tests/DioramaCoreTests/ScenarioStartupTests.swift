@@ -135,6 +135,39 @@ struct ScenarioStartupTests {
         #expect(activations.withLock { $0 } == 0)
     }
 
+    @Test(arguments: [true, false])
+    func `validation retains one specific diagnostic before dependency construction`(pathSpecific: Bool) async throws {
+        let activations = Mutex(0)
+        let definition = try RejectingSystemDefinition(pathSpecific: pathSpecific, makeDependency: {
+            activations.withLock { $0 += 1 }
+        })
+        let system = try ScenarioSystem(named: "validation", definition: definition)
+        let baseline = try ScenarioDefinition(attachments: [system.attachment])
+        let trackID = TrackID(attachmentID: system.attachment.id, key: definition.track.key)
+        do {
+            let execution = try await ScenarioExecution.start(
+                definition: baseline,
+                scenarioID: ScenarioID(rawValue: "validation"), defaultMode: .replay,
+                systems: [AnyScenarioSystem(system)])
+            _ = await execution.finish()
+            Issue.record("Expected validation to reject startup")
+        } catch {
+            let facts = error.report.diagnostics.map(\.diagnostic)
+            let validationIssue: DiagnosticIssue = pathSpecific ? .system(DiagnosticLabel("invalid-field"))
+                : .preparationFailed(.validation)
+            #expect(facts.map(\.issue) == [.lifecycle(.preparationFailed), validationIssue])
+            let validation = try #require(facts.last)
+            if pathSpecific {
+                #expect(validation.context == .record(RecordIdentity(trackID: trackID, sequence: 0)))
+                #expect(validation.fieldPath.map(\.text) == ["entries", "2", "value"])
+            } else {
+                #expect(validation.context == .track(trackID))
+                #expect(validation.fieldPath.isEmpty)
+            }
+        }
+        #expect(activations.withLock { $0 } == 0)
+    }
+
     @Test(arguments: [ScenarioMode.record, .replay, .passthrough])
     func `startup validates prepared track values except in passthrough`(mode: ScenarioMode) async throws {
         let calls = Mutex<[Int]>([])
@@ -168,5 +201,55 @@ struct ScenarioStartupTests {
             #expect(error.report.recordingHealth.isHealthy)
             #expect(error.report.diagnostics.contains { $0.diagnostic.issue == .preparationFailed(.validation) })
         }
+    }
+}
+
+private struct RejectingSystemDefinition: SystemDefinition {
+    let systemType = ScenarioSystemType("validation")
+    let track: TrackDefinition<Int, Void>
+    let pathSpecific: Bool
+    let makeDependency: @Sendable () -> Void
+
+    init(pathSpecific: Bool, makeDependency: @escaping @Sendable () -> Void) throws {
+        track = try TrackDefinition("values", values: [ValuePreparation<Int>().admitPrepared(1)])
+        self.pathSpecific = pathSpecific
+        self.makeDependency = makeDependency
+    }
+
+    var tracks: [AnyTrackDefinition] {
+        [track.erased]
+    }
+
+    func validate(in context: borrowing SystemValidationContext) throws {
+        if pathSpecific {
+            try context.validate(track) { content in
+                let record = try #require(content.records.first)
+                throw FieldValidationError(record: record.identity)
+            } diagnosticForFailure: { error in
+                guard let error = error as? FieldValidationError else { return nil }
+                return Diagnostic(issue: .system(DiagnosticLabel("invalid-field")),
+                                  context: .record(error.record), fieldPath: [
+                                      DiagnosticLabel("entries"), DiagnosticLabel(index: 2), DiagnosticLabel("value"),
+                                  ])
+            }
+        } else {
+            try context.validate(track) { _ in throw ScenarioLifecycleIssue.invalidTrackRequest }
+        }
+    }
+
+    var record: SystemModeDefinition<Void, Void> {
+        .init(makeDependency: makeDependency)
+    }
+
+    var replay: SystemModeDefinition<Void, Void> {
+        record
+    }
+
+    var passthrough: SystemModeDefinition<Void, Void> {
+        record
+    }
+
+    private struct FieldValidationError: Error {
+        let record: RecordIdentity
     }
 }

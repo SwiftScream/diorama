@@ -59,9 +59,22 @@ public struct SystemValidationContext: ~Copyable {
         _ definition: TrackDefinition<Value, Header>,
         using validate: (SequentialTrack<Value, Header>) throws -> Void) throws
     {
+        try self.validate(definition, using: validate, diagnosticForFailure: { _ in nil })
+    }
+
+    /// Validates prepared track content and creates a diagnostic from any error thrown by `validate`.
+    ///
+    /// Return a safe diagnostic from `diagnosticForFailure` or return `nil` to use the
+    /// default track-level diagnostic. Core records the diagnostic and throws a ``PreparationFailure``.
+    public func validate<Value: Sendable, Header: Sendable>(
+        _ definition: TrackDefinition<Value, Header>,
+        using validate: (SequentialTrack<Value, Header>) throws -> Void,
+        diagnosticForFailure: (any Error) -> Diagnostic?) throws
+    {
         let content = try track(definition)
         do { try validate(content) } catch {
-            let diagnostic = Diagnostic(issue: .preparationFailed(.validation), context: .track(content.id))
+            let diagnostic = diagnosticForFailure(error)
+                ?? Diagnostic(issue: .preparationFailed(.validation), context: .track(content.id))
             registry.reporter.record(diagnostic)
             throw PreparationFailure(diagnostic: diagnostic)
         }
