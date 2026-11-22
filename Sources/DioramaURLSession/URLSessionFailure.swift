@@ -83,7 +83,7 @@ public struct URLSessionFailure: Equatable, Sendable {
 public enum URLSessionFailureError: Error, Equatable, Sendable {
     /// Domain or bounded snapshot values are invalid.
     case invalidSnapshot
-    /// The failure component schema version is unsupported.
+    /// Underlying decoding error for an unsupported failure component schema version.
     case unsupportedVersion
 }
 
@@ -96,7 +96,9 @@ extension URLSessionFailure: Codable {
     public init(from decoder: any Decoder) throws {
         let fields = try decoder.strictContainer(keyedBy: CodingKeys.self)
         guard try fields.decode(Int.self, forKey: .version) == 1 else {
-            throw URLSessionFailureError.unsupportedVersion
+            throw DecodingError.dataCorrupted(.init(codingPath: fields.codingPath + [CodingKeys.version],
+                                                    debugDescription: "Unsupported URLSession failure version",
+                                                    underlyingError: URLSessionFailureError.unsupportedVersion))
         }
         let snapshot = try fields.decode(NSErrorSnapshotPayload.self, forKey: .error).snapshot()
         self.init(snapshot: snapshot)
