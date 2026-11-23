@@ -150,11 +150,14 @@ callbacks or deciding whether a test passes.
 
 The attempt result is exactly one case:
 
-- `.received(HTTPResponseNode)` introduces one timed response head and one
+- `.received(HTTPResponseNode)` introduces one timed final response head and one
   response-owned body, redirect, authentication, or disposition continuation.
 - `.failed(HTTPTimed<Failure>)` represents failure before any head.
 - `.openAtRecordingHorizon` explicitly preserves work still awaiting a head or
   failure when observation ends.
+
+A standalone `HTTPResponseHead` can represent informational `1xx` statuses.
+Decoding an informational status in a response node reports `head.value.status`.
 
 `HTTPBodyDelivery` owns exactly one `content` value and one `conclusion`. Returned
 content is complete. Failed and open content is only the prefix actually observed;
@@ -167,10 +170,10 @@ availability require separate system admission.
 
 The body conclusion is exactly one of `.returned(HTTPBodyCompletion)`,
 `.failed(HTTPTimed<Failure>)`, or `.openAtRecordingHorizon`. Successful message
-delivery can have any representable HTTP status, including 4xx/5xx. A transport
-failure after a head remains a body failure, independent of that status. Open
-work has no completion delay or synthesized failure; later replay must preserve
-pending behavior until ordinary cancellation or execution cleanup.
+delivery can have any representable final HTTP status, including 4xx/5xx.
+A transport failure after a head remains a body failure, independent of that
+status. Open work has no completion delay or synthesized failure; later replay
+must preserve pending behavior until ordinary cancellation or execution cleanup.
 
 Only `HTTPBodyCompletion` can contain optional `HTTPTrailers`. Trailer fields use
 the same literal ordered-field representation and validation as message fields,
@@ -1016,8 +1019,8 @@ Incremental recording automatically applies `HTTPContentLength.request` or
 the effective request method. Selection requires one nonempty decimal field,
 a complete body, and equality with its byte count. Leading zeros are accepted;
 signs, lists, overflow, repeated values, and mismatches remain literal. Absent
-fields remain absent. HEAD and CONNECT methods, informational responses, statuses
-204/205/206/304, and any Content-Encoding, Transfer-Encoding, or Content-Range
+fields remain absent. HEAD and CONNECT methods, statuses 204/205/206/304,
+and any Content-Encoding, Transfer-Encoding, or Content-Range
 field conservatively prevent derivation. Failed/open responses retain literals.
 The same semantic exclusions reject authored markers during contextual decoding;
 interaction construction additionally checks the root request method. Its

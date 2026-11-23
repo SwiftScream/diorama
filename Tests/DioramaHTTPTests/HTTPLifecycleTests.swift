@@ -54,6 +54,27 @@ struct HTTPLifecycleTests {
         #expect(try decoder().decode(Interaction.self, from: canonical(serverError)) == serverError)
     }
 
+    @Test(arguments: [100, 101, 103, 199])
+    func `informational heads round trip while response nodes require final heads`(_ code: Int) throws {
+        let head = HTTPResponseHead(head: HTTPResponse(status: .init(code: code)))
+        #expect(try decoder().decode(HTTPResponseHead.self, from: canonical(head)) == head)
+        let timedHead = try timed(head)
+        let body = try HTTPBodyDelivery<Failure>(content: .absent, conclusion: .returned(completed()))
+        #expect(throws: HTTPLifecycleError.informationalResponse) {
+            try HTTPResponseNode(head: timedHead, body: body)
+        }
+
+        let response = try received(status: .ok, content: .absent, conclusion: .returned(completed()))
+        let json = try #require(String(data: canonical(response), encoding: .utf8))
+        let edited = json.replacingOccurrences(of: #""status" : 200"#, with: #""status" : \#(code)"#)
+        do {
+            _ = try decode(Interaction.self, edited)
+            Issue.record("Expected an informational response node to fail decoding")
+        } catch let DecodingError.dataCorrupted(context) {
+            #expect(context.codingPath.map(\.stringValue) == ["result", "response", "head", "value", "status"])
+        }
+    }
+
     @Test
     func `open before and after a head never acquires synthetic completion`() throws {
         let values = try examples()

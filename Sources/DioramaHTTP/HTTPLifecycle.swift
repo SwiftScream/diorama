@@ -27,7 +27,7 @@ public indirect enum HTTPAttemptResult<Failure: Sendable>: Sendable {
     case openAtRecordingHorizon
 }
 
-/// A single received response owning body delivery or one observed decision.
+/// A final response for one attempt, owning body delivery or one observed decision.
 public struct HTTPResponseNode<Failure: Sendable>: Sendable {
     /// The response head, delayed from invocation or the current preceding decision.
     public let head: HTTPTimed<HTTPResponseHead>
@@ -39,13 +39,16 @@ public struct HTTPResponseNode<Failure: Sendable>: Sendable {
         next.body
     }
 
-    /// Builds ordinary body delivery, regardless of response status.
+    /// Builds ordinary body delivery from a final response head.
     public init(head: HTTPTimed<HTTPResponseHead>, body: HTTPBodyDelivery<Failure>) throws {
         try self.init(head: head, next: .deliverBody(body))
     }
 
-    /// Validates local timing and derived length without crossing a decision anchor.
+    /// Validates the response head, local timing, and derived length within this attempt.
     public init(head: HTTPTimed<HTTPResponseHead>, next: HTTPAfterResponseHead<Failure>) throws {
+        guard head.value.head.status.kind != .informational else {
+            throw HTTPLifecycleError.informationalResponse
+        }
         if case let .authenticate(phase) = next {
             guard head.value.head.status.code == (phase.challenge.isProxy ? 407 : 401) else {
                 throw HTTPAuthenticationError.invalidResponse
