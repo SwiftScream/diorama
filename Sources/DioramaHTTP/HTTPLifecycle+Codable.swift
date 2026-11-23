@@ -76,10 +76,15 @@ extension HTTPResponseNode: Codable where Failure: Codable {
         } else {
             nil
         }
-        let value = try HTTPResponseHead(from: timed.superDecoder(forKey: .value), byteCount: count)
+        let valueDecoder = try timed.superDecoder(forKey: .value)
+        let value = try HTTPResponseHead(from: valueDecoder, byteCount: count)
         let head = try HTTPTimed(after: timed.decode(HTTPDelay.self, forKey: .after), value: value)
         do {
             try self.init(head: head, next: next)
+        } catch HTTPLifecycleError.informationalResponse {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: valueDecoder.codingPath + [HTTPResponseHead.CodingKeys.status],
+                debugDescription: "An HTTP response node requires a final response status"))
         } catch {
             throw DecodingError.dataCorruptedError(
                 forKey: .next, in: fields,

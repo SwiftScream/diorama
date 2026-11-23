@@ -154,7 +154,7 @@ extension HTTPRequestMessage: Codable {
 }
 
 extension HTTPResponseHead: Codable {
-    private enum CodingKeys: String, CodingKey, CaseIterable { case status, reasonPhrase, fields }
+    enum CodingKeys: String, CodingKey, CaseIterable { case status, reasonPhrase, fields }
 
     /// Reads a strict status and ordered fields, validating before native creation.
     public init(from decoder: any Decoder) throws {

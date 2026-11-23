@@ -1,5 +1,7 @@
 /// Safe structural validation failures without request, body, or failure values.
 public enum HTTPLifecycleError: Error, Equatable, Sendable {
+    /// A response node requires the final response head for its attempt.
+    case informationalResponse
     /// A local delay cannot run backward.
     case negativeDelay
     /// Cumulative local timing exceeds the Int64 millisecond scalar range.

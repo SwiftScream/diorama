@@ -80,7 +80,7 @@ struct HTTPContentLengthTests {
 
     @Test
     func `response derivation excludes partial and exceptional semantics`() throws {
-        for status in [100, 101, 204, 205, 206, 304] {
+        for status in [204, 205, 206, 304] {
             #expect(try !select(response(status: status)).head.value.derivesContentLength)
         }
         for method: HTTPRequest.Method in [.head, .connect] {
