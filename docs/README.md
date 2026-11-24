@@ -417,6 +417,9 @@ test-integration design. They do not authorize those APIs.
 - [HTTP re-recording evidence](evidence/003-H14-http-timing-overrides.md)
   compares the baseline, fresh recording, and canonical candidate for timing override correspondence.
 
+- [Native URLSession GET evidence](evidence/003-I01-instrumented-session-get.md)
+  describes the instrumented Apple session, native lifetime, and platform coverage.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

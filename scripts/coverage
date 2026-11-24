@@ -6,7 +6,7 @@ cd "$repository_root"
 
 usage() {
     printf '%s\n' 'usage: scripts/coverage swiftpm <macos|linux>' \
-        '       scripts/coverage ios' >&2
+        '       scripts/coverage <ios|catalyst>' >&2
     return 64
 }
 
@@ -89,12 +89,19 @@ case ${1:-} in
         discover_test_binaries "$products_directory"
         export_lcov "$coverage_flag" "$profile_data"
         ;;
-    ios)
+    ios | catalyst)
+        coverage_flag=$1
         new_build_directory
-        result_bundle="$coverage_build/ios-tests.xcresult"
-        derived_data="$coverage_build/ios-derived-data"
+        result_bundle="$coverage_build/tests.xcresult"
+        derived_data="$coverage_build/derived-data"
 
-        destination='platform=iOS Simulator,name=iPhone 17,OS=27.2'
+        test_settings=(-enableCodeCoverage YES)
+        if [[ "$coverage_flag" == ios ]]; then
+            destination='platform=iOS Simulator,name=iPhone 17,OS=27.2'
+        else
+            destination='platform=macOS,variant=Mac Catalyst'
+            test_settings+=(-only-testing:DioramaURLSessionTests -parallel-testing-enabled NO)
+        fi
         common_settings=(
             -scheme Diorama-Package
             -destination "$destination"
@@ -108,10 +115,12 @@ case ${1:-} in
             -derivedDataPath "$derived_data" \
             -configuration Release
         run xcodebuild test "${common_settings[@]}" \
+            "${test_settings[@]}" \
             -derivedDataPath "$derived_data" \
-            -enableCodeCoverage YES \
             -resultBundlePath "$result_bundle"
-        run "$script_directory/tests/resource-lifecycle" "$derived_data/Build/Products/Debug-iphonesimulator" ios
+        if [[ "$coverage_flag" == ios ]]; then
+            run "$script_directory/tests/resource-lifecycle" "$derived_data/Build/Products/Debug-iphonesimulator" ios
+        fi
         profiles=()
         while IFS= read -r -d '' profile; do
             profiles+=("$profile")
@@ -122,7 +131,7 @@ case ${1:-} in
         fi
         profile_data=${profiles[0]}
         discover_test_binaries "$derived_data/Build/Products"
-        export_lcov ios "$profile_data"
+        export_lcov "$coverage_flag" "$profile_data"
         ;;
     *)
         usage

@@ -1,9 +1,6 @@
 import DioramaCore
 import DioramaHTTP
 import Foundation
-#if canImport(FoundationNetworking)
-    import FoundationNetworking
-#endif
 
 /// Native extraction into the portable authentication components.
 ///

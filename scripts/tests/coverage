@@ -17,12 +17,16 @@ set -euo pipefail
 tool=${0##*/}
 scratch=
 derived=
+destination=
+test_target=
 for ((index = 1; index <= $#; index++)); do
     argument=${!index}
     next=$((index + 1))
     case "$argument" in
         --scratch-path) scratch=${!next} ;;
         -derivedDataPath) derived=${!next} ;;
+        -destination) destination=${!next} ;;
+        -only-testing:*) test_target=$argument ;;
     esac
 done
 case "$tool" in
@@ -50,10 +54,20 @@ case "$tool" in
         ;;
     xcodebuild)
         test -n "$derived"
+        case "$destination" in
+            'platform=iOS Simulator,'*) products=Debug-iphonesimulator ;;
+            'platform=macOS,variant=Mac Catalyst') products=Debug-maccatalyst ;;
+            *) exit 93 ;;
+        esac
         if [[ $1 == test ]]; then
-            mkdir -p "$derived/Build/Products/Debug-iphonesimulator/CurrentTests.xctest" "$derived/Build/ProfileData/current"
-            touch "$derived/Build/Products/Debug-iphonesimulator/CurrentTests.xctest/CurrentTests"
-            chmod +x "$derived/Build/Products/Debug-iphonesimulator/CurrentTests.xctest/CurrentTests"
+            bundle="$derived/Build/Products/$products/CurrentTests.xctest"
+            if [[ $products == Debug-maccatalyst ]]; then
+                test "$test_target" = -only-testing:DioramaURLSessionTests
+                bundle="$bundle/Contents/MacOS"
+            fi
+            mkdir -p "$bundle" "$derived/Build/ProfileData/current"
+            touch "$bundle/CurrentTests"
+            chmod +x "$bundle/CurrentTests"
             touch "$derived/Build/ProfileData/current/Coverage.profdata"
         fi
         ;;
@@ -99,9 +113,11 @@ for platform in macos linux; do
     expected=$'TN:Current-test-runner\nTN:CurrentTests.so\nTN:CurrentTests.xctest\nSF:Sources/Current.swift\nDA:1,1\nend_of_record'
     test "$(cat "$fixture/.build/coverage/$platform.lcov")" = "$expected"
 done
-"$fixture/scripts/coverage" ios > "$fixture/run.log"
 expected=$'TN:CurrentTests\nSF:Sources/Current.swift\nDA:1,1\nend_of_record'
-test "$(cat "$fixture/.build/coverage/ios.lcov")" = "$expected"
+for platform in ios catalyst; do
+    "$fixture/scripts/coverage" "$platform" > "$fixture/run.log"
+    test "$(cat "$fixture/.build/coverage/$platform.lcov")" = "$expected"
+done
 test -z "$(find "$fixture/.build/coverage" -type d -name 'build.*' -print)"
 
 for failure in profile products; do

@@ -26,11 +26,35 @@ let strictConcurrencySettings: [SwiftSetting] = [
     let locationTargets: [Target] = []
 #endif
 
+#if canImport(Darwin)
+    let urlSessionProducts: [Product] = [.library(name: "DioramaURLSession", targets: ["DioramaURLSession"])]
+    let urlSessionTargets: [Target] = [
+        .target(
+            name: "DioramaURLSession",
+            dependencies: [
+                "DioramaCore", "DioramaPersistence", "DioramaHTTP",
+                .product(name: "HTTPTypesFoundation", package: "swift-http-types"),
+            ],
+            swiftSettings: strictConcurrencySettings),
+        .testTarget(
+            name: "DioramaURLSessionTests",
+            dependencies: [
+                "Diorama", "DioramaURLSession", "DioramaHTTP", "DioramaCore", "DioramaPersistence", "DioramaRandom",
+            ],
+            resources: [.copy("Fixtures")],
+            swiftSettings: strictConcurrencySettings),
+    ]
+#else
+    let urlSessionProducts: [Product] = []
+    let urlSessionTargets: [Target] = []
+#endif
+
 let package = Package(
     name: "Diorama",
     platforms: [
         .iOS(.v18),
         .macOS(.v15),
+        .macCatalyst(.v18),
     ],
     products: [
         .library(name: "Diorama", targets: ["Diorama"]),
@@ -47,23 +71,11 @@ let package = Package(
             name: "DioramaPersistence",
             targets: ["DioramaPersistence"]),
         .library(name: "DioramaHTTP", targets: ["DioramaHTTP"]),
-        .library(name: "DioramaURLSession", targets: ["DioramaURLSession"]),
-    ] + locationProducts,
+    ] + locationProducts + urlSessionProducts,
     dependencies: [
         .package(url: "https://github.com/apple/swift-http-types.git", from: "1.8.0"),
     ],
     targets: [
-        .target(
-            name: "DioramaURLSession",
-            dependencies: ["DioramaCore", "DioramaPersistence", "DioramaHTTP"],
-            swiftSettings: strictConcurrencySettings),
-        .testTarget(
-            name: "DioramaURLSessionTests",
-            dependencies: [
-                "Diorama", "DioramaURLSession", "DioramaHTTP", "DioramaCore", "DioramaPersistence", "DioramaRandom",
-            ],
-            resources: [.copy("Fixtures")],
-            swiftSettings: strictConcurrencySettings),
         .target(
             name: "DioramaHTTP",
             dependencies: [
@@ -134,5 +146,5 @@ let package = Package(
             ],
             resources: [.copy("Fixtures")],
             swiftSettings: strictConcurrencySettings),
-    ] + locationTargets,
+    ] + locationTargets + urlSessionTargets,
     swiftLanguageModes: [.v6])

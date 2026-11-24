@@ -1,7 +1,7 @@
 # Decision 12: URLSession scope
 
 - Status: Accepted
-- Last updated: 2026-09-26
+- Last updated: 2026-11-25
 - Refined by: [Decision 17: HTTP lifecycle composition](17-http-lifecycle-composition.md)
 - Depends on: [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
   [Decision 5: Consumption and verification](05-consumption-and-verification.md),
@@ -623,6 +623,21 @@ bridge may advertise a capability once its own conformance tests pass. Replay
 remains offline. Keep known gaps visible in tests and support documentation,
 and reassess them against repaired runtimes as they become available. The
 portable package's Linux build and test requirements continue to apply.
+
+### Apple-only version-one adapter — owner-approved 2026-11-25
+
+The owner approves limiting `DioramaURLSession` version one to macOS, iOS, and
+Mac Catalyst. Catalyst uses the same Apple adapter and runs its conformance
+suite in CI, with a Catalyst 18 deployment floor. The initial delivery gate
+requires conformance on all three targets.
+
+This supersedes the experimental FoundationNetworking product scope above.
+Non-Apple hosts omit the `DioramaURLSession` product, target, and test target,
+including URLSession fixture registration. The portable package, including
+`DioramaHTTP`, remains in Linux CI. The isolated interception spike continues
+to track FoundationNetworking gaps. Revisit a Linux adapter when released
+runtimes include the required repairs and pass the applicable conformance
+suite. A future bridge can use the same system identity and fixture format.
 
 ## Required interception spike
 

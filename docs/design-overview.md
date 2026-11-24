@@ -147,8 +147,7 @@ The decisions combine into this design:
     in the initial file repository.
 12. `DioramaHTTP` owns shared HTTP messages and policies using Swift HTTP Types
     in memory. URLSession adds native lifecycle semantics through one public
-    system with a conforming Apple Foundation bridge and an experimental
-    FoundationNetworking bridge.
+    system with an Apple Foundation bridge for macOS, iOS, and Mac Catalyst.
 13. A small sequential random system proves the public consumer-system boundary
     before scheduler or platform-adapter complexity is introduced.
 14. One execution-owned scheduler maps logical delays one-to-one to
@@ -467,23 +466,18 @@ an edited body scales them deterministically and cannot make the runtime profile
 `Content-Length` proven equivalent to a complete stored body becomes a derived
 field value. Ambiguous lengths and other validators remain literal.
 
-### One URLSession system and two platform bridges
+### One URLSession system and an Apple Foundation bridge
 
-Apple Foundation and FoundationNetworking are separate native implementations,
-but they feed one URLSession system and persistence model. Platform capability
-profiles describe what each bridge has proved it can reproduce. A scenario is
-portable across Apple platforms and Linux only when it uses their common tested
-profile. Platform-specific implementation code does not create a second
-scenario system identity.
+`DioramaURLSession` version one targets macOS, iOS, and Mac Catalyst.
+One system identity and persisted schema serve those targets. Setup checks
+each fixture against the supported replay capabilities. The portable package,
+including `DioramaHTTP`, continues to run on Linux.
+[DD12's platform amendment](design-decisions/12-urlsession-scope.md#apple-only-version-one-adapter--owner-approved-2026-11-25)
+defers the FoundationNetworking bridge until released runtimes can pass
+conformance. The isolated spike tracks the required repairs.
 
-The initial URLSession milestone requires macOS and iOS conformance.
-FoundationNetworking support is experimental and can advance as upstream
-fixes reach testable runtimes. Apple delivery can proceed independently.
-[DD12's platform amendment](design-decisions/12-urlsession-scope.md#experimental-foundationnetworking-support--owner-approved-2026-11-20)
-defines the delivery gate and preserves setup-time rejection of incompatible
-fixtures on each bridge.
-
-The owner-approved [FoundationNetworking response-disposition exception](design-decisions/12-urlsession-scope.md#foundationnetworking-response-disposition-exception--2026-09-24)
+For future FoundationNetworking support, the
+[response-disposition exception](design-decisions/12-urlsession-scope.md#foundationnetworking-response-disposition-exception--2026-09-24)
 permits record and passthrough to preserve demonstrated native limitations in
 response cancellation and pending-decision gating. An interaction that cannot
 satisfy the supported disposition model produces a diagnostic and an invalid

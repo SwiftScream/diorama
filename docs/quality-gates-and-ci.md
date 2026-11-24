@@ -1,7 +1,7 @@
 # Quality gates and CI policy
 
 - Status: Accepted
-- Last updated: 2026-11-01
+- Last updated: 2026-11-25
 - Reference project: [SwiftScream/URITemplate](https://github.com/SwiftScream/URITemplate)
 
 ## Purpose
@@ -76,7 +76,7 @@ scripts/check        # non-mutating local quality, build, and test gate
 ```
 
 For review fixups, run focused tests and the applicable macOS gate locally.
-The full macOS, iOS, and Linux matrix runs in CI when the branch is pushed;
+The full macOS, iOS, Mac Catalyst, and Linux matrix runs in CI when the branch is pushed;
 additional local platform checks require an explicit owner request. This
 review policy does not weaken required PR checks or initial implementation
 verification gates.
@@ -222,19 +222,19 @@ The owner approved raising the supported deployment floors to macOS 15 and
 iOS/iPadOS 18 as a prerequisite to 003-B02. This makes `Synchronization.Mutex`
 available throughout the supported Apple range and allows the same standard
 library primitive on Apple and Linux without a platform-specific lock wrapper.
-The selected Swift/Xcode versions and required platform matrix do not change.
+The 2026-11-25 URLSession platform amendment adds the Mac Catalyst job.
 
 | Platform | Minimum deployment version | Support |
 | --- | --- | --- |
 | iOS / iPadOS | 18.0 | Required iOS Simulator build and test job. |
 | macOS | 15.0 | Required native build and test job. |
-| Mac Catalyst | 18.0 | Equivalent Mutex availability floor for separately approved future support. |
+| Mac Catalyst | 18.0 | Required native URLSession conformance job. |
 | tvOS | 18.0 | Equivalent Mutex availability floor for separately approved future support. |
 | watchOS | 11.0 | Equivalent Mutex availability floor only; Decision 12's URLSession exclusion remains. |
 | visionOS | 2.0 | Equivalent Mutex availability floor for separately approved future support. |
 
-Only macOS, iOS, and Linux are supported. Equivalent floors do not authorize
-additional platforms. Earlier evidence and the isolated 003-A01 clock probes
+The general package matrix covers macOS, iOS, and Linux. Mac Catalyst is also
+tested for `DioramaURLSession`. Earlier evidence and the isolated 003-A01 clock probes
 retain their original targets as historical feasibility records. Current
 package builds and the canonical iOS coverage command use the new floors.
 See [003-B02 deployment evidence](evidence/003-B02-deployment-minimums.md).
@@ -248,6 +248,7 @@ Every pull request and protected-branch push should run these required jobs:
 | Quality | SwiftFormat check and strict SwiftLint using the pinned Mintfile on macOS. |
 | macOS | Build and test all products supported on macOS with the selected stable Xcode/Swift toolchain. |
 | iOS | Build and run applicable tests in an iOS simulator using the selected stable Xcode. |
+| Mac Catalyst | Build for Mac Catalyst 18 and run the `DioramaURLSessionTests` bundle on the Mac host using the selected stable Xcode. |
 | Linux | Build and test all applicable products with the matching stable Swift release. |
 
 The iOS package deployment target is iOS 18. CI should compile
@@ -261,26 +262,24 @@ whose behavior may differ on iOS 18 requires separate targeted evidence.
 The iOS job must use `xcodebuild` or an equivalent Xcode test mechanism against
 an iOS Simulator destination. A macOS `swift test` job is not evidence that
 Foundation, Core Location, or URLSession integration works on iOS.
+Run the Catalyst gate locally with `scripts/coverage catalyst`. It uses the
+`platform=macOS,variant=Mac Catalyst` Xcode destination and exports coverage
+from the native Catalyst test run.
 
 The Linux job should use an explicitly selected official Swift toolchain or
 container rather than whatever Swift version happens to be preinstalled on a
 floating Ubuntu runner. Its FoundationNetworking integration tests are part of
 the URLSession capability evidence from decision 12.
 
-Platform-limited systems remain conditional products or targets. The Apple-only
-Location product is absent on Linux; its absence must not prevent core, HTTP,
-random, or date products from building and testing there. Location behavior and
-coverage are verified on macOS and iOS, while the Linux job still checks the
-applicable package graph and conditional target boundaries.
+Platform-limited systems remain conditional products or targets. The Linux
+package graph omits both `DioramaLocation` and `DioramaURLSession`. Its required
+CI job builds and tests the portable package, including core, HTTP, random,
+and date. Location behavior and coverage are verified on macOS and iOS.
 
 ### Experimental FoundationNetworking and known failures
 
-The owner approved continued Linux implementation with narrowly scoped known
-issues on 2026-09-26. Under the
-[2026-11-20 experimental FoundationNetworking amendment](design-decisions/12-urlsession-scope.md#experimental-foundationnetworking-support--owner-approved-2026-11-20),
-Apple URLSession conformance and delivery can proceed while upstream repairs
-and Linux URLSession conformance are pending. The required Linux job still
-checks the portable package and unaffected assertions. The
+Under the [Apple-only version-one amendment](design-decisions/12-urlsession-scope.md#apple-only-version-one-adapter--owner-approved-2026-11-25),
+the isolated spike retains the FoundationNetworking checks. The
 [FoundationNetworking handoff](evidence/003-D02-foundationnetworking-handoff.md#owner-decisions-and-fix-priorities--2026-09-26)
 records the evidence and repairs needed for the affected Linux capabilities.
 
@@ -293,9 +292,8 @@ Disabling a test is permitted only when execution itself is unsafe, with the
 issue, affected runtime, and condition for restoring it documented.
 
 Apple checks, unrelated Linux assertions, strict compilation, coverage uploads,
-and no-live-replay guarantees remain required. A green gate with known issues
-does not prove Linux URLSession conformance. The isolated interception package
-runs in each platform CI job through `Spikes/URLSessionInterception/run`.
+and no-live-replay guarantees remain required. The isolated interception package
+runs in the macOS, iOS, and Linux CI jobs through `Spikes/URLSessionInterception/run`.
 Its `DIORAMA_VERIFY_FOUNDATION_FIXES=1` mode disables known-issue handling for
 patched-runtime verification. No spike package becomes a production dependency.
 
@@ -310,7 +308,8 @@ adapter code is visible:
 
 - `macos` for macOS unit and integration tests;
 - `ios` for iOS simulator tests;
-- `linux` for Linux unit and FoundationNetworking integration tests.
+- `catalyst` for Mac Catalyst URLSession conformance;
+- `linux` for portable Linux package tests.
 
 The implementation should use supported coverage output discovery or an
 encapsulated script rather than hard-code a test-bundle architecture path.
@@ -424,16 +423,15 @@ Diorama runtime architecture.
 2. **Toolchains, concurrency, and platforms: Resolved.** Use pinned
    latest-stable Swift and Xcode versions, Swift 6 language mode with complete
    strict concurrency checking, `NonisolatedNonsendingByDefault` and
-   `InferIsolatedConformances`, nonisolated library defaults, iOS 18 and macOS 15
-   deployment targets (amended 2026-09-09), and required macOS, iOS Simulator,
-   and Linux jobs. Equivalent floors for other Apple platforms do not advertise
-   additional support.
+   `InferIsolatedConformances`, nonisolated library defaults, iOS 18, macOS 15,
+   and Mac Catalyst 18 deployment targets. CI requires macOS, iOS Simulator,
+   Mac Catalyst URLSession conformance, and Linux jobs.
 3. **Local commands: Resolved.** Provide version-controlled `format`, `lint`,
    `test`, and aggregate non-mutating `check` entry points as the canonical
    interface used by engineers, agents, and CI. Missing Mint installations
    produce instructions rather than triggering an implicit installation.
 4. **Coverage: Resolved.** Require Codecov uploads with separate macOS, iOS,
-   and Linux flags, baseline-relative project coverage with a small tolerance,
+   Mac Catalyst, and Linux flags, baseline-relative project coverage with a small tolerance,
    and separate patch reporting. Select exact numeric thresholds once the first
    production targets establish a meaningful baseline, and prefer OIDC or
    tokenless upload where the organization supports it.

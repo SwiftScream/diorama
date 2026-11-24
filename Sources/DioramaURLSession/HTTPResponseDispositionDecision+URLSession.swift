@@ -1,8 +1,5 @@
 import DioramaHTTP
 import Foundation
-#if canImport(FoundationNetworking)
-    import FoundationNetworking
-#endif
 
 public extension HTTPResponseDispositionDecision {
     /// Converts an observed URLSession delegate answer to a stable decision.

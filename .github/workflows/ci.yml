@@ -85,6 +85,30 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  catalyst:
+    name: Mac Catalyst
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify Apple toolchain
+        run: scripts/verify-apple-toolchain
+      - name: Test DioramaURLSession and collect coverage
+        run: scripts/coverage catalyst
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          disable_search: true
+          fail_ci_if_error: true
+          files: .build/coverage/catalyst.lcov
+          flags: catalyst
+          name: catalyst
+          plugins: noop
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
   linux:
     name: Linux
     runs-on: ubuntu-24.04
