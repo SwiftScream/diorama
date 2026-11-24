@@ -58,9 +58,12 @@ struct SessionDefinition: SystemDefinition {
             Diagnostic(issue: .system(DiagnosticLabel("urlsession.unsupported-configuration")),
                        context: .attachment(attachment))
         }
-        try URLSessionRecordingSchema.standard.validate(in: context, supporting: [
-            .requestMethod("GET"), .responseBody, .openHorizon,
-        ])
+        try URLSessionRecordingSchema.standard.validate(in: context) { capability in
+            switch capability {
+            case .requestMethod("GET"), .responseBody, .openHorizon: true
+            default: false
+            }
+        }
     }
 
     var passthrough: SystemModeDefinition<Void, URLSession> {

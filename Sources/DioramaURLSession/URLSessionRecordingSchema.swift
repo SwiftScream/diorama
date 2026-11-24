@@ -33,7 +33,7 @@ public struct URLSessionRecordingSchema: Sendable {
             currentSchemaVersion: 1, payloadType: URLSessionPayload.self,
             encode: { attachment in
                 let track = try Self.track(in: attachment)
-                try Self.validate(track, preparations: preparations, supported: nil)
+                try Self.validate(track, preparations: preparations, supports: nil)
                 return URLSessionPayload(interactions: track.records.map(\.value))
             }, decode: { payload, key in
                 try Self.attachment(key: key, interactions: payload.interactions,
@@ -55,7 +55,7 @@ public struct URLSessionRecordingSchema: Sendable {
         throws -> HeaderlessSequentialTrack<HTTPInteraction<URLSessionFailure>>
     {
         let track = try Self.track(in: attachment)
-        try Self.validate(track, preparations: preparations, supported: capabilities)
+        try Self.validate(track, preparations: preparations, supports: { capabilities.contains($0) })
         return track
     }
 
@@ -64,10 +64,16 @@ public struct URLSessionRecordingSchema: Sendable {
     public func validate(in context: borrowing SystemValidationContext,
                          supporting capabilities: Set<URLSessionReplayCapability>) throws
     {
+        try validate(in: context) { capabilities.contains($0) }
+    }
+
+    func validate(in context: borrowing SystemValidationContext,
+                  supports: @escaping @Sendable (URLSessionReplayCapability) -> Bool) throws
+    {
         guard context.mode != .passthrough else { return }
-        let profile = context.mode == .replay ? capabilities : nil
+        let profile = context.mode == .replay ? supports : nil
         try context.validate(Self.interactions) { track in
-            try Self.validate(track, preparations: preparations, supported: profile)
+            try Self.validate(track, preparations: preparations, supports: profile)
         } diagnosticForFailure: { failure in
             guard let error = failure as? URLSessionRecordingError else { return nil }
             let location: URLSessionRecordingLocation
@@ -90,12 +96,12 @@ public struct URLSessionRecordingSchema: Sendable {
 
     private static func validate(_ track: HeaderlessSequentialTrack<HTTPInteraction<URLSessionFailure>>,
                                  preparations: [AttachmentKey: HTTPPreparation],
-                                 supported: Set<URLSessionReplayCapability>?) throws
+                                 supports: (@Sendable (URLSessionReplayCapability) -> Bool)?) throws
     {
         let preparation = preparations[track.id.attachmentID.key] ?? HTTPPreparation()
         for record in track.records {
             var validation = URLSessionRecordingValidation(record.identity, preparation: preparation,
-                                                           supported: supported)
+                                                           supports: supports)
             try validation.inspect(record.value)
         }
     }
