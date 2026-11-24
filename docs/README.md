@@ -420,6 +420,9 @@ test-integration design. They do not authorize those APIs.
 - [Native URLSession GET evidence](evidence/003-I01-instrumented-session-get.md)
   describes the instrumented Apple session, native lifetime, and platform coverage.
 
+- [Aggregate URLSession body evidence](evidence/003-I02-urlsession-aggregate-bodies.md)
+  covers in-memory request matching, response storage, and aggregate native data-task presentations.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

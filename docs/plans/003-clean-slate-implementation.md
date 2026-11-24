@@ -3281,6 +3281,11 @@ the requirements for adding a future bridge.
 
 ### 003-I02 — In-memory bodies and aggregate data-task presentations
 
+- Status: Complete. The owner confirms I02 and selects GPT-6.2 Sol with
+  `high` reasoning. Exact request bytes and aggregate replay pass on macOS
+  and iOS Simulator.
+- Evidence: [Aggregate URLSession bodies and data tasks](../evidence/003-I02-urlsession-aggregate-bodies.md).
+
 - Recommended model: GPT-6 Sol; reasoning: `high`. Extend the proved adapter to body and aggregate presentations while retaining exact bytes and source isolation.
 - Prerequisites: 003-I01, 003-H08; DD11–DD12, DD17.
 - Scope: Extend supported requests to absent/in-memory bodies and complete responses through URL/URLRequest completion and async conveniences.
