@@ -68,13 +68,15 @@ public enum URLSessionRecordingError: Error, Equatable, Sendable {
 struct URLSessionRecordingValidation {
     let record: RecordIdentity
     let preparation: HTTPPreparation
-    let supported: Set<URLSessionReplayCapability>?
+    let supports: (@Sendable (URLSessionReplayCapability) -> Bool)?
     private var attempt = 0
 
-    init(_ record: RecordIdentity, preparation: HTTPPreparation, supported: Set<URLSessionReplayCapability>? = nil) {
+    init(_ record: RecordIdentity, preparation: HTTPPreparation,
+         supports: (@Sendable (URLSessionReplayCapability) -> Bool)? = nil)
+    {
         self.record = record
         self.preparation = preparation
-        self.supported = supported
+        self.supports = supports
     }
 
     mutating func inspect(_ interaction: HTTPInteraction<URLSessionFailure>) throws {
@@ -224,7 +226,7 @@ struct URLSessionRecordingValidation {
     private func require(_ capability: URLSessionReplayCapability, at field: StaticString,
                          _ suffix: StaticString? = nil) throws
     {
-        if let supported, !supported.contains(capability) {
+        if let supports, !supports(capability) {
             throw URLSessionRecordingError.unsupported(location(field, suffix), capability: capability.requirementRule)
         }
     }
