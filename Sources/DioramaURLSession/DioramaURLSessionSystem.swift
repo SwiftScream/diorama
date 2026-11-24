@@ -12,7 +12,9 @@ public enum DioramaURLSessionSystem {
     public static let type = URLSessionRecordingSchema.standard.systemType
 
     /// Copies the configuration at setup. Each execution creates a distinct session.
-    /// Instrumented sessions accept bodyless HTTP(S) GETs without consumer delegates.
+    /// Instrumented sessions support aggregate HTTP(S) data tasks
+    /// with absent or in-memory bodies, using completion handlers or async data APIs.
+    /// Instrumented sessions require nil session and task delegates from the consumer.
     /// All modes gracefully invalidate the session at finish. Already admitted live tasks
     /// can finish, and callers may invalidate a passthrough session themselves.
     public static func instance(named name: String, configuration: URLSessionConfiguration = .default,
@@ -60,7 +62,7 @@ struct SessionDefinition: SystemDefinition {
         }
         try URLSessionRecordingSchema.standard.validate(in: context) { capability in
             switch capability {
-            case .requestMethod("GET"), .responseBody, .openHorizon: true
+            case .requestMethod, .requestBody, .responseBody, .openHorizon: true
             default: false
             }
         }

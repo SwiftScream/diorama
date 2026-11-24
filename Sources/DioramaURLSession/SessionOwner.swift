@@ -141,7 +141,7 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
                 guard let task = delivery.task, let original = task.originalRequest,
                       task is URLSessionDataTask, !(task is URLSessionUploadTask),
                       task.delegate == nil || task.delegate === self,
-                      original.httpMethod == "GET", original.httpBody == nil, original.httpBodyStream == nil,
+                      original.httpBodyStream == nil,
                       ["http", "https"].contains(request.url?.scheme?.lowercased())
                 else {
                     services.reject("urlsession.unsupported-task")
@@ -159,6 +159,11 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
                     delivery.finish(SessionBridgeError.ownership)
                     return
                 }
+                // Foundation can expose a supplied Data body as a stream on the
+                // protocol request. Use the task's original body for both paths.
+                var request = request
+                request.httpBodyStream = nil
+                request.httpBody = original.httpBody
                 load(delivery, request: request, services: services)
             }
         }

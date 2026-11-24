@@ -4,6 +4,7 @@ import DioramaHTTP
 import DioramaPersistence
 @testable import DioramaURLSession
 import Foundation
+import HTTPTypesFoundation
 import Synchronization
 import Testing
 
@@ -58,10 +59,15 @@ struct SessionBridgeTests {
         return system
     }
 
-    private func baseline() throws -> ScenarioDefinition {
+    private func baseline(responseDelay: String = "10ms", completionDelay: String = "3ms") throws
+        -> ScenarioDefinition
+    {
         let file = try #require(Bundle.module.url(forResource: "bodyless-get", withExtension: "json",
                                                   subdirectory: "Fixtures"))
-        return try JSONScenarioCodec(registry: .init([DioramaURLSessionSystem.type])).decode(Data(contentsOf: file))
+        let fixture = try String(contentsOf: file, encoding: .utf8)
+            .replacingOccurrences(of: #""10ms""#, with: #""\#(responseDelay)""#)
+            .replacingOccurrences(of: #""3ms""#, with: #""\#(completionDelay)""#)
+        return try JSONScenarioCodec(registry: .init([DioramaURLSessionSystem.type])).decode(Data(fixture.utf8))
     }
 
     @Test
@@ -122,6 +128,218 @@ struct SessionBridgeTests {
         #expect(OriginProtocol.requests.withLock { $0.count } == 1)
     }
 
+    @Test(arguments: AggregateAPI.allCases)
+    func `URL and request APIs share aggregate replay`(api: AggregateAPI) async throws {
+        OriginProtocol.requests.withLock { $0 = [] }
+        let system = try setup()
+        let record = try Diorama(scenarioID: "aggregate", mode: .record, systems: system)
+        let recorded = try await record.execute { _, session in
+            try await api.fetch(URLRequest(url: url), in: session)
+        }
+        let replay = try Diorama(definition: #require(recorded.definition), scenarioID: "aggregate",
+                                 mode: .replay, systems: system)
+        let replayed = try await replay.execute { _, session in
+            try await api.fetch(URLRequest(url: url), in: session)
+        }
+        #expect(recorded.body.data == Data("origin".utf8))
+        #expect(recorded.body.status == 200)
+        #expect(recorded.body.origin == "test")
+        #expect(replayed.body == recorded.body)
+        #expect(OriginProtocol.requests.withLock { $0.count } == 1)
+    }
+
+    @Test
+    func `absent and empty request bodies select different records`() async throws {
+        OriginProtocol.requests.withLock { $0 = [] }
+        let system = try setup()
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        let absent = request
+        request.httpBody = Data()
+        let empty = request
+        let record = try Diorama(scenarioID: "presence", mode: .record, systems: system)
+        let captured = try await record.execute { _, session in
+            for input in [absent, empty] {
+                _ = try await session.data(for: input)
+            }
+        }
+        let definition = try #require(captured.definition)
+        let track = try URLSessionRecordingSchema.standard.replayTrack(
+            in: definition.attachments[0], supporting: [.requestMethod("POST"), .requestBody, .responseBody])
+        #expect(track.records.map(\.value.initialRequest.body) == [.absent, .bytes([])])
+        let replay = try Diorama(definition: definition, scenarioID: "presence", mode: .replay, systems: system)
+        _ = try await replay.execute { _, session in
+            // Claim out of recording order, then check each claim has been consumed independently.
+            for input in [empty, absent] {
+                let result = try await session.data(for: input)
+                #expect(result.0 == Data("origin".utf8))
+                await #expect(throws: (any Error).self) { _ = try await session.data(for: input) }
+            }
+        }
+        #expect(OriginProtocol.requests.withLock { $0.count } == 2)
+    }
+
+    @Test
+    func `in-memory requests forward exact bytes and replay persisted content`() async throws {
+        let origin = try AggregateOrigin()
+        let endpoint = try await origin.start()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpShouldSetCookies = true
+        configuration.urlCredentialStorage = nil
+        configuration.timeoutIntervalForRequest = 5
+        let cookie = try #require(HTTPCookie(properties: [
+            .name: "session", .value: "live-cookie", .domain: "127.0.0.1", .path: "/",
+        ]))
+        let cookies = try #require(configuration.httpCookieStorage)
+        cookies.setCookie(cookie)
+        defer { cookies.deleteCookie(cookie) }
+        let system = try DioramaURLSessionSystem.instance(named: "service", configuration: configuration)
+        let json = Data(#" {"n":1.00,"n":2} "#.utf8)
+        let binary = Data(0...255)
+        let requests = [
+            Self.patch(endpoint, body: json, type: "application/json"),
+            Self.patch(endpoint, body: binary, type: "application/octet-stream"),
+            Self.patch(endpoint, body: Data(binary.reversed()), type: "application/octet-stream"),
+        ]
+
+        let pass = try Diorama(scenarioID: "native", mode: .passthrough, systems: system)
+        _ = try await pass.execute { _, session in
+            let result = try await session.data(for: requests[0])
+            #expect(result.0 == json)
+        }
+        let record = try Diorama(scenarioID: "echo", mode: .record, systems: system)
+        let captured = try await record.execute { _, session in
+            #expect(session.configuration.urlCredentialStorage == nil)
+            #expect(session.configuration.httpShouldSetCookies)
+            for input in requests {
+                let result = try await session.data(for: input)
+                #expect(result.0 == input.httpBody)
+                #expect(result.1.expectedContentLength == Int64(result.0.count))
+            }
+        }
+        let observed = origin.observations.withLock { $0 }
+        Self.checkForwarding(observed, bodies: [json, json, binary, Data(binary.reversed())])
+
+        let definition = try #require(captured.definition)
+        let codec = try JSONScenarioCodec(registry: .init([DioramaURLSessionSystem.type]))
+        let document = try codec.encode(definition)
+        let text = try #require(String(bytes: document.data, encoding: .utf8))
+        #expect(!text.contains("live-token"))
+        #expect(!text.contains("live-cookie"))
+        #expect(document.resources.count == 4)
+        try Self.checkLengthsAndStorage(definition, json: json)
+
+        try await Self.replayFromDisk(document, codec: codec, system: system, requests: requests)
+        #expect(origin.observations.withLock { $0.connections } == observed.connections)
+    }
+
+    private static func checkForwarding(_ observed: AggregateOrigin.Observations, bodies: [Data]) {
+        #expect(observed.connections == bodies.count)
+        #expect(observed.requests.map(\.body) == bodies)
+        for input in observed.requests {
+            #expect(input.line == "PATCH /echo HTTP/1.1")
+            #expect(input.fields["authorization"] == "Bearer live-token")
+            #expect(input.fields["cookie"] == "session=live-cookie")
+        }
+    }
+
+    private static func replayFromDisk(_ document: ScenarioDocument, codec: JSONScenarioCodec,
+                                       system: ScenarioSystem<URLSession>, requests: [URLRequest]) async throws
+    {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let location = try ScenarioFileLocation(rootDirectory: root, relativePath: "echo.json")
+        let storage = FileScenarioStorage(location: location)
+        _ = try storage.publish(document)
+        let repository = JSONScenarioRepository(codec: codec, storage: storage)
+        guard case let .loaded(loaded, _) = repository.load() else {
+            Issue.record("Could not load recorded resources"); return
+        }
+        let replay = try Diorama(definition: loaded, scenarioID: "echo", mode: .replay, systems: system)
+        _ = try await replay.execute { _, session in
+            for input in requests.reversed() {
+                let result = try await AggregateAPI.requestCompletion.fetch(input, in: session)
+                #expect(result.data == input.httpBody)
+                #expect(result.length == Int64(result.data.count))
+            }
+            var miss = requests[1]
+            let length = try #require(miss.httpBody?.count)
+            miss.httpBody = Data(repeating: 0, count: length)
+            let missing = miss
+            await #expect(throws: (any Error).self) { _ = try await session.data(for: missing) }
+        }
+    }
+
+    private static func patch(_ url: URL, body: Data, type: String) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.httpBody = body
+        request.setValue(type, forHTTPHeaderField: "Content-Type")
+        request.setValue(String(body.count), forHTTPHeaderField: "Content-Length")
+        request.setValue("Bearer live-token", forHTTPHeaderField: "Authorization")
+        if type != "application/json" {
+            request.setValue("identity", forHTTPHeaderField: "Content-Encoding")
+        }
+        return request
+    }
+
+    private static func checkLengthsAndStorage(_ definition: ScenarioDefinition, json: Data) throws {
+        let track = try URLSessionRecordingSchema.standard.replayTrack(
+            in: definition.attachments[0], supporting: [.requestMethod("PATCH"), .requestBody, .responseBody])
+        try #require(track.records.count == 3)
+        for (index, record) in track.records.enumerated() {
+            let input = record.value.initialRequest
+            guard case let .received(node) = record.value.result, case let .deliverBody(body) = node.next else {
+                Issue.record("Expected an ordinary aggregate response"); continue
+            }
+            #expect(input.derivesContentLength == (index == 0))
+            #expect(node.head.value.derivesContentLength == (index == 0))
+            if index == 0 {
+                #expect(input.body == .bytes(Array(json)))
+                #expect(body.content == .bytes(Array(json)))
+            } else {
+                guard case .resource = input.body, case .resource = body.content else {
+                    Issue.record("Expected resource-backed content"); continue
+                }
+            }
+            #expect(body.profile == nil)
+        }
+    }
+
+    @Test(arguments: [AggregateAPI.urlCompletion, .asyncURL])
+    func `aggregate replay waits through the recorded conclusion`(api: AggregateAPI) async throws {
+        let definition = try baseline(responseDelay: "130ms", completionDelay: "160ms")
+        let scenario = try Diorama(definition: definition, scenarioID: "timing", mode: .replay, systems: setup())
+        _ = try await scenario.execute { _, session in
+            let start = ContinuousClock.now
+            let result = try await api.fetch(URLRequest(url: url), in: session)
+            let elapsed = start.duration(to: .now)
+            #expect(result.data == Data("ok".utf8))
+            #expect(elapsed >= .milliseconds(285))
+        }
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["DIORAMA_I02_HTTPS"] == "1",
+                   "Opt-in test against a publicly trusted HTTPS origin"))
+    func `private transport uses native HTTPS trust`() async throws {
+        let endpoint = try #require(URL(string: "https://example.com/"))
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = 10
+        let system = try DioramaURLSessionSystem.instance(named: "service", configuration: configuration)
+        let scenario = try Diorama(scenarioID: "https", mode: .record, systems: system)
+        let run = try await scenario.execute { _, session in
+            let (bytes, response) = try await session.data(from: endpoint)
+            #expect(!bytes.isEmpty)
+            #expect((response as? HTTPURLResponse)?.statusCode == 200)
+            return bytes
+        }
+        let definition = try #require(run.definition)
+        let replay = try Diorama(definition: definition, scenarioID: "https", mode: .replay, systems: system)
+        let replayed = try await replay.execute { _, session in try await session.data(from: endpoint).0 }
+        #expect(replayed.body == run.body)
+    }
+
     @Test
     func `fixture replay and miss stay offline`() async throws {
         OriginProtocol.requests.withLock { $0 = [] }
@@ -160,11 +378,12 @@ struct SessionBridgeTests {
         OriginProtocol.requests.withLock { $0 = [] }
         let run = try await Diorama(scenarioID: "unsupported", mode: .record, systems: setup())
             .execute { _, session in
-                for method in ["POST", "GET"] {
-                    var request = URLRequest(url: url)
-                    request.httpMethod = method
-                    request.httpBody = Data([42])
-                    await #expect(throws: (any Error).self) { _ = try await session.data(for: request) }
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.httpBodyStream = InputStream(data: Data([42]))
+                await #expect(throws: (any Error).self) { _ = try await session.data(for: request) }
+                await #expect(throws: (any Error).self) {
+                    _ = try await session.data(for: URLRequest(url: url), delegate: SessionTestDelegate())
                 }
                 let local = try #require(URL(string: "data:text/plain,unsupported"))
                 await #expect(throws: (any Error).self) { _ = try await session.data(from: local) }
@@ -409,6 +628,59 @@ private struct FailingActivation: SystemDefinition {
 
     var passthrough: SystemModeDefinition<Void, Void> {
         record
+    }
+}
+
+struct AggregateResult: Equatable {
+    let data: Data
+    let status: Int
+    let origin: String?
+    let length: Int64
+}
+
+enum AggregateAPI: CaseIterable {
+    case urlCompletion, requestCompletion, asyncURL, asyncRequest, httpTypes
+
+    func fetch(_ request: URLRequest, in session: URLSession) async throws -> AggregateResult {
+        let url = try #require(request.url)
+        let native: (Data, URLResponse)
+        switch self {
+        case .urlCompletion, .requestCompletion:
+            native = try await completion(request, url: url, session: session)
+        case .asyncURL:
+            native = try await session.data(from: url, delegate: nil)
+        case .asyncRequest:
+            native = try await session.data(for: request, delegate: nil)
+        case .httpTypes:
+            let (data, response) = try await session.data(for: #require(request.httpRequest), delegate: nil)
+            return .init(data: data, status: response.status.code,
+                         origin: response.headerFields[.init("X-Origin")!],
+                         length: response.headerFields[.contentLength].flatMap(Int64.init) ?? -1)
+        }
+        let (data, response) = native
+        let head = try #require(response as? HTTPURLResponse)
+        return .init(data: data, status: head.statusCode, origin: head.value(forHTTPHeaderField: "X-Origin"),
+                     length: head.expectedContentLength)
+    }
+
+    private func completion(_ request: URLRequest, url: URL, session: URLSession) async throws
+        -> (Data, URLResponse)
+    {
+        try await withCheckedThrowingContinuation { continuation in
+            let receive: @Sendable (Data?, URLResponse?, any Error?) -> Void = { data, response, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else if let data, let response {
+                    continuation.resume(returning: (data, response))
+                } else {
+                    continuation.resume(throwing: URLError(.badServerResponse))
+                }
+            }
+            let task = self == .urlCompletion
+                ? session.dataTask(with: url, completionHandler: receive)
+                : session.dataTask(with: request, completionHandler: receive)
+            task.resume()
+        }
     }
 }
 

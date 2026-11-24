@@ -18,7 +18,8 @@ enum SessionMessage {
     static func request(_ native: URLRequest) throws -> HTTPRequestMessage {
         guard var head = native.httpRequest else { throw SessionBridgeError.conversion }
         head.headerFields = ordered(head.headerFields)
-        return try HTTPRequestMessage(head: head)
+        let body: HTTPRequestBody = native.httpBody.map { .bytes(Array($0)) } ?? .absent
+        return try HTTPRequestMessage(head: head, body: body)
     }
 
     static func response(_ native: URLResponse) throws -> HTTPResponseHead {
