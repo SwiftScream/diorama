@@ -11,6 +11,8 @@ import Testing
 private final class OriginProtocol: URLProtocol {
     static let requests = Mutex<[URLRequest]>([])
     static let held = Mutex<(@Sendable () -> Void)?>(nil)
+    static let stopped = Mutex(false)
+    static let invalidDomain = String(repeating: "x", count: 257)
     override static func canInit(with _: URLRequest) -> Bool {
         true
     }
@@ -21,20 +23,39 @@ private final class OriginProtocol: URLProtocol {
 
     override func startLoading() {
         Self.requests.withLock { $0.append(request) }
-        guard let url = request.url,
-              let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1",
-                                             headerFields: ["X-Origin": "test"])
-        else { return }
-        if url.path == "/failure" {
-            client?.urlProtocol(self, didFailWithError: URLError(.timedOut))
+        guard let url = request.url else { return }
+        if let code = Int(url.lastPathComponent), url.path.hasPrefix("/failure/") {
+            let error = NSError(domain: NSURLErrorDomain, code: code, userInfo: [
+                NSURLErrorFailingURLErrorKey: url,
+                "fixture": "supported-metadata",
+                NSUnderlyingErrorKey: NSError(domain: "unrecorded-underlying-marker", code: 1),
+                NSLocalizedDescriptionKey: "unrecorded-description-marker",
+            ])
+            client?.urlProtocol(self, didFailWithError: error)
             return
         }
-        if url.path == "/hold" {
+        if url.path == "/invalid-failure" {
+            client?.urlProtocol(self, didFailWithError: NSError(domain: Self.invalidDomain, code: 42))
+            return
+        }
+        let status = if url.path.hasPrefix("/status/") {
+            Int(url.lastPathComponent) ?? 200
+        } else {
+            200
+        }
+        guard let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1",
+                                             headerFields: ["X-Origin": "test"])
+        else { return }
+        if ["/hold", "/hold-failure"].contains(url.path) {
             let tail = SessionDelivery(self)
             Self.held.withLock { $0 = {
-                tail.response(response)
-                tail.bytes(Data("tail".utf8))
-                tail.finish()
+                if url.path == "/hold" {
+                    tail.response(response)
+                    tail.bytes(Data("tail".utf8))
+                    tail.finish()
+                } else {
+                    tail.finish(URLError(.cannotConnectToHost))
+                }
             } }
             return
         }
@@ -43,11 +64,19 @@ private final class OriginProtocol: URLProtocol {
         client?.urlProtocolDidFinishLoading(self)
     }
 
-    override func stopLoading() {}
+    override func stopLoading() {
+        if request.url?.path == "/hold-failure" {
+            Self.stopped.withLock { $0 = true }
+        }
+    }
 }
 
 @Suite(.serialized, .timeLimit(.minutes(1)))
 struct SessionBridgeTests {
+    enum TimeoutSource: CaseIterable {
+        case request, sessionRequest, sessionResource
+    }
+
     private let url = URL(string: "https://example.invalid/")!
 
     private func setup(_ name: String = "service") throws -> ScenarioSystem<URLSession> {
@@ -354,23 +383,286 @@ struct SessionBridgeTests {
         #expect(OriginProtocol.requests.withLock { $0.isEmpty })
     }
 
+    @Test(arguments: AggregateAPI.allCases)
+    func `dependency errors round trip through aggregate APIs`(api: AggregateAPI) async throws {
+        let codes = [
+            URLError.timedOut.rawValue, URLError.cannotConnectToHost.rawValue, URLError.cancelled.rawValue, -12345,
+        ]
+        let requests = codes.map { URLRequest(url: url.appendingPathComponent("failure").appendingPathComponent(
+            String($0))) }
+        let system = try setup()
+        OriginProtocol.requests.withLock { $0 = [] }
+        let record = try Diorama(scenarioID: "failures", mode: .record, systems: system)
+        let captured = try await record.execute { _, session in
+            for (code, request) in zip(codes, requests) {
+                let error = try await failure { _ = try await api.fetch(request, in: session) } as NSError
+                #expect(error.domain == NSURLErrorDomain)
+                #expect(error.code == code)
+                #expect(error.userInfo[NSUnderlyingErrorKey] is NSError)
+                #expect(error.userInfo["fixture"] as? String == "supported-metadata")
+                #expect(error.localizedDescription == "unrecorded-description-marker")
+            }
+        }
+        let definition = try #require(captured.definition)
+        let codec = try JSONScenarioCodec(registry: .init([DioramaURLSessionSystem.type]))
+        let document = try codec.encode(definition)
+        try checkFailureRecording(definition, document: document,
+                                  report: captured.report.finalization.report, codes: codes)
+        #expect(!captured.report.rendered().contains("unrecorded-underlying-marker"))
+        #expect(!captured.report.rendered().contains("unrecorded-description-marker"))
+
+        let replay = try Diorama(definition: codec.decode(document.data), scenarioID: "failures",
+                                 mode: .replay, systems: system)
+        let replayed = try await replay.execute { _, session in
+            for (code, request) in zip(codes, requests) {
+                let error = try await failure { _ = try await api.fetch(request, in: session) }
+                #expect(error is URLError)
+                let native = error as NSError
+                #expect(native.domain == NSURLErrorDomain)
+                #expect(native.code == code)
+                #expect(native.userInfo["fixture"] as? String == "supported-metadata")
+                #expect(native.userInfo[NSURLErrorFailingURLErrorKey] as? URL == request.url)
+                #expect(native.userInfo[NSUnderlyingErrorKey] == nil)
+                #expect(native.localizedDescription != "unrecorded-description-marker")
+            }
+            let miss = try await failure { _ = try await session.data(from: url) } as NSError
+            #expect(miss.domain != NSURLErrorDomain)
+        }
+        #expect(replayed.report.finalization.report.diagnostics.contains {
+            $0.diagnostic.context.trackID != nil
+        })
+        #expect(OriginProtocol.requests.withLock { $0.count } == codes.count)
+    }
+
+    private func checkFailureRecording(_ definition: ScenarioDefinition, document: ScenarioDocument,
+                                       report: DiagnosticReport, codes: [Int])
+        throws
+    {
+        let track = try URLSessionRecordingSchema.standard.replayTrack(
+            in: definition.attachments[0], supporting: [.requestMethod("GET"), .failure])
+        let recordedCodes = try track.records.map { record in
+            guard case let .failed(error) = record.value.result else {
+                throw SessionBridgeError.conversion
+            }
+            return error.value.code
+        }
+        #expect(recordedCodes == codes)
+        #expect(report.diagnostics.contains { entry in
+            guard case let .nativeErrorMetadataOmitted(key, _) = entry.diagnostic.issue else { return false }
+            return key == NSUnderlyingErrorKey && entry.diagnostic.recordingImpact == .none
+        })
+        let json = try #require(String(bytes: document.data, encoding: .utf8))
+        #expect(!json.contains("unrecorded-underlying-marker"))
+        #expect(!json.contains("unrecorded-description-marker"))
+        #expect(!json.contains("_NSURLErrorFailingURLSessionTaskErrorKey"))
+        #expect(!json.contains("_NSURLErrorRelatedURLSessionTaskErrorKey"))
+    }
+
     @Test
-    func `native failure preserves live error and refuses publication`() async throws {
+    func `unrepresentable failure preserves live error and refuses publication`() async throws {
         let run = try await Diorama(scenarioID: "failure", mode: .record, systems: setup())
             .execute { _, session in
-                do {
-                    _ = try await session.data(from: url.appendingPathComponent("failure"))
-                    Issue.record("The origin failure was lost")
-                } catch {
-                    #expect((error as? URLError)?.code == .timedOut)
-                }
+                let error = try await failure {
+                    _ = try await session.data(from: url.appendingPathComponent("invalid-failure"))
+                } as NSError
+                #expect(error.domain == OriginProtocol.invalidDomain)
+                #expect(error.code == 42)
             }
         #expect(run.definition == nil)
         let diagnostics = run.report.finalization.report.diagnostics.map(\.diagnostic)
-        let expected = DiagnosticIssue.system(DiagnosticLabel("urlsession.unsupported-native-failure"))
-        #expect(diagnostics.contains { $0.issue == expected && $0.context.recordIdentity?.sequence == 0
-                && $0.recordingImpact == .invalidatesCandidate
+        #expect(diagnostics.contains {
+            $0.issue == .conversionFailed && $0.context.recordIdentity?.sequence == 0
+                && $0.recordingImpact == .invalidatesCandidate && $0.fieldPath == [DiagnosticLabel("failure")]
         })
+        #expect(!run.report.rendered().contains(OriginProtocol.invalidDomain))
+    }
+
+    @Test(arguments: TimeoutSource.allCases)
+    func `a native timeout records an attempt failure`(source: TimeoutSource) async throws {
+        let origin = try AggregateOrigin(reply: .silent)
+        let url = try await origin.start()
+        let configuration = URLSessionConfiguration.ephemeral
+        let timeout: TimeInterval = 0.6
+        configuration.timeoutIntervalForResource = source == .sessionResource ? timeout : 8
+        if source == .sessionRequest {
+            configuration.timeoutIntervalForRequest = timeout
+        }
+        let request = source == .request ? URLRequest(url: url, timeoutInterval: timeout) : URLRequest(url: url)
+        let system = try DioramaURLSessionSystem.instance(named: "service", configuration: configuration)
+        let record = try Diorama(scenarioID: "timeout", mode: .record, systems: system)
+        let captured = try await record.execute { _, session in
+            let error = try await failure {
+                _ = try await session.data(for: request)
+            }
+            #expect((error as? URLError)?.code == .timedOut)
+        }
+        let definition = try #require(captured.definition)
+        let track = try URLSessionRecordingSchema.standard.replayTrack(
+            in: definition.attachments[0], supporting: [.requestMethod("GET"), .failure])
+        guard case let .failed(recorded) = try #require(track.records.first).value.result else {
+            Issue.record("Expected an attempt failure")
+            return
+        }
+        #expect(recorded.after.milliseconds.value >= 300)
+        #expect(recorded.after.milliseconds.value < 6000)
+        #expect(recorded.value.code == URLError.timedOut.rawValue)
+        let connections = origin.observations.withLock { $0.connections }
+        #expect(connections > 0)
+        let replayConfiguration = URLSessionConfiguration.ephemeral
+        replayConfiguration.timeoutIntervalForRequest = 0.1
+        replayConfiguration.timeoutIntervalForResource = 0.1
+        let replaySystem = try DioramaURLSessionSystem.instance(named: "service", configuration: replayConfiguration)
+        let replay = try Diorama(definition: definition, scenarioID: "timeout", mode: .replay, systems: replaySystem)
+        let replayRequest = URLRequest(url: url, timeoutInterval: 0.1)
+        _ = try await replay.execute { _, session in
+            let started = ContinuousClock.now
+            let error = try await failure { _ = try await session.data(for: replayRequest) }
+            #expect((error as? URLError)?.code == .timedOut)
+            #expect(started.duration(to: .now) >= .milliseconds(300))
+        }
+        #expect(origin.observations.withLock { $0.connections } == connections)
+    }
+
+    @Test
+    func `truncated responses retain their prefix and failure delay`() async throws {
+        let origin = try AggregateOrigin(reply: .truncated)
+        let url = try await origin.start()
+        let system = try DioramaURLSessionSystem.instance(named: "service", configuration: .ephemeral)
+        let pass = try Diorama(scenarioID: "partial", mode: .passthrough, systems: system)
+        let native = try await pass.execute { _, session in
+            try await completionFailure(url, in: session)
+        }
+        let record = try Diorama(scenarioID: "partial", mode: .record, systems: system)
+        let captured = try await record.execute { _, session in
+            try await completionFailure(url, in: session)
+        }
+        let definition = try #require(captured.definition)
+        let track = try URLSessionRecordingSchema.standard.replayTrack(
+            in: definition.attachments[0], supporting: [.requestMethod("GET"), .responseBody, .failure])
+        guard case let .received(response) = try #require(track.records.first).value.result,
+              let body = response.body, case let .failed(error) = body.conclusion
+        else { Issue.record("Expected a failure under the received response"); return }
+        #expect(body.content == .bytes(Array("prefix".utf8)))
+        #expect(response.head.value.head.headerFields[.contentLength] == "80")
+        #expect(!response.head.value.derivesContentLength)
+        #expect(error.value.domain == NSURLErrorDomain)
+        #expect(error.value.code == native.body)
+        #expect(error.after.milliseconds.value >= 90)
+        #expect(captured.body == native.body)
+
+        let connections = origin.observations.withLock { $0.connections }
+        let replay = try Diorama(definition: definition, scenarioID: "partial", mode: .replay, systems: system)
+        let replayed = try await replay.execute { _, session in
+            let started = ContinuousClock.now
+            let code = try await completionFailure(url, in: session)
+            #expect(started.duration(to: .now) >= .milliseconds(90))
+            return code
+        }
+        #expect(replayed.body == native.body)
+        #expect(origin.observations.withLock { $0.connections } == connections)
+    }
+
+    @Test
+    func `HTTP error statuses return ordinary responses`() async throws {
+        let system = try setup()
+        let urls = [404, 503].map { url.appendingPathComponent("status").appendingPathComponent(String($0)) }
+        let record = try Diorama(scenarioID: "statuses", mode: .record, systems: system)
+        let captured = try await record.execute { _, session in try await statuses(urls, in: session) }
+        let replay = try Diorama(definition: #require(captured.definition), scenarioID: "statuses",
+                                 mode: .replay, systems: system)
+        let replayed = try await replay.execute { _, session in try await statuses(urls, in: session) }
+        #expect(captured.body == [404, 503])
+        #expect(replayed.body == captured.body)
+    }
+
+    @Test
+    func `caller cancellation leaves a recording open`() async throws {
+        OriginProtocol.held.withLock { $0 = nil }
+        OriginProtocol.stopped.withLock { $0 = false }
+        defer { OriginProtocol.held.withLock { $0 = nil } }
+        let run = try await Diorama(scenarioID: "cancel", mode: .record, systems: setup())
+            .execute { _, session in
+                let task = Task { try await session.data(from: url.appendingPathComponent("hold-failure")) }
+                try await waitUntil { OriginProtocol.held.withLock { $0 != nil } }
+                task.cancel()
+                let error = try await failure { _ = try await task.value }
+                #expect((error as? URLError)?.code == .cancelled)
+                try await waitUntil { OriginProtocol.stopped.withLock { $0 } }
+            }
+        let track = try URLSessionRecordingSchema.standard.replayTrack(
+            in: #require(run.definition).attachments[0], supporting: [.requestMethod("GET"), .openHorizon])
+        guard case .openAtRecordingHorizon = try #require(track.records.first).value.result else {
+            Issue.record("Caller cancellation must leave the recording open")
+            return
+        }
+    }
+
+    @Test
+    func `finish detaches a pending native failure`() async throws {
+        OriginProtocol.held.withLock { $0 = nil }
+        let run = try await Diorama(scenarioID: "late-failure", mode: .record, systems: setup())
+            .execute { _, session in
+                let task = Task { try await session.data(from: url.appendingPathComponent("hold-failure")) }
+                try await waitUntil { OriginProtocol.held.withLock { $0 != nil } }
+                return task
+            }
+        let release = OriginProtocol.held.withLock { value in
+            defer { value = nil }
+            return value
+        }
+        release?()
+        let error = try await failure { _ = try await run.body.value }
+        #expect((error as? URLError)?.code == .cannotConnectToHost)
+        let track = try URLSessionRecordingSchema.standard.replayTrack(
+            in: #require(run.definition).attachments[0], supporting: [.requestMethod("GET"), .openHorizon])
+        guard case .openAtRecordingHorizon = try #require(track.records.first).value.result else {
+            Issue.record("Failure after finish must preserve the recorded horizon")
+            return
+        }
+    }
+
+    private func failure(_ perform: () async throws -> Void) async throws -> any Error {
+        var received: any Error?
+        do {
+            try await perform()
+        } catch {
+            received = error
+        }
+        return try #require(received)
+    }
+
+    private struct TerminalCompletion: Sendable {
+        let data: Data?
+        let response: URLResponse?
+        let error: any Error?
+    }
+
+    private func completionFailure(_ url: URL, in session: URLSession) async throws -> Int {
+        let (stream, continuation) = AsyncStream<TerminalCompletion>.makeStream()
+        let request = session.dataTask(with: url) { data, response, error in
+            continuation.yield(.init(data: data, response: response, error: error))
+            continuation.finish()
+        }
+        request.resume()
+        var iterator = stream.makeAsyncIterator()
+        let completion = try #require(await iterator.next())
+        #expect(completion.data == nil)
+        #expect((completion.response as? HTTPURLResponse)?.statusCode == 200)
+        #expect(completion.response?.expectedContentLength == 80)
+        let code = try #require(completion.error as? URLError).errorCode
+        #expect((request.error as NSError?)?.code == code)
+        return code
+    }
+
+    private func statuses(_ urls: [URL], in session: URLSession) async throws -> [Int] {
+        var statuses: [Int] = []
+        for url in urls {
+            let (data, response) = try await session.data(from: url)
+            #expect(data == Data("origin".utf8))
+            let http = try #require(response as? HTTPURLResponse)
+            statuses.append(http.statusCode)
+        }
+        return statuses
     }
 
     @Test

@@ -92,7 +92,7 @@ struct URLSessionRecordingValidation {
         -> HTTPAttemptResult<URLSessionFailure>?
     {
         switch result {
-        case .failed: try require(.failure, at: "result.failure")
+        case let .failed(value): try failure(value, at: "result.failure")
         case .openAtRecordingHorizon: try require(.openHorizon, at: "result")
         case let .received(response):
             let head = response.head.value.head
@@ -145,10 +145,10 @@ struct URLSessionRecordingValidation {
             switch next {
             case let .retry(retry): return try nextAttempt(retry)
             case let .deliverBody(value): try body(value)
-            case .failed: try require(.failure, at: "authenticate.outcome.continuation.failure")
+            case let .failed(value): try failure(value, at: "authenticate.outcome.continuation.failure")
             case .openAtRecordingHorizon: try require(.openHorizon, at: "authenticate.outcome.continuation")
             }
-        case .cancel: try require(.failure, at: "authenticate.outcome.failure")
+        case let .cancel(value): try failure(value, at: "authenticate.outcome.failure")
         case .openAtRecordingHorizon: try require(.openHorizon, at: "authenticate.outcome")
         }
         return nil
@@ -167,9 +167,9 @@ struct URLSessionRecordingValidation {
         try require(.responseDecision, at: "disposition.outcome")
         switch phase.outcome {
         case let .allow(value): try body(value)
-        case .cancel:
+        case let .cancel(failureValue):
             try require(.dispositionCancellation, at: "disposition.outcome")
-            try require(.failure, at: "disposition.outcome.failure")
+            try failure(failureValue, at: "disposition.outcome.failure")
         case .openAtRecordingHorizon: try require(.openHorizon, at: "disposition.outcome")
         }
     }
@@ -183,7 +183,7 @@ struct URLSessionRecordingValidation {
             try require(.segmentedBody, at: "body.segments")
         }
         switch value.conclusion {
-        case .failed: try require(.failure, at: "body.conclusion.failure")
+        case let .failed(value): try failure(value, at: "body.conclusion.failure")
         case .openAtRecordingHorizon: try require(.openHorizon, at: "body.conclusion")
         case let .returned(completion):
             if let trailers = completion.trailers {
@@ -192,6 +192,13 @@ struct URLSessionRecordingValidation {
                 }
                 try require(.trailers, at: "body.conclusion.completion.trailers")
             }
+        }
+    }
+
+    private func failure(_ value: HTTPTimed<URLSessionFailure>, at field: StaticString) throws {
+        try require(.failure, at: field)
+        guard URLSessionFailure.excludedRecordingMetadata.isDisjoint(with: value.value.snapshot.userInfo.keys) else {
+            throw URLSessionRecordingError.invalidValue(location(field, "userInfo"))
         }
     }
 

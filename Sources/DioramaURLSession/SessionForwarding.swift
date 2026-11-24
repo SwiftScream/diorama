@@ -1,3 +1,4 @@
+import DioramaCore
 import DioramaHTTP
 import Foundation
 import Synchronization
@@ -5,13 +6,14 @@ import Synchronization
 /// A private task has one aggregate consumer. It may outlive record finalization.
 /// Its weak recorder drops all execution ownership at detachment. Its delegate
 /// queue serializes native head, content, decisions, and completion.
-final class SessionForwarding: NSObject, URLSessionTaskDelegate {
+final class SessionForwarding: NSObject, URLSessionDataDelegate {
     private struct Observation: Sendable {
         weak var recorder: SessionRecorder?
         let handle: HTTPCaptureOperation
     }
 
     private let observation: Mutex<Observation?>
+    private let received = Mutex<SessionResponse?>(nil)
     private let delivery: SessionDelivery
 
     init(recorder: SessionRecorder, handle: HTTPCaptureOperation?, delivery: SessionDelivery) {
@@ -25,46 +27,79 @@ final class SessionForwarding: NSObject, URLSessionTaskDelegate {
         let session = URLSession(configuration: configuration, delegate: self, delegateQueue: queue)
         var request = request
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        let task = session.dataTask(with: request) { data, response, error in
-            self.complete(data, response: response, error: error)
-        }
+        let task = session.dataTask(with: request)
         delivery.onCancel { executor.async { task.cancel() } }
         delivery.whileOpen { task.resume() }
         session.finishTasksAndInvalidate()
     }
 
-    private func complete(_ data: Data?, response: URLResponse?, error: any Error?) {
-        if let error {
-            rejectObservation("urlsession.unsupported-native-failure")
-            if let response {
-                delivery.response(response)
+    func urlSession(
+        _: URLSession, dataTask _: URLSessionDataTask, didReceive response: URLResponse,
+        completionHandler: @escaping @Sendable (URLSession.ResponseDisposition) -> Void)
+    {
+        var recorder: SessionRecorder?
+        delivery.whileOpen { recorder = observation.withLock { $0?.recorder } }
+        let time = recorder?.responseTime()
+        received.withLock { $0 = SessionResponse(native: response, time: time) }
+        completionHandler(.allow)
+    }
+
+    func urlSession(_: URLSession, dataTask _: URLSessionDataTask, didReceive data: Data) {
+        received.withLock { response in
+            if response?.body == nil {
+                response?.body = data
+            } else {
+                response?.body?.append(data)
             }
-            if let data {
-                delivery.bytes(data)
+        }
+    }
+
+    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: any Error?) {
+        // stopLoading ends observation before canceling the private task.
+        // Claim the native result under the same gate, before conversion.
+        var item: Observation?
+        delivery.whileOpen { item = takeObservation() }
+        let response = received.withLock { value in
+            defer { value = nil }
+            return value
+        }
+        if let error {
+            if let item {
+                _ = item.recorder?.complete(.failed(error, partial: response), handle: item.handle)
+            }
+            if let response {
+                delivery.response(response.native)
+                if let body = response.body {
+                    delivery.bytes(body)
+                }
             }
             delivery.finish(error)
             return
         }
-        guard let response else {
-            rejectObservation("urlsession.missing-native-response")
+        guard var response else {
+            if let item {
+                item.recorder?.reject(item.handle, reason: "urlsession.missing-native-response")
+            }
             delivery.finish(SessionBridgeError.conversion)
             return
         }
-        let item = observation.withLock { $0 }
-        let prepared = item.flatMap { $0.recorder?.complete(response, data: data, handle: $0.handle) }
-        delivery.response(prepared ?? response)
-        if let data {
-            delivery.bytes(data)
-        }
+        let body = response.body ?? Data()
+        response.body = body
+        let prepared = item.flatMap { $0.recorder?.complete(.returned(response), handle: $0.handle) }
+        delivery.response(prepared ?? response.native)
+        delivery.bytes(body)
         delivery.finish()
     }
 
-    private func rejectObservation(_ reason: StaticString) {
-        let item = observation.withLock { value in
+    private func takeObservation() -> Observation? {
+        observation.withLock { value in
             defer { value = nil }
             return value
         }
-        if let item {
+    }
+
+    private func rejectObservation(_ reason: StaticString) {
+        if let item = takeObservation() {
             item.recorder?.reject(item.handle, reason: reason)
         }
     }

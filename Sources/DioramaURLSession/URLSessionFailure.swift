@@ -9,6 +9,14 @@ import Foundation
 /// a value does not prepare it; capture and authored admission use `ValuePreparation`.
 /// Metadata uses Core's bounded snapshot rules without interpreting native keys.
 public struct URLSessionFailure: Equatable, Sendable {
+    /// Foundation's task descriptions identify the current task. The
+    /// localized description belongs to the runtime delivering the error.
+    static let excludedRecordingMetadata: Set<String> = [
+        "_NSURLErrorFailingURLSessionTaskErrorKey",
+        "_NSURLErrorRelatedURLSessionTaskErrorKey",
+        NSLocalizedDescriptionKey,
+    ]
+
     let snapshot: NSErrorSnapshot
 
     /// Original NSError domain, bounded to 256 UTF-8 bytes.
@@ -65,8 +73,26 @@ public struct URLSessionFailure: Equatable, Sendable {
         reporter: DiagnosticReporter,
         context: DiagnosticContext = .scenario) throws(PreparationFailure) -> PreparedValue<Self>
     {
+        try capture(error, excludingMetadata: [], preparation: preparation, reporter: reporter, context: context)
+    }
+
+    static func captureForRecording(
+        _ error: any Error,
+        reporter: DiagnosticReporter,
+        context: DiagnosticContext) throws(PreparationFailure) -> PreparedValue<Self>
+    {
+        try capture(
+            error, excludingMetadata: excludedRecordingMetadata, preparation: .init(),
+            reporter: reporter, context: context)
+    }
+
+    private static func capture(
+        _ error: any Error, excludingMetadata keys: Set<String>,
+        preparation: ValuePreparation<Self>,
+        reporter: DiagnosticReporter, context: DiagnosticContext) throws(PreparationFailure) -> PreparedValue<Self>
+    {
         try preparation.prepare(capturing: {
-            let capture = NSErrorSnapshot.capture(error as NSError)
+            let capture = NSErrorSnapshot.capture(error as NSError, excludingKeys: keys)
             for omission in capture.omissions {
                 reporter.record(Diagnostic(
                     issue: .nativeErrorMetadataOmitted(key: omission.key, runtimeType: omission.runtimeType),

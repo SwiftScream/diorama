@@ -118,6 +118,23 @@ struct URLSessionRecordingSchemaTests {
         }
     }
 
+    @Test(arguments: [
+        NSLocalizedDescriptionKey,
+        "_NSURLErrorFailingURLSessionTaskErrorKey",
+        "_NSURLErrorRelatedURLSessionTaskErrorKey",
+    ])
+    func `recording admission rejects excluded native error metadata`(key: String) throws {
+        let source = try #require(try String(data: fixture(), encoding: .utf8))
+        let edited = source.replacingOccurrences(of: #""userInfo" : {"#,
+                                                 with: #""userInfo" : {"\#(key)":{"type":"string","value":"marker"}"#)
+        do {
+            _ = try codec().decode(Data(edited.utf8))
+            Issue.record("Excluded metadata entered the registered URLSession track")
+        } catch let URLSessionRecordingError.invalidValue(location) {
+            #expect(location.fieldPath.map(\.text) == ["result.failure", "userInfo"])
+        }
+    }
+
     @Test
     func `resources resolve at load and edited bytes keep their owned representation`() throws {
         let input = try #require(try String(data: fixture(), encoding: .utf8))

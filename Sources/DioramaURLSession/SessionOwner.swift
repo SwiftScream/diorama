@@ -66,6 +66,8 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
             copy.urlCache = nil
             copy.requestCachePolicy = .reloadIgnoringLocalCacheData
         }
+        outer.timeoutIntervalForRequest = .infinity
+        outer.timeoutIntervalForResource = .infinity
         outer.protocolClasses = [SessionProtocol.self] + protocols
         forwarding.protocolClasses = protocols
         let delegateQueue = OperationQueue()
@@ -159,12 +161,14 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
                     delivery.finish(SessionBridgeError.ownership)
                     return
                 }
-                // Foundation can expose a supplied Data body as a stream on the
-                // protocol request. Use the task's original body for both paths.
-                var request = request
-                request.httpBodyStream = nil
-                request.httpBody = original.httpBody
-                load(delivery, request: request, services: services)
+                // Keep the intercepted HTTP head and the task's original Data
+                // body and timeout semantics. Assigning the numeric timeout
+                // explicitly would override a timeout inherited from the session.
+                var forwarded = original
+                forwarded.url = request.url
+                forwarded.httpMethod = request.httpMethod
+                forwarded.allHTTPHeaderFields = request.allHTTPHeaderFields
+                load(delivery, request: forwarded, services: services)
             }
         }
     }

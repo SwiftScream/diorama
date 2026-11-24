@@ -3300,6 +3300,10 @@ the requirements for adding a future bridge.
 
 ### 003-I03 — Native failure record/replay
 
+- Status: Complete. macOS and iOS Simulator verify native timeouts, partial
+  bodies, failure replay, metadata fidelity, and cancellation provenance.
+- Evidence: [Native URLSession failure record/replay](../evidence/003-I03-native-urlsession-failures.md).
+
 - Recommended model: GPT-6 Sol; reasoning: `high`. Integrate native failure timing and partial bodies without conflating dependency errors, caller cancellation, and infrastructure facts.
 - Prerequisites: 003-I02, 003-H09; DD06, DD12, DD17.
 - Scope: Connect native error observation/reconstruction to attempt and partial body failures with timing and safe warning/health rules.

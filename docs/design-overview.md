@@ -650,10 +650,10 @@ shared HTTP schema or URLSession identity.
 the [stable URLSession failure component](urlsession-failure-schema-v1.md),
 as a thin wrapper around Core's bounded NSError snapshot and Persistence's
 opt-in payload codec. Capture, explicit preparation, and fresh native reconstruction
-preserve supported metadata, including URLs and ordinary strings. There are no
-key-specific accessors or separate failing-URL fields. Under
-[DD17's foundation amendment](design-decisions/17-http-lifecycle-composition.md#snapshot-backed-failure-foundation--owner-approved-2026-11-15),
-URLSession-specific metadata policy is deferred to concrete adapter work.
+preserve supported metadata, including URLs and ordinary strings. The
+[URLSession recording policy](urlsession-failure-schema-v1.md#urlsession-recording-policy)
+omits native task descriptions and localized error descriptions. Apple replay
+delivers the native error at the recorded attempt or body failure deadline.
 
 `DioramaHTTP`'s [redirect components](http-message-schema-v1.md#response-owned-redirect-branches)
 attach one proposal and one followed, modified, refused, or open branch to the

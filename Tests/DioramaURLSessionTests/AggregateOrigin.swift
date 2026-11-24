@@ -3,8 +3,14 @@ import Network
 import Synchronization
 import Testing
 
-/// A loopback HTTP/1.1 echo server for bounded, Content-Length-framed requests.
+/// A loopback HTTP/1.1 server for bounded, Content-Length-framed requests.
 final class AggregateOrigin: Sendable {
+    enum Reply {
+        case echo
+        case truncated
+        case silent
+    }
+
     struct Request: Sendable {
         let line: String
         let fields: [String: String]
@@ -18,9 +24,11 @@ final class AggregateOrigin: Sendable {
 
     private let listener: NWListener
     private let queue = DispatchQueue(label: "DioramaTests.AggregateOrigin")
+    private let reply: Reply
     let observations = Mutex(Observations())
 
-    init() throws {
+    init(reply: Reply = .echo) throws {
+        self.reply = reply
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
         listener = try NWListener(using: parameters)
@@ -84,11 +92,24 @@ final class AggregateOrigin: Sendable {
     }
 
     private func respond(to request: Request, on connection: NWConnection) {
-        let type = request.fields["content-type"] ?? "application/octet-stream"
-        let encoding = type == "application/json" ? "" : "Content-Encoding: identity\r\n"
-        let head = "HTTP/1.1 200 OK\r\nConnection: close\r\n"
-            + "Content-Type: \(type)\r\nContent-Length: \(request.body.count)\r\n\(encoding)\r\n"
-        connection.send(content: Data(head.utf8) + request.body, isComplete: true,
-                        completion: .contentProcessed { _ in connection.cancel() })
+        switch reply {
+        case .truncated:
+            let head = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 80\r\n"
+                + "Content-Type: application/octet-stream\r\n\r\n"
+            connection.send(content: Data((head + "prefix").utf8), completion: .contentProcessed { [queue] _ in
+                queue.asyncAfter(deadline: .now() + .milliseconds(180)) { connection.cancel() }
+            })
+        case .silent:
+            connection.receive(minimumIncompleteLength: 1, maximumLength: 1) { _, _, _, _ in
+                connection.cancel()
+            }
+        case .echo:
+            let type = request.fields["content-type"] ?? "application/octet-stream"
+            let encoding = type == "application/json" ? "" : "Content-Encoding: identity\r\n"
+            let head = "HTTP/1.1 200 OK\r\nConnection: close\r\n"
+                + "Content-Type: \(type)\r\nContent-Length: \(request.body.count)\r\n\(encoding)\r\n"
+            connection.send(content: Data(head.utf8) + request.body, isComplete: true,
+                            completion: .contentProcessed { _ in connection.cancel() })
+        }
     }
 }
