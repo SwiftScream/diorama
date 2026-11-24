@@ -82,16 +82,17 @@ package struct NSErrorSnapshot: Equatable, Sendable {
         self.userInfo = userInfo
     }
 
-    /// Copies supported bounded values from an `NSError`. Unsupported entries
-    /// are omitted individually and return key/type-only facts for system diagnostics.
-    package static func capture(_ error: NSError) -> NSErrorSnapshotCapture {
+    /// Copies supported bounded values from an `NSError`. Unsupported and excluded
+    /// entries return key/type-only facts for system diagnostics.
+    package static func capture(_ error: NSError, excludingKeys: Set<String> = []) -> NSErrorSnapshotCapture {
         var values: [String: NSErrorSnapshotValue] = [:]
         var warnings: [NSErrorSnapshotOmission] = []
         var budget = ValueBudget()
-        for key in error.userInfo.keys.sorted() {
-            guard let object = error.userInfo[key] else { continue }
+        let userInfo = error.userInfo
+        for key in userInfo.keys.sorted() {
+            guard let object = userInfo[key] else { continue }
             var candidateBudget = budget
-            if validKey(key), values.count < maximumCollectionEntries,
+            if !excludingKeys.contains(key), validKey(key), values.count < maximumCollectionEntries,
                candidateBudget.addBytes(key.utf8.count),
                let value = convert(object, depth: 0, budget: &candidateBudget)
             {

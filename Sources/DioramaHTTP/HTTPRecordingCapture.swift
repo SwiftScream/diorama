@@ -86,12 +86,20 @@ public struct HTTPRecordingCapture<Failure: Sendable>: Sendable {
         _ handle: HTTPCaptureOperation, attempt: Int, operation: inout SystemOperation<some Sendable>) throws
         -> HTTPCaptureReservation
     {
+        try reserve(handle, attempt: attempt, observedAt: nil, operation: &operation)
+    }
+
+    /// Uses a native observation's previously captured time for a buffered event.
+    package mutating func reserve(
+        _ handle: HTTPCaptureOperation, attempt: Int, observedAt: LogicalTimeCapture?,
+        operation: inout SystemOperation<some Sendable>) throws -> HTTPCaptureReservation
+    {
         let key = ObjectIdentifier(handle)
         do {
             guard let first = drafts[key]?.first, let count = drafts[key]?.slots.count else {
                 throw HTTPRecordingError.invalidReservation
             }
-            let time = try Self.milliseconds(operation.time)
+            let time = try Self.milliseconds(operation.time, at: observedAt)
             drafts[key]?.slots[first + count] = Slot(attempt: attempt, time: time)
             return HTTPCaptureReservation(operation: handle, index: first + count)
         } catch {
@@ -175,8 +183,8 @@ public struct HTTPRecordingCapture<Failure: Sendable>: Sendable {
         }
     }
 
-    private static func milliseconds(_ time: ExecutionTime) throws -> Int64 {
-        let components = try time.logicalTime(at: time.capture()).components
+    private static func milliseconds(_ time: ExecutionTime, at capture: LogicalTimeCapture? = nil) throws -> Int64 {
+        let components = try time.logicalTime(at: capture ?? time.capture()).components
         let (whole, overflow) = components.seconds.multipliedReportingOverflow(by: 1000)
         let fraction = (components.attoseconds + 500_000_000_000_000) / 1_000_000_000_000_000
         let (result, sumOverflow) = whole.addingReportingOverflow(fraction)

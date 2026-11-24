@@ -21,6 +21,8 @@ instance is `.standard`. For custom field or username policies, pass a
 dictionary of `HTTPPreparation` values keyed by attachment. Unlisted keys use
 the defaults. Admission checks requests, response heads, trailers, and
 proposed and selected credential metadata without reapplying transformations.
+Failure metadata must satisfy the
+[URLSession recording policy](urlsession-failure-schema-v1.md#urlsession-recording-policy).
 The registered writer checks the track layout and policy before encoding.
 
 ```swift

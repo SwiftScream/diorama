@@ -2,9 +2,9 @@
 
 `DioramaURLSession.URLSessionFailure` is a thin snapshot-backed failure value for
 `DioramaHTTP`'s generic lifecycle types. It establishes approximate native error
-capture, preparation, persistence, and reconstruction. Native URLSession
-observation, metadata policy, cancellation provenance, delivery, capabilities,
-and system registration remain adapter work.
+capture, preparation, persistence, and reconstruction. The instrumented
+URLSession applies the [recording metadata policy](#urlsession-recording-policy)
+when capturing native errors.
 
 ## Semantic value and preparation
 
@@ -40,12 +40,11 @@ are never rendered in diagnostics. Omission has `.none` recording impact;
 unrepresentable identity or failed preparation invalidates the candidate and
 returns safe failure evidence. Capture never mutates the input error.
 
-Later record/passthrough adapters must deliver the original live error, including
-when capture fails; passthrough needs no capture. Replay supplies a fresh native
-error, without original object identity, custom subclasses, or underlying-error
-graphs. Observed caller cancellation is runtime control and must be classified
-before capture; independently observed dependency cancellation is recordable.
-The numeric error code alone does not establish cancellation provenance.
+Record and passthrough deliver the original live error, including when capture
+fails. Replay supplies a fresh native error. It restores domain, code, and
+supported metadata. Caller cancellation closes native observation before
+Diorama cancels its forwarding task. A dependency cancellation observed while
+delivery is open is recordable. Its numeric code can match caller cancellation.
 
 ## Shared metadata representation
 
@@ -58,10 +57,32 @@ per collection, 256 UTF-8 bytes per domain/key, 4,096 per string/URL spelling,
 16,384 per data value, and 65,536 combined key/string/URL/data bytes.
 
 URL values stay in `userInfo` under their original keys and reconstruct as
-native URLs. String values remain strings. No failing-URL field, alias
-precedence, alias synthesis, recognized-code name, reason accessor, or
-URLSession-specific key allowlist is defined. This follows
+native URLs. String values remain strings. The component represents a failing
+URL through its existing metadata key. This follows
 [DD17's owner-approved simplification](design-decisions/17-http-lifecycle-composition.md#snapshot-backed-failure-foundation--owner-approved-2026-11-15).
+
+## URLSession recording policy
+
+The instrumented adapter on macOS and iOS omits `NSLocalizedDescriptionKey`
+and Foundation's `_NSURLErrorFailingURLSessionTaskErrorKey` and
+`_NSURLErrorRelatedURLSessionTaskErrorKey`. Foundation may attach descriptions
+of the current task when it delivers a replayed error. Shared structural omission
+also drops underlying errors and unsupported runtime objects. Each omission
+reports the key and value type with no recording-health impact. The registered
+track rejects those three excluded keys in authored or edited failures.
+Standalone use of `URLSessionFailure.capture` uses the caller's preparation
+and the shared structural rules.
+
+An error observed before a response head is an attempt failure. Once the
+forwarding task supplies a head, the failure concludes that response's body
+and the recording retains any observed prefix. The failure delay is relative to
+invocation or to the observed head. Replay sends the observed response head
+and aggregate prefix through Foundation before delivering the recorded error
+at its deadline. Foundation determines the aggregate callback values.
+HTTP error statuses remain ordinary responses.
+
+See [native failure evidence](evidence/003-I03-native-urlsession-failures.md)
+for tested presentation behavior and platform coverage.
 
 ## Persisted component
 

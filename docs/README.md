@@ -423,6 +423,9 @@ test-integration design. They do not authorize those APIs.
 - [Aggregate URLSession body evidence](evidence/003-I02-urlsession-aggregate-bodies.md)
   covers in-memory request matching, response storage, and aggregate native data-task presentations.
 
+- [Native URLSession failure evidence](evidence/003-I03-native-urlsession-failures.md)
+  covers error fidelity, partial bodies, metadata, and cancellation provenance.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

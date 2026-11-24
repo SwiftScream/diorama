@@ -85,6 +85,7 @@ final class SessionDelivery: @unchecked Sendable {
             response(native)
         case let .bytes(bytes): self.bytes(Data(bytes))
         case .returned: finish()
+        case let .failed(failure): finish(failure.makeError())
         case let .infrastructureFailure(error): finish(error)
         default: finish(SessionBridgeError.unsupported)
         }
@@ -103,7 +104,11 @@ final class SessionProtocol: URLProtocol {
     }
 
     override static func canonicalRequest(for request: URLRequest) -> URLRequest {
-        request
+        // An explicit request timeout can override the outer session's setting.
+        // The private transport and replay scheduler own completion timing.
+        var request = request
+        request.timeoutInterval = .infinity
+        return request
     }
 
     override func startLoading() {

@@ -14,6 +14,8 @@ public enum DioramaURLSessionSystem {
     /// Copies the configuration at setup. Each execution creates a distinct session.
     /// Instrumented sessions support aggregate HTTP(S) data tasks
     /// with absent or in-memory bodies, using completion handlers or async data APIs.
+    /// Record applies the supplied timeouts in the private transport. Replay uses recorded timing.
+    /// Replay delivers recorded dependency failures through the native error channel.
     /// Instrumented sessions require nil session and task delegates from the consumer.
     /// All modes gracefully invalidate the session at finish. Already admitted live tasks
     /// can finish, and callers may invalidate a passthrough session themselves.
@@ -62,7 +64,7 @@ struct SessionDefinition: SystemDefinition {
         }
         try URLSessionRecordingSchema.standard.validate(in: context) { capability in
             switch capability {
-            case .requestMethod, .requestBody, .responseBody, .openHorizon: true
+            case .requestMethod, .requestBody, .responseBody, .failure, .openHorizon: true
             default: false
             }
         }
