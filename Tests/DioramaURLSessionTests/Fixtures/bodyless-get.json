@@ -1,0 +1,71 @@
+{
+  "diorama": {
+    "schemaVersion": 1
+  },
+  "systems": [
+    {
+      "attachmentKey": "service",
+      "payload": {
+        "interactions": [
+          {
+            "initialRequest": {
+              "authority": "example.invalid",
+              "body": {
+                "kind": "absent"
+              },
+              "fields": [],
+              "method": "GET",
+              "path": "/",
+              "scheme": "https"
+            },
+            "result": {
+              "kind": "received",
+              "response": {
+                "head": {
+                  "after": "10ms",
+                  "value": {
+                    "fields": [],
+                    "reasonPhrase": "OK",
+                    "status": 200
+                  }
+                },
+                "next": {
+                  "body": {
+                    "conclusion": {
+                      "completion": {
+                        "after": "3ms"
+                      },
+                      "kind": "returned"
+                    },
+                    "content": {
+                      "kind": "bytes",
+                      "text": "ok"
+                    }
+                  },
+                  "kind": "deliverBody"
+                }
+              }
+            }
+          },
+          {
+            "initialRequest": {
+              "authority": "example.invalid",
+              "body": {
+                "kind": "absent"
+              },
+              "fields": [],
+              "method": "GET",
+              "path": "/pending",
+              "scheme": "https"
+            },
+            "result": {
+              "kind": "open"
+            }
+          }
+        ]
+      },
+      "schemaVersion": 1,
+      "type": "diorama.urlsession"
+    }
+  ]
+}

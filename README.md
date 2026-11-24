@@ -21,8 +21,8 @@ The accepted design covers:
 - a small random-number proving system;
 - wall-clock observation and monotonic sleeping;
 - Apple-only Core Location recording and replay with native location delivery;
-- shared HTTP semantics and a URLSession adapter for Apple Foundation on macOS
-  and iOS, with experimental FoundationNetworking support on Linux.
+- shared HTTP semantics and a URLSession adapter for Apple Foundation on
+  macOS, iOS, and Mac Catalyst.
 
 Replay never contacts a live dependency when a recording is missing,
 ambiguous, incompatible, or exhausted.
@@ -138,9 +138,8 @@ See [AGENTS.md](AGENTS.md) for repository operating rules and the
 [implementation plan](docs/plans/003-clean-slate-implementation.md) for the
 review units and workflow.
 
-The initial platform objective is macOS 15 and later, iOS 18 and later, and Linux.
-Individual systems may have narrower live-recording availability while retaining
-portable stable models and replay behavior.
+The package targets macOS 15 and later, iOS 18 and later, and Linux.
+`DioramaURLSession` also supports Mac Catalyst with an 18.0 deployment floor.
 
 ## License
 

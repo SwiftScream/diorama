@@ -2,7 +2,7 @@ import DioramaCore
 import DioramaHTTP
 import DioramaPersistence
 
-/// Version-one URLSession recording schema shared by Apple Foundation and FoundationNetworking.
+/// Version-one URLSession recording schema.
 ///
 /// Pass the same system descriptor to the registry for all keyed URLSession attachments.
 /// Prepared-value policy may vary by key. Bridge capabilities apply when preparing replay.

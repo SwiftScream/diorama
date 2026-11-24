@@ -593,10 +593,10 @@ advertised per bridge only after their conformance slices pass. This may produce
 temporarily different capability profiles without creating different systems
 or scenario formats.
 
-[DD12's experimental FoundationNetworking amendment](12-urlsession-scope.md#experimental-foundationnetworking-support--owner-approved-2026-11-20)
-sets the initial delivery gate on macOS and iOS. The production sequence can
-progress on Apple while Linux conformance is established separately. Each bridge
-continues to check the complete recording at setup.
+[DD12's Apple-only version-one amendment](12-urlsession-scope.md#apple-only-version-one-adapter--owner-approved-2026-11-25)
+sets the initial delivery gate on macOS, iOS, and Mac Catalyst. It supersedes
+the preceding platform scope and defers production FoundationNetworking
+support. The adapter checks the complete recording at setup.
 
 ## Validation boundary
 

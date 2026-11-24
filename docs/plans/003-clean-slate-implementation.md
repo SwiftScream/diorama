@@ -194,7 +194,7 @@ The gates below require their own recorded resolution where they affect a unit; 
 
 ## Outcome and boundaries
 
-Deliver a usable swift library with heterogeneous, independently keyed systems; record, replay, and passthrough attachments; a public consumer extension boundary; optional deterministic file persistence; structured reports; random, clock, and location systems; shared HTTP semantics; and one URLSession system with full initial conformance on macOS and iOS and experimental FoundationNetworking support on Linux.
+Deliver a usable Swift library with heterogeneous, independently keyed systems; record, replay, and passthrough attachments; a public consumer extension boundary; optional deterministic file persistence; structured reports; random, clock, and location systems; shared HTTP semantics; and one URLSession system with full initial conformance on macOS, iOS, and Mac Catalyst.
 Include scoped execution and opt-in testing integrations, documentation, and the required quality and platform gates from the first implementation milestone.
 
 The random system is the first complete vertical implementation, including persistence and finalization, before scheduler and native-adapter complexity.
@@ -343,6 +343,12 @@ conformance, upstream repairs, and their release availability are pending.
 Use the known-issue policy for affected Linux checks, retain required CI for
 the portable package, and report unproved Linux capabilities as experimental
 gaps. Revisit the affected assertions as repaired runtimes become available.
+
+**Apple-only version one — owner direction, 2026-11-25.**
+[DD12's Apple-only amendment](../design-decisions/12-urlsession-scope.md#apple-only-version-one-adapter--owner-approved-2026-11-25)
+supersedes the experimental product scope. Production URLSession conformance
+covers macOS, iOS, and Mac Catalyst. Linux CI retains the portable package and
+the isolated FoundationNetworking tests for upstream repairs.
 
 ### Q2 — Apple clock availability (resolved by owner, 2026-09-06)
 
@@ -540,7 +546,7 @@ Use completed units to calibrate later recommendations with the owner while reta
 | Ra    | 003-Ra1–003-Ra5 | Post-Fa review follow-ups for scoped ownership, cancellation disposal, merge ordering, retained-report APIs, and envelope classification. |
 | G     | 003-G01–003-G10      | Apple-only location recording and callback replay through a narrow manager/delegate interface. |
 | H     | 003-H01–003-H14, including H07A | Shared HTTP domain, resource publication, strict URLSession lifecycle data.  |
-| I     | 003-I01–003-I09      | Production Apple URLSession conformance and experimental FoundationNetworking evidence.       |
+| I     | 003-I01–003-I09, including I03A | Production URLSession conformance on macOS, iOS, and Mac Catalyst. |
 | J     | 003-J01–003-J04      | Opt-in test integrations, combined-system acceptance, user documentation.    |
 
 Default order follows the table, one unit at a time.
@@ -3229,19 +3235,23 @@ not-yet-built operations. DD20 passthrough uses the uninstrumented native sessio
 and does not inherit those operation restrictions. Under DD21's state-owned
 amendment, Core invokes its lifecycle hooks too; the system defines native
 cleanup and whether a retained session remains usable after finish.
-[DD12's experimental FoundationNetworking amendment](../design-decisions/12-urlsession-scope.md#experimental-foundationnetworking-support--owner-approved-2026-11-20)
-sets the milestone gate on macOS and iOS. Each unit can advance on Apple
-independently of Linux URLSession results and upstream releases. Document
-experimental Linux gaps at each unit and advertise only capabilities proved
-on the corresponding bridge. The approved DD12/DD17 FoundationNetworking
-disposition and Digest exceptions continue to govern experimental behavior.
+[DD12's Apple-only amendment](../design-decisions/12-urlsession-scope.md#apple-only-version-one-adapter--owner-approved-2026-11-25)
+sets the production milestone gate on macOS, iOS, and Mac Catalyst. The
+isolated spike and FoundationNetworking handoff retain the Linux evidence and
+the requirements for adding a future bridge.
 
 ### 003-I01 — Instrumented session and bodyless GET vertical path
+
+- Status: Complete. The owner confirms I01 and selects GPT-6.2 Astra with
+  `xhigh` reasoning. Bodyless GET recording and offline replay pass the
+  native macOS, iOS Simulator, and Mac Catalyst tests. The Linux package
+  graph omits `DioramaURLSession`.
+- Evidence: [Native URLSession GET, ownership, and shutdown](../evidence/003-I01-instrumented-session-get.md).
 
 - Recommended model: GPT-6 Astra; reasoning: `xhigh`. The first native vertical path combines routing, live forwarding, replay isolation, rejection, and basic shutdown.
 - Prerequisites: 003-Fa02, 003-Fa08, 003-D05 evidence review, 003-H12B–003-H14, 003-E08; DD10, DD12, DD17, DD20–DD21, resolved Q1.
 - Scope: Implement configuration-first adapter-owned sessions and private forwarding machinery, routing leases, rejection boundary, and minimal supported GET record/replay/passthrough from stable scenario to native result.
-- Expected files/modules: `DioramaURLSession` setup/routing/protocol and Apple/ FoundationNetworking bridge files, GET fixtures and capability documentation.
+- Expected files/modules: `DioramaURLSession` setup, routing, and Apple bridge files, GET fixtures, and platform verification.
 - Public behavior: For record/replay, copy default/ephemeral configurations, reject background and detectable unsupported delegates, disable cache, preserve supported settings and custom protocol order.
   Identify tasks by object identity in owned sessions; revalidate the lease
   after asynchronous lookup. Install no routing header or forwarding property.
@@ -3249,9 +3259,7 @@ disposition and Digest exceptions continue to govern experimental behavior.
   order, and never fall back during replay. Own serial native delegate queues
   and a separate forwarding executor (FN-09); close admission, detach live
   observation, and establish replay callback drainage from the first slice.
-  FN-19 requires safe Linux registry enumeration during overlapping task
-  creation/completion. Finalization uses admitted task references directly;
-  avoiding enumeration there does not repair the initial routing lookup.
+  Finalization uses admitted task references directly.
   All factories return concrete `URLSession` dependencies. Pure passthrough
   returns an ordinary uninstrumented session with native capabilities. Document
   its system-defined stop/cleanup policy and retained-session lifetime, including
@@ -3260,8 +3268,9 @@ disposition and Digest exceptions continue to govern experimental behavior.
   with Fa08's all-mode hooks: record/replay invalidation, routing removal,
   detached live forwarding, and replay callback drainage. Releasing state alone
   is not proof.
-- Tests/verification: V-code; bodyless GET on macOS and iOS, with experimental
-  Linux evidence collected separately. Cover all modes, configuration
+- Tests/verification: V-code; bodyless GET on macOS, iOS, and Mac Catalyst.
+  Check that the Linux package graph retains portable HTTP and omits this
+  product and its targets. Cover all modes, configuration
   immutability, two sessions/executions, absence of private routing metadata
   in preparation/diagnostics/network, absent/ambiguous/expired ownership, late
   lookup after cancellation, zero live replay access, startup rollback, basic
@@ -3283,9 +3292,6 @@ disposition and Digest exceptions continue to govern experimental behavior.
 - Tests/verification: V-code; all supported constructors/overloads, empty versus absent bodies, JSON and binary resources, default HTTPS forwarding, cookie/ credential settings, derived/literal length cases, total timing, record and passthrough forwarding, replay cancellation and no live access.
 - Exclusions: Upload/download/body streams, form/multipart/JSON semantic matching, fabricating lost native distinctions or response fields, wire-byte guarantees.
 - Checkpoint: R; review exact bytes and presentation coverage per bridge.
-  Linux segmented aggregate conformance depends on a runtime with FN-01
-  repaired. Preserve recorded segmentation and mark only affected Linux
-  assertions as known issues until the original assertions pass.
 
 ### 003-I03 — Native failure record/replay
 
@@ -3301,24 +3307,57 @@ disposition and Digest exceptions continue to govern experimental behavior.
 - Exclusions: Stringified errors, universal HTTP taxonomy, treating a Diorama mismatch as recorded dependency behavior, unbounded underlying-error graphs.
 - Checkpoint: R; review same-adapter error fidelity and platform differences.
 
+### 003-I03A — Share the recording forwarding session
+
+- **Recommended model.** GPT-6 Astra with `high` reasoning for task ownership,
+  cancellation, and shutdown across a shared native session.
+- **Prerequisites.** 003-I03, DD10, DD12, DD21, and the
+  [D05 forwarding lifetime evidence](../evidence/003-D05-native-quiescence.md#live-horizon-and-forwarding-ownership).
+- **Scope.** Reuse one private forwarding `URLSession` per recording attachment
+  per execution. Establish per-task callback routing before I04 adds
+  segmented delivery and response disposition.
+- **Expected files.** URLSession forwarding, session ownership, and native
+  bridge tests.
+- **Behavior.** The private session uses the existing forwarding configuration
+  and a serial delegate queue. Route callbacks and cancellation by native
+  task identity. At finish, close admission, detach recording observation,
+  and gracefully invalidate the private session. Admitted live tasks may
+  deliver their results after finish without retaining the execution or
+  changing the fixture. Replay stays offline and passthrough uses its native
+  session.
+- **Verification.** Apply V-code and run the native cases on macOS, iOS, and Mac
+  Catalyst. Prove that overlapping requests on one attachment share one
+  private session and receive their own results, that canceling one leaves the
+  other running, and that separate attachments and executions have distinct
+  forwarding sessions. Hold a live response across finish and verify that the
+  caller receives it while the recording remains frozen. Verify transport
+  release after the last task completes and cleanup on startup rollback.
+- **Exclusions.** Public API and fixture schema changes, new delegate
+  capabilities, and guarantees about connection reuse.
+- **Checkpoint.** Apply R and review shared session ownership and task
+  isolation before starting I04.
+
 ### 003-I04 — Segmented delegate delivery and response disposition
 
 - Recommended model: GPT-6 Astra; reasoning: `high`. Delegate disposition and segmented delivery introduce native handoff races and cancellation across presentation styles.
-- Prerequisites: 003-I03, 003-H06/003-H12, 003-D02 evidence; DD12, DD17.
+- Prerequisites: 003-I03A, 003-H06/003-H12, 003-D02 evidence; DD12, DD17.
 - Scope: Connect observed response/body segment timing and native data-delegate allow/cancel/open decisions to the shared lifecycle and scheduler.
 - Expected files/modules: URLSession delegate proxy/delivery paths and conformance tests across delegate, completion and async presentation.
 - Public behavior: Replay allocated segments through URLProtocolClient; Foundation chooses presentation.
   Record a disposition only when observed; allow anchors body timing, cancel emits its resulting failure once, open waits.
-  Apply the DD12/DD17 Linux exception: preserve native live behavior, avoid
-  internal reliance on ignored disposition cancellation, diagnose and refuse
-  publication of unrepresentable interactions, and reject replay requiring
-  unsupported response decisions. Explicit task cancellation remains required.
+  Explicit task cancellation remains required.
 - Tests/verification: V-code; segment shape/edited lengths, empty deliveries, response-before-body, allow/cancel/unanswered/mismatch, no synthetic decision in completion/async records, task conversion rejection, cancellation/finish during handoff, declared delivery contexts and zero late replay callbacks.
-  Include native parity and candidate invalidation for the accepted Linux
-  limitation; require effective response-decision gating where advertised.
-  FN-08 and its FN-05/FN-07 mechanics must permit faithful proxy installation
-  and decision observation for all advertised delegate forms. An async delegate
-  supplied directly to a spike does not prove transparent interception.
+  On macOS, iOS, and Mac Catalyst, verify streaming through the returned session's
+  `URLSession.bytes(from:)` API. In record mode, use a controlled origin that
+  sends the head and a body prefix, then holds the remaining bytes and
+  completion until the caller has received the head and consumed the prefix.
+  In replay, use a segmented recording with a delay before the remaining bytes
+  and verify the caller receives the head and consumes the prefix before the
+  remainder is delivered. Assert the full byte sequence in both modes and
+  zero origin requests during replay. Use a bounded wait so buffering the
+  whole body fails the test.
+  Require effective response-decision gating and verify that the production
+  adapter installs its proxy and observes decisions for all advertised delegate forms.
   Dispose native decision continuations once during replay shutdown, and make
   retained consumer answers inert after closure.
 - Exclusions: Callback queue/task identity promises, progress/KVO/metrics, download/stream conversion, advertising native trailers without evidence.
@@ -3337,9 +3376,7 @@ disposition and Digest exceptions continue to govern experimental behavior.
   superseded private hop's pending decision independently from the new hop.
 - Tests/verification: V-code; all 003-D03 cases including multi-hop, relative target, method/body rewrite, cross-origin credential preparation, loops/limits, refusal body, open branches, modified-request matching, current-decision timing, canceled/finished redirect and routing continuity without stable route data.
 - Exclusions: Flattened final-response snapshots, overriding native policy, alternate authored continuation paths, redirect data in a companion track.
-- Checkpoint: R; require repaired FN-11 before claiming Linux redirect
-  conformance. Carry FN-12–FN-14 native behavior and the unverified Linux body
-  workaround explicitly. Revisit DD12 for other newly disproved boundaries.
+- Checkpoint: R; review native redirect conformance. Revisit DD12 for newly disproved boundaries.
 
 ### 003-I06 — Native HTTP Basic authentication
 
@@ -3355,19 +3392,14 @@ disposition and Digest exceptions continue to govern experimental behavior.
 - Tests/verification: V-code; direct/proxy challenge where advertised, safe proposed credentials, previous failure counts, repeated challenges, username/ persistence comparison, replay mismatch, body/failure outcomes, cancellation versus challenge cancel, unanswered finalization, no replay live source.
 - Exclusions: Digest until 003-I07, Security objects, response-less challenges, storing a real password to make native replay work, implementing Basic itself.
 - Checkpoint: R; review Basic end-to-end fidelity and secret-marker tests.
-  Linux Basic conformance depends on a runtime with FN-15 repaired.
-  Replay remains offline. FN-17 remains a native proxy limitation.
 
 ### 003-I07 — Native HTTP Digest authentication
 
-- Recommended model: GPT-6 Astra; reasoning: `high`. Digest extends the Basic path but needs strong scrutiny of volatile fields, retry behavior, and Linux capability evidence.
+- Recommended model: GPT-6 Astra; reasoning: `high`. Digest extends the Basic path and needs scrutiny of volatile fields and retry behavior.
 - Prerequisites: 003-I06, 003-D04 Digest evidence; DD12, DD17.
 - Scope: Extend the native challenge path to Digest while preserving the same shared lifecycle, safe metadata and continuation contracts.
 - Expected files/modules: URLSession Digest capability and conformance fixtures; minimal shared challenge-path corrections justified by actual behavior.
 - Public behavior: Replay task-level Digest challenge dispositions and repeated attempts without reconstructing live authentication secrets or contacting a server.
-  Apply the owner-approved DD12/DD17 FN-16 exception on Linux: preserve the
-  native live limitation and reject incompatible replay. Do not implement Digest
-  inside Diorama or infer support from libcurl capability alone.
 - Tests/verification: V-code; Digest challenge forms proved by the bridge, retry/default/reject/cancel/open behavior, volatile challenge field policy, current-decision delays, failure counts, native record/passthrough equivalence, stable repeated-challenge persistence and offline replay on advertised platforms.
 - Exclusions: Other password methods, hand-rolled Digest protocol, automatic sanitization of all challenge fields, parity claims unsupported by libcurl evidence.
 - Checkpoint: R; review the complete initial Basic/Digest capability boundary.
@@ -3389,34 +3421,25 @@ disposition and Digest exceptions continue to govern experimental behavior.
 - Exclusions: Canceling live work merely to reach a horizon, leak masking through global strong registries, recording caller cancellation, new timeout policy.
 - Checkpoint: R; review production shutdown evidence independently from happy paths.
 
-### 003-I09 — Complete Apple URLSession conformance and document Linux capabilities
+### 003-I09 — Complete Apple URLSession conformance
 
-- Recommended model: GPT-6 Astra; reasoning: `high`. Reconcile the full Apple
-  capability matrix and document the proved experimental Linux profile.
+- Recommended model: GPT-6 Astra; reasoning: `high`. Reconcile the full Apple capability matrix.
 - Prerequisites: 003-I08, 003-H13–003-H14; DD11–DD12, DD17.
-- Scope: Complete the macOS and iOS API/profile matrix and validate structural
-  capabilities at setup. Exercise cross-bridge fixtures for capabilities proved
-  on both bridges and document the remaining Linux gaps.
+- Scope: Complete the macOS, iOS, and Mac Catalyst API/profile matrix and
+  validate structural capabilities at setup. Exercise shared fixtures on all
+  supported targets.
 - Expected files/modules: URLSession shared conformance fixtures, platform CI selection and evidence, supported-capability and rejection documentation.
-- Public behavior: One system and persisted schema; Apple/Linux portability covers the tested intersection.
+- Public behavior: One system and persisted schema across the supported Apple targets.
   Unsupported or unimplemented nodes/tasks fail at the earliest reliable point in record/replay with no built-in HTTP fallback. Pure passthrough keeps DD20 native capabilities.
-  The DD12/DD17 native-disposition and Digest exceptions permit their documented
-  live behavior while refusing invalid publication and incompatible replay.
-  Track FN-01, FN-08 (including FN-05/FN-07), FN-11, FN-15, and FN-19 as
-  dependencies of the affected experimental Linux capabilities. Assess FN-10
-  against the production queue and task ownership before advertising affected
-  Linux lifecycle behavior.
-- Tests/verification: V-code complete macOS and iOS matrix for all data-task
+- Tests/verification: V-code complete macOS, iOS, and Mac Catalyst matrix for all data-task
   presentations, bodies/segments, failures, redirects, Basic/Digest,
   disposition, open horizons, timing overrides/re-records, resource edits,
   mode isolation, and cleanup. Exercise excluded configurations, tasks, and
-  decision delegates. Record the exact Linux Swift/libcurl profile where
-  tested and list remaining evidence gaps. Distinguish unavailable observations
-  such as metrics from detectable decision-bearing setup failures.
-- Exclusions: Cross-client replay, unvalidated Apple platforms, watchOS
-  URLProtocol support, and optional native trailers without conformance.
-- Checkpoint: R; present full Apple conformance and document experimental Linux
-  evidence and gaps for initial milestone acceptance.
+  decision delegates. Distinguish unavailable observations such as metrics
+  from detectable decision-bearing setup failures.
+- Exclusions: Cross-client replay, FoundationNetworking, unvalidated Apple
+  platforms, watchOS URLProtocol support, and optional native trailers without conformance.
+- Checkpoint: R; present full Apple conformance for initial milestone acceptance.
 
 ## Phase J — Test integrations and complete initial acceptance
 
@@ -3514,19 +3537,17 @@ The complete initial outcome requires all of the following, with review records 
 3. Random is a supported first-party product with file round-trip and all DD13 failure/concurrency behavior.
    Scheduler, clock and location meet DD14–DD16, including Apple-only location
    recording/replay and the bounded delegate facade.
-4. HTTP and URLSession meet DD11/DD12/DD17 with a full reviewed macOS and iOS
-   matrix, recursive lifecycle, exact editable bodies, resource atomicity,
-   correct re-record correspondence, and one cross-platform system/schema.
+4. HTTP and URLSession meet DD11/DD12/DD17 with a full reviewed macOS, iOS, and
+   Mac Catalyst matrix, recursive lifecycle, exact editable bodies, resource
+   atomicity, correct re-record correspondence, and one system and schema.
    Deliver required Apple redirects, Basic/Digest, and delegate behavior.
-   Document the experimental FoundationNetworking profile and its gaps. Linux
-   URLSession conformance and upstream release availability are outside the
-   initial delivery gate.
+   The isolated spike tracks the FoundationNetworking gaps for future support.
 5. File persistence is optional, deterministic, versioned, validated and logically atomic; unhealthy publication preserves the old scenario.
    Compatibility and golden fixtures protect every first-party schema.
    Ignoring affects verification only, and neither replay nor migration-on-read writes to persistence.
 6. Explicit/scoped finish and opt-in test integrations expose complete outcomes; they cannot leave Diorama-owned replay callbacks running after quiescence or alter consumer-owned live behavior merely to end recording.
    Later managed-handle misuse is separately inspectable without changing the final report or retaining execution machinery. Passthrough operations remain native and uninstrumented; all-mode hooks implement the system's documented cleanup and post-finish usability. Test reporting respects the test context's lifetime.
-7. Canonical quality checks and required macOS/iOS Simulator/Linux jobs pass, debug/release strict compilation and public documentation are warning-free, every expected coverage upload succeeds, and pins/adoption records/update automation satisfy the delivery policies.
+7. Canonical quality checks and required macOS, iOS Simulator, Mac Catalyst, and Linux jobs pass, debug/release strict compilation and public documentation are warning-free, every expected coverage upload succeeds, and pins/adoption records/update automation satisfy the delivery policies.
    Unavailable checks remain gaps.
 8. Documentation and plan status reflect delivered behavior and exclusions.
    Owner scope confirmation, complete branch review, and separate PR/merge approvals are honored at every unit; completing this plan never itself authorizes a release, merge, or continuation.

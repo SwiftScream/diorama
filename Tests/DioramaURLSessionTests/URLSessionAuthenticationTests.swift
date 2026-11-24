@@ -4,9 +4,6 @@ import DioramaURLSession
 import Foundation
 import HTTPTypes
 import Testing
-#if canImport(FoundationNetworking)
-    import FoundationNetworking
-#endif
 
 struct URLSessionAuthenticationTests {
     @Test(arguments: [NSURLAuthenticationMethodHTTPBasic, NSURLAuthenticationMethodHTTPDigest])
