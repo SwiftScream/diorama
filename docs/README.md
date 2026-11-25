@@ -426,6 +426,9 @@ test-integration design. They do not authorize those APIs.
 - [Native URLSession failure evidence](evidence/003-I03-native-urlsession-failures.md)
   covers error fidelity, partial bodies, metadata, and cancellation provenance.
 
+- [Shared URLSession recording transport evidence](evidence/003-I03A-shared-urlsession-forwarding.md)
+  covers native task isolation, graceful invalidation, and release after finish and rollback.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its

@@ -10,8 +10,8 @@ import Testing
 
 private final class OriginProtocol: URLProtocol {
     static let requests = Mutex<[URLRequest]>([])
-    static let held = Mutex<(@Sendable () -> Void)?>(nil)
-    static let stopped = Mutex(false)
+    static let held = Mutex<[String: @Sendable () -> Void]>([:])
+    static let stopped = Mutex<Set<String>>([])
     static let invalidDomain = String(repeating: "x", count: 257)
     override static func canInit(with _: URLRequest) -> Bool {
         true
@@ -46,12 +46,13 @@ private final class OriginProtocol: URLProtocol {
         guard let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1",
                                              headerFields: ["X-Origin": "test"])
         else { return }
-        if ["/hold", "/hold-failure"].contains(url.path) {
+        let name = url.lastPathComponent
+        if name.hasPrefix("hold") {
             let tail = SessionDelivery(self)
-            Self.held.withLock { $0 = {
-                if url.path == "/hold" {
+            Self.held.withLock { $0[name] = {
+                if name != "hold-failure" {
                     tail.response(response)
-                    tail.bytes(Data("tail".utf8))
+                    tail.bytes(Data(name.utf8))
                     tail.finish()
                 } else {
                     tail.finish(URLError(.cannotConnectToHost))
@@ -65,9 +66,14 @@ private final class OriginProtocol: URLProtocol {
     }
 
     override func stopLoading() {
-        if request.url?.path == "/hold-failure" {
-            Self.stopped.withLock { $0 = true }
+        if let name = request.url?.lastPathComponent, name.hasPrefix("hold") {
+            Self.stopped.withLock { _ = $0.insert(name) }
         }
+    }
+
+    static func release(_ name: String) throws {
+        let resume = try #require(held.withLock { $0.removeValue(forKey: name) })
+        resume()
     }
 }
 
@@ -577,17 +583,16 @@ struct SessionBridgeTests {
 
     @Test
     func `caller cancellation leaves a recording open`() async throws {
-        OriginProtocol.held.withLock { $0 = nil }
-        OriginProtocol.stopped.withLock { $0 = false }
-        defer { OriginProtocol.held.withLock { $0 = nil } }
+        OriginProtocol.stopped.withLock { $0.removeAll() }
+        defer { OriginProtocol.held.withLock { $0.removeAll() } }
         let run = try await Diorama(scenarioID: "cancel", mode: .record, systems: setup())
             .execute { _, session in
                 let task = Task { try await session.data(from: url.appendingPathComponent("hold-failure")) }
-                try await waitUntil { OriginProtocol.held.withLock { $0 != nil } }
+                try await waitUntil { OriginProtocol.held.withLock { $0["hold-failure"] != nil } }
                 task.cancel()
                 let error = try await failure { _ = try await task.value }
                 #expect((error as? URLError)?.code == .cancelled)
-                try await waitUntil { OriginProtocol.stopped.withLock { $0 } }
+                try await waitUntil { OriginProtocol.stopped.withLock { $0.contains("hold-failure") } }
             }
         let track = try URLSessionRecordingSchema.standard.replayTrack(
             in: #require(run.definition).attachments[0], supporting: [.requestMethod("GET"), .openHorizon])
@@ -599,18 +604,14 @@ struct SessionBridgeTests {
 
     @Test
     func `finish detaches a pending native failure`() async throws {
-        OriginProtocol.held.withLock { $0 = nil }
+        defer { OriginProtocol.held.withLock { $0.removeAll() } }
         let run = try await Diorama(scenarioID: "late-failure", mode: .record, systems: setup())
             .execute { _, session in
                 let task = Task { try await session.data(from: url.appendingPathComponent("hold-failure")) }
-                try await waitUntil { OriginProtocol.held.withLock { $0 != nil } }
+                try await waitUntil { OriginProtocol.held.withLock { $0["hold-failure"] != nil } }
                 return task
             }
-        let release = OriginProtocol.held.withLock { value in
-            defer { value = nil }
-            return value
-        }
-        release?()
+        try OriginProtocol.release("hold-failure")
         let error = try await failure { _ = try await run.body.value }
         #expect((error as? URLError)?.code == .cannotConnectToHost)
         let track = try URLSessionRecordingSchema.standard.replayTrack(
@@ -840,9 +841,11 @@ struct SessionBridgeTests {
         await #expect(throws: (any Error).self) {
             _ = try await setup.execute { _, _, _ in Issue.record("Startup unexpectedly succeeded") }
         }
-        let entry = try #require(captured.entry.withLock { $0 })
+        let (entry, forwarding) = try #require(captured.sessions.withLock { $0 })
         #expect(SessionRoutes.entries.withLock { !$0.contains { $0.owner === entry.owner } })
+        #expect(entry.owner.forwardingSession == nil)
         await entry.owner.drain(entry.session)
+        try await waitUntil { forwarding.value == nil }
     }
 
     @Test
@@ -874,25 +877,76 @@ struct SessionBridgeTests {
     }
 
     @Test
-    func `finish detaches running record task`() async throws {
-        OriginProtocol.held.withLock { $0 = nil }
+    func `overlapping requests share one private session and cancel independently`() async throws {
+        OriginProtocol.stopped.withLock { $0.removeAll() }
+        defer { OriginProtocol.held.withLock { $0.removeAll() } }
+        let run = try await Diorama(scenarioID: "overlap", mode: .record, systems: setup())
+            .execute { _, session in
+                let forwarding = try #require((session.delegate as? SessionOwner)?.forwardingSession)
+                let first = Task { try await session.data(from: url.appendingPathComponent("hold-first")).0 }
+                let second = Task { try await session.data(from: url.appendingPathComponent("hold-second")).0 }
+                let canceled = Task { try await session.data(from: url.appendingPathComponent("hold-canceled")).0 }
+                defer {
+                    first.cancel()
+                    second.cancel()
+                    canceled.cancel()
+                }
+                try await waitUntil { OriginProtocol.held.withLock { $0.count == 3 } }
+                let privateTasks = await forwarding.allTasks
+                #expect(privateTasks.count == 3)
+                #expect(Set(privateTasks.compactMap { $0.originalRequest?.url?.lastPathComponent }) == [
+                    "hold-first", "hold-second", "hold-canceled",
+                ])
+                canceled.cancel()
+                let error = try await failure { _ = try await canceled.value }
+                #expect((error as? URLError)?.code == .cancelled)
+                try await waitUntil { OriginProtocol.stopped.withLock { $0.contains("hold-canceled") } }
+                #expect(OriginProtocol.stopped.withLock { $0.isDisjoint(with: ["hold-first", "hold-second"]) })
+                try OriginProtocol.release("hold-second")
+                #expect(try await second.value == Data("hold-second".utf8))
+                try OriginProtocol.release("hold-first")
+                #expect(try await first.value == Data("hold-first".utf8))
+            }
+        let track = try URLSessionRecordingSchema.standard.replayTrack(
+            in: #require(run.definition).attachments[0],
+            supporting: [.requestMethod("GET"), .responseBody, .openHorizon])
+        #expect(track.records.count == 3)
+        let canceled = try #require(track.records.first { $0.value.initialRequest.head.path == "/hold-canceled" })
+        guard case .openAtRecordingHorizon = canceled.value.result else {
+            Issue.record("Caller cancellation must leave the recording open")
+            return
+        }
+    }
+
+    @Test
+    func `attachments and successive executions have distinct forwarding sessions`() async throws {
+        let scenario = try Diorama(
+            scenarioID: "private-sessions", mode: .record, systems: setup("first"), setup("second"))
+        let collect: @Sendable (URLSession, URLSession) throws -> [URLSession] = { first, second in
+            try [first, second].map { try #require(($0.delegate as? SessionOwner)?.forwardingSession) }
+        }
+        let first = try await scenario.execute { _, first, second in try collect(first, second) }
+        let second = try await scenario.execute { _, first, second in try collect(first, second) }
+        #expect(Set((first.body + second.body).map { ObjectIdentifier($0) }).count == 4)
+    }
+
+    @Test
+    func `finish detaches running record task and releases the forwarding session`() async throws {
+        defer { OriginProtocol.held.withLock { $0.removeAll() } }
         let run = try await Diorama(scenarioID: "tail", mode: .record, systems: setup())
             .execute { _, session in
+                let owner = try #require(session.delegate as? SessionOwner)
+                let forwarding = try #require(owner.forwardingSession)
                 let tail = Task { try await session.data(from: url.appendingPathComponent("hold")).0 }
-                let deadline = ContinuousClock.now + .seconds(10)
-                while OriginProtocol.held.withLock({ $0 == nil }), ContinuousClock.now < deadline {
-                    try await Task.sleep(for: .milliseconds(2))
-                }
-                let ready = OriginProtocol.held.withLock { $0 != nil }
-                try #require(ready)
-                return tail
+                try await waitUntil { OriginProtocol.held.withLock { $0["hold"] != nil } }
+                return (tail, owner, WeakSession(value: forwarding))
             }
-        let release = OriginProtocol.held.withLock { value in
-            defer { value = nil }
-            return value
-        }
-        release?()
-        #expect(try await run.body.value == Data("tail".utf8))
+        let (tail, owner, forwarding) = run.body
+        #expect(owner.forwardingSession == nil)
+        #expect(forwarding.value != nil)
+        try OriginProtocol.release("hold")
+        #expect(try await tail.value == Data("hold".utf8))
+        try await waitUntil { forwarding.value == nil }
         let track = try URLSessionRecordingSchema.standard.replayTrack(
             in: #require(run.definition).attachments[0], supporting: [.requestMethod("GET"), .openHorizon])
         guard case .openAtRecordingHorizon = try #require(track.records.first).value.result else {
@@ -901,7 +955,11 @@ struct SessionBridgeTests {
     }
 }
 
-private final class CapturedRoute: Sendable { let entry = Mutex<SessionRoutes.Entry?>(nil) }
+private struct WeakSession: Sendable { weak var value: URLSession? }
+
+private final class CapturedRoute: Sendable {
+    let sessions = Mutex<(SessionRoutes.Entry, WeakSession)?>(nil)
+}
 
 private struct FailingActivation: SystemDefinition {
     let captured: CapturedRoute
@@ -909,7 +967,9 @@ private struct FailingActivation: SystemDefinition {
 
     var record: SystemModeDefinition<Void, Void> {
         .init(makeDependency: {
-            captured.entry.withLock { $0 = SessionRoutes.entries.withLock { $0.last } }
+            let entry = try #require(SessionRoutes.entries.withLock { $0.last })
+            let forwarding = try #require(entry.owner.forwardingSession)
+            captured.sessions.withLock { $0 = (entry, WeakSession(value: forwarding)) }
             throw SessionBridgeError.configuration
         })
     }

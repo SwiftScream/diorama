@@ -4,7 +4,7 @@ import Foundation
 import Synchronization
 
 enum SessionMode: Sendable {
-    case record(SessionRecorder)
+    case record(SessionRecorder, SessionForwarding)
     case replay(HTTPInteractionReplay<URLSessionFailure>)
 }
 
@@ -15,7 +15,6 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
         let mode: SessionMode
         let reporter: DiagnosticReporter
         let track: TrackID
-        let forwarding: URLSessionConfiguration
 
         func reject(_ label: StaticString) {
             let impact: RecordingImpact = if case .record = mode {
@@ -53,8 +52,8 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
     private let lookupTail = Mutex<Task<Void, Never>?>(nil)
     private let invalidation = AsyncStream<Void>.makeStream()
 
-    func activate(_ configuration: URLSessionConfiguration, mode: SessionMode,
-                  reporter: DiagnosticReporter, track: TrackID) throws -> URLSession
+    func activate(_ configuration: URLSessionConfiguration, reporter: DiagnosticReporter, track: TrackID,
+                  makeMode: (URLSessionConfiguration) -> SessionMode) throws -> URLSession
     {
         guard let outer = configuration.copy() as? URLSessionConfiguration,
               let forwarding = configuration.copy() as? URLSessionConfiguration
@@ -73,10 +72,17 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
         let delegateQueue = OperationQueue()
         delegateQueue.maxConcurrentOperationCount = 1
         let session = URLSession(configuration: outer, delegate: self, delegateQueue: delegateQueue)
-        services
-            .withLock { $0 = Services(mode: mode, reporter: reporter, track: track, forwarding: forwarding) }
+        let mode = makeMode(forwarding)
+        services.withLock { $0 = Services(mode: mode, reporter: reporter, track: track) }
         SessionRoutes.entries.withLock { $0.append(.init(session: session, owner: self)) }
         return session
+    }
+
+    var forwardingSession: URLSession? {
+        services.withLock {
+            guard case let .record(_, forwarding) = $0?.mode else { return nil }
+            return forwarding.session
+        }
     }
 
     func urlSession(_: URLSession, didCreateTask task: URLSessionTask) {
@@ -176,11 +182,9 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
     private func load(_ delivery: SessionDelivery, request: URLRequest, services: Services) {
         do {
             switch services.mode {
-            case let .record(recorder):
+            case let .record(recorder, forwarding):
                 let handle = try recorder.begin(request)
-                let forwarding = SessionForwarding(recorder: recorder, handle: handle, delivery: delivery)
-                let configuration = services.forwarding
-                work.async { [work] in forwarding.start(request, configuration: configuration, executor: work) }
+                forwarding.start(request, recorder: recorder, handle: handle, delivery: delivery, executor: work)
             case let .replay(replay):
                 let context = DiagnosticContext.track(services.track)
                 let value = try HTTPPreparation().request(reporter: services.reporter, context: context)
@@ -217,6 +221,9 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
                     return value?.mode
                 }
                 SessionRoutes.entries.withLock { $0.removeAll { $0.owner === self } }
+                if case let .record(_, forwarding) = mode {
+                    forwarding.finish()
+                }
                 let pending = tasks.withLock { state in
                     defer { state.removeAll() }
                     return state.values

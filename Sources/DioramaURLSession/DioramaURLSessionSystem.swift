@@ -84,9 +84,9 @@ struct SessionDefinition: SystemDefinition {
             makeState: { try SessionRecordState(track: $0.lease(for: interactions)) },
             makeDependency: { execution in
                 let (owner, track) = try execution.state.withLock { state, _ in (state.owner, state.track.id) }
-                return try owner.activate(configuration,
-                                          mode: .record(SessionRecorder(execution: execution)),
-                                          reporter: execution.reporter, track: track)
+                return try owner.activate(configuration, reporter: execution.reporter, track: track) { forwarding in
+                    .record(SessionRecorder(execution: execution), SessionForwarding(configuration: forwarding))
+                }
             },
             requestStop: { context, session in
                 if let owner = try? context.state.withLock({ $0.owner }) {
@@ -104,8 +104,9 @@ struct SessionDefinition: SystemDefinition {
                     execution: execution,
                     track: \SessionReplayState.track,
                     matcher: matcher)
-                return try owner.activate(configuration, mode: .replay(replay),
-                                          reporter: execution.reporter, track: track)
+                return try owner.activate(configuration, reporter: execution.reporter, track: track) { _ in
+                    .replay(replay)
+                }
             },
             requestStop: { context, session in
                 if let owner = try? context.state.withLock({ $0.owner }) {
