@@ -3318,6 +3318,10 @@ the requirements for adding a future bridge.
 
 ### 003-I03A — Share the recording forwarding session
 
+- **Status.** Complete. macOS, iOS Simulator, and Mac Catalyst verify shared
+  session ownership, task isolation, and release after finish and rollback.
+- **Evidence.** [Shared URLSession recording transport](../evidence/003-I03A-shared-urlsession-forwarding.md).
+
 - **Recommended model.** GPT-6 Astra with `high` reasoning for task ownership,
   cancellation, and shutdown across a shared native session.
 - **Prerequisites.** 003-I03, DD10, DD12, DD21, and the
