@@ -1,7 +1,7 @@
 # Decision 12: URLSession scope
 
 - Status: Accepted
-- Last updated: 2026-11-25
+- Last updated: 2026-11-27
 - Refined by: [Decision 17: HTTP lifecycle composition](17-http-lifecycle-composition.md)
 - Depends on: [Decision 3: Recorded behaviors](03-recorded-behaviors.md),
   [Decision 5: Consumption and verification](05-consumption-and-verification.md),
@@ -303,6 +303,37 @@ decision 5. Task suspension, resumption, priority, progress objects, KVO, task
 identifiers, and byte counters are not stable snapshot values. The initial
 adapter should preserve ordinary native control where feasible but does not
 promise deterministic replay of those incidental observations.
+
+### Application-visible response decisions — 2026-11-26, amended 2026-11-27
+
+The caller uses ordinary Foundation task creation APIs in all modes. Production
+instrumentation preserves the session's native runtime class. A response
+decision enters the recording when Foundation presents it to the application's
+delegate. Body segment boundaries and the terminal outcome then come from
+that task's callbacks. The forwarding task's private allow has no effect on
+the recorded decision.
+
+A different call form may replay the interaction when it can reproduce the
+recorded behavior. Foundation sometimes buffers a text head until it receives
+bytes or end-of-input. Replay may supply those inputs early so that Foundation
+presents the real question. The app receives its recorded response, segments,
+and conclusion in order at their effective deadlines. The current allow
+starts body timing. A pending answer holds application-visible delivery.
+
+A known incompatibility fails the request before the affected response. The
+November 27 amendment permits deferred verification when a suitable delegate
+is installed and only the running task can reveal whether Foundation calls it.
+If the task completes without the required callback, or scenario finish closes
+a task with a due callback, report the missing presentation once against that
+interaction and leave it unconsumed. The caller may already have received a
+response, bytes, or completion. The test integration decides whether those
+verification facts fail the test.
+
+A question recorded as unanswered is consumed when the replay delegate actually
+receives it. For recorded allow or cancel, the current answer must select the
+recorded continuation and reach its conclusion. Explicit task cancellation
+and replay shutdown release held native replies. Recording finish freezes the
+observed decision and detaches from admitted live work, which can still finish.
 
 ### FoundationNetworking response-disposition exception — 2026-09-24
 
