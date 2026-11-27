@@ -47,6 +47,10 @@ private final class OriginProtocol: URLProtocol {
                                              headerFields: ["X-Origin": "test"])
         else { return }
         let name = url.lastPathComponent
+        if name == "stream" {
+            startStream(at: url)
+            return
+        }
         if name.hasPrefix("hold") {
             let tail = SessionDelivery(self)
             Self.held.withLock { $0[name] = {
@@ -63,6 +67,18 @@ private final class OriginProtocol: URLProtocol {
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data("origin".utf8))
         client?.urlProtocolDidFinishLoading(self)
+    }
+
+    private func startStream(at url: URL) {
+        let tail = SessionDelivery(self)
+        Self.held.withLock { $0["stream"] = {
+            tail.bytes(Data("tail".utf8))
+            tail.finish()
+        } }
+        let head = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1",
+                                   headerFields: ["Content-Type": "application/octet-stream"])!
+        tail.response(head)
+        tail.bytes(Data("prefix".utf8))
     }
 
     override func stopLoading() {
@@ -139,7 +155,7 @@ struct SessionBridgeTests {
         let track = try URLSessionRecordingSchema.standard.replayTrack(in: definition.attachments[0],
                                                                        supporting: [
                                                                            .requestMethod("GET"),
-                                                                           .responseBody,
+                                                                           .responseBody, .segmentedBody,
                                                                        ])
         let fields = try #require(track.records.first).value.initialRequest.head.headerFields
         #expect(!fields.contains { $0.name.canonicalName.hasPrefix("x-diorama") })
@@ -160,6 +176,57 @@ struct SessionBridgeTests {
                 return bytes
             }
         #expect(replay.body == recording.body)
+        #expect(OriginProtocol.requests.withLock { $0.count } == 1)
+    }
+
+    @Test
+    func `async bytes exposes a prefix before completion in record and replay`() async throws {
+        OriginProtocol.requests.withLock { $0 = [] }
+        let endpoint = url.appendingPathComponent("stream")
+        let system = try setup()
+        let scenario = try Diorama(scenarioID: "stream", mode: .record, systems: system)
+        let recorded = try await scenario.execute { _, session in
+            let consumed = Mutex(false)
+            let reader = Task {
+                let (bytes, head) = try await session.bytes(from: endpoint)
+                #expect((head as? HTTPURLResponse)?.statusCode == 200)
+                var result = [UInt8]()
+                for try await byte in bytes {
+                    result.append(byte)
+                    if result == Array("prefix".utf8) {
+                        consumed.withLock { $0 = true }
+                    }
+                }
+                return result
+            }
+            defer { reader.cancel() }
+            do {
+                try await waitUntil { consumed.withLock { $0 } }
+            } catch {
+                try? OriginProtocol.release("stream")
+                throw error
+            }
+            try await Task.sleep(for: .milliseconds(300))
+            try OriginProtocol.release("stream")
+            return try await reader.value
+        }
+        #expect(recorded.body == Array("prefixtail".utf8))
+        let replay = try Diorama(definition: #require(recorded.definition), scenarioID: "stream",
+                                 mode: .replay, systems: system)
+        _ = try await replay.execute { _, session in
+            let (bytes, head) = try await session.bytes(from: endpoint)
+            #expect((head as? HTTPURLResponse)?.statusCode == 200)
+            var result = [UInt8]()
+            var prefixTime: ContinuousClock.Instant?
+            for try await byte in bytes {
+                result.append(byte)
+                if result == Array("prefix".utf8) {
+                    prefixTime = .now
+                }
+            }
+            #expect(try #require(prefixTime).duration(to: .now) >= .milliseconds(150))
+            #expect(result == recorded.body)
+        }
         #expect(OriginProtocol.requests.withLock { $0.count } == 1)
     }
 
@@ -200,7 +267,8 @@ struct SessionBridgeTests {
         }
         let definition = try #require(captured.definition)
         let track = try URLSessionRecordingSchema.standard.replayTrack(
-            in: definition.attachments[0], supporting: [.requestMethod("POST"), .requestBody, .responseBody])
+            in: definition.attachments[0],
+            supporting: [.requestMethod("POST"), .requestBody, .responseBody, .segmentedBody])
         #expect(track.records.map(\.value.initialRequest.body) == [.absent, .bytes([])])
         let replay = try Diorama(definition: definition, scenarioID: "presence", mode: .replay, systems: system)
         _ = try await replay.execute { _, session in
@@ -321,7 +389,8 @@ struct SessionBridgeTests {
 
     private static func checkLengthsAndStorage(_ definition: ScenarioDefinition, json: Data) throws {
         let track = try URLSessionRecordingSchema.standard.replayTrack(
-            in: definition.attachments[0], supporting: [.requestMethod("PATCH"), .requestBody, .responseBody])
+            in: definition.attachments[0],
+            supporting: [.requestMethod("PATCH"), .requestBody, .responseBody, .segmentedBody])
         try #require(track.records.count == 3)
         for (index, record) in track.records.enumerated() {
             let input = record.value.initialRequest
@@ -338,7 +407,7 @@ struct SessionBridgeTests {
                     Issue.record("Expected resource-backed content"); continue
                 }
             }
-            #expect(body.profile == nil)
+            #expect(body.profile?.segments.reduce(0) { $0 + $1.byteWeight } == Int64(index == 0 ? json.count : 256))
         }
     }
 
@@ -445,7 +514,8 @@ struct SessionBridgeTests {
         throws
     {
         let track = try URLSessionRecordingSchema.standard.replayTrack(
-            in: definition.attachments[0], supporting: [.requestMethod("GET"), .failure])
+            in: definition.attachments[0],
+            supporting: [.requestMethod("GET"), .failure])
         let recordedCodes = try track.records.map { record in
             guard case let .failed(error) = record.value.result else {
                 throw SessionBridgeError.conversion
@@ -504,7 +574,8 @@ struct SessionBridgeTests {
         }
         let definition = try #require(captured.definition)
         let track = try URLSessionRecordingSchema.standard.replayTrack(
-            in: definition.attachments[0], supporting: [.requestMethod("GET"), .failure])
+            in: definition.attachments[0],
+            supporting: [.requestMethod("GET"), .failure])
         guard case let .failed(recorded) = try #require(track.records.first).value.result else {
             Issue.record("Expected an attempt failure")
             return
@@ -544,7 +615,8 @@ struct SessionBridgeTests {
         }
         let definition = try #require(captured.definition)
         let track = try URLSessionRecordingSchema.standard.replayTrack(
-            in: definition.attachments[0], supporting: [.requestMethod("GET"), .responseBody, .failure])
+            in: definition.attachments[0],
+            supporting: [.requestMethod("GET"), .responseBody, .segmentedBody, .failure])
         guard case let .received(response) = try #require(track.records.first).value.result,
               let body = response.body, case let .failed(error) = body.conclusion
         else { Issue.record("Expected a failure under the received response"); return }
@@ -829,7 +901,8 @@ struct SessionBridgeTests {
         }
         #expect(OriginProtocol.requests.withLock { $0.count } == 1)
         let track = try URLSessionRecordingSchema.standard.replayTrack(
-            in: #require(result.definition).attachments[0], supporting: [.requestMethod("GET"), .responseBody])
+            in: #require(result.definition).attachments[0],
+            supporting: [.requestMethod("GET"), .responseBody, .segmentedBody])
         #expect(track.records.count == 1)
     }
 
@@ -909,7 +982,7 @@ struct SessionBridgeTests {
             }
         let track = try URLSessionRecordingSchema.standard.replayTrack(
             in: #require(run.definition).attachments[0],
-            supporting: [.requestMethod("GET"), .responseBody, .openHorizon])
+            supporting: [.requestMethod("GET"), .responseBody, .segmentedBody, .openHorizon])
         #expect(track.records.count == 3)
         let canceled = try #require(track.records.first { $0.value.initialRequest.head.path == "/hold-canceled" })
         guard case .openAtRecordingHorizon = canceled.value.result else {
