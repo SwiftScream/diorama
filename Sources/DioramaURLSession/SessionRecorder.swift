@@ -14,17 +14,6 @@ struct SessionReplayState: Sendable {
     let owner = SessionOwner()
 }
 
-struct SessionResponse {
-    let native: URLResponse
-    let time: Result<LogicalTimeCapture, ExecutionTimeFailure>?
-    var body: Data?
-}
-
-enum SessionResult {
-    case returned(SessionResponse)
-    case failed(any Error, partial: SessionResponse?)
-}
-
 enum SessionMessage {
     static func request(_ native: URLRequest) throws -> HTTPRequestMessage {
         guard var head = native.httpRequest else { throw SessionBridgeError.conversion }
@@ -83,67 +72,36 @@ final class SessionRecorder: Sendable {
         }
     }
 
-    func responseTime() -> Result<LogicalTimeCapture, ExecutionTimeFailure>? {
-        let result = try? execution.state.withLockIfOpen { _, operation in
-            Result { () throws(ExecutionTimeFailure) in try operation.time.capture() }
-        }
-        guard case let .performed(time) = result else { return nil }
-        return time
-    }
+    enum ResponseHead { case ordinary, preserve, resume }
 
-    /// An aggregate observation commits at native completion. The head's
-    /// capture keeps its timing anchor even when the body ends in failure.
-    func complete(_ result: SessionResult, handle: HTTPCaptureOperation) -> URLResponse? {
-        let (response, error): (SessionResponse?, any Error?) = switch result {
-        case let .returned(response): (response, nil)
-        case let .failed(error, partial): (partial, error)
-        }
-        var delivered = response?.native
+    func observe(_ handle: HTTPCaptureOperation, head: ResponseHead = .ordinary,
+                 event: (DiagnosticContext) throws -> HTTPCaptureEvent<URLSessionFailure>)
+    {
         _ = try? execution.state.withLockIfOpen { state, operation in
             do {
-                let completedAt = try operation.time.capture()
-                let head = try response.map {
-                    try state.capture.reserve(handle, attempt: 0, observedAt: $0.time?.get(), operation: &operation)
+                if head == .resume {
+                    try state.capture.resumeAtResponseHead(handle)
                 }
-                let content = try response?.body.map { _ in
-                    try state.capture.reserve(handle, attempt: 0, observedAt: completedAt, operation: &operation)
+                let slot = try state.capture.reserve(handle, attempt: 0, operation: &operation)
+                let value = try event(.record(handle.identity))
+                try state.capture.complete(slot, with: ValuePreparation().admitPrepared(value), operation: &operation)
+                if head == .preserve {
+                    try state.capture.preserveResponseHead(handle)
                 }
-                let end = try state.capture.reserve(
-                    handle, attempt: 0, observedAt: completedAt, operation: &operation)
-                let context = DiagnosticContext.record(handle.identity)
-                let events = ValuePreparation<HTTPCaptureEvent<URLSessionFailure>>()
-                if let head, let response {
-                    let value = try HTTPPreparation().response(reporter: execution.reporter, context: context)
-                        .prepare(capturing: { try SessionMessage.response(response.native) }, purpose: .recording,
-                                 reporter: execution.reporter, context: context)
-                    try state.capture.complete(head, with: events.admitPrepared(.response(value.value)),
-                                               operation: &operation)
-                    if error == nil {
-                        guard let url = response.native.url, let native = HTTPURLResponse(
-                            httpResponse: value.value.head, url: url)
-                        else { throw SessionBridgeError.conversion }
-                        delivered = native
-                    }
-                }
-                if let body = response?.body, let content {
-                    let bytes = try events.admitPrepared(.content(.bytes(Array(body))))
-                    try state.capture.complete(content, with: bytes, operation: &operation)
-                }
-                let terminal: HTTPCaptureEvent<URLSessionFailure>
-                if let error {
-                    let captured = try URLSessionFailure.captureForRecording(
-                        error, reporter: execution.reporter, context: context)
-                    terminal = .failed(captured.value)
-                } else {
-                    terminal = .returned
-                }
-                try state.capture.complete(end, with: events.admitPrepared(terminal), operation: &operation)
             } catch {
                 state.capture.invalidate(handle, after: error as? PreparationFailure, operation: &operation)
-                delivered = response?.native
             }
         }
-        return delivered
+    }
+
+    func complete(_ handle: HTTPCaptureOperation, error: any Error?) {
+        observe(handle) { context in
+            if let error {
+                return try .failed(URLSessionFailure.captureForRecording(
+                    error, reporter: execution.reporter, context: context).value)
+            }
+            return .returned
+        }
     }
 
     func reject(_ handle: HTTPCaptureOperation, reason: StaticString) {

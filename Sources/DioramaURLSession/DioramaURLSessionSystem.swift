@@ -12,11 +12,13 @@ public enum DioramaURLSessionSystem {
     public static let type = URLSessionRecordingSchema.standard.systemType
 
     /// Copies the configuration at setup. Each execution creates a distinct session.
-    /// Instrumented sessions support aggregate HTTP(S) data tasks
-    /// with absent or in-memory bodies, using completion handlers or async data APIs.
+    /// Instrumented sessions support HTTP(S) data tasks
+    /// with absent or in-memory request bodies. Completion handlers and async data APIs
+    /// aggregate the response. Async bytes can consume segments before completion.
     /// Record applies the supplied timeouts in the private transport. Replay uses recorded timing.
     /// Replay delivers recorded dependency failures through the native error channel.
-    /// Instrumented sessions require nil session and task delegates from the consumer.
+    /// Record captures the response decision only when Foundation presents it to the data delegate. An incompatible
+    /// Foundation call may return before the report identifies its missing callback.
     /// All modes gracefully invalidate the session at finish. Already admitted live tasks
     /// can finish, and callers may invalidate a passthrough session themselves.
     public static func instance(named name: String, configuration: URLSessionConfiguration = .default,
@@ -55,7 +57,10 @@ struct SessionDefinition: SystemDefinition {
         guard context.mode != .passthrough else { return }
         let attachment = context.attachmentID
         try context.validate(interactions) { _ in
-            guard configuration.identifier == nil, delegate == nil, delegateQueue == nil else {
+            let acceptsDelegate = SessionDataDelegate.supported(delegate) != nil
+            guard configuration.identifier == nil, delegate == nil || acceptsDelegate,
+                  delegateQueue == nil || (acceptsDelegate && delegateQueue?.maxConcurrentOperationCount == 1)
+            else {
                 throw SessionBridgeError.configuration
             }
         } diagnosticForFailure: { _ in
@@ -64,7 +69,8 @@ struct SessionDefinition: SystemDefinition {
         }
         try URLSessionRecordingSchema.standard.validate(in: context) { capability in
             switch capability {
-            case .requestMethod, .requestBody, .responseBody, .failure, .openHorizon: true
+            case .requestMethod, .requestBody, .responseBody, .segmentedBody, .failure, .openHorizon,
+                 .responseDecision, .dispositionCancellation: true
             default: false
             }
         }
@@ -84,7 +90,9 @@ struct SessionDefinition: SystemDefinition {
             makeState: { try SessionRecordState(track: $0.lease(for: interactions)) },
             makeDependency: { execution in
                 let (owner, track) = try execution.state.withLock { state, _ in (state.owner, state.track.id) }
-                return try owner.activate(configuration, reporter: execution.reporter, track: track) { forwarding in
+                return try owner.activate(configuration, reporter: execution.reporter, track: track,
+                                          consumer: SessionDataDelegate.supported(delegate), queue: delegateQueue)
+                { forwarding in
                     .record(SessionRecorder(execution: execution), SessionForwarding(configuration: forwarding))
                 }
             },
@@ -104,7 +112,9 @@ struct SessionDefinition: SystemDefinition {
                     execution: execution,
                     track: \SessionReplayState.track,
                     matcher: matcher)
-                return try owner.activate(configuration, reporter: execution.reporter, track: track) { _ in
+                return try owner.activate(configuration, reporter: execution.reporter, track: track,
+                                          consumer: SessionDataDelegate.supported(delegate), queue: delegateQueue)
+                { _ in
                     .replay(replay)
                 }
             },

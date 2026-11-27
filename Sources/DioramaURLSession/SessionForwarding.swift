@@ -1,6 +1,7 @@
 import DioramaCore
 import DioramaHTTP
 import Foundation
+import HTTPTypesFoundation
 import Synchronization
 
 /// Task creation and invalidation run on the owner's serial forwarding queue.
@@ -90,7 +91,7 @@ private final class ForwardingDelegate: NSObject, URLSessionDataDelegate {
     }
 }
 
-/// One aggregate consumer per task. Live delivery can continue after the
+/// One incremental response per task. Live delivery can continue after the
 /// recording observation detaches.
 private final class ForwardedLoad: Sendable {
     private struct Observation: Sendable {
@@ -99,11 +100,18 @@ private final class ForwardedLoad: Sendable {
     }
 
     private let observation: Mutex<Observation?>
-    private let received = Mutex<SessionResponse?>(nil)
+    private enum Progress { case awaitingHead, receivedHead, receivedSegment }
+
+    private let progress = Mutex(Progress.awaitingHead)
+    private let proxy: SessionRecordDelegate?
     private let delivery: SessionDelivery
 
     init(recorder: SessionRecorder, handle: HTTPCaptureOperation?, delivery: SessionDelivery) {
         observation = Mutex(handle.map { Observation(recorder: recorder, handle: $0) })
+        proxy = delivery.task?.delegate as? SessionRecordDelegate
+        if let handle {
+            proxy?.bind(recorder, handle: handle)
+        }
         self.delivery = delivery
     }
 
@@ -112,72 +120,75 @@ private final class ForwardedLoad: Sendable {
     }
 
     func receive(_ response: URLResponse) {
-        var recorder: SessionRecorder?
-        delivery.whileOpen { recorder = observation.withLock { $0?.recorder } }
-        let time = recorder?.responseTime()
-        received.withLock { $0 = SessionResponse(native: response, time: time) }
+        delivery.whileOpen {
+            progress.withLock { $0 = .receivedHead }
+            var delivered = response
+            if let item = observation.withLock({ $0 }), let recorder = item.recorder {
+                let head: SessionRecorder.ResponseHead = proxy?.observesDisposition == true ? .preserve : .ordinary
+                recorder.observe(item.handle, head: head) { context in
+                    let value = try HTTPPreparation().response(reporter: recorder.execution.reporter, context: context)
+                        .prepare(capturing: { try SessionMessage.response(response) }, purpose: .recording,
+                                 reporter: recorder.execution.reporter, context: context)
+                    guard let url = response.url, let native = HTTPURLResponse(httpResponse: value.value.head, url: url)
+                    else { throw SessionBridgeError.conversion }
+                    delivered = native
+                    return .response(value.value)
+                }
+            }
+            delivery.response(delivered)
+        }
     }
 
     func receive(_ data: Data) {
-        received.withLock { response in
-            if response?.body == nil {
-                response?.body = data
-            } else {
-                response?.body?.append(data)
+        delivery.whileOpen {
+            progress.withLock { $0 = .receivedSegment }
+            if let item = observation.withLock({ $0 }) {
+                observeTransport { item.recorder?.observe(item.handle) { _ in .segment(Array(data)) } }
             }
+            delivery.bytes(data)
         }
     }
 
     func complete(_ error: any Error?) {
-        // stopLoading ends observation before canceling the private task.
-        // Claim the native result under the same gate, before conversion.
-        let item = takeObservation()
-        let response = received.withLock { value in
-            defer { value = nil }
-            return value
-        }
-        if let error {
-            if let item {
-                _ = item.recorder?.complete(.failed(error, partial: response), handle: item.handle)
+        delivery.whileOpen {
+            let state = progress.withLock { $0 }
+            if error == nil, state == .awaitingHead {
+                rejectObservation("urlsession.missing-native-response")
+                delivery.finish(SessionBridgeError.conversion)
+                return
             }
-            if let response {
-                delivery.response(response.native)
-                if let body = response.body {
-                    delivery.bytes(body)
+            if let item = takeObservation(), let recorder = item.recorder {
+                observeTransport {
+                    if error == nil, state == .receivedHead {
+                        recorder.observe(item.handle) { _ in .content(.bytes([])) }
+                    }
+                    recorder.complete(item.handle, error: error)
                 }
             }
             delivery.finish(error)
-            return
         }
-        guard var response else {
-            if let item {
-                item.recorder?.reject(item.handle, reason: "urlsession.missing-native-response")
-            }
-            delivery.finish(SessionBridgeError.conversion)
-            return
+    }
+
+    private func observeTransport(_ observation: () -> Void) {
+        if let proxy {
+            proxy.observeTransport(observation)
+        } else {
+            observation()
         }
-        let body = response.body ?? Data()
-        response.body = body
-        let prepared = item.flatMap { $0.recorder?.complete(.returned(response), handle: $0.handle) }
-        delivery.response(prepared ?? response.native)
-        delivery.bytes(body)
-        delivery.finish()
     }
 
     private func takeObservation() -> Observation? {
-        var item: Observation?
-        delivery.whileOpen {
-            item = observation.withLock { value in
-                defer { value = nil }
-                return value
-            }
+        observation.withLock { value in
+            defer { value = nil }
+            return value
         }
-        return item
     }
 
     func rejectObservation(_ reason: StaticString) {
-        if let item = takeObservation() {
-            item.recorder?.reject(item.handle, reason: reason)
+        delivery.whileOpen {
+            if let item = takeObservation() {
+                item.recorder?.reject(item.handle, reason: reason)
+            }
         }
     }
 }

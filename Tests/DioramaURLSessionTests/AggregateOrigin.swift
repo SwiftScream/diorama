@@ -9,6 +9,7 @@ final class AggregateOrigin: Sendable {
         case echo
         case truncated
         case silent
+        case segmentedText
     }
 
     struct Request: Sendable {
@@ -26,6 +27,16 @@ final class AggregateOrigin: Sendable {
     private let queue = DispatchQueue(label: "DioramaTests.AggregateOrigin")
     private let reply: Reply
     let observations = Mutex(Observations())
+    private let textTail = Mutex<NWConnection?>(nil)
+
+    func releaseTextTail() throws {
+        let connection = try #require(textTail.withLock { value in
+            defer { value = nil }
+            return value
+        })
+        connection.send(content: Data("hello".utf8), isComplete: true,
+                        completion: .contentProcessed { _ in connection.cancel() })
+    }
 
     init(reply: Reply = .echo) throws {
         self.reply = reply
@@ -103,6 +114,12 @@ final class AggregateOrigin: Sendable {
             connection.receive(minimumIncompleteLength: 1, maximumLength: 1) { _, _, _, _ in
                 connection.cancel()
             }
+        case .segmentedText:
+            let head = "HTTP/1.1 200 OK\r\nConnection: close\r\n"
+                + "Content-Type: text/plain\r\nContent-Length: 1029\r\n\r\n"
+            let prefix = Data(repeating: 65, count: 1024)
+            textTail.withLock { $0 = connection }
+            connection.send(content: Data(head.utf8) + prefix, completion: .contentProcessed { _ in })
         case .echo:
             let type = request.fields["content-type"] ?? "application/octet-stream"
             let encoding = type == "application/json" ? "" : "Content-Encoding: identity\r\n"
