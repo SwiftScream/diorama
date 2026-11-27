@@ -230,18 +230,18 @@ struct SessionBridgeTests {
         #expect(OriginProtocol.requests.withLock { $0.count } == 1)
     }
 
-    @Test(arguments: AggregateAPI.allCases)
-    func `URL and request APIs share aggregate replay`(api: AggregateAPI) async throws {
+    @Test(arguments: AggregateAPI.allCases, AggregateAPI.allCases)
+    func `URL and request APIs share aggregate replay`(recordAPI: AggregateAPI, replayAPI: AggregateAPI) async throws {
         OriginProtocol.requests.withLock { $0 = [] }
         let system = try setup()
         let record = try Diorama(scenarioID: "aggregate", mode: .record, systems: system)
         let recorded = try await record.execute { _, session in
-            try await api.fetch(URLRequest(url: url), in: session)
+            try await recordAPI.fetch(URLRequest(url: url), in: session)
         }
         let replay = try Diorama(definition: #require(recorded.definition), scenarioID: "aggregate",
                                  mode: .replay, systems: system)
         let replayed = try await replay.execute { _, session in
-            try await api.fetch(URLRequest(url: url), in: session)
+            try await replayAPI.fetch(URLRequest(url: url), in: session)
         }
         #expect(recorded.body.data == Data("origin".utf8))
         #expect(recorded.body.status == 200)

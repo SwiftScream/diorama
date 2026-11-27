@@ -112,6 +112,78 @@ struct HTTPInteractionReplayTests {
 }
 
 extension HTTPInteractionReplayTests {
+    @Test
+    func `a call without a response decision fails before the head and preserves later matches`() async throws {
+        let delay = try Fixture.delay(0)
+        let body = try HTTPBodyDelivery<String>(content: .bytes(Array("hello".utf8)),
+                                                conclusion: .returned(.init(after: delay)))
+        let outcomes: [HTTPResponseDispositionOutcome<String>] = [
+            .allow(body), .cancel(.init(after: delay, value: "canceled")), .openAtRecordingHorizon,
+        ]
+        let decisions = try outcomes.map {
+            try HTTPAttemptResult.received(HTTPResponseNode(head: Fixture.head(),
+                                                            next: .disposition(.init(after: delay, outcome: $0))))
+        }
+        let plain = try HTTPAttemptResult.received(HTTPResponseNode(head: Fixture.head(), body: body))
+        let fixture = try await Fixture.start(decisions + [plain])
+        for _ in outcomes {
+            await #expect(throws: HTTPReplayError.responseDecisionUnavailable) {
+                try await fixture.replay.start(matching: fixture.request, decisionPresentation: .unavailable) { _ in
+                    Issue.record("An incompatible response reached the caller")
+                }
+            }
+        }
+        let done = AsyncStream<Void>.makeStream()
+        let received = Mutex<[UInt8]>([])
+        _ = try await fixture.replay.start(matching: fixture.request, decisionPresentation: .unavailable) { event in
+            switch event {
+            case .response: break
+            case let .bytes(data): received.withLock { $0.append(contentsOf: data) }
+            case .returned: done.continuation.finish()
+            default: Issue.record("Unexpected plain response event"); done.continuation.finish()
+            }
+        }
+        for await _ in done.stream {}
+        let result = await fixture.scenario.finish()
+        #expect(received.withLock { $0 } == Array("hello".utf8))
+        let claims = result.usage[0].tracks[0].claimedRecords
+        #expect(claims.map(\.isConsumed) == [false, false, false, true])
+        #expect(claims.map(\.progressCount) == [0, 0, 0, 3])
+        let facts = result.report.diagnostics.map(\.diagnostic)
+        #expect(facts.map(\.context.recordIdentity) == claims.dropLast().map(\.identity))
+        #expect(facts.allSatisfy { $0.issue == .system(DiagnosticLabel("http.response-decision-unavailable")) })
+    }
+
+    @Test
+    func `a refused redirect rejects a disposition the call cannot present`() async throws {
+        let fixture = try await Fixture.start([authenticationThenRefusedRedirect()])
+        let decisions = AsyncStream<HTTPReplayAnswer<HTTPRedirectDecision>>.makeStream()
+        _ = try await fixture.replay.start(matching: fixture.request, decisionPresentation: .unavailable) { event in
+            switch event {
+            case .response: break
+            case let .authenticate(_, answer):
+                do {
+                    try await answer(ValuePreparation().admitPrepared(.performDefaultHandling))
+                } catch {
+                    Issue.record(error)
+                    decisions.continuation.finish()
+                }
+            case let .redirect(_, answer): decisions.continuation.yield(answer)
+            default: Issue.record("Unexpected handoff"); decisions.continuation.finish()
+            }
+        }
+        var iterator = decisions.stream.makeAsyncIterator()
+        let answer = try #require(await iterator.next())
+        await #expect(throws: HTTPReplayError.responseDecisionUnavailable) {
+            try await answer(ValuePreparation().admitPrepared(.refuse))
+        }
+        let result = await fixture.scenario.finish()
+        let claims = result.usage[0].tracks[0].claimedRecords
+        #expect(claims.map(\.isConsumed) == [false])
+        let issue = DiagnosticIssue.system(DiagnosticLabel("http.response-decision-unavailable"))
+        #expect(result.report.diagnostics.map(\.diagnostic.issue) == [issue])
+    }
+
     @Test(arguments: [true, false])
     func `late answer reports mismatch or horizon and preserves claim`(open: Bool) async throws {
         let body = HTTPBodyDelivery<String>(content: .absent, conclusion: .openAtRecordingHorizon)

@@ -6,6 +6,12 @@ public actor HTTPInteractionReplay<Failure: Sendable> {
     /// Await the actual handoff to the adapter. Decision presentation returns independently of the answer.
     public typealias Delivery = @Sendable (HTTPReplayEvent<Failure>) async -> Void
 
+    package enum ResponseDecisionPresentation: Sendable {
+        case unavailable
+        case direct
+        case observed(@Sendable (RecordIdentity, HTTPResponseDispositionPhase<Failure>) -> Void)
+    }
+
     private typealias Interaction = HTTPInteraction<Failure>
     private typealias Step = HTTPReplayStep<Failure>
 
@@ -13,6 +19,7 @@ public actor HTTPInteractionReplay<Failure: Sendable> {
     private final class Run {
         let claim: ReplayClaim<Interaction>
         let deliver: Delivery
+        let decisionPresentation: ResponseDecisionPresentation
         var anchor: LogicalTimeCapture
         var elapsed: Int64 = 0
         var progress: UInt64 = 0
@@ -21,9 +28,12 @@ public actor HTTPInteractionReplay<Failure: Sendable> {
         var pending: ScheduledItemHandle?
         var handingOff = false
 
-        init(claim: ReplayClaim<Interaction>, deliver: @escaping Delivery, anchor: LogicalTimeCapture) throws {
+        init(claim: ReplayClaim<Interaction>, deliver: @escaping Delivery, anchor: LogicalTimeCapture,
+             decisionPresentation: ResponseDecisionPresentation) throws
+        {
             self.claim = claim
             self.deliver = deliver
+            self.decisionPresentation = decisionPresentation
             self.anchor = anchor
             steps = try Step.attempt(claim.record.value.result, request: claim.record.value.initialRequest).reversed()
         }
@@ -64,10 +74,20 @@ public actor HTTPInteractionReplay<Failure: Sendable> {
     public func start(matching request: PreparedValue<HTTPRequestMessage>,
                       deliver: @escaping Delivery) throws -> HTTPReplayOperation
     {
+        try start(matching: request, decisionPresentation: .direct, deliver: deliver)
+    }
+
+    /// Applies the current call's ability to present a response decision before scheduling its response.
+    package func start(matching request: PreparedValue<HTTPRequestMessage>,
+                       decisionPresentation: ResponseDecisionPresentation,
+                       deliver: @escaping Delivery) throws -> HTTPReplayOperation
+    {
         guard let services else { throw HTTPReplayError.inactive }
         let (anchor, claim) = try services.claim(request)
         let id = claim.record.identity
-        let run = try Run(claim: claim, deliver: deliver, anchor: anchor)
+        let run = try Run(claim: claim, deliver: deliver, anchor: anchor,
+                          decisionPresentation: decisionPresentation)
+        try admitResponseDecision(run, reporter: services.reporter)
         runs[id] = run
         try schedule(run)
         return HTTPReplayOperation(identity: id) { [weak self] in await self?.stop(id) }
@@ -84,6 +104,21 @@ public actor HTTPInteractionReplay<Failure: Sendable> {
 
     private func stop(_ id: RecordIdentity) {
         runs.removeValue(forKey: id)?.pending?.cancel()
+    }
+
+    private func admitResponseDecision(_ run: Run, reporter: DiagnosticReporter) throws {
+        // Steps stop at the next decision and are stored in reverse delivery order.
+        guard case let .decision(.disposition(phase))? = run.steps.first?.action else { return }
+        let id = run.claim.record.identity
+        switch run.decisionPresentation {
+        case .direct: break
+        case let .observed(prepare): prepare(id, phase)
+        case .unavailable:
+            reporter.record(Diagnostic(issue: .system(DiagnosticLabel("http.response-decision-unavailable")),
+                                       context: .record(id)))
+            stop(id)
+            throw HTTPReplayError.responseDecisionUnavailable
+        }
     }
 
     private func schedule(_ run: Run) throws {
@@ -121,12 +156,17 @@ public actor HTTPInteractionReplay<Failure: Sendable> {
         case let .decision(barrier):
             run.barrier = barrier
             reachesEnd = barrier.isHorizon
-            event = presentation(barrier, id: id, sequence: sequence)
+            event = presentation(barrier, run: run, sequence: sequence)
         }
         await run.deliver(event)
         run.progress = sequence
-        run.claim.advance(to: sequence)
         run.handingOff = false
+        if case .disposition = event, case .observed = run.decisionPresentation {
+            // The native delegate acknowledges this event when Foundation presents it.
+            guard run.barrier == nil, runs[id] === run else { return }
+        } else {
+            run.claim.advance(to: sequence)
+        }
         if reachesEnd || (run.barrier == nil && run.steps.isEmpty) {
             run.claim.markConsumed()
             switch event {
@@ -135,6 +175,10 @@ public actor HTTPInteractionReplay<Failure: Sendable> {
             }
             return
         }
+        await scheduleNext(run, id: id, services: services)
+    }
+
+    private func scheduleNext(_ run: Run, id: RecordIdentity, services: Services) async {
         guard runs[id] === run, !services.isClosed() else { return }
         do {
             try schedule(run)
@@ -145,23 +189,34 @@ public actor HTTPInteractionReplay<Failure: Sendable> {
         }
     }
 
-    private func presentation(_ barrier: HTTPReplayBarrier<Failure>, id: RecordIdentity,
+    private func presentation(_ barrier: HTTPReplayBarrier<Failure>, run: Run,
                               sequence: UInt64) -> HTTPReplayEvent<Failure>
     {
+        let id = run.claim.record.identity
         switch barrier {
         case let .redirect(phase):
-            .redirect(phase.proposedRequest, answer(id, sequence, HTTPReplayDecision.redirect))
+            return .redirect(phase.proposedRequest, answer(id, sequence, HTTPReplayDecision.redirect))
         case let .auth(phase, _):
-            .authenticate(phase.challenge, answer(id, sequence, HTTPReplayDecision.auth))
+            return .authenticate(phase.challenge, answer(id, sequence, HTTPReplayDecision.auth))
         case .disposition:
-            .disposition(answer(id, sequence, HTTPReplayDecision.disposition))
+            guard case .observed = run.decisionPresentation else {
+                return .disposition(answer(id, sequence, HTTPReplayDecision.disposition))
+            }
+            let open = barrier.isHorizon
+            return .disposition(answer(id, sequence, HTTPReplayDecision.disposition) { [claim = run.claim] in
+                claim.advance(to: sequence)
+                if open {
+                    claim.markConsumed()
+                }
+            })
         }
     }
 
     private func answer<D>(_ id: RecordIdentity, _ sequence: UInt64,
-                           _ wrap: @escaping @Sendable (D) -> HTTPReplayDecision) -> HTTPReplayAnswer<D>
+                           _ wrap: @escaping @Sendable (D) -> HTTPReplayDecision,
+                           presented: @escaping @Sendable () -> Void = {}) -> HTTPReplayAnswer<D>
     {
-        HTTPReplayAnswer { [weak self, weak time = services?.time] decision in
+        HTTPReplayAnswer(acknowledgePresentation: presented) { [weak self, weak time = services?.time] decision in
             guard let self, let time else { throw HTTPReplayError.inactive }
             let anchor = try time.capture()
             try await resume(wrap(decision.value), at: anchor, id: id, sequence: sequence)
@@ -185,6 +240,7 @@ public actor HTTPInteractionReplay<Failure: Sendable> {
             stop(id)
             throw beyond ? HTTPReplayError.decisionBeyondRecordingHorizon : HTTPReplayError.incompatibleDecision
         }
+        try admitResponseDecision(run, reporter: services.reporter)
         run.barrier = nil
         run.anchor = anchor
         run.elapsed = 0

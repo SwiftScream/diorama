@@ -26,6 +26,8 @@ public enum HTTPReplayEvent<Failure: Sendable>: Sendable {
 
 /// A decision is usable once, only at its own presentation in its originating operation.
 public struct HTTPReplayAnswer<Decision: Sendable>: Sendable {
+    /// Called by the native adapter when Foundation hands the recorded question to the consumer.
+    package let acknowledgePresentation: @Sendable () -> Void
     let submit: @Sendable (PreparedValue<Decision>) async throws -> Void
 
     /// Continues the claimed record from the current answer's time.
@@ -52,6 +54,8 @@ public enum HTTPReplayError: Error, Equatable {
     case inactive
     /// The current prepared answer cannot select the recorded continuation.
     case incompatibleDecision
+    /// The current call cannot present a response decision required by the selected recording.
+    case responseDecisionUnavailable
     /// The application answered a decision that was unanswered at the recording horizon.
     case decisionBeyondRecordingHorizon
     /// The next delivery could not be scheduled after a recorded handoff.

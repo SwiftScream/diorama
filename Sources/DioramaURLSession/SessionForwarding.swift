@@ -103,10 +103,15 @@ private final class ForwardedLoad: Sendable {
     private enum Progress { case awaitingHead, receivedHead, receivedSegment }
 
     private let progress = Mutex(Progress.awaitingHead)
+    private let proxy: SessionRecordDelegate?
     private let delivery: SessionDelivery
 
     init(recorder: SessionRecorder, handle: HTTPCaptureOperation?, delivery: SessionDelivery) {
         observation = Mutex(handle.map { Observation(recorder: recorder, handle: $0) })
+        proxy = delivery.task?.delegate as? SessionRecordDelegate
+        if let handle {
+            proxy?.bind(recorder, handle: handle)
+        }
         self.delivery = delivery
     }
 
@@ -119,7 +124,8 @@ private final class ForwardedLoad: Sendable {
             progress.withLock { $0 = .receivedHead }
             var delivered = response
             if let item = observation.withLock({ $0 }), let recorder = item.recorder {
-                recorder.observe(item.handle) { context in
+                let head: SessionRecorder.ResponseHead = proxy?.observesDisposition == true ? .preserve : .ordinary
+                recorder.observe(item.handle, head: head) { context in
                     let value = try HTTPPreparation().response(reporter: recorder.execution.reporter, context: context)
                         .prepare(capturing: { try SessionMessage.response(response) }, purpose: .recording,
                                  reporter: recorder.execution.reporter, context: context)
@@ -137,7 +143,7 @@ private final class ForwardedLoad: Sendable {
         delivery.whileOpen {
             progress.withLock { $0 = .receivedSegment }
             if let item = observation.withLock({ $0 }) {
-                item.recorder?.observe(item.handle) { _ in .segment(Array(data)) }
+                observeTransport { item.recorder?.observe(item.handle) { _ in .segment(Array(data)) } }
             }
             delivery.bytes(data)
         }
@@ -152,18 +158,22 @@ private final class ForwardedLoad: Sendable {
                 return
             }
             if let item = takeObservation(), let recorder = item.recorder {
-                if error == nil, state == .receivedHead {
-                    recorder.observe(item.handle) { _ in .content(.bytes([])) }
-                }
-                recorder.observe(item.handle) { context in
-                    if let error {
-                        return try .failed(URLSessionFailure.captureForRecording(
-                            error, reporter: recorder.execution.reporter, context: context).value)
+                observeTransport {
+                    if error == nil, state == .receivedHead {
+                        recorder.observe(item.handle) { _ in .content(.bytes([])) }
                     }
-                    return .returned
+                    recorder.complete(item.handle, error: error)
                 }
             }
             delivery.finish(error)
+        }
+    }
+
+    private func observeTransport(_ observation: () -> Void) {
+        if let proxy {
+            proxy.observeTransport(observation)
+        } else {
+            observation()
         }
     }
 

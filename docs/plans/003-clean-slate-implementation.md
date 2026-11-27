@@ -3352,6 +3352,15 @@ the requirements for adding a future bridge.
 
 ### 003-I04 — Segmented delegate delivery and response disposition
 
+- Status: Complete. The owner selects GPT-6.2 Astra with high reasoning.
+  The Apple adapter records and replays observed allow, cancel and unanswered
+  decisions using ordinary Foundation calls. macOS, iOS Simulator and Mac
+  Catalyst verify offline round trips, incremental delivery and finalization.
+  Known incompatible calls fail before response delivery. A due native
+  callback that never arrives produces a record-scoped diagnostic and leaves
+  the interaction unconsumed.
+- Evidence: [Streaming and response-disposition presentation](../evidence/003-I04-streaming-and-response-disposition.md).
+
 - Recommended model: GPT-6 Astra; reasoning: `high`. Delegate disposition and segmented delivery introduce native handoff races and cancellation across presentation styles.
 - Prerequisites: 003-I03A, 003-H06/003-H12, 003-D02 evidence; DD12, DD17.
 - Scope: Connect observed response/body segment timing and native data-delegate allow/cancel/open decisions to the shared lifecycle and scheduler.

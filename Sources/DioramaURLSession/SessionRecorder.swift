@@ -72,17 +72,35 @@ final class SessionRecorder: Sendable {
         }
     }
 
-    func observe(_ handle: HTTPCaptureOperation,
+    enum ResponseHead { case ordinary, preserve, resume }
+
+    func observe(_ handle: HTTPCaptureOperation, head: ResponseHead = .ordinary,
                  event: (DiagnosticContext) throws -> HTTPCaptureEvent<URLSessionFailure>)
     {
         _ = try? execution.state.withLockIfOpen { state, operation in
             do {
+                if head == .resume {
+                    try state.capture.resumeAtResponseHead(handle)
+                }
                 let slot = try state.capture.reserve(handle, attempt: 0, operation: &operation)
                 let value = try event(.record(handle.identity))
                 try state.capture.complete(slot, with: ValuePreparation().admitPrepared(value), operation: &operation)
+                if head == .preserve {
+                    try state.capture.preserveResponseHead(handle)
+                }
             } catch {
                 state.capture.invalidate(handle, after: error as? PreparationFailure, operation: &operation)
             }
+        }
+    }
+
+    func complete(_ handle: HTTPCaptureOperation, error: any Error?) {
+        observe(handle) { context in
+            if let error {
+                return try .failed(URLSessionFailure.captureForRecording(
+                    error, reporter: execution.reporter, context: context).value)
+            }
+            return .returned
         }
     }
 

@@ -45,6 +45,8 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
         }
     }
 
+    private let consumer = Mutex<any URLSessionDataDelegate?>(nil)
+    private let replayDelegates = Mutex<[ObjectIdentifier: SessionReplayDelegate]>([:])
     private let work = DispatchQueue(label: "DioramaURLSession.forwarding")
     private let services = Mutex<Services?>(nil)
     private let tasks = Mutex<[ObjectIdentifier: Pending]>([:])
@@ -53,6 +55,7 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
     private let invalidation = AsyncStream<Void>.makeStream()
 
     func activate(_ configuration: URLSessionConfiguration, reporter: DiagnosticReporter, track: TrackID,
+                  consumer: any URLSessionDataDelegate? = nil, queue: OperationQueue? = nil,
                   makeMode: (URLSessionConfiguration) -> SessionMode) throws -> URLSession
     {
         guard let outer = configuration.copy() as? URLSessionConfiguration,
@@ -69,7 +72,8 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
         outer.timeoutIntervalForResource = .infinity
         outer.protocolClasses = [SessionProtocol.self] + protocols
         forwarding.protocolClasses = protocols
-        let delegateQueue = OperationQueue()
+        self.consumer.withLock { $0 = consumer }
+        let delegateQueue = queue ?? OperationQueue()
         delegateQueue.maxConcurrentOperationCount = 1
         let session = URLSession(configuration: outer, delegate: self, delegateQueue: delegateQueue)
         let mode = makeMode(forwarding)
@@ -85,7 +89,7 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
         }
     }
 
-    func urlSession(_: URLSession, didCreateTask task: URLSessionTask) {
+    func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask) {
         if task is URLSessionWebSocketTask || task is URLSessionStreamTask {
             task.cancel()
             services.withLock { $0 }?.reject("urlsession.unsupported-task")
@@ -93,6 +97,9 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
         }
         // Keep attachment-level diagnostic attribution available when ownership
         // lookup itself fails. A supplied delegate stays visible for rejection.
+        if let services = services.withLock({ $0 }) {
+            installDelegate(for: task, in: session, services: services)
+        }
         if task.delegate == nil {
             task.delegate = self
         }
@@ -102,7 +109,33 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
         }
     }
 
-    func urlSession(_: URLSession, didBecomeInvalidWithError _: any Error?) {
+    private func installDelegate(for task: URLSessionTask, in session: URLSession, services: Services) {
+        guard let dataTask = task as? URLSessionDataTask,
+              !(task.delegate is SessionReplayDelegate || task.delegate is SessionRecordDelegate) else { return }
+        let supplied = task.delegate === self ? nil : task.delegate
+        guard let receiver = SessionDataDelegate.supported(supplied ?? consumer.withLock { $0 }) else { return }
+        if case .record = services.mode {
+            task.delegate = SessionRecordDelegate(consumer: receiver, task: dataTask)
+            return
+        }
+        let key = ObjectIdentifier(task)
+        task.delegate = SessionReplayDelegate(consumer: receiver, reporter: services.reporter,
+                                              session: session, task: dataTask)
+        { [weak self] proxy in
+            self?.replayDelegates.withLock { entries in
+                if entries[key] === proxy {
+                    entries.removeValue(forKey: key)
+                }
+            }
+        }
+    }
+
+    func urlSession(_ session: URLSession, didBecomeInvalidWithError error: any Error?) {
+        let delegate = consumer.withLock { value in
+            defer { value = nil }
+            return value
+        }
+        delegate?.urlSession?(session, didBecomeInvalidWithError: error)
         invalidation.continuation.finish()
     }
 
@@ -146,9 +179,11 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
                 return
             }
             delivery.whileOpen {
+                let proxy = delivery.task?.delegate as? SessionReplayDelegate
                 guard let task = delivery.task, let original = task.originalRequest,
                       task is URLSessionDataTask, !(task is URLSessionUploadTask),
-                      task.delegate == nil || task.delegate === self,
+                      task.delegate == nil || task.delegate === self || proxy?.owns(task) == true ||
+                      (task.delegate as? SessionRecordDelegate)?.task === task,
                       original.httpBodyStream == nil,
                       ["http", "https"].contains(request.url?.scheme?.lowercased())
                 else {
@@ -166,6 +201,9 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
                     rejectOwnership()
                     delivery.finish(SessionBridgeError.ownership)
                     return
+                }
+                if let proxy {
+                    replayDelegates.withLock { $0[ObjectIdentifier(task)] = proxy }
                 }
                 // Keep the intercepted HTTP head and the task's original Data
                 // body and timeout semantics. Assigning the numeric timeout
@@ -206,7 +244,21 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
     {
         do {
             try delivery.whileOpen {
-                let operation = try replay.start(matching: request) { event in delivery.deliver(event) }
+                let proxy = delivery.task?.delegate as? SessionReplayDelegate
+                let presentation: HTTPInteractionReplay<URLSessionFailure>.ResponseDecisionPresentation =
+                    if let proxy, proxy.canPresentResponseDecision {
+                        .observed(proxy.expect)
+                    } else {
+                        .unavailable
+                    }
+                let operation = try replay.start(matching: request, decisionPresentation: presentation) { event in
+                    if let proxy {
+                        await proxy.deliver(event, to: delivery)
+                    } else {
+                        delivery.deliver(event)
+                    }
+                }
+                proxy?.bind(operation)
                 delivery.onCancel { Task { await operation.cancel() } }
             }
         } catch { delivery.finish(error) }
@@ -227,6 +279,13 @@ final class SessionOwner: NSObject, URLSessionTaskDelegate {
                 let pending = tasks.withLock { state in
                     defer { state.removeAll() }
                     return state.values
+                }
+                let proxies = replayDelegates.withLock { active in
+                    defer { active.removeAll() }
+                    return active.values
+                }
+                for proxy in proxies {
+                    proxy.close()
                 }
                 for entry in pending {
                     switch entry {

@@ -126,6 +126,25 @@ public struct HTTPRecordingCapture<Failure: Sendable>: Sendable {
         }
     }
 
+    /// A native data task may present its decision after buffering the transport body.
+    /// Keep the head so that only application-visible events follow an observed question.
+    package mutating func preserveResponseHead(_ handle: HTTPCaptureOperation) throws {
+        let key = ObjectIdentifier(handle)
+        guard let draft = drafts[key], draft.slots.isEmpty, case .head = draft.builder.phase else {
+            throw HTTPRecordingError.incompatibleObservation
+        }
+        drafts[key]?.responseHead = draft.builder
+    }
+
+    package mutating func resumeAtResponseHead(_ handle: HTTPCaptureOperation) throws {
+        let key = ObjectIdentifier(handle)
+        guard let head = drafts[key]?.responseHead, drafts[key]?.slots.isEmpty == true else {
+            throw HTTPRecordingError.incompatibleObservation
+        }
+        drafts[key]?.builder = head
+        drafts[key]?.responseHead = nil
+    }
+
     /// Rejects publication after conversion fails. Pass the failure from recording preparation
     /// when it already reported the cause in the current execution. Only safe evidence is retained.
     public mutating func invalidate(
@@ -157,6 +176,7 @@ public struct HTTPRecordingCapture<Failure: Sendable>: Sendable {
 
     private struct Draft: Sendable {
         var builder: HTTPInteractionBuilder<Failure>
+        var responseHead: HTTPInteractionBuilder<Failure>?
         var slots: [Int: Slot]
         var first = 0
 

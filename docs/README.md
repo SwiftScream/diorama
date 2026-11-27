@@ -429,6 +429,9 @@ test-integration design. They do not authorize those APIs.
 - [Shared URLSession recording transport evidence](evidence/003-I03A-shared-urlsession-forwarding.md)
   covers native task isolation, graceful invalidation, and release after finish and rollback.
 
+- [Streaming and response-disposition evidence](evidence/003-I04-streaming-and-response-disposition.md)
+  compares incremental byte delivery and native delegate presentation across Apple targets.
+
 ## Historical boundary
 
 The POC repository remains available separately as implementation evidence. Its
